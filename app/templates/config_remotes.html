@@ -1,0 +1,127 @@
+{% extends "base.html" %}
+{% block title %}Remote nodes · Dicommunication{% endblock %}
+{% block content %}
+<header class="page-head">
+  <div>
+    <p class="eyebrow">Configuration</p>
+    <h1>Remote DICOM nodes</h1>
+    <p class="lede">PACS, Orthanc, RIS/MWL, modalities, and test SCPs this workstation can associate with. Fill hostname, IP, or both — the connection uses IP when set.</p>
+  </div>
+</header>
+{% include "partials/config_nav.html" %}
+
+<section class="panel">
+  <header class="panel-head">
+    <h2>{% if editing %}Edit remote node{% else %}Add remote DICOM node{% endif %}</h2>
+    {% if editing %}<a href="/config/remotes">Cancel</a>{% endif %}
+  </header>
+  <form method="post" action="/config/remotes" class="form-grid" autocomplete="off">
+    {% if editing %}
+    <input type="hidden" name="remote_id" value="{{ editing.id }}">
+    {% endif %}
+    <label>
+      Display name
+      <input name="name" required placeholder="PACS production" value="{{ editing.name if editing else '' }}">
+    </label>
+    <label>
+      AE Title
+      <input name="ae_title" maxlength="16" required placeholder="ORTHANC" value="{{ editing.ae_title if editing else '' }}">
+    </label>
+    <label>
+      Hostname
+      <input name="hostname" placeholder="pacs.hospital.local" value="{{ editing.hostname if editing else '' }}">
+    </label>
+    <label>
+      IP address
+      <input name="host" placeholder="192.168.1.10" value="{{ editing.host if editing else '' }}">
+      <span class="hint">Fill hostname, IP, or both. Connection uses IP when set, otherwise hostname.</span>
+    </label>
+    <label>
+      Port
+      <input name="port" type="number" min="1" max="65535" required value="{{ editing.port if editing else 11112 }}">
+      <span class="hint">Common values: 104, 11112, 4242 (Orthanc).</span>
+    </label>
+    <details class="advanced" {% if editing %}open{% endif %}>
+      <summary>Advanced settings</summary>
+      <div class="form-grid">
+        <label>
+          Node type
+          <select name="kind">
+            {% set kind = editing.kind if editing else 'other' %}
+            <option value="other" {% if kind == 'other' %}selected{% endif %}>Other</option>
+            <option value="pacs" {% if kind == 'pacs' %}selected{% endif %}>PACS</option>
+            <option value="mwl" {% if kind == 'mwl' %}selected{% endif %}>Modality Worklist (DMWL)</option>
+            <option value="modality" {% if kind == 'modality' %}selected{% endif %}>Modality</option>
+            <option value="vna" {% if kind == 'vna' %}selected{% endif %}>VNA</option>
+          </select>
+        </label>
+        <label class="checkbox">
+          <input type="checkbox" name="provides_mwl" value="on" {% if editing and editing.provides_mwl %}checked{% endif %}>
+          This node provides DICOM Modality Worklist
+        </label>
+        <label class="span-2">
+          Notes
+          <input name="notes" placeholder="VLAN, TLS, vendor, contact…" value="{{ editing.notes if editing else '' }}">
+        </label>
+      </div>
+    </details>
+    <div class="form-actions">
+      <button class="button primary" type="submit">{% if editing %}Save remote node{% else %}Add remote node{% endif %}</button>
+    </div>
+  </form>
+</section>
+
+<section class="panel">
+  <header class="panel-head">
+    <h2>Configured remotes</h2>
+    <span class="muted">{{ config.remotes | length }} node{% if config.remotes | length != 1 %}s{% endif %}</span>
+  </header>
+  {% if config.remotes %}
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Called AE</th>
+          <th>Endpoint</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for remote in config.remotes %}
+        <tr>
+          <td>
+            <strong>{{ remote.name }}</strong>
+            {% if remote.notes %}<div class="muted small">{{ remote.notes }}</div>{% endif %}
+          </td>
+          <td>
+            <span class="badge">{{ remote.kind_label }}</span>
+            {% if remote.provides_mwl %}<span class="badge ok">MWL</span>{% endif %}
+          </td>
+          <td><code>{{ remote.ae_title }}</code></td>
+          <td>
+            <code>{{ remote.connect_host }}:{{ remote.port }}</code>
+            {% if remote.hostname and remote.host and remote.hostname != remote.host %}
+            <div class="muted small">{{ remote.hostname }}</div>
+            {% endif %}
+          </td>
+          <td class="actions">
+            <a href="/config/remotes?edit={{ remote.id }}">Edit</a>
+            <form method="post" action="/config/remotes/{{ remote.id }}/delete" class="inline" data-confirm="Delete remote node {{ remote.name }}?">
+              <button type="submit" class="link-button danger">Delete</button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="empty">
+    <strong>Add the node you want to test</strong>
+    <p>Use the AE Title, hostname or IP, and DICOM port published by the PACS or modality.</p>
+  </div>
+  {% endif %}
+</section>
+{% endblock %}

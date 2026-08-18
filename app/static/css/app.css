@@ -83,6 +83,26 @@ nav a:hover, nav a.active {
   text-transform: uppercase;
   color: var(--muted);
 }
+.config-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0 0 1.4rem;
+}
+.config-tabs a {
+  color: var(--muted);
+  text-decoration: none;
+  padding: 0.45rem 0.75rem;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  font-size: 0.86rem;
+}
+.config-tabs a:hover,
+.config-tabs a.active {
+  color: var(--text);
+  background: var(--accent-dim);
+  border-color: transparent;
+}
 
 .sidebar-foot {
   display: flex;
