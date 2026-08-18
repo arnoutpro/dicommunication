@@ -30,6 +30,8 @@ def test_c_echo_against_in_process_scp() -> None:
         assert names == ["Association", "C-ECHO", "Release"]
         assert all(step.ok for step in result.steps)
         assert "0x0000" in result.steps[1].message
+        assert result.contexts
+        assert any(ctx["accepted"] for ctx in result.contexts)
     finally:
         server.shutdown()
 

@@ -94,6 +94,8 @@ def test_remote_mwl_c_find_against_in_process_scp(store: ConfigStore) -> None:
         assert result.ok, result.summary
         assert result.entries[0].patient_id == "1001"
         assert result.entries[0].modality == "CT"
+        assert result.contexts
+        assert any(ctx["accepted"] for ctx in result.contexts)
     finally:
         server.shutdown()
 

@@ -2,7 +2,7 @@
 
 A low-code DICOM communication validator for PACS administrators.
 
-Configure this workstation as a local Application Entity, register remote DICOM nodes, and run the first two checks every connectivity ticket starts with: **network PING** and **DICOM C-ECHO**. New tools are Python plugins — drop in a file and they appear in the UI.
+Configure this workstation as a local Application Entity, register remote DICOM nodes, and run PING, C-ECHO, simulated C-STORE, Study Root C-FIND, and Modality Worklist C-FIND. New tools are Python plugins — drop in a file and they appear in the UI.
 
 ## Run it (Docker)
 
@@ -59,9 +59,10 @@ make run
 1. **Local DICOM config** — calling AE Title, bind host, listen port, association timeout, max PDU.
 2. **Remote nodes** — name, called AE Title, host, port, notes. Add, edit, delete.
 3. **Network PING** — DNS resolve, ICMP echo, TCP connect to the DICOM port. ICMP is often blocked on clinical networks; TCP is the more reliable layer-4 check.
-4. **C-ECHO** — associate as the configured calling AE and send Verification (`1.2.840.10008.1.1`).
+4. **C-ECHO** — associate as the configured calling AE and send Verification (`1.2.840.10008.1.1`). This only proves connectivity, not Storage or Query/Retrieve.
 5. **C-ECHO board** — run Verification against every configured node in one click (`/echo-board` or `POST /api/echo-board/run`).
-6. **DMWL / worklist** — mark a remote as a Modality Worklist SCP, query it from the web Worklist page (C-FIND), and optionally serve a local web worklist to modalities on the DICOM listen port.
+6. **Testbench** — send a simulated **C-STORE** (tiny Secondary Capture), **Study Root C-FIND** (stored studies), or **MWL C-FIND** (scheduled procedures) to a remote node (`/testbench`). The result shows which SOP Classes the peer accepted or rejected. These are not interchangeable: Orthanc without the worklist plugin will accept Verification/Storage/Q/R and reject MWL.
+7. **DMWL / worklist** — mark a remote as a Modality Worklist SCP, query it from the web Worklist page (MWL C-FIND), and optionally serve a local web worklist to modalities on the DICOM listen port.
 
 There is also a JSON API under `/api` for the same operations (`/api/config`, `/api/remotes`, `/api/tools/{id}/run`, `/api/echo-board/run`, `/api/worklist/query`).
 
@@ -74,19 +75,19 @@ from app.models import LocalAE, RemoteNode, ToolResult, ToolStep
 from app.tools.base import BaseTool
 from app.tools.registry import register
 
-class CStoreTool(BaseTool):
-    id = "c-store"
-    name = "C-STORE"
-    description = "Send a DICOM instance to the remote AE."
+class CMoveTool(BaseTool):
+    id = "c-move"
+    name = "C-MOVE"
+    description = "Request a Query/Retrieve move from the remote AE."
     category = "dimse"
 
     def run(self, local: LocalAE, remote: RemoteNode | None, options=None) -> ToolResult:
         return ToolResult(tool_id=self.id, tool_name=self.name, ok=False, summary="Not implemented yet")
 
-register(CStoreTool())
+register(CMoveTool())
 ```
 
-Rebuild or restart the app. The tool shows up in the sidebar, on `/tools/c-store`, and at `POST /api/tools/c-store/run`.
+Rebuild or restart the app. The tool shows up in the sidebar, on `/tools/c-move`, and at `POST /api/tools/c-move/run`.
 
 ## Tests
 
@@ -95,7 +96,7 @@ pip install -r requirements-dev.txt
 make test
 ```
 
-C-ECHO tests start an in-process Verification SCP; PING tests use loopback ICMP and a local TCP listener.
+C-ECHO tests start an in-process Verification SCP; C-STORE and C-FIND tests start in-process Storage / Study Root FIND SCPs. PING tests use loopback ICMP and a local TCP listener.
 
 ## Notes for PACS admins
 

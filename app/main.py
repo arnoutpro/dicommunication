@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from contextlib import asynccontextmanager
 from pathlib import Path
+from typing import Any
 
 from fastapi import FastAPI, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
@@ -39,6 +40,15 @@ def _as_bool(value: str | None) -> bool:
 
 class RunRequest(BaseModel):
     remote_id: str
+    options: dict[str, Any] | None = None
+
+
+TESTBENCH_SERVICES = {
+    "c-echo": "C-ECHO (Verification)",
+    "c-store": "C-STORE (Secondary Capture test image)",
+    "c-find": "C-FIND (Study Root Query/Retrieve)",
+    "mwl-find": "MWL C-FIND (Modality Worklist)",
+}
 
 
 class WorklistApiQuery(WorklistQuery):
@@ -81,7 +91,11 @@ def create_app(store: ConfigStore | None = None) -> FastAPI:
             **extra,
         }
 
-    def execute_tool(tool_id: str, remote_id: str) -> ToolResult:
+    def execute_tool(
+        tool_id: str,
+        remote_id: str,
+        options: dict[str, Any] | None = None,
+    ) -> ToolResult:
         config = app.state.store.load()
         try:
             tool = get_tool(tool_id)
@@ -90,9 +104,38 @@ def create_app(store: ConfigStore | None = None) -> FastAPI:
         remote = config.get_remote(remote_id)
         if tool.requires_remote and remote is None:
             raise HTTPException(status_code=400, detail="A remote DICOM node is required")
-        result = tool.run(config.local, remote)
+        result = tool.run(config.local, remote, options)
         app.state.store.add_result(result)
         return result
+
+    def _testbench_options(
+        service: str,
+        patient_name: str,
+        patient_id: str,
+        accession_number: str,
+        study_date: str,
+        modality: str,
+        station_ae_title: str,
+        scheduled_date: str,
+    ) -> dict[str, Any]:
+        if service == "c-find":
+            return {
+                "patient_name": patient_name,
+                "patient_id": patient_id,
+                "accession_number": accession_number,
+                "study_date": study_date,
+                "modality": modality,
+            }
+        if service == "mwl-find":
+            return {
+                "patient_name": patient_name,
+                "patient_id": patient_id,
+                "accession_number": accession_number,
+                "modality": modality,
+                "station_ae_title": station_ae_title,
+                "scheduled_date": scheduled_date,
+            }
+        return {}
 
     @app.get("/health")
     def health() -> dict[str, str]:
@@ -237,6 +280,68 @@ def create_app(store: ConfigStore | None = None) -> FastAPI:
     def delete_remote(remote_id: str):
         app.state.store.delete_remote(remote_id)
         return RedirectResponse("/config?saved=deleted", status_code=303)
+
+    @app.get("/testbench", response_class=HTMLResponse)
+    def testbench_page(request: Request) -> HTMLResponse:
+        return templates.TemplateResponse(
+            request,
+            "testbench.html",
+            page(request, nav="testbench", result=None, service="c-echo"),
+        )
+
+    @app.post("/testbench/run")
+    def testbench_run(
+        request: Request,
+        remote_id: str = Form(...),
+        service: str = Form(...),
+        patient_name: str = Form(""),
+        patient_id: str = Form(""),
+        accession_number: str = Form(""),
+        study_date: str = Form(""),
+        modality: str = Form(""),
+        station_ae_title: str = Form(""),
+        scheduled_date: str = Form(""),
+    ):
+        if service not in TESTBENCH_SERVICES:
+            raise HTTPException(status_code=400, detail="Unknown testbench service")
+        options = _testbench_options(
+            service,
+            patient_name,
+            patient_id,
+            accession_number,
+            study_date,
+            modality,
+            station_ae_title,
+            scheduled_date,
+        )
+        try:
+            result = execute_tool(service, remote_id, options)
+        except HTTPException as exc:
+            failure = ToolResult(
+                tool_id=service,
+                tool_name=TESTBENCH_SERVICES[service],
+                ok=False,
+                summary=str(exc.detail),
+            )
+            if _hx(request):
+                return templates.TemplateResponse(
+                    request,
+                    "partials/result.html",
+                    {"request": request, "result": failure},
+                    status_code=exc.status_code,
+                )
+            raise
+        if _hx(request):
+            return templates.TemplateResponse(
+                request,
+                "partials/result.html",
+                {"request": request, "result": result},
+            )
+        return templates.TemplateResponse(
+            request,
+            "testbench.html",
+            page(request, nav="testbench", result=result, service=service),
+        )
 
     @app.get("/worklist", response_class=HTMLResponse)
     def worklist_page(request: Request, saved: str | None = None) -> HTMLResponse:
@@ -461,7 +566,7 @@ def create_app(store: ConfigStore | None = None) -> FastAPI:
 
     @app.post("/api/tools/{tool_id}/run")
     def api_run_tool(tool_id: str, body: RunRequest):
-        return execute_tool(tool_id, body.remote_id)
+        return execute_tool(tool_id, body.remote_id, body.options)
 
     return app
 

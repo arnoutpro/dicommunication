@@ -14,8 +14,9 @@ class MwlFindTool(BaseTool):
     id = "mwl-find"
     name = "MWL C-FIND"
     description = (
-        "Query a DICOM Modality Worklist SCP (C-FIND). Use the Worklist page for "
-        "filters and a table view; this tool runs a broad query."
+        "Query a Modality Worklist SCP with MWL C-FIND (SOP Class "
+        "1.2.840.10008.5.1.4.31). This is not Study Root C-FIND: it returns scheduled "
+        "procedures, not stored studies. Use the Worklist page for a table view."
     )
     category = "dimse"
 
@@ -38,12 +39,24 @@ class MwlFindTool(BaseTool):
         result = query_remote(local, remote, query)
         steps = [
             ToolStep(
-                name="C-FIND",
+                name="MWL C-FIND",
                 ok=result.ok,
                 message=result.summary,
                 duration_ms=result.duration_ms,
                 details={"count": len(result.entries)},
             )
+        ]
+        records = [
+            {
+                "patient_name": entry.patient_name,
+                "patient_id": entry.patient_id,
+                "accession_number": entry.accession_number,
+                "modality": entry.modality,
+                "scheduled_date": entry.scheduled_date,
+                "station_ae_title": entry.station_ae_title,
+                "requested_procedure_description": entry.requested_procedure_description,
+            }
+            for entry in result.entries
         ]
         return ToolResult(
             tool_id=self.id,
@@ -55,6 +68,8 @@ class MwlFindTool(BaseTool):
             duration_ms=result.duration_ms,
             steps=steps,
             log=result.log,
+            contexts=result.contexts,
+            records=records,
         )
 
 
