@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}C-ECHO board · Dicommunication{% endblock %}
+{% block content %}
+<header class="page-head">
+  <div>
+    <p class="eyebrow">Fleet check</p>
+    <h1>C-ECHO board</h1>
+    <p class="lede">Run Verification against every configured PACS, modality, and test node. Associations run in parallel (up to 8 at a time) using this workstation’s calling AE.</p>
+  </div>
+  {% if config.remotes %}
+  <form
+    method="post"
+    action="/echo-board/run"
+    hx-post="/echo-board/run"
+    hx-target="#echo-board"
+    hx-indicator="#busy"
+    hx-disabled-elt="#run-all"
+    hx-timeout="120000"
+  >
+    <button id="run-all" class="button primary" type="submit">C-ECHO all nodes</button>
+    <span id="busy" class="htmx-indicator spinner">Running C-ECHO…</span>
+  </form>
+  {% endif %}
+</header>
+
+<div id="echo-board">
+  {% include "partials/echo_board.html" %}
+</div>
+{% endblock %}
