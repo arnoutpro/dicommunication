@@ -89,6 +89,14 @@ nav a:hover, nav a.active {
   font-weight: 600;
   cursor: default;
 }
+.nav-children {
+  display: flex;
+  flex-direction: column;
+  gap: 0.12rem;
+  margin-left: 0.7rem;
+  padding-left: 0.55rem;
+  border-left: 1px solid var(--line);
+}
 .nav-children .nav-group {
   margin-top: 0.2rem;
 }
