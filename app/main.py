@@ -19,7 +19,7 @@ from app.models import LocalAE, RemoteNode, ToolResult, WorklistEntry, WorklistQ
 from app.mwl import query_worklist
 from app.mwl_scp import WorklistSCP
 from app.store import ConfigStore
-from app.tools import get_tool, list_tools
+from app.tools import get_tool, list_tools, list_tools_by_category
 
 BASE_DIR = Path(__file__).resolve().parent
 
@@ -87,6 +87,7 @@ def create_app(store: ConfigStore | None = None) -> FastAPI:
             "request": request,
             "config": config,
             "tools": list_tools(),
+            "tool_groups": list_tools_by_category(),
             "results": app.state.store.list_results(10),
             "mwl_scp_running": bool(scp and scp.running),
             "mwl_scp_error": getattr(scp, "last_error", None) if scp else None,
