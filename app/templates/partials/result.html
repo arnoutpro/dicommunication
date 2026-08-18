@@ -1,0 +1,36 @@
+<article class="result {% if result.ok %}ok{% else %}fail{% endif %}">
+  <header>
+    <span class="badge {% if result.ok %}ok{% else %}fail{% endif %}">{% if result.ok %}Pass{% else %}Fail{% endif %}</span>
+    <div>
+      <strong>{{ result.tool_name }}</strong>
+      {% if result.remote_name %}<span class="muted">→ {{ result.remote_name }}</span>{% endif %}
+      <p>{{ result.summary }}</p>
+    </div>
+    <span class="muted">{{ result.duration_ms }} ms</span>
+  </header>
+  {% if result.steps %}
+  <ol class="steps">
+    {% for step in result.steps %}
+    <li>
+      <span class="dot {% if step.ok %}ok{% else %}fail{% endif %}"></span>
+      <div>
+        <strong>{{ step.name }}</strong>
+        <p>{{ step.message }}</p>
+        {% if step.details.get("output") %}
+        <pre class="log">{{ step.details.output }}</pre>
+        {% endif %}
+      </div>
+      {% if step.duration_ms is not none %}
+      <span class="muted">{{ step.duration_ms }} ms</span>
+      {% endif %}
+    </li>
+    {% endfor %}
+  </ol>
+  {% endif %}
+  {% if result.log %}
+  <details>
+    <summary>Association log</summary>
+    <pre class="log">{{ result.log }}</pre>
+  </details>
+  {% endif %}
+</article>

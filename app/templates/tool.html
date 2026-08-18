@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block title %}{{ tool.name }} · Dicommunication{% endblock %}
+{% block content %}
+<header class="page-head">
+  <div>
+    <p class="eyebrow">{{ tool.category }}</p>
+    <h1>{{ tool.name }}</h1>
+    <p class="lede">{{ tool.description }}</p>
+  </div>
+</header>
+
+<section class="panel">
+  <header class="panel-head">
+    <h2>Run against a remote node</h2>
+    <span class="muted">Calling AE {{ config.local.ae_title }}</span>
+  </header>
+
+  {% if config.remotes %}
+  <form
+    class="run-form"
+    method="post"
+    action="/tools/{{ tool.id }}/run"
+    hx-post="/tools/{{ tool.id }}/run"
+    hx-target="#result"
+    hx-indicator="#busy"
+  >
+    <label>
+      Remote node
+      <select name="remote_id" required>
+        {% for remote in config.remotes %}
+        <option value="{{ remote.id }}">{{ remote.name }} — {{ remote.ae_title }} @ {{ remote.host }}:{{ remote.port }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <button class="button primary" type="submit">
+      Run {{ tool.name }}
+    </button>
+    <span id="busy" class="htmx-indicator spinner">Running…</span>
+  </form>
+  {% else %}
+  <div class="empty">
+    <strong>No remote node configured</strong>
+    <p>Add a PACS or modality first, then come back to run {{ tool.name }}.</p>
+    <a class="button" href="/config">Open configuration</a>
+  </div>
+  {% endif %}
+</section>
+
+<div id="result">
+  {% if result %}
+    {% include "partials/result.html" %}
+  {% endif %}
+</div>
+{% endblock %}
