@@ -27,6 +27,35 @@
     {% endfor %}
   </ol>
   {% endif %}
+  {% if result.contexts %}
+  <h3 class="result-subhead">SOP Classes negotiated</h3>
+  {% with contexts=result.contexts %}
+    {% include "partials/contexts.html" %}
+  {% endwith %}
+  {% endif %}
+  {% if result.records %}
+  <h3 class="result-subhead">Returned / stored records</h3>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          {% for key in result.records[0].keys() %}
+          <th>{{ key.replace("_", " ") }}</th>
+          {% endfor %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in result.records %}
+        <tr>
+          {% for value in row.values() %}
+          <td>{{ value }}</td>
+          {% endfor %}
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
   {% if result.log %}
   <details>
     <summary>Association log</summary>
