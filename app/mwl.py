@@ -224,6 +224,7 @@ def query_remote(local: LocalAE, remote: RemoteNode, query: WorklistQuery) -> Wo
                     duration_ms=round((time.perf_counter() - started) * 1000, 1),
                     log=log_stream.getvalue().strip(),
                     contexts=contexts,
+                    calling_ae=local.ae_title,
                 )
             if not assoc.accepted_contexts:
                 assoc.release()
@@ -240,6 +241,7 @@ def query_remote(local: LocalAE, remote: RemoteNode, query: WorklistQuery) -> Wo
                     duration_ms=round((time.perf_counter() - started) * 1000, 1),
                     log=log_stream.getvalue().strip(),
                     contexts=contexts,
+                    calling_ae=local.ae_title,
                 )
 
             identifier = build_identifier(query)
@@ -254,6 +256,7 @@ def query_remote(local: LocalAE, remote: RemoteNode, query: WorklistQuery) -> Wo
                         duration_ms=round((time.perf_counter() - started) * 1000, 1),
                         log=log_stream.getvalue().strip(),
                         contexts=contexts,
+                        calling_ae=local.ae_title,
                     )
                 code = int(status.Status)
                 if code in PENDING and identifier_ds is not None:
@@ -270,16 +273,21 @@ def query_remote(local: LocalAE, remote: RemoteNode, query: WorklistQuery) -> Wo
                         entries=entries,
                         log=log_stream.getvalue().strip(),
                         contexts=contexts,
+                        calling_ae=local.ae_title,
                     )
             assoc.release()
             return WorklistQueryResult(
                 ok=True,
                 source=remote.name,
-                summary=f"{len(entries)} worklist item{'s' if len(entries) != 1 else ''} from {remote.ae_title}",
+                summary=(
+                    f"{len(entries)} worklist item{'s' if len(entries) != 1 else ''} "
+                    f"from {remote.ae_title} as {local.ae_title}"
+                ),
                 duration_ms=round((time.perf_counter() - started) * 1000, 1),
                 entries=entries,
                 log=log_stream.getvalue().strip(),
                 contexts=contexts,
+                calling_ae=local.ae_title,
             )
         except Exception as exc:  # noqa: BLE001
             return WorklistQueryResult(
@@ -289,6 +297,7 @@ def query_remote(local: LocalAE, remote: RemoteNode, query: WorklistQuery) -> Wo
                 duration_ms=round((time.perf_counter() - started) * 1000, 1),
                 log=log_stream.getvalue().strip(),
                 contexts=contexts,
+                calling_ae=local.ae_title,
             )
         finally:
             if assoc is not None and getattr(assoc, "is_established", False):
@@ -302,13 +311,25 @@ def query_worklist(
     store: ConfigStore,
     source: str,
     query: WorklistQuery,
+    identity_id: str | None = None,
 ) -> WorklistQueryResult:
-    if source == "local":
-        return query_local(store, query)
     config = store.load()
+    try:
+        local = config.calling_ae(identity_id)
+    except KeyError:
+        return WorklistQueryResult(ok=False, summary="Virtual local AE not found.", source=source)
+    identity = config.get_identity(identity_id)
+    updates: dict[str, str] = {}
+    if not query.station_ae_title and local.station_ae_title:
+        updates["station_ae_title"] = local.station_ae_title
+    if not query.modality and identity and identity.modality:
+        updates["modality"] = identity.modality
+    if updates:
+        query = query.model_copy(update=updates)
+    if source == "local":
+        result = query_local(store, query)
+        return result.model_copy(update={"calling_ae": local.ae_title})
     remote = config.get_remote(source)
     if remote is None:
         return WorklistQueryResult(ok=False, summary="Remote DICOM node not found.", source=source)
-    if not query.station_ae_title and config.local.station_ae_title:
-        query = query.model_copy(update={"station_ae_title": config.local.station_ae_title})
-    return query_remote(config.local, remote, query)
+    return query_remote(local, remote, query)

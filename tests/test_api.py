@@ -15,6 +15,7 @@ def test_health_and_pages(client) -> None:
     assert config.status_code == 200
     assert b"Local DICOM AE" in config.content
     assert b"Advanced settings" in config.content
+    assert b"Virtual local AE titles" in config.content
     echo_board = client.get("/echo-board")
     assert echo_board.status_code == 200
     worklist = client.get("/worklist")
@@ -60,6 +61,21 @@ def test_save_local_ae_and_remote_via_forms(client) -> None:
     assert added.status_code == 200
     assert b"LABPACS" in added.content
     assert b"10.0.0.5:104" in added.content
+
+
+def test_add_virtual_ae_via_form(client) -> None:
+    added = client.post(
+        "/config/identities",
+        data={"name": "CT scanner 1", "ae_title": "CT1", "modality": "CT"},
+        follow_redirects=True,
+    )
+    assert added.status_code == 200
+    assert b"CT1" in added.content
+    assert b"CT scanner 1" in added.content
+    worklist = client.get("/worklist")
+    assert b"Present as" in worklist.content
+    assert b"CT scanner 1" in worklist.content
+    assert b"CT1" in worklist.content
 
 
 def test_reject_oversized_ae_title(client) -> None:
