@@ -2,8 +2,17 @@
 .venv
 __pycache__
 .pytest_cache
+.mypy_cache
+.ruff_cache
+.github
 tests
 data/config.json
 data/results.json
 *.md
 .env
+Dockerfile
+docker-compose.yml
+compose.yml
+Makefile
+pytest.ini
+requirements-dev.txt
