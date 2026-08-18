@@ -22,18 +22,36 @@
       </a>
       <nav>
         <a href="/" class="{% if nav == 'home' %}active{% endif %}">Dashboard</a>
-        <p class="nav-label">Configuration</p>
-        <a href="/config" class="{% if nav == 'config' %}active{% endif %}">Configured nodes</a>
-        <a href="/config/local" class="{% if nav == 'config-local' %}active{% endif %}">Local DICOM AE</a>
-        <a href="/config/identities" class="{% if nav == 'config-identities' %}active{% endif %}">Virtual AEs</a>
-        <a href="/config/remotes" class="{% if nav == 'config-remotes' %}active{% endif %}">Remote nodes</a>
-        <p class="nav-label">Test tools</p>
-        <a href="/testbench" class="{% if nav == 'testbench' %}active{% endif %}">Testbench</a>
-        <a href="/echo-board" class="{% if nav == 'echo-board' %}active{% endif %}">C-ECHO board</a>
-        <a href="/worklist" class="{% if nav == 'worklist' %}active{% endif %}">Worklist</a>
-        {% for item in tools %}
-        <a href="/tools/{{ item.id }}" class="{% if tool_id == item.id %}active{% endif %}">{{ item.name }}</a>
-        {% endfor %}
+
+        <details class="nav-branch {% if nav.startswith('config') %}is-current{% endif %}" {% if nav.startswith('config') %}open{% endif %}>
+          <summary>
+            <a href="/config" class="{% if nav == 'config' %}active{% endif %}">Configured nodes</a>
+          </summary>
+          <div class="nav-children">
+            <a href="/config/local" class="{% if nav == 'config-local' %}active{% endif %}">Local DICOM AE</a>
+            <a href="/config/identities" class="{% if nav == 'config-identities' %}active{% endif %}">Virtual AEs</a>
+            <a href="/config/remotes" class="{% if nav == 'config-remotes' %}active{% endif %}">Remote nodes</a>
+          </div>
+        </details>
+
+        <details class="nav-branch {% if nav in ['testbench', 'echo-board', 'worklist', 'tools'] %}is-current{% endif %}" {% if nav in ['testbench', 'echo-board', 'worklist', 'tools'] %}open{% endif %}>
+          <summary>Test tools</summary>
+          <div class="nav-children">
+            <a href="/testbench" class="{% if nav == 'testbench' %}active{% endif %}">Testbench</a>
+            <a href="/echo-board" class="{% if nav == 'echo-board' %}active{% endif %}">C-ECHO board</a>
+            <a href="/worklist" class="{% if nav == 'worklist' %}active{% endif %}">Worklist</a>
+            {% for category, items in tool_groups %}
+            <details class="nav-branch" {% if tool_id and tool_id in items|map(attribute='id')|list %}open{% endif %}>
+              <summary>{{ category }}</summary>
+              <div class="nav-children">
+                {% for item in items %}
+                <a href="/tools/{{ item.id }}" class="{% if tool_id == item.id %}active{% endif %}">{{ item.name }}</a>
+                {% endfor %}
+              </div>
+            </details>
+            {% endfor %}
+          </div>
+        </details>
       </nav>
       <div class="sidebar-foot">
         <code class="ae-chip" title="Local AE Title">{{ config.local.ae_title }}</code>
