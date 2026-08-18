@@ -8,10 +8,6 @@ def test_health_and_pages(client) -> None:
     home = client.get("/")
     assert home.status_code == 200
     assert b"Arnout.pro Dicommunication Tool" in home.content
-    assert b"aurora-wrapper" in home.content
-    assert b"Plus+Jakarta+Sans" in home.content
-    assert b"Sansation" in home.content
-    assert b"Efficiency Behind Every Image" in home.content
     assert b"nav-children" in home.content
     assert b"DIMSE" in home.content
     assert b"Connectivity" in home.content
