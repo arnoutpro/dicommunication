@@ -2,16 +2,13 @@
 {% block title %}Arnout.pro Dicommunication Tool{% endblock %}
 {% block content %}
 <section class="hero">
-  <div>
-    <p class="eyebrow">Arnout.pro</p>
-    <h1>Arnout.pro Dicommunication Tool</h1>
-    <p class="lede">Configure this workstation and remote DICOM nodes, then run connectivity checks from Test tools.</p>
-  </div>
+  <p class="hero-intro">Configure this workstation and remote DICOM nodes, then run connectivity checks from Test tools. <strong>arnout.pro</strong> Dicommunication is the PACS admin bench for associations that actually matter.</p>
+  <h1><span class="gradient-text">Efficiency Behind Every Image.</span></h1>
 </section>
 
 <div class="grid-3">
   <article class="card">
-    <p class="card-label">Local AE</p>
+    <p class="card-label">Local AE · DICOM</p>
     <h2>{{ config.local.ae_title }}</h2>
     <p class="muted">{{ config.local.host }}:{{ config.local.port }} · timeout {{ config.local.timeout_seconds | int }}s{% if config.identities %} · {{ config.identities | length }} virtual AE{% if config.identities | length != 1 %}s{% endif %}{% endif %}</p>
   </article>
@@ -21,7 +18,7 @@
     <p class="muted">{% if config.remotes %}Ready for Testbench, PING, and C-ECHO{% else %}Add a PACS, modality, or test SCP{% endif %}</p>
   </article>
   <article class="card">
-    <p class="card-label">Registered tools</p>
+    <p class="card-label">Test tools</p>
     <h2>{{ tools | length }}</h2>
     <p class="muted">{% for item in tools %}{{ item.name }}{% if not loop.last %} · {% endif %}{% endfor %}</p>
   </article>
