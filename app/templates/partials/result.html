@@ -4,6 +4,7 @@
     <div>
       <strong>{{ result.tool_name }}</strong>
       {% if result.remote_name %}<span class="muted">→ {{ result.remote_name }}</span>{% endif %}
+      {% if result.calling_ae %}<span class="muted">as {{ result.calling_ae }}</span>{% endif %}
       <p>{{ result.summary }}</p>
     </div>
     <span class="muted">{{ result.duration_ms }} ms</span>

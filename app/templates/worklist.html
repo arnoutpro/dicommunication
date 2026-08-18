@@ -20,7 +20,7 @@
   <article class="card">
     <p class="card-label">Calling AE</p>
     <h2>{{ config.local.ae_title }}</h2>
-    <p class="muted">{% if config.local.station_ae_title %}Station {{ config.local.station_ae_title }}{% else %}No default station AE{% endif %}</p>
+    <p class="muted">{% if config.local.station_ae_title %}Station {{ config.local.station_ae_title }}{% else %}Workstation default{% endif %}{% if config.identities %} · {{ config.identities | length }} virtual AE{% if config.identities | length != 1 %}s{% endif %}{% endif %}</p>
   </article>
   <article class="card">
     <p class="card-label">DMWL nodes</p>
@@ -59,6 +59,7 @@
         {% endfor %}
       </select>
     </label>
+    {% include "partials/identity_select.html" %}
     <label>
       Patient name
       <input name="patient_name" value="{{ query.patient_name }}" placeholder="DOE*">

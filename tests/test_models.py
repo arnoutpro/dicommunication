@@ -3,7 +3,7 @@ from __future__ import annotations
 import pytest
 from pydantic import ValidationError
 
-from app.models import LocalAE, RemoteNode, normalize_ae_title
+from app.models import LocalAE, RemoteNode, VirtualAE, normalize_ae_title
 
 
 def test_ae_title_strips_and_accepts_sixteen_chars() -> None:
@@ -51,3 +51,29 @@ def test_remote_node_requires_name_and_host() -> None:
     mwl = RemoteNode(name="RIS MWL", ae_title="RISMWL", host="10.0.0.9", kind="mwl")
     assert mwl.provides_mwl is True
     assert mwl.kind_label == "DMWL"
+
+
+def test_virtual_ae_station_defaults_to_calling_ae() -> None:
+    identity = VirtualAE(name="CT scanner 1", ae_title="CT1")
+    assert identity.scheduled_station_ae_title == "CT1"
+    named = VirtualAE(name="CT scanner 1", ae_title="CT1", station_ae_title="CTROOM1")
+    assert named.scheduled_station_ae_title == "CTROOM1"
+
+
+def test_calling_ae_overrides_workstation_title() -> None:
+    from app.models import AppConfig
+
+    config = AppConfig()
+    identity = VirtualAE(name="MR1", ae_title="MR1", modality="MR")
+    config.identities.append(identity)
+    impersonated = config.calling_ae(identity.id)
+    assert impersonated.ae_title == "MR1"
+    assert impersonated.station_ae_title == "MR1"
+    assert impersonated.port == config.local.port
+    assert config.calling_ae(None).ae_title == "DICOMM"
+    try:
+        config.calling_ae("missing")
+    except KeyError:
+        pass
+    else:
+        raise AssertionError("expected KeyError")

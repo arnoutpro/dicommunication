@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from app.models import LocalAE, RemoteNode
+from app.models import LocalAE, RemoteNode, VirtualAE
 from app.store import ConfigStore
 
 
@@ -28,3 +28,20 @@ def test_store_roundtrip_local_and_remote(tmp_path) -> None:
     store.update_remote(remote.id, RemoteNode(name="Orthanc lab", ae_title="ORTHANC", host="10.1.2.3", port=4242))
     store.delete_remote(remote.id)
     assert store.load().remotes == []
+
+
+def test_store_roundtrip_virtual_ae(tmp_path) -> None:
+    store = ConfigStore(tmp_path)
+    identity = VirtualAE(name="CT scanner 1", ae_title="CT1", modality="CT", notes="room 4")
+    store.add_identity(identity)
+    reloaded = ConfigStore(tmp_path).load()
+    assert len(reloaded.identities) == 1
+    assert reloaded.identities[0].ae_title == "CT1"
+    assert reloaded.identities[0].scheduled_station_ae_title == "CT1"
+    store.update_identity(
+        identity.id,
+        VirtualAE(name="CT scanner 1", ae_title="CT1", station_ae_title="CTROOM1"),
+    )
+    assert store.load().identities[0].scheduled_station_ae_title == "CTROOM1"
+    store.delete_identity(identity.id)
+    assert store.load().identities == []
