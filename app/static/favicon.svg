@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="arnout.pro">
+  <defs>
+    <linearGradient id="a" x1="8" y1="4" x2="56" y2="60" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#00e5ff"/>
+      <stop offset=".35" stop-color="#39ff6a"/>
+      <stop offset=".7" stop-color="#d946ef"/>
+      <stop offset="1" stop-color="#0ea5e9"/>
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="16" fill="#020617"/>
+  <path fill="url(#a)" d="M32 10 12 54h8.6l3.7-8.4h15.4l3.7 8.4H52L32 10zm0 14.2 5.4 12.4H26.6L32 24.2z"/>
+</svg>
