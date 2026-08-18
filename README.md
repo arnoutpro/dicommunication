@@ -1,12 +1,70 @@
-# Dicommunication
+# Arnout.pro Dicommunication Tool
 
-A low-code DICOM communication validator for PACS administrators.
+A low-code DICOM communication validator and PACS admin toolkit.
 
-Configure this workstation as a local Application Entity, register remote DICOM nodes, and run PING, C-ECHO, simulated C-STORE, Study Root C-FIND, and Modality Worklist C-FIND. New tools are Python plugins — drop in a file and they appear in the UI.
+Configure this workstation as a DICOM Application Entity, register remote nodes (PACS, Orthanc, RIS/MWL, modalities), impersonate extra calling AE Titles, and run the checks a connectivity ticket actually needs: network PING, C-ECHO, simulated C-STORE, Study Root C-FIND, and Modality Worklist C-FIND.
 
-## Run it (Docker)
+The web UI is FastAPI + HTMX. DICOM uses pynetdicom/pydicom. New test tools are Python plugins: drop a file in `app/tools/` and it appears in the sidebar.
 
-The image already contains Python, FastAPI, pynetdicom, and `ping`. You do not need a local virtualenv.
+Open [http://127.0.0.1:8080](http://127.0.0.1:8080) after starting the stack.
+
+## Contents
+
+- [What this is (and is not)](#what-this-is-and-is-not)
+- [DICOM services this tool distinguishes](#dicom-services-this-tool-distinguishes)
+- [Run it](#run-it)
+- [Where data is stored](#where-data-is-stored)
+- [Configuration](#configuration)
+- [Virtual local AE titles](#virtual-local-ae-titles)
+- [Test tools](#test-tools)
+- [Worklist](#worklist)
+- [Talking to Orthanc on a LAN](#talking-to-orthanc-on-a-lan)
+- [JSON API](#json-api)
+- [Add a tool plugin](#add-a-tool-plugin)
+- [Tests](#tests)
+- [Security](#security)
+- [Troubleshooting](#troubleshooting)
+
+## What this is (and is not)
+
+This is a **trusted-network admin workstation**. Use it on the PACS VLAN, a lab, or a jumphost that can reach DICOM ports. It is not a PACS, not a viewer, and not a replacement for vendor modality simulators.
+
+It **does**:
+
+- Present a calling AE Title (the workstation, or a virtual identity such as `CT1`)
+- Associate with a remote AE and show which SOP Classes were accepted or rejected
+- Send Verification (C-ECHO), a tiny Secondary Capture (C-STORE), Study Root Query/Retrieve C-FIND, and Modality Worklist C-FIND
+- Optionally serve a local web worklist as an MWL SCP on the listen port
+
+It **does not**:
+
+- Implement C-MOVE / C-GET (yet; those are plugin slots)
+- Store a real archive of clinical images
+- Speak DICOM TLS, or authenticate the web UI
+
+A successful C-ECHO only proves Verification. Orthanc (or any PACS) can accept C-ECHO and still reject Storage, Query/Retrieve, or Modality Worklist. That difference is the point of the Testbench.
+
+## DICOM services this tool distinguishes
+
+| UI name | DIMSE | SOP Class | What it actually tests |
+| --- | --- | --- | --- |
+| C-ECHO | C-ECHO | Verification `1.2.840.10008.1.1` | Association plus a DICOM ping. Connectivity only. |
+| C-STORE | C-STORE | Secondary Capture Image Storage | Can the peer *receive* an instance? |
+| C-FIND | C-FIND | Study Root Query/Retrieve FIND | Search *stored studies* in a PACS archive. Zero matches can still be a successful Q/R C-FIND. |
+| MWL C-FIND / Worklist | C-FIND | Modality Worklist `1.2.840.10008.5.1.4.31` | Search *scheduled procedures*, not the archive. |
+
+**MWL C-FIND and the Worklist page are the same SOP Class.** Study Root C-FIND is not. Orthanc without the worklist plugin typically accepts Verification, Storage, and Q/R, then rejects MWL. The Testbench and Worklist results show accepted vs rejected presentation contexts so that is visible.
+
+Two AE Titles matter on a worklist query:
+
+- **Calling AE Title** — who you are on the association. The remote must allow this AE (Orthanc `DicomModalities`, vendor “known AEs”, etc.).
+- **Scheduled Station AE Title** — a query key in the MWL identifier. Modalities normally ask for procedures scheduled to their own station (`CT1`, `MR1`, …).
+
+## Run it
+
+### Docker Compose (recommended)
+
+The image already contains Python 3.12, FastAPI, pynetdicom, pydicom, and `ping`. You do not need a local virtualenv.
 
 ```bash
 git clone https://github.com/arnoutpro/dicommunication.git
@@ -20,11 +78,16 @@ Open [http://127.0.0.1:8080](http://127.0.0.1:8080). Stop with Ctrl+C, or run de
 docker compose up --build -d
 ```
 
-Config and worklist data are stored in **`~/.dicommunication`** on the host (`config.json`, `results.json`, `worklist.json`). Rebuilding or replacing the Docker image does not wipe that folder.
+Compose publishes:
 
-If you already saved config under `./data` from an older run, that directory is still used until `~/.dicommunication/config.json` exists.
+- `8080` — web UI and JSON API
+- `11112` — optional local MWL SCP (only listens if you enable it in Configuration)
 
-After `main` builds the published image, this also works:
+It also sets `host.docker.internal` so a PACS on the Docker host (typical on a Mac) is reachable from inside the container.
+
+### Published image (GHCR)
+
+Pushes to `main` build `ghcr.io/arnoutpro/dicommunication:latest`. After that image exists:
 
 ```bash
 docker compose pull
@@ -35,7 +98,11 @@ or without Compose:
 
 ```bash
 mkdir -p ~/.dicommunication
-docker run --rm -p 8080:8080 -p 11112:11112 -v "$HOME/.dicommunication:/app/data" ghcr.io/arnoutpro/dicommunication:latest
+docker run --rm \
+  -p 8080:8080 -p 11112:11112 \
+  -v "$HOME/.dicommunication:/app/data" \
+  -e DICOMM_DATA_DIR=/app/data \
+  ghcr.io/arnoutpro/dicommunication:latest
 ```
 
 ### Update
@@ -44,6 +111,8 @@ docker run --rm -p 8080:8080 -p 11112:11112 -v "$HOME/.dicommunication:/app/data
 git pull origin main
 docker compose up --build -d
 ```
+
+Rebuilding the image does not wipe AE titles if config lives in `~/.dicommunication` (see below).
 
 ### Local Python (optional)
 
@@ -54,20 +123,184 @@ pip install -r requirements-dev.txt
 make run
 ```
 
-## What you can do now
+That serves the UI on port 8080 with reload. Use this when developing plugins; Docker is the supported way to run it on a PACS admin laptop.
 
-1. **Local DICOM config** — calling AE Title, bind host, listen port, association timeout, max PDU.
-2. **Virtual local AE titles** — extra calling AEs so you can impersonate modalities (CT1, MR1, …) on C-ECHO, C-STORE, C-FIND, and MWL without extra listen ports. Pick **Present as** on Worklist, Testbench, and tool pages. The station AE Title is the worklist query filter; it defaults to the calling AE.
-3. **Remote nodes** — name, called AE Title, host, port, notes. Add, edit, delete.
-4. **Network PING** — DNS resolve, ICMP echo, TCP connect to the DICOM port. ICMP is often blocked on clinical networks; TCP is the more reliable layer-4 check.
-5. **C-ECHO** — associate as the configured calling AE and send Verification (`1.2.840.10008.1.1`). This only proves connectivity, not Storage or Query/Retrieve.
-6. **C-ECHO board** — run Verification against every configured node in one click (`/echo-board` or `POST /api/echo-board/run`).
-7. **Testbench** — send a simulated **C-STORE** (tiny Secondary Capture), **Study Root C-FIND** (stored studies), or **MWL C-FIND** (scheduled procedures) to a remote node (`/testbench`). The result shows which SOP Classes the peer accepted or rejected. These are not interchangeable: Orthanc without the worklist plugin will accept Verification/Storage/Q/R and reject MWL.
-8. **DMWL / worklist** — mark a remote as a Modality Worklist SCP, query it from the web Worklist page (MWL C-FIND), and optionally serve a local web worklist to modalities on the DICOM listen port.
+## Where data is stored
 
-There is also a JSON API under `/api` for the same operations (`/api/config`, `/api/remotes`, `/api/identities`, `/api/tools/{id}/run`, `/api/echo-board/run`, `/api/worklist/query`).
+| File | Contents |
+| --- | --- |
+| `config.json` | Local AE, virtual identities, remote nodes |
+| `results.json` | Recent tool runs (capped at 200) |
+| `worklist.json` | Local web worklist entries |
 
-## Add a future tool
+Default directory:
+
+1. `$DICOMM_DATA_DIR` if set (Docker Compose sets this to `/app/data`)
+2. else `~/.dicommunication` on the host (`/app/data` in the container, bind-mounted to `~/.dicommunication`)
+3. else legacy `./data` if that folder already has `config.json` and `~/.dicommunication/config.json` does not exist
+
+Writes are atomic (temp file + replace). Replacing the Docker image does not reset this folder.
+
+## Configuration
+
+Open **Configuration**. Basic fields are enough to start; **Advanced settings** hides PDU, timeouts, and MWL SCP options.
+
+### Local DICOM AE (the workstation)
+
+This is the real Application Entity of this software: listen address, listen port, timeouts, and the default calling AE Title when you are not impersonating a modality.
+
+| Field | Default | Meaning |
+| --- | --- | --- |
+| AE Title | `DICOMM` | Calling AE Title on associations unless a virtual identity is selected. 1–16 printable ASCII characters, no backslash. Remote nodes must accept this AE. |
+| IP address | `0.0.0.0` | Bind / listen address. `0.0.0.0` listens on all interfaces. DICOM connections *to* remotes use the remote’s host, not this field. |
+| Hostname | empty | Documentation only. Listen still uses the IP address. |
+| Port | `11112` | Listen port for the optional local MWL SCP. Common DICOM ports elsewhere: `104`, Orthanc `4242`. |
+| Timeout | `10` s | ACSE, DIMSE, and network timeout (1–120). |
+| Max PDU | `16382` | Association max PDU (4096–131072). |
+| Implementation version | `DICOMM_1` | DICOM implementation version name (≤16 characters). |
+| Station AE Title | empty | Default Scheduled Station AE Title for worklist queries when no virtual identity is selected. |
+| Serve the web worklist over DICOM | off | Start an MWL SCP on the listen port, backed by the local web worklist. |
+
+The listen port is **one** workstation AE. Virtual titles do not add extra SCP ports.
+
+### Remote DICOM nodes
+
+A remote is any peer you want to test: PACS, Orthanc, RIS/MWL, modality, VNA, or a vendor test SCP.
+
+| Field | Meaning |
+| --- | --- |
+| Display name | Label in the UI |
+| AE Title | Called AE Title (what you send as the called AE on associate) |
+| Hostname / IP | Connection uses **IP when set**, otherwise hostname. Fill one or both. |
+| Port | DICOM port (`104`, `11112`, `4242`, …) |
+| Node type | PACS, DMWL, modality, VNA, other |
+| Provides Modality Worklist | Marks the node as an MWL SCP. Choosing type **DMWL** also sets this. |
+| Notes | VLAN, TLS front-end, vendor, contact — not sent on the wire |
+
+From Docker, a PACS on the same Mac or Linux host is usually `host.docker.internal`. On Linux Compose this mapping is already added.
+
+## Virtual local AE titles
+
+A modality does not query worklist as a generic workstation. It associates as `CT1` (calling AE) and asks for scheduled procedures for station `CT1`.
+
+**Virtual local AE titles** are saved impersonation identities for outbound associations. Add as many as you need (`CT1`, `MR1`, `US1`, …). They do **not** listen.
+
+| Field | Meaning |
+| --- | --- |
+| Display name | e.g. `CT scanner 1` |
+| Calling AE Title | Who you are on C-ECHO, C-STORE, C-FIND, and MWL |
+| Station AE Title | Worklist query filter. Empty means “same as calling AE”. |
+| Default modality | Optional MWL/Q/R filter (`CT`, `MR`, …) filled when you pick this identity |
+| Notes | Room, vendor, Orthanc modality key |
+
+On **Worklist**, **Testbench**, and each tool page, use **Present as**:
+
+- `(workstation)` — the Local DICOM AE Title
+- a virtual identity — calling AE + station/modality defaults from that identity
+
+The result header shows `as CT1` (or whatever calling AE was used).
+
+Every virtual calling AE must be allowed on the remote, the same way the workstation AE is. For Orthanc, add each one to `DicomModalities`.
+
+## Test tools
+
+Sidebar **Test tools**:
+
+### Testbench (`/testbench`)
+
+One form to send C-ECHO, C-STORE, Study Root C-FIND, or MWL C-FIND to a selected remote, optionally as a virtual AE.
+
+- **C-STORE** sends a 16×16 Secondary Capture: patient `ARNPRO^TESTBENCH` / `ARNPRO-TEST`, modality `OT`. Look that instance up on the PACS if Storage was accepted.
+- **C-FIND** is Study Root, STUDY level. Leave filters empty for a broad query. Optional: patient name/ID, accession, study date, modality (`ModalitiesInStudy`).
+- **MWL C-FIND** uses the worklist SOP Class and the identity’s station AE unless you override it.
+- The result lists **SOP Classes negotiated** (accepted vs rejected) plus returned/stored records and the association log.
+
+### C-ECHO board (`/echo-board`)
+
+Runs Verification against **every** configured remote in one click (up to 8 in parallel). Uses the workstation calling AE, not a virtual identity. Also `POST /api/echo-board/run`.
+
+### Network PING (`/tools/ping`)
+
+DNS resolve, ICMP echo, then TCP connect to the DICOM port. ICMP is often blocked on clinical networks; the TCP check is the useful layer-4 result.
+
+### Individual DIMSE tools
+
+Same engines as the Testbench, one page each: `/tools/c-echo`, `/tools/c-store`, `/tools/c-find`, `/tools/mwl-find`. Each has **Present as**.
+
+## Worklist
+
+`/worklist` is the table view for **Modality Worklist C-FIND** (`1.2.840.10008.5.1.4.31`). It is not Study Root C-FIND.
+
+**Query worklist**
+
+- Source: local web worklist, or a remote node
+- Present as: workstation or a virtual AE
+- Filters: patient name (`DOE*` style), patient ID, accession, modality, station AE, scheduled date
+
+Empty filters on a remote mean “return what the SCP is willing to send”. Presenting as `CT1` fills station (and modality, if the identity has one) unless you override the fields.
+
+**Local web worklist**
+
+Add scheduled procedures here. If **Serve the web worklist over DICOM** is on, a modality can C-FIND this workstation on the listen port (`11112` by default). The local MWL SCP also answers C-ECHO. It uses the workstation AE Title, not virtual identities.
+
+## Talking to Orthanc on a LAN
+
+Typical Orthanc DICOM port is `4242`. From Docker on a Mac, host is `host.docker.internal`.
+
+1. Add a remote: AE Title `ORTHANC` (or whatever Orthanc uses), host `host.docker.internal` or the LAN IP, port `4242`.
+2. In Orthanc `DicomModalities`, allow this tool’s calling AEs — the workstation (`DICOMM`) **and** every virtual title you will impersonate (`CT1`, …).
+3. Testbench: C-ECHO should pass if the association is accepted.
+4. C-STORE / Study Root C-FIND usually pass on a stock Orthanc Storage/Q/R setup.
+5. MWL C-FIND passes only if the Orthanc **worklist plugin** (or equivalent) is enabled and that SOP Class is offered. Otherwise the Testbench shows MWL rejected and a “not an MWL SCP” message. That is expected, not a bug in this tool.
+
+If the association is rejected entirely, the calling AE is not in Orthanc’s allow-list, or host/port/called AE are wrong.
+
+## JSON API
+
+Same operations as the UI. `GET /health` returns `{"status":"ok"}`. Interactive docs: [http://127.0.0.1:8080/docs](http://127.0.0.1:8080/docs).
+
+| Method | Path | Purpose |
+| --- | --- | --- |
+| GET | `/api/config` | Full config |
+| PUT | `/api/config/local` | Replace local AE |
+| GET/POST/PUT/DELETE | `/api/remotes`, `/api/remotes/{id}` | Remote nodes |
+| GET/POST/PUT/DELETE | `/api/identities`, `/api/identities/{id}` | Virtual local AEs |
+| GET | `/api/tools` | Registered tools |
+| POST | `/api/tools/{tool_id}/run` | Run a tool |
+| GET | `/api/echo-board` | Last C-ECHO board snapshot |
+| POST | `/api/echo-board/run` | C-ECHO every remote |
+| GET/POST/DELETE | `/api/worklist`, `/api/worklist/{id}` | Local worklist items |
+| POST | `/api/worklist/query` | MWL query (local or remote) |
+
+Tool ids: `ping`, `c-echo`, `c-store`, `c-find`, `mwl-find`.
+
+Run a tool as a virtual AE:
+
+```bash
+curl -s -X POST http://127.0.0.1:8080/api/tools/c-echo/run \
+  -H 'Content-Type: application/json' \
+  -d '{"remote_id":"REPLACE","identity_id":"REPLACE"}'
+```
+
+Study Root C-FIND with filters:
+
+```bash
+curl -s -X POST http://127.0.0.1:8080/api/tools/c-find/run \
+  -H 'Content-Type: application/json' \
+  -d '{"remote_id":"REPLACE","options":{"patient_id":"1001","modality":"CT"}}'
+```
+
+Worklist query as `CT1`:
+
+```bash
+curl -s -X POST http://127.0.0.1:8080/api/worklist/query \
+  -H 'Content-Type: application/json' \
+  -d '{"source":"REMOTE_ID","identity_id":"IDENTITY_ID"}'
+```
+
+`source` is `"local"` or a remote id. If `identity_id` is set, calling AE and default station/modality come from that identity.
+
+## Add a tool plugin
 
 Create `app/tools/your_tool.py`:
 
@@ -83,12 +316,17 @@ class CMoveTool(BaseTool):
     category = "dimse"
 
     def run(self, local: LocalAE, remote: RemoteNode | None, options=None) -> ToolResult:
-        return ToolResult(tool_id=self.id, tool_name=self.name, ok=False, summary="Not implemented yet")
+        return ToolResult(
+            tool_id=self.id,
+            tool_name=self.name,
+            ok=False,
+            summary="Not implemented yet",
+        )
 
 register(CMoveTool())
 ```
 
-Rebuild or restart the app. The tool shows up in the sidebar, on `/tools/c-move`, and at `POST /api/tools/c-move/run`.
+Rebuild or restart. The tool appears in the sidebar, at `/tools/c-move`, and at `POST /api/tools/c-move/run`. `local` is already the selected identity (workstation or virtual AE). `options` is the optional JSON object from the API (or Testbench form fields for built-in FIND tools).
 
 ## Tests
 
@@ -97,13 +335,23 @@ pip install -r requirements-dev.txt
 make test
 ```
 
-C-ECHO tests start an in-process Verification SCP; C-STORE and C-FIND tests start in-process Storage / Study Root FIND SCPs. PING tests use loopback ICMP and a local TCP listener.
+C-ECHO, C-STORE, Study Root C-FIND, and MWL tests start in-process SCPs. PING uses loopback ICMP and a local TCP listener. Identity tests check that a virtual AE is the calling AE Title and the worklist station filter.
 
-## Notes for PACS admins
+## Security
 
-- Config, results, and the local worklist are saved in `~/.dicommunication` so a new Docker image does not reset your AE titles.
-- AE Titles are 1–16 printable ASCII characters and must match what the remote node is configured to accept. Each **virtual local AE** is a different calling AE Title — add every one you impersonate to Orthanc `DicomModalities` (or the equivalent allow-list).
-- Default unprivileged DICOM port is `11112`. `104` and Orthanc `4242` are also common. Docker publishes `8080` (web) and `11112` (optional local MWL SCP).
-- From Docker, a PACS on the same Mac can be reached as `host.docker.internal`.
-- Enable **Serve the web worklist over DICOM** in Configuration if a modality should C-FIND this workstation.
-- This is a trusted-network admin tool. Do not expose it to the internet without an authenticating reverse proxy.
+This is a trusted-network admin tool. The web UI has no login. Do not publish port 8080 to the internet without an authenticating reverse proxy. Do not point it at production archives unless you intend to send the test C-STORE instance (`ARNPRO^TESTBENCH`). DICOM itself is sent in the clear unless you terminate TLS elsewhere.
+
+## Troubleshooting
+
+| Symptom | Likely cause |
+| --- | --- |
+| Association rejected / aborted | Called AE, host, or port wrong; calling AE not in the peer’s allow-list |
+| C-ECHO works, C-STORE fails | Peer is not a Storage SCP for Secondary Capture (or that SOP Class is disabled) |
+| C-ECHO works, Study Root C-FIND fails | Peer is not a Q/R SCP. This is not MWL. |
+| C-ECHO / C-STORE / Q/R work, MWL fails | Peer does not offer Modality Worklist FIND. Enable the worklist plugin (Orthanc) or query a RIS. |
+| Worklist and MWL C-FIND look the same | They are the same SOP Class. Use Testbench Study Root C-FIND to search stored studies. |
+| Empty MWL / C-FIND table but Pass | The SOP Class was accepted and the query succeeded with zero matches. Check station AE, date, and **Present as**. |
+| PING ICMP fails, TCP succeeds | Normal on locked-down clinical networks. Trust TCP to the DICOM port. |
+| Cannot reach Orthanc from Docker | Use `host.docker.internal` (same Mac/host) or the LAN IP; publish/check `4242`. |
+| Config vanished after image rebuild | Config should be in `~/.dicommunication`. Legacy `./data` is only used until the home folder exists. |
+| Modality cannot C-FIND this tool | Enable the MWL SCP, publish `11112`, and put this workstation AE on the modality’s worklist node list. |
