@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI, Form, HTTPException, Request
@@ -9,10 +10,13 @@ from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, ValidationError
+from pydicom.uid import generate_uid
 
 from app.echo_board import run_all as run_echo_board
 from app.echo_board import snapshot as echo_board_snapshot
-from app.models import LocalAE, RemoteNode, ToolResult
+from app.models import LocalAE, RemoteNode, ToolResult, WorklistEntry, WorklistQuery
+from app.mwl import query_worklist
+from app.mwl_scp import WorklistSCP
 from app.store import ConfigStore
 from app.tools import get_tool, list_tools
 
@@ -29,17 +33,36 @@ def _hx(request: Request) -> bool:
     return request.headers.get("HX-Request") == "true"
 
 
+def _as_bool(value: str | None) -> bool:
+    return (value or "").lower() in {"on", "true", "1", "yes"}
+
+
 class RunRequest(BaseModel):
     remote_id: str
 
 
+class WorklistApiQuery(WorklistQuery):
+    source: str = "local"
+
+
 def create_app(store: ConfigStore | None = None) -> FastAPI:
+    store = store or ConfigStore()
+    scp = WorklistSCP(store)
+
+    @asynccontextmanager
+    async def lifespan(app: FastAPI):
+        scp.start()
+        yield
+        scp.stop()
+
     app = FastAPI(
         title="Dicommunication",
         description="Low-code DICOM communication validator and PACS admin toolkit.",
         version="0.1.0",
+        lifespan=lifespan,
     )
-    app.state.store = store or ConfigStore()
+    app.state.store = store
+    app.state.mwl_scp = scp
     templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
     static_dir = BASE_DIR / "static"
     if static_dir.exists():
@@ -47,11 +70,14 @@ def create_app(store: ConfigStore | None = None) -> FastAPI:
 
     def page(request: Request, **extra: object) -> dict:
         config = app.state.store.load()
+        scp = getattr(app.state, "mwl_scp", None)
         return {
             "request": request,
             "config": config,
             "tools": list_tools(),
             "results": app.state.store.list_results(10),
+            "mwl_scp_running": bool(scp and scp.running),
+            "mwl_scp_error": getattr(scp, "last_error", None) if scp else None,
             **extra,
         }
 
@@ -132,6 +158,8 @@ def create_app(store: ConfigStore | None = None) -> FastAPI:
         timeout_seconds: float = Form(...),
         max_pdu: int = Form(...),
         implementation_version: str = Form(""),
+        station_ae_title: str = Form(""),
+        mwl_scp_enabled: str | None = Form(None),
     ):
         try:
             local = LocalAE(
@@ -141,6 +169,8 @@ def create_app(store: ConfigStore | None = None) -> FastAPI:
                 timeout_seconds=timeout_seconds,
                 max_pdu=max_pdu,
                 implementation_version=implementation_version,
+                station_ae_title=station_ae_title,
+                mwl_scp_enabled=_as_bool(mwl_scp_enabled),
             )
         except ValidationError as exc:
             return templates.TemplateResponse(
@@ -150,6 +180,7 @@ def create_app(store: ConfigStore | None = None) -> FastAPI:
                 status_code=400,
             )
         app.state.store.save_local(local)
+        app.state.mwl_scp.restart()
         return RedirectResponse("/config?saved=local", status_code=303)
 
     @app.post("/config/remotes")
@@ -161,6 +192,8 @@ def create_app(store: ConfigStore | None = None) -> FastAPI:
         port: int = Form(...),
         notes: str = Form(""),
         remote_id: str = Form(""),
+        kind: str = Form("other"),
+        provides_mwl: str | None = Form(None),
     ):
         try:
             remote = RemoteNode(
@@ -169,6 +202,8 @@ def create_app(store: ConfigStore | None = None) -> FastAPI:
                 host=host,
                 port=port,
                 notes=notes,
+                kind=kind,  # type: ignore[arg-type]
+                provides_mwl=_as_bool(provides_mwl),
             )
         except ValidationError as exc:
             config = app.state.store.load()
@@ -198,6 +233,112 @@ def create_app(store: ConfigStore | None = None) -> FastAPI:
     def delete_remote(remote_id: str):
         app.state.store.delete_remote(remote_id)
         return RedirectResponse("/config?saved=deleted", status_code=303)
+
+    @app.get("/worklist", response_class=HTMLResponse)
+    def worklist_page(request: Request, saved: str | None = None) -> HTMLResponse:
+        return templates.TemplateResponse(
+            request,
+            "worklist.html",
+            page(
+                request,
+                nav="worklist",
+                query=WorklistQuery(),
+                result=None,
+                source="local",
+                local_entries=app.state.store.list_worklist(),
+                saved=saved,
+            ),
+        )
+
+    @app.post("/worklist/query")
+    def worklist_query(
+        request: Request,
+        source: str = Form("local"),
+        patient_name: str = Form(""),
+        patient_id: str = Form(""),
+        accession_number: str = Form(""),
+        modality: str = Form(""),
+        station_ae_title: str = Form(""),
+        scheduled_date: str = Form(""),
+    ):
+        query = WorklistQuery(
+            patient_name=patient_name,
+            patient_id=patient_id,
+            accession_number=accession_number,
+            modality=modality,
+            station_ae_title=station_ae_title,
+            scheduled_date=scheduled_date,
+        )
+        result = query_worklist(app.state.store, source, query)
+        context = page(
+            request,
+            nav="worklist",
+            query=query,
+            result=result,
+            source=source,
+            local_entries=app.state.store.list_worklist(),
+        )
+        if _hx(request):
+            return templates.TemplateResponse(request, "partials/worklist_results.html", context)
+        return templates.TemplateResponse(request, "worklist.html", context)
+
+    @app.post("/worklist/entries")
+    def add_worklist_entry(
+        request: Request,
+        patient_name: str = Form(...),
+        patient_id: str = Form(...),
+        patient_birth_date: str = Form(""),
+        patient_sex: str = Form(""),
+        accession_number: str = Form(""),
+        requested_procedure_id: str = Form(""),
+        requested_procedure_description: str = Form(""),
+        modality: str = Form("CT"),
+        station_ae_title: str = Form(""),
+        station_name: str = Form(""),
+        scheduled_date: str = Form(""),
+        scheduled_time: str = Form(""),
+        scheduled_physician: str = Form(""),
+    ):
+        config = app.state.store.load()
+        try:
+            entry = WorklistEntry(
+                patient_name=patient_name,
+                patient_id=patient_id,
+                patient_birth_date=patient_birth_date,
+                patient_sex=patient_sex,
+                accession_number=accession_number,
+                requested_procedure_id=requested_procedure_id,
+                requested_procedure_description=requested_procedure_description,
+                modality=modality,
+                station_ae_title=station_ae_title or config.local.station_ae_title,
+                station_name=station_name,
+                scheduled_date=scheduled_date,
+                scheduled_time=scheduled_time,
+                scheduled_physician=scheduled_physician,
+                study_instance_uid=str(generate_uid()),
+            )
+        except ValidationError as exc:
+            return templates.TemplateResponse(
+                request,
+                "worklist.html",
+                page(
+                    request,
+                    nav="worklist",
+                    query=WorklistQuery(),
+                    result=None,
+                    source="local",
+                    local_entries=app.state.store.list_worklist(),
+                    error=_first_error(exc),
+                ),
+                status_code=400,
+            )
+        app.state.store.add_worklist_entry(entry)
+        return RedirectResponse("/worklist?saved=entry", status_code=303)
+
+    @app.post("/worklist/entries/{entry_id}/delete")
+    def delete_worklist_entry(entry_id: str):
+        app.state.store.delete_worklist_entry(entry_id)
+        return RedirectResponse("/worklist?saved=deleted", status_code=303)
 
     @app.get("/tools/{tool_id}", response_class=HTMLResponse)
     def tool_page(request: Request, tool_id: str) -> HTMLResponse:
@@ -253,6 +394,25 @@ def create_app(store: ConfigStore | None = None) -> FastAPI:
     @app.post("/api/echo-board/run")
     def api_echo_board_run():
         return run_echo_board(app.state.store)
+
+    @app.post("/api/worklist/query")
+    def api_worklist_query(body: WorklistApiQuery):
+        return query_worklist(app.state.store, body.source, body)
+
+    @app.get("/api/worklist")
+    def api_worklist_local():
+        return app.state.store.list_worklist()
+
+    @app.post("/api/worklist", status_code=201)
+    def api_add_worklist_entry(entry: WorklistEntry):
+        if not entry.study_instance_uid:
+            entry = entry.model_copy(update={"study_instance_uid": str(generate_uid())})
+        return app.state.store.add_worklist_entry(entry)
+
+    @app.delete("/api/worklist/{entry_id}")
+    def api_delete_worklist_entry(entry_id: str):
+        app.state.store.delete_worklist_entry(entry_id)
+        return JSONResponse({"ok": True, "id": entry_id})
 
     @app.get("/api/config")
     def api_config():
