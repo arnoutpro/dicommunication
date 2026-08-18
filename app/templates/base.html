@@ -22,7 +22,11 @@
       </a>
       <nav>
         <a href="/" class="{% if nav == 'home' %}active{% endif %}">Dashboard</a>
-        <a href="/config" class="{% if nav == 'config' %}active{% endif %}">Configuration</a>
+        <p class="nav-label">Configuration</p>
+        <a href="/config" class="{% if nav == 'config' %}active{% endif %}">Configured nodes</a>
+        <a href="/config/local" class="{% if nav == 'config-local' %}active{% endif %}">Local DICOM AE</a>
+        <a href="/config/identities" class="{% if nav == 'config-identities' %}active{% endif %}">Virtual AEs</a>
+        <a href="/config/remotes" class="{% if nav == 'config-remotes' %}active{% endif %}">Remote nodes</a>
         <p class="nav-label">Test tools</p>
         <a href="/testbench" class="{% if nav == 'testbench' %}active{% endif %}">Testbench</a>
         <a href="/echo-board" class="{% if nav == 'echo-board' %}active{% endif %}">C-ECHO board</a>

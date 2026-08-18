@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+{% block title %}Local DICOM AE · Dicommunication{% endblock %}
+{% block content %}
+<header class="page-head">
+  <div>
+    <p class="eyebrow">Configuration</p>
+    <h1>Local DICOM AE</h1>
+    <p class="lede">This workstation’s calling AE Title, listen address, and optional MWL SCP. Virtual titles and remotes live on their own pages. Open Advanced for PDU, timeouts, and worklist options.</p>
+  </div>
+</header>
+{% include "partials/config_nav.html" %}
+
+<section class="panel">
+  <header class="panel-head">
+    <h2>Workstation identity</h2>
+    <span class="muted">Calling AE when you are not impersonating a modality</span>
+  </header>
+  <form method="post" action="/config/local" class="form-grid" autocomplete="off">
+    <label>
+      AE Title
+      <input name="ae_title" maxlength="16" required value="{{ config.local.ae_title }}">
+      <span class="hint">1–16 characters. Remote nodes must accept this calling AE.</span>
+    </label>
+    <label>
+      Port
+      <input name="port" type="number" min="1" max="65535" required value="{{ config.local.port }}">
+    </label>
+    <label>
+      IP address
+      <input name="host" required value="{{ config.local.host }}" placeholder="0.0.0.0">
+      <span class="hint">Bind / listen address. Use 0.0.0.0 to listen on all interfaces.</span>
+    </label>
+    <label>
+      Hostname
+      <input name="hostname" value="{{ config.local.hostname }}" placeholder="workstation.hospital.local">
+      <span class="hint">Optional. For documentation; DICOM listen still uses the IP address.</span>
+    </label>
+    <details class="advanced">
+      <summary>Advanced settings</summary>
+      <div class="form-grid">
+        <label>
+          Timeout (seconds)
+          <input name="timeout_seconds" type="number" min="1" max="120" step="0.5" required value="{{ config.local.timeout_seconds }}">
+        </label>
+        <label>
+          Max PDU size
+          <input name="max_pdu" type="number" min="4096" max="131072" required value="{{ config.local.max_pdu }}">
+        </label>
+        <label>
+          Implementation version
+          <input name="implementation_version" maxlength="16" value="{{ config.local.implementation_version }}">
+        </label>
+        <label>
+          Station AE Title
+          <input name="station_ae_title" maxlength="16" value="{{ config.local.station_ae_title }}" placeholder="CTSCANNER">
+          <span class="hint">Default Scheduled Station AE Title for worklist queries.</span>
+        </label>
+        <label class="checkbox span-2">
+          <input type="checkbox" name="mwl_scp_enabled" value="on" {% if config.local.mwl_scp_enabled %}checked{% endif %}>
+          Serve the web worklist over DICOM (MWL SCP on the listen port)
+        </label>
+      </div>
+    </details>
+    <div class="form-actions">
+      <button class="button primary" type="submit">Save local AE</button>
+    </div>
+  </form>
+</section>
+{% endblock %}

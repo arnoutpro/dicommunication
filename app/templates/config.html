@@ -4,115 +4,73 @@
 <header class="page-head">
   <div>
     <p class="eyebrow">Station identity</p>
-    <h1>Configuration</h1>
-    <p class="lede">Basic AE Title, address, and port are enough to start. Add virtual local AE titles to impersonate modalities. Open Advanced for PDU, timeouts, and worklist options. Settings are saved on disk and kept when you rebuild Docker.</p>
+    <h1>Configured nodes</h1>
+    <p class="lede">This workstation, virtual calling AEs, and remote DICOM nodes. Open a section to add or edit. Settings are saved on disk and kept when you rebuild Docker.</p>
   </div>
 </header>
+{% include "partials/config_nav.html" %}
 
-{% if saved %}
-<div class="flash ok" data-autohide>Configuration saved.</div>
-{% endif %}
-{% if error %}
-<div class="flash fail">{{ error }}</div>
-{% endif %}
+<div class="grid-3">
+  <article class="card">
+    <p class="card-label">Local AE</p>
+    <h2>{{ config.local.ae_title }}</h2>
+    <p class="muted">{{ config.local.host }}:{{ config.local.port }}{% if config.local.mwl_scp_enabled %} · MWL SCP{% endif %}</p>
+  </article>
+  <article class="card">
+    <p class="card-label">Virtual AEs</p>
+    <h2>{{ config.identities | length }}</h2>
+    <p class="muted">{% if config.identities %}Impersonation identities{% else %}None yet — add CT1, MR1, …{% endif %}</p>
+  </article>
+  <article class="card">
+    <p class="card-label">Remote nodes</p>
+    <h2>{{ config.remotes | length }}</h2>
+    <p class="muted">{% if config.remotes %}PACS, Orthanc, MWL, modalities{% else %}Add the node you want to test{% endif %}</p>
+  </article>
+</div>
 
 <section class="panel">
   <header class="panel-head">
     <h2>Local DICOM AE</h2>
-    <span class="muted">Calling AE for this workstation</span>
+    <a href="/config/local">Edit</a>
   </header>
-  <form method="post" action="/config/local" class="form-grid" autocomplete="off">
-    <label>
-      AE Title
-      <input name="ae_title" maxlength="16" required value="{{ config.local.ae_title }}">
-      <span class="hint">1–16 characters. Remote nodes must accept this calling AE.</span>
-    </label>
-    <label>
-      Port
-      <input name="port" type="number" min="1" max="65535" required value="{{ config.local.port }}">
-    </label>
-    <label>
-      IP address
-      <input name="host" required value="{{ config.local.host }}" placeholder="0.0.0.0">
-      <span class="hint">Bind / listen address. Use 0.0.0.0 to listen on all interfaces.</span>
-    </label>
-    <label>
-      Hostname
-      <input name="hostname" value="{{ config.local.hostname }}" placeholder="workstation.hospital.local">
-      <span class="hint">Optional. For documentation; DICOM listen still uses the IP address.</span>
-    </label>
-    <details class="advanced">
-      <summary>Advanced settings</summary>
-      <div class="form-grid">
-        <label>
-          Timeout (seconds)
-          <input name="timeout_seconds" type="number" min="1" max="120" step="0.5" required value="{{ config.local.timeout_seconds }}">
-        </label>
-        <label>
-          Max PDU size
-          <input name="max_pdu" type="number" min="4096" max="131072" required value="{{ config.local.max_pdu }}">
-        </label>
-        <label>
-          Implementation version
-          <input name="implementation_version" maxlength="16" value="{{ config.local.implementation_version }}">
-        </label>
-        <label>
-          Station AE Title
-          <input name="station_ae_title" maxlength="16" value="{{ config.local.station_ae_title }}" placeholder="CTSCANNER">
-          <span class="hint">Default Scheduled Station AE Title for worklist queries.</span>
-        </label>
-        <label class="checkbox span-2">
-          <input type="checkbox" name="mwl_scp_enabled" value="on" {% if config.local.mwl_scp_enabled %}checked{% endif %}>
-          Serve the web worklist over DICOM (MWL SCP on the listen port)
-        </label>
-      </div>
-    </details>
-    <div class="form-actions">
-      <button class="button primary" type="submit">Save local AE</button>
-    </div>
-  </form>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Calling AE</th>
+          <th>Listen</th>
+          <th>Station AE</th>
+          <th>MWL SCP</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>{{ config.local.ae_title }}</code></td>
+          <td>
+            <code>{{ config.local.host }}:{{ config.local.port }}</code>
+            {% if config.local.hostname %}<div class="muted small">{{ config.local.hostname }}</div>{% endif %}
+          </td>
+          <td><code>{{ config.local.station_ae_title or "—" }}</code></td>
+          <td>
+            {% if mwl_scp_running %}
+            <span class="badge ok">Listening</span>
+            {% elif config.local.mwl_scp_enabled %}
+            <span class="badge fail">{{ mwl_scp_error or "Off" }}</span>
+            {% else %}
+            <span class="muted">Off</span>
+            {% endif %}
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
 </section>
 
 <section class="panel">
   <header class="panel-head">
-    <h2>{% if editing_identity %}Edit virtual local AE{% else %}Virtual local AE titles{% endif %}</h2>
-    {% if editing_identity %}<a href="/config">Cancel</a>{% else %}<span class="muted">Impersonate a modality</span>{% endif %}
+    <h2>Virtual local AE titles</h2>
+    <a href="/config/identities">Add / edit</a>
   </header>
-  <p class="hint">
-    Each identity is a calling AE Title (who you are on the association) plus an optional station AE Title
-    (the worklist query filter). The listen port stays on the workstation AE above. Orthanc
-    <code>DicomModalities</code> must allow each calling AE you impersonate.
-  </p>
-  <form method="post" action="/config/identities" class="form-grid" autocomplete="off">
-    {% if editing_identity %}
-    <input type="hidden" name="identity_id" value="{{ editing_identity.id }}">
-    {% endif %}
-    <label>
-      Display name
-      <input name="name" required placeholder="CT scanner 1" value="{{ editing_identity.name if editing_identity else '' }}">
-    </label>
-    <label>
-      Calling AE Title
-      <input name="ae_title" maxlength="16" required placeholder="CT1" value="{{ editing_identity.ae_title if editing_identity else '' }}">
-      <span class="hint">Presented as the calling AE on C-ECHO, C-STORE, C-FIND, and MWL.</span>
-    </label>
-    <label>
-      Station AE Title
-      <input name="station_ae_title" maxlength="16" placeholder="same as calling AE" value="{{ editing_identity.station_ae_title if editing_identity else '' }}">
-      <span class="hint">Scheduled Station AE Title for worklist queries. Leave empty to use the calling AE.</span>
-    </label>
-    <label>
-      Default modality
-      <input name="modality" maxlength="16" placeholder="CT" value="{{ editing_identity.modality if editing_identity else '' }}">
-    </label>
-    <label class="span-2">
-      Notes
-      <input name="notes" placeholder="Room, vendor, Orthanc modality key…" value="{{ editing_identity.notes if editing_identity else '' }}">
-    </label>
-    <div class="form-actions">
-      <button class="button primary" type="submit">{% if editing_identity %}Save virtual AE{% else %}Add virtual AE{% endif %}</button>
-    </div>
-  </form>
   {% if config.identities %}
   <div class="table-wrap">
     <table>
@@ -136,84 +94,26 @@
           <td><code>{{ identity.scheduled_station_ae_title }}</code></td>
           <td>{{ identity.modality or "—" }}</td>
           <td class="actions">
-            <a href="/config?identity={{ identity.id }}">Edit</a>
-            <form method="post" action="/config/identities/{{ identity.id }}/delete" class="inline" data-confirm="Delete virtual AE {{ identity.name }}?">
-              <button type="submit" class="link-button danger">Delete</button>
-            </form>
+            <a href="/config/identities?edit={{ identity.id }}">Edit</a>
           </td>
         </tr>
         {% endfor %}
       </tbody>
     </table>
   </div>
+  {% else %}
+  <div class="empty">
+    <strong>No virtual AE titles yet</strong>
+    <p>Add identities such as CT1 or MR1 to impersonate a modality on worklist and Testbench.</p>
+    <a class="button" href="/config/identities">Add a virtual AE</a>
+  </div>
   {% endif %}
 </section>
 
 <section class="panel">
   <header class="panel-head">
-    <h2>{% if editing %}Edit remote node{% else %}Add remote DICOM node{% endif %}</h2>
-    {% if editing %}<a href="/config">Cancel</a>{% endif %}
-  </header>
-  <form method="post" action="/config/remotes" class="form-grid" autocomplete="off">
-    {% if editing %}
-    <input type="hidden" name="remote_id" value="{{ editing.id }}">
-    {% endif %}
-    <label>
-      Display name
-      <input name="name" required placeholder="PACS production" value="{{ editing.name if editing else '' }}">
-    </label>
-    <label>
-      AE Title
-      <input name="ae_title" maxlength="16" required placeholder="ORTHANC" value="{{ editing.ae_title if editing else '' }}">
-    </label>
-    <label>
-      Hostname
-      <input name="hostname" placeholder="pacs.hospital.local" value="{{ editing.hostname if editing else '' }}">
-    </label>
-    <label>
-      IP address
-      <input name="host" placeholder="192.168.1.10" value="{{ editing.host if editing else '' }}">
-      <span class="hint">Fill hostname, IP, or both. Connection uses IP when set, otherwise hostname.</span>
-    </label>
-    <label>
-      Port
-      <input name="port" type="number" min="1" max="65535" required value="{{ editing.port if editing else 11112 }}">
-      <span class="hint">Common values: 104, 11112, 4242 (Orthanc).</span>
-    </label>
-    <details class="advanced" {% if editing %}open{% endif %}>
-      <summary>Advanced settings</summary>
-      <div class="form-grid">
-        <label>
-          Node type
-          <select name="kind">
-            {% set kind = editing.kind if editing else 'other' %}
-            <option value="other" {% if kind == 'other' %}selected{% endif %}>Other</option>
-            <option value="pacs" {% if kind == 'pacs' %}selected{% endif %}>PACS</option>
-            <option value="mwl" {% if kind == 'mwl' %}selected{% endif %}>Modality Worklist (DMWL)</option>
-            <option value="modality" {% if kind == 'modality' %}selected{% endif %}>Modality</option>
-            <option value="vna" {% if kind == 'vna' %}selected{% endif %}>VNA</option>
-          </select>
-        </label>
-        <label class="checkbox">
-          <input type="checkbox" name="provides_mwl" value="on" {% if editing and editing.provides_mwl %}checked{% endif %}>
-          This node provides DICOM Modality Worklist
-        </label>
-        <label class="span-2">
-          Notes
-          <input name="notes" placeholder="VLAN, TLS, vendor, contact…" value="{{ editing.notes if editing else '' }}">
-        </label>
-      </div>
-    </details>
-    <div class="form-actions">
-      <button class="button primary" type="submit">{% if editing %}Save remote node{% else %}Add remote node{% endif %}</button>
-    </div>
-  </form>
-</section>
-
-<section class="panel">
-  <header class="panel-head">
-    <h2>Configured remotes</h2>
-    <span class="muted">{{ config.remotes | length }} node{% if config.remotes | length != 1 %}s{% endif %}</span>
+    <h2>Remote DICOM nodes</h2>
+    <a href="/config/remotes">Add / edit</a>
   </header>
   {% if config.remotes %}
   <div class="table-wrap">
@@ -246,10 +146,7 @@
             {% endif %}
           </td>
           <td class="actions">
-            <a href="/config?edit={{ remote.id }}">Edit</a>
-            <form method="post" action="/config/remotes/{{ remote.id }}/delete" class="inline" data-confirm="Delete remote node {{ remote.name }}?">
-              <button type="submit" class="link-button danger">Delete</button>
-            </form>
+            <a href="/config/remotes?edit={{ remote.id }}">Edit</a>
           </td>
         </tr>
         {% endfor %}
@@ -258,8 +155,9 @@
   </div>
   {% else %}
   <div class="empty">
-    <strong>Add the node you want to test</strong>
-    <p>Use the AE Title, hostname or IP, and DICOM port published by the PACS or modality.</p>
+    <strong>No remote nodes yet</strong>
+    <p>Add the AE Title, hostname or IP, and DICOM port of the PACS, Orthanc, or modality.</p>
+    <a class="button" href="/config/remotes">Add a remote node</a>
   </div>
   {% endif %}
 </section>

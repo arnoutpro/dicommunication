@@ -13,9 +13,21 @@ def test_health_and_pages(client) -> None:
     assert b"Open configuration" not in home.content
     config = client.get("/config")
     assert config.status_code == 200
+    assert b"Configured nodes" in config.content
     assert b"Local DICOM AE" in config.content
-    assert b"Advanced settings" in config.content
-    assert b"Virtual local AE titles" in config.content
+    assert b"Advanced settings" not in config.content
+    local_ae = client.get("/config/local")
+    assert local_ae.status_code == 200
+    assert b"Advanced settings" in local_ae.content
+    identities = client.get("/config/identities")
+    assert identities.status_code == 200
+    assert b"Virtual local AE titles" in identities.content
+    remotes = client.get("/config/remotes")
+    assert remotes.status_code == 200
+    assert b"Remote DICOM nodes" in remotes.content
+    legacy = client.get("/config?edit=nope", follow_redirects=False)
+    assert legacy.status_code == 303
+    assert legacy.headers["location"].startswith("/config/remotes")
     echo_board = client.get("/echo-board")
     assert echo_board.status_code == 200
     worklist = client.get("/worklist")
