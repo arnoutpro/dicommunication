@@ -72,13 +72,14 @@ def create_app(store: ConfigStore | None = None) -> FastAPI:
 
     @app.get("/", response_class=HTMLResponse)
     def dashboard(request: Request) -> HTMLResponse:
-        return templates.TemplateResponse("index.html", page(request, nav="home"))
+        return templates.TemplateResponse(request, "index.html", page(request, nav="home"))
 
     @app.get("/config", response_class=HTMLResponse)
     def config_page(request: Request, edit: str | None = None, saved: str | None = None) -> HTMLResponse:
         config = app.state.store.load()
         editing = config.get_remote(edit) if edit else None
         return templates.TemplateResponse(
+            request,
             "config.html",
             page(
                 request,
@@ -110,6 +111,7 @@ def create_app(store: ConfigStore | None = None) -> FastAPI:
             )
         except ValidationError as exc:
             return templates.TemplateResponse(
+                request,
                 "config.html",
                 page(request, nav="config", editing=None, saved=None, error=_first_error(exc)),
                 status_code=400,
@@ -139,6 +141,7 @@ def create_app(store: ConfigStore | None = None) -> FastAPI:
             config = app.state.store.load()
             editing = config.get_remote(remote_id) if remote_id else None
             return templates.TemplateResponse(
+                request,
                 "config.html",
                 page(
                     request,
@@ -170,6 +173,7 @@ def create_app(store: ConfigStore | None = None) -> FastAPI:
         except KeyError as exc:
             raise HTTPException(status_code=404, detail=str(exc)) from exc
         return templates.TemplateResponse(
+            request,
             "tool.html",
             page(request, nav="tools", tool=tool, tool_id=tool.id, result=None),
         )
@@ -187,6 +191,7 @@ def create_app(store: ConfigStore | None = None) -> FastAPI:
             )
             if _hx(request):
                 return templates.TemplateResponse(
+                    request,
                     "partials/result.html",
                     {"request": request, "result": failure},
                     status_code=exc.status_code,
@@ -194,6 +199,7 @@ def create_app(store: ConfigStore | None = None) -> FastAPI:
             raise
         if _hx(request):
             return templates.TemplateResponse(
+                request,
                 "partials/result.html",
                 {"request": request, "result": result},
             )
@@ -202,6 +208,7 @@ def create_app(store: ConfigStore | None = None) -> FastAPI:
         except KeyError:
             tool = None
         return templates.TemplateResponse(
+            request,
             "tool.html",
             page(request, nav="tools", tool=tool, tool_id=tool_id, result=result),
         )
