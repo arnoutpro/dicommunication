@@ -25,8 +25,8 @@ BASE_DIR = Path(__file__).resolve().parent
 
 def _first_error(exc: ValidationError) -> str:
     error = exc.errors()[0]
-    location = error.get("loc", ("field",))[-1]
-    return f"{location}: {error.get('msg', 'invalid value')}"
+    loc = error.get("loc") or ("config",)
+    return f"{loc[-1]}: {error.get('msg', 'invalid value')}"
 
 
 def _hx(request: Request) -> bool:
@@ -154,9 +154,10 @@ def create_app(store: ConfigStore | None = None) -> FastAPI:
         request: Request,
         ae_title: str = Form(...),
         host: str = Form(...),
+        hostname: str = Form(""),
         port: int = Form(...),
-        timeout_seconds: float = Form(...),
-        max_pdu: int = Form(...),
+        timeout_seconds: float = Form(10),
+        max_pdu: int = Form(16382),
         implementation_version: str = Form(""),
         station_ae_title: str = Form(""),
         mwl_scp_enabled: str | None = Form(None),
@@ -165,6 +166,7 @@ def create_app(store: ConfigStore | None = None) -> FastAPI:
             local = LocalAE(
                 ae_title=ae_title,
                 host=host,
+                hostname=hostname,
                 port=port,
                 timeout_seconds=timeout_seconds,
                 max_pdu=max_pdu,
@@ -188,7 +190,8 @@ def create_app(store: ConfigStore | None = None) -> FastAPI:
         request: Request,
         name: str = Form(...),
         ae_title: str = Form(...),
-        host: str = Form(...),
+        host: str = Form(""),
+        hostname: str = Form(""),
         port: int = Form(...),
         notes: str = Form(""),
         remote_id: str = Form(""),
@@ -200,6 +203,7 @@ def create_app(store: ConfigStore | None = None) -> FastAPI:
                 name=name,
                 ae_title=ae_title,
                 host=host,
+                hostname=hostname,
                 port=port,
                 notes=notes,
                 kind=kind,  # type: ignore[arg-type]

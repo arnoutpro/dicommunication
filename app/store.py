@@ -10,7 +10,18 @@ from threading import Lock
 
 from app.models import AppConfig, RemoteNode, ToolResult, WorklistEntry
 
-DEFAULT_DATA_DIR = Path(os.environ.get("DICOMM_DATA_DIR", "data"))
+def _default_data_dir() -> Path:
+    env = os.environ.get("DICOMM_DATA_DIR")
+    if env:
+        return Path(env)
+    home_dir = Path.home() / ".dicommunication"
+    legacy = Path("data")
+    if not (home_dir / "config.json").exists() and (legacy / "config.json").exists():
+        return legacy
+    return home_dir
+
+
+DEFAULT_DATA_DIR = _default_data_dir()
 
 
 class ConfigStore:

@@ -212,7 +212,7 @@ def query_remote(local: LocalAE, remote: RemoteNode, query: WorklistQuery) -> Wo
     try:
         ae = make_ae(local)
         ae.add_requested_context(ModalityWorklistInformationFind)
-        assoc = ae.associate(remote.host, remote.port, ae_title=remote.ae_title)
+        assoc = ae.associate(remote.connect_host, remote.port, ae_title=remote.ae_title)
         if not assoc.is_established:
             return WorklistQueryResult(
                 ok=False,
