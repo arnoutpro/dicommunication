@@ -1,0 +1,12 @@
+<nav class="config-tabs" aria-label="Configuration sections">
+  <a href="/config" class="{% if nav == 'config' %}active{% endif %}">Configured nodes</a>
+  <a href="/config/local" class="{% if nav == 'config-local' %}active{% endif %}">Local DICOM AE</a>
+  <a href="/config/identities" class="{% if nav == 'config-identities' %}active{% endif %}">Virtual AEs</a>
+  <a href="/config/remotes" class="{% if nav == 'config-remotes' %}active{% endif %}">Remote nodes</a>
+</nav>
+{% if saved %}
+<div class="flash ok" data-autohide>Configuration saved.</div>
+{% endif %}
+{% if error %}
+<div class="flash fail">{{ error }}</div>
+{% endif %}
