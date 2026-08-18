@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import io
-import logging
 import time
 import uuid
 from fnmatch import fnmatch
@@ -13,7 +11,13 @@ from pydicom.dataset import Dataset
 from pydicom.uid import generate_uid
 from pynetdicom.sop_class import ModalityWorklistInformationFind
 
-from app.dicom_client import make_ae, reject_reason
+from app.dicom_client import (
+    associate,
+    capture_pynetdicom_log,
+    context_rows,
+    reject_reason,
+    rejected_sop_message,
+)
 from app.models import LocalAE, RemoteNode, WorklistEntry, WorklistQuery, WorklistQueryResult
 from app.store import ConfigStore
 
@@ -199,79 +203,99 @@ def query_local(store: ConfigStore, query: WorklistQuery) -> WorklistQueryResult
 
 def query_remote(local: LocalAE, remote: RemoteNode, query: WorklistQuery) -> WorklistQueryResult:
     started = time.perf_counter()
-    log_stream = io.StringIO()
-    handler = logging.StreamHandler(log_stream)
-    handler.setLevel(logging.INFO)
-    logger = logging.getLogger("pynetdicom")
-    previous = logger.level
-    logger.setLevel(logging.INFO)
-    logger.addHandler(handler)
-
     entries: list[WorklistEntry] = []
+    contexts: list[dict[str, Any]] = []
     assoc = None
-    try:
-        ae = make_ae(local)
-        ae.add_requested_context(ModalityWorklistInformationFind)
-        assoc = ae.associate(remote.connect_host, remote.port, ae_title=remote.ae_title)
-        if not assoc.is_established:
-            return WorklistQueryResult(
-                ok=False,
-                source=remote.name,
-                summary=reject_reason(assoc),
-                duration_ms=round((time.perf_counter() - started) * 1000, 1),
-                log=log_stream.getvalue().strip(),
+    with capture_pynetdicom_log() as log_stream:
+        try:
+            _ae, assoc = associate(local, remote, [ModalityWorklistInformationFind])
+            contexts = context_rows(assoc)
+            rejected = rejected_sop_message(
+                contexts,
+                "Modality Worklist FIND (1.2.840.10008.5.1.4.31)",
+                "This node is not an MWL SCP. Study Root C-FIND searches stored studies "
+                "and is a different SOP Class.",
             )
-
-        identifier = build_identifier(query)
-        for status, identifier_ds in assoc.send_c_find(identifier, ModalityWorklistInformationFind):
-            if not status:
+            if not assoc.is_established:
                 return WorklistQueryResult(
                     ok=False,
                     source=remote.name,
-                    summary="No C-FIND response (timeout, abort, or invalid PDU).",
+                    summary=rejected or reject_reason(assoc),
                     duration_ms=round((time.perf_counter() - started) * 1000, 1),
                     log=log_stream.getvalue().strip(),
+                    contexts=contexts,
                 )
-            code = int(status.Status)
-            if code in PENDING and identifier_ds is not None:
-                entries.append(dataset_to_entry(identifier_ds))
-            elif code == 0x0000:
-                continue
-            else:
+            if not assoc.accepted_contexts:
                 assoc.release()
                 return WorklistQueryResult(
                     ok=False,
                     source=remote.name,
-                    summary=f"C-FIND status 0x{code:04X}",
+                    summary=rejected
+                    or (
+                        "Association opened, but Modality Worklist FIND "
+                        "(1.2.840.10008.5.1.4.31) was not accepted. This node is not an "
+                        "MWL SCP. Study Root C-FIND searches stored studies and is a "
+                        "different SOP Class."
+                    ),
                     duration_ms=round((time.perf_counter() - started) * 1000, 1),
-                    entries=entries,
                     log=log_stream.getvalue().strip(),
+                    contexts=contexts,
                 )
-        assoc.release()
-        return WorklistQueryResult(
-            ok=True,
-            source=remote.name,
-            summary=f"{len(entries)} worklist item{'s' if len(entries) != 1 else ''} from {remote.ae_title}",
-            duration_ms=round((time.perf_counter() - started) * 1000, 1),
-            entries=entries,
-            log=log_stream.getvalue().strip(),
-        )
-    except Exception as exc:  # noqa: BLE001
-        return WorklistQueryResult(
-            ok=False,
-            source=remote.name,
-            summary=f"{type(exc).__name__}: {exc}",
-            duration_ms=round((time.perf_counter() - started) * 1000, 1),
-            log=log_stream.getvalue().strip(),
-        )
-    finally:
-        if assoc is not None and getattr(assoc, "is_established", False):
-            try:
-                assoc.abort()
-            except Exception:  # noqa: BLE001
-                pass
-        logger.removeHandler(handler)
-        logger.setLevel(previous)
+
+            identifier = build_identifier(query)
+            for status, identifier_ds in assoc.send_c_find(
+                identifier, ModalityWorklistInformationFind
+            ):
+                if not status:
+                    return WorklistQueryResult(
+                        ok=False,
+                        source=remote.name,
+                        summary="No C-FIND response (timeout, abort, or invalid PDU).",
+                        duration_ms=round((time.perf_counter() - started) * 1000, 1),
+                        log=log_stream.getvalue().strip(),
+                        contexts=contexts,
+                    )
+                code = int(status.Status)
+                if code in PENDING and identifier_ds is not None:
+                    entries.append(dataset_to_entry(identifier_ds))
+                elif code == 0x0000:
+                    continue
+                else:
+                    assoc.release()
+                    return WorklistQueryResult(
+                        ok=False,
+                        source=remote.name,
+                        summary=f"C-FIND status 0x{code:04X}",
+                        duration_ms=round((time.perf_counter() - started) * 1000, 1),
+                        entries=entries,
+                        log=log_stream.getvalue().strip(),
+                        contexts=contexts,
+                    )
+            assoc.release()
+            return WorklistQueryResult(
+                ok=True,
+                source=remote.name,
+                summary=f"{len(entries)} worklist item{'s' if len(entries) != 1 else ''} from {remote.ae_title}",
+                duration_ms=round((time.perf_counter() - started) * 1000, 1),
+                entries=entries,
+                log=log_stream.getvalue().strip(),
+                contexts=contexts,
+            )
+        except Exception as exc:  # noqa: BLE001
+            return WorklistQueryResult(
+                ok=False,
+                source=remote.name,
+                summary=f"{type(exc).__name__}: {exc}",
+                duration_ms=round((time.perf_counter() - started) * 1000, 1),
+                log=log_stream.getvalue().strip(),
+                contexts=contexts,
+            )
+        finally:
+            if assoc is not None and getattr(assoc, "is_established", False):
+                try:
+                    assoc.abort()
+                except Exception:  # noqa: BLE001
+                    pass
 
 
 def query_worklist(

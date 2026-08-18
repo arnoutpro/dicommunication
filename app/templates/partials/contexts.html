@@ -1,0 +1,31 @@
+{% if contexts %}
+<div class="table-wrap">
+  <table class="context-table">
+    <thead>
+      <tr>
+        <th>Presentation context</th>
+        <th>SOP Class</th>
+        <th>Transfer syntax</th>
+        <th>Result</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for ctx in contexts %}
+      <tr class="{% if ctx.accepted %}row-pass{% else %}row-fail{% endif %}">
+        <td>{{ ctx.name }}</td>
+        <td><code>{{ ctx.abstract_syntax }}</code></td>
+        <td>{% if ctx.transfer_syntax_name %}<code>{{ ctx.transfer_syntax_name }}</code>{% else %}—{% endif %}</td>
+        <td>
+          {% if ctx.accepted %}
+          <span class="badge ok">Accepted</span>
+          {% else %}
+          <span class="badge fail">Rejected</span>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+<p class="hint">Accepted vs rejected SOP Classes is the difference between C-ECHO, C-STORE, Study Root C-FIND, and MWL C-FIND. A node can accept Verification and still reject Storage or Worklist.</p>
+{% endif %}

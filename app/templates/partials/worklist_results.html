@@ -8,6 +8,12 @@
     </div>
     <span class="muted">{{ result.duration_ms }} ms</span>
   </header>
+  {% if result.contexts %}
+  <h3 class="result-subhead">SOP Classes negotiated</h3>
+  {% with contexts=result.contexts %}
+    {% include "partials/contexts.html" %}
+  {% endwith %}
+  {% endif %}
   {% if result.entries %}
   <div class="table-wrap">
     <table class="echo-table">

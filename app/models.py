@@ -171,6 +171,8 @@ class ToolResult(BaseModel):
     duration_ms: float = 0
     steps: list[ToolStep] = Field(default_factory=list)
     log: str = ""
+    contexts: list[dict[str, Any]] = Field(default_factory=list)
+    records: list[dict[str, Any]] = Field(default_factory=list)
 
 
 class EchoBoardRow(BaseModel):
@@ -264,3 +266,4 @@ class WorklistQueryResult(BaseModel):
     duration_ms: float = 0
     entries: list[WorklistEntry] = Field(default_factory=list)
     log: str = ""
+    contexts: list[dict[str, Any]] = Field(default_factory=list)
