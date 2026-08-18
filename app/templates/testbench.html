@@ -1,0 +1,161 @@
+{% extends "base.html" %}
+{% block title %}Testbench · Dicommunication{% endblock %}
+{% block content %}
+<header class="page-head">
+  <div>
+    <p class="eyebrow">DICOM DIMSE</p>
+    <h1>Testbench</h1>
+    <p class="lede">
+      Send a simulated C-ECHO, C-STORE, Study Root C-FIND, or Modality Worklist C-FIND
+      to a remote node. These are different SOP Classes — a working C-ECHO (or Orthanc
+      answering MWL in the UI) does not mean Storage or Query/Retrieve will succeed.
+    </p>
+  </div>
+</header>
+
+<section class="panel">
+  <header class="panel-head">
+    <h2>Why these services are not interchangeable</h2>
+  </header>
+  <div class="table-wrap">
+    <table class="echo-table">
+      <thead>
+        <tr>
+          <th>Service</th>
+          <th>SOP Class</th>
+          <th>What it actually tests</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>C-ECHO</strong></td>
+          <td><code>1.2.840.10008.1.1</code><div class="muted small">Verification</div></td>
+          <td>Association plus a DICOM ping. Connectivity only.</td>
+        </tr>
+        <tr>
+          <td><strong>C-STORE</strong></td>
+          <td>Secondary Capture Image Storage</td>
+          <td>Can this node <em>receive</em> an instance? Orthanc usually yes; an MWL-only RIS usually no.</td>
+        </tr>
+        <tr>
+          <td><strong>C-FIND</strong></td>
+          <td>Study Root Query/Retrieve FIND</td>
+          <td>Search <em>stored studies</em> in a PACS archive. Empty matches are still a successful Q/R C-FIND.</td>
+        </tr>
+        <tr>
+          <td><strong>MWL C-FIND</strong></td>
+          <td><code>1.2.840.10008.5.1.4.31</code><div class="muted small">Modality Worklist</div></td>
+          <td>Search <em>scheduled procedures</em>, not the archive. Orthanc rejects this unless the worklist plugin is enabled.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section class="panel">
+  <header class="panel-head">
+    <h2>Run against a remote node</h2>
+    <span class="muted">Calling AE {{ config.local.ae_title }}</span>
+  </header>
+
+  {% if config.remotes %}
+  <form
+    class="form-grid"
+    method="post"
+    action="/testbench/run"
+    hx-post="/testbench/run"
+    hx-target="#result"
+    hx-indicator="#busy"
+    hx-timeout="120000"
+    id="testbench-form"
+  >
+    <label>
+      Remote node
+      <select name="remote_id" required>
+        {% for remote in config.remotes %}
+        <option value="{{ remote.id }}">{{ remote.name }} — {{ remote.ae_title }} @ {{ remote.connect_host }}:{{ remote.port }}{% if remote.provides_mwl %} (DMWL){% endif %}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label>
+      DICOM service
+      <select name="service" id="service" required>
+        <option value="c-echo" {% if service == 'c-echo' %}selected{% endif %}>C-ECHO — Verification</option>
+        <option value="c-store" {% if service == 'c-store' %}selected{% endif %}>C-STORE — send test image</option>
+        <option value="c-find" {% if service == 'c-find' %}selected{% endif %}>C-FIND — Study Root Query/Retrieve</option>
+        <option value="mwl-find" {% if service == 'mwl-find' %}selected{% endif %}>MWL C-FIND — Modality Worklist</option>
+      </select>
+    </label>
+    <div id="qr-fields" class="span-2 form-grid" hidden>
+      <label>
+        Patient name
+        <input name="patient_name" placeholder="DOE*" autocomplete="off">
+      </label>
+      <label>
+        Patient ID
+        <input name="patient_id" autocomplete="off">
+      </label>
+      <label>
+        Accession number
+        <input name="accession_number" autocomplete="off">
+      </label>
+      <label>
+        Modality
+        <input name="modality" placeholder="CT" maxlength="16" autocomplete="off">
+      </label>
+      <label id="study-date-field">
+        Study date
+        <input name="study_date" type="date">
+      </label>
+    </div>
+    <div id="mwl-fields" class="span-2 form-grid" hidden>
+      <label>
+        Station AE Title
+        <input name="station_ae_title" value="{{ config.local.station_ae_title }}" maxlength="16">
+      </label>
+      <label>
+        Scheduled date
+        <input name="scheduled_date" type="date">
+      </label>
+    </div>
+    <div class="form-actions">
+      <button class="button primary" type="submit">Run service</button>
+      <span id="busy" class="htmx-indicator spinner">Associating…</span>
+      <p class="hint">C-STORE sends a 16×16 Secondary Capture as patient ARNPRO^TESTBENCH / ARNPRO-TEST. Leave C-FIND filters empty for a broad STUDY-level query.</p>
+    </div>
+  </form>
+  {% else %}
+  <div class="empty">
+    <strong>No remote node configured</strong>
+    <p>Add a PACS, Orthanc, or modality first, then come back to the testbench.</p>
+    <a class="button" href="/config">Open configuration</a>
+  </div>
+  {% endif %}
+</section>
+
+<div id="result">
+  {% if result %}
+    {% include "partials/result.html" %}
+  {% endif %}
+</div>
+<script>
+(function () {
+  const service = document.getElementById("service");
+  const qr = document.getElementById("qr-fields");
+  const mwl = document.getElementById("mwl-fields");
+  const studyDate = document.getElementById("study-date-field");
+  function sync() {
+    if (!service) return;
+    const value = service.value;
+    const showFind = value === "c-find" || value === "mwl-find";
+    if (qr) qr.hidden = !showFind;
+    if (mwl) mwl.hidden = value !== "mwl-find";
+    if (studyDate) studyDate.hidden = value !== "c-find";
+  }
+  if (service) {
+    service.addEventListener("change", sync);
+    sync();
+  }
+})();
+</script>
+{% endblock %}

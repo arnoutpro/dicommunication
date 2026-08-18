@@ -24,6 +24,11 @@ def test_health_and_pages(client) -> None:
     assert ping.status_code == 200
     echo = client.get("/tools/c-echo")
     assert echo.status_code == 200
+    testbench = client.get("/testbench")
+    assert testbench.status_code == 200
+    assert b"C-STORE" in testbench.content
+    assert b"Study Root" in testbench.content
+    assert b"1.2.840.10008.5.1.4.31" in testbench.content
 
 
 def test_save_local_ae_and_remote_via_forms(client) -> None:
@@ -76,7 +81,7 @@ def test_reject_oversized_ae_title(client) -> None:
 def test_json_api_config_tools_and_run(client, store) -> None:
     listed = client.get("/api/tools").json()
     ids = {item["id"] for item in listed}
-    assert {"ping", "c-echo", "mwl-find"} <= ids
+    assert {"ping", "c-echo", "mwl-find", "c-store", "c-find"} <= ids
 
     remote = RemoteNode(name="api node", ae_title="APINODE", host="127.0.0.1", port=9)
     created = client.post("/api/remotes", json=remote.model_dump(mode="json"))

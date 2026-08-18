@@ -2,14 +2,12 @@
 
 from __future__ import annotations
 
-import io
-import logging
 import time
 from typing import Any
 
-from pynetdicom import AE
 from pynetdicom.sop_class import Verification
 
+from app.dicom_client import associate, capture_pynetdicom_log, context_rows, reject_reason
 from app.models import LocalAE, RemoteNode, ToolResult, ToolStep
 from app.tools.base import BaseTool
 from app.tools.registry import register
@@ -24,7 +22,8 @@ class CEchoTool(BaseTool):
     name = "C-ECHO"
     description = (
         "Establish a DICOM association with the remote AE and send a Verification "
-        "(C-ECHO) request. This is the standard application-level connectivity check."
+        "(C-ECHO) request. This only proves the Verification SOP Class works — not "
+        "Storage (C-STORE) or Query/Retrieve (C-FIND)."
     )
     category = "dimse"
 
@@ -43,109 +42,94 @@ class CEchoTool(BaseTool):
             )
 
         started = time.perf_counter()
-        log_stream = io.StringIO()
-        handler = logging.StreamHandler(log_stream)
-        handler.setLevel(logging.INFO)
-        logger = logging.getLogger("pynetdicom")
-        previous_level = logger.level
-        logger.setLevel(logging.INFO)
-        logger.addHandler(handler)
-
         steps: list[ToolStep] = []
+        contexts: list[dict[str, Any]] = []
         assoc = None
-        try:
-            assoc_started = time.perf_counter()
-            ae = AE(ae_title=local.ae_title)
-            ae.maximum_pdu_size = local.max_pdu
-            ae.acse_timeout = local.timeout_seconds
-            ae.dimse_timeout = local.timeout_seconds
-            ae.network_timeout = local.timeout_seconds
-            if local.implementation_version:
-                ae.implementation_version_name = local.implementation_version
-            ae.add_requested_context(Verification)
+        with capture_pynetdicom_log() as log_stream:
+            try:
+                assoc_started = time.perf_counter()
+                _ae, assoc = associate(local, remote, [Verification])
+                contexts = context_rows(assoc)
+                details = self._assoc_details(assoc, local, remote)
 
-            assoc = ae.associate(remote.connect_host, remote.port, ae_title=remote.ae_title)
-            details = self._assoc_details(assoc, local, remote)
-
-            if not assoc.is_established:
-                steps.append(
-                    ToolStep(
-                        name="Association",
-                        ok=False,
-                        message=self._reject_reason(assoc),
-                        duration_ms=_elapsed_ms(assoc_started),
-                        details=details,
-                    )
-                )
-            else:
-                steps.append(
-                    ToolStep(
-                        name="Association",
-                        ok=True,
-                        message=(
-                            f"Associated {local.ae_title} → "
-                            f"{remote.ae_title}@{remote.connect_host}:{remote.port}"
-                        ),
-                        duration_ms=_elapsed_ms(assoc_started),
-                        details=details,
-                    )
-                )
-
-                echo_started = time.perf_counter()
-                status = assoc.send_c_echo()
-                if status:
-                    code = int(status.Status)
-                    echo_ok = code == 0x0000
+                if not assoc.is_established:
                     steps.append(
                         ToolStep(
-                            name="C-ECHO",
-                            ok=echo_ok,
-                            message=(
-                                f"DIMSE status 0x{code:04X} Success"
-                                if echo_ok
-                                else f"DIMSE status 0x{code:04X}"
-                            ),
-                            duration_ms=_elapsed_ms(echo_started),
-                            details={"status": f"0x{code:04X}"},
+                            name="Association",
+                            ok=False,
+                            message=reject_reason(assoc),
+                            duration_ms=_elapsed_ms(assoc_started),
+                            details=details,
                         )
                     )
                 else:
                     steps.append(
                         ToolStep(
-                            name="C-ECHO",
-                            ok=False,
-                            message="No C-ECHO response (timeout, abort, or invalid PDU).",
-                            duration_ms=_elapsed_ms(echo_started),
+                            name="Association",
+                            ok=True,
+                            message=(
+                                f"Associated {local.ae_title} → "
+                                f"{remote.ae_title}@{remote.connect_host}:{remote.port}"
+                            ),
+                            duration_ms=_elapsed_ms(assoc_started),
+                            details=details,
                         )
                     )
 
-                release_started = time.perf_counter()
-                assoc.release()
+                    echo_started = time.perf_counter()
+                    status = assoc.send_c_echo()
+                    if status:
+                        code = int(status.Status)
+                        echo_ok = code == 0x0000
+                        steps.append(
+                            ToolStep(
+                                name="C-ECHO",
+                                ok=echo_ok,
+                                message=(
+                                    f"DIMSE status 0x{code:04X} Success"
+                                    if echo_ok
+                                    else f"DIMSE status 0x{code:04X}"
+                                ),
+                                duration_ms=_elapsed_ms(echo_started),
+                                details={"status": f"0x{code:04X}"},
+                            )
+                        )
+                    else:
+                        steps.append(
+                            ToolStep(
+                                name="C-ECHO",
+                                ok=False,
+                                message="No C-ECHO response (timeout, abort, or invalid PDU).",
+                                duration_ms=_elapsed_ms(echo_started),
+                            )
+                        )
+
+                    release_started = time.perf_counter()
+                    assoc.release()
+                    steps.append(
+                        ToolStep(
+                            name="Release",
+                            ok=True,
+                            message="Association released",
+                            duration_ms=_elapsed_ms(release_started),
+                        )
+                    )
+            except Exception as exc:  # noqa: BLE001 — surface any association/network failure
                 steps.append(
                     ToolStep(
-                        name="Release",
-                        ok=True,
-                        message="Association released",
-                        duration_ms=_elapsed_ms(release_started),
+                        name="C-ECHO",
+                        ok=False,
+                        message=f"{type(exc).__name__}: {exc}",
+                        duration_ms=_elapsed_ms(started),
                     )
                 )
-        except Exception as exc:  # noqa: BLE001 — surface any association/network failure
-            steps.append(
-                ToolStep(
-                    name="C-ECHO",
-                    ok=False,
-                    message=f"{type(exc).__name__}: {exc}",
-                    duration_ms=_elapsed_ms(started),
-                )
-            )
-        finally:
-            if assoc is not None and getattr(assoc, "is_established", False):
-                try:
-                    assoc.abort()
-                except Exception:  # noqa: BLE001
-                    pass
-            logger.removeHandler(handler)
-            logger.setLevel(previous_level)
+            finally:
+                if assoc is not None and getattr(assoc, "is_established", False):
+                    try:
+                        assoc.abort()
+                    except Exception:  # noqa: BLE001
+                        pass
+            log = log_stream.getvalue().strip()
 
         ok = bool(steps) and all(step.ok for step in steps)
         if ok:
@@ -167,7 +151,8 @@ class CEchoTool(BaseTool):
             remote_name=remote.name,
             duration_ms=_elapsed_ms(started),
             steps=steps,
-            log=log_stream.getvalue().strip(),
+            log=log,
+            contexts=contexts,
         )
 
     def _assoc_details(self, assoc: Any, local: LocalAE, remote: RemoteNode) -> dict[str, Any]:
@@ -181,27 +166,6 @@ class CEchoTool(BaseTool):
             if hasattr(assoc, attr):
                 details[attr] = bool(getattr(assoc, attr))
         return details
-
-    def _reject_reason(self, assoc: Any) -> str:
-        try:
-            if getattr(assoc, "is_rejected", False):
-                primitive = getattr(getattr(assoc, "acceptor", None), "primitive", None)
-                if primitive is not None:
-                    result = getattr(primitive, "result_str", None) or getattr(
-                        primitive, "result", "rejected"
-                    )
-                    diagnostic = getattr(primitive, "diagnostic_str", None) or getattr(
-                        primitive, "diagnostic", ""
-                    )
-                    return f"Association rejected: {result} {diagnostic}".strip()
-                return "Association rejected by the remote AE."
-            if getattr(assoc, "is_aborted", False):
-                return "Association aborted before it was established."
-        except Exception:  # noqa: BLE001
-            pass
-        return (
-            "Association rejected, aborted, or the host did not accept a DICOM connection."
-        )
 
 
 register(CEchoTool())
