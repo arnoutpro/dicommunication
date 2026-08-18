@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Dicommunication{% endblock %}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/css/app.css">
+  <script src="https://unpkg.com/htmx.org@2.0.4" defer></script>
+</head>
+<body>
+  <div class="shell">
+    <aside class="sidebar">
+      <a class="brand" href="/">
+        <span class="brand-mark" aria-hidden="true">DC</span>
+        <span>
+          <strong>Dicommunication</strong>
+          <small>PACS admin toolkit</small>
+        </span>
+      </a>
+      <nav>
+        <a href="/" class="{% if nav == 'home' %}active{% endif %}">Dashboard</a>
+        <a href="/config" class="{% if nav == 'config' %}active{% endif %}">Configuration</a>
+        <p class="nav-label">Test tools</p>
+        {% for item in tools %}
+        <a href="/tools/{{ item.id }}" class="{% if tool_id == item.id %}active{% endif %}">{{ item.name }}</a>
+        {% endfor %}
+      </nav>
+      <div class="sidebar-foot">
+        <code class="ae-chip" title="Local AE Title">{{ config.local.ae_title }}</code>
+        <span>Calling AE · listen {{ config.local.port }}</span>
+      </div>
+    </aside>
+    <main class="main">
+      {% block content %}{% endblock %}
+    </main>
+  </div>
+  <script src="/static/js/app.js"></script>
+</body>
+</html>
