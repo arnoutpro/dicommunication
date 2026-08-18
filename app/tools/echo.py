@@ -64,7 +64,7 @@ class CEchoTool(BaseTool):
                 ae.implementation_version_name = local.implementation_version
             ae.add_requested_context(Verification)
 
-            assoc = ae.associate(remote.host, remote.port, ae_title=remote.ae_title)
+            assoc = ae.associate(remote.connect_host, remote.port, ae_title=remote.ae_title)
             details = self._assoc_details(assoc, local, remote)
 
             if not assoc.is_established:
@@ -84,7 +84,7 @@ class CEchoTool(BaseTool):
                         ok=True,
                         message=(
                             f"Associated {local.ae_title} → "
-                            f"{remote.ae_title}@{remote.host}:{remote.port}"
+                            f"{remote.ae_title}@{remote.connect_host}:{remote.port}"
                         ),
                         duration_ms=_elapsed_ms(assoc_started),
                         details=details,
@@ -174,7 +174,7 @@ class CEchoTool(BaseTool):
         details: dict[str, Any] = {
             "calling_ae": local.ae_title,
             "called_ae": remote.ae_title,
-            "host": remote.host,
+            "host": remote.connect_host,
             "port": remote.port,
         }
         for attr in ("is_established", "is_rejected", "is_aborted"):

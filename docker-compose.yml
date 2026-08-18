@@ -8,7 +8,7 @@ services:
       - "8080:8080"
       - "11112:11112"
     volumes:
-      - ./data:/app/data
+      - ${HOME}/.dicommunication:/app/data
     environment:
       DICOMM_DATA_DIR: /app/data
     extra_hosts:

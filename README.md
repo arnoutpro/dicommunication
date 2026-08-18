@@ -20,7 +20,9 @@ Open [http://127.0.0.1:8080](http://127.0.0.1:8080). Stop with Ctrl+C, or run de
 docker compose up --build -d
 ```
 
-Config is stored in `./data` on the host (`config.json`, `results.json`), so it survives rebuilds.
+Config and worklist data are stored in **`~/.dicommunication`** on the host (`config.json`, `results.json`, `worklist.json`). Rebuilding or replacing the Docker image does not wipe that folder.
+
+If you already saved config under `./data` from an older run, that directory is still used until `~/.dicommunication/config.json` exists.
 
 After `main` builds the published image, this also works:
 
@@ -32,7 +34,8 @@ docker compose up -d
 or without Compose:
 
 ```bash
-docker run --rm -p 8080:8080 -p 11112:11112 -v "$(pwd)/data:/app/data" ghcr.io/arnoutpro/dicommunication:latest
+mkdir -p ~/.dicommunication
+docker run --rm -p 8080:8080 -p 11112:11112 -v "$HOME/.dicommunication:/app/data" ghcr.io/arnoutpro/dicommunication:latest
 ```
 
 ### Update
@@ -96,6 +99,7 @@ C-ECHO tests start an in-process Verification SCP; PING tests use loopback ICMP 
 
 ## Notes for PACS admins
 
+- Config, results, and the local worklist are saved in `~/.dicommunication` so a new Docker image does not reset your AE titles.
 - AE Titles are 1–16 printable ASCII characters and must match what the remote node is configured to accept.
 - Default unprivileged DICOM port is `11112`. `104` and Orthanc `4242` are also common. Docker publishes `8080` (web) and `11112` (optional local MWL SCP).
 - From Docker, a PACS on the same Mac can be reached as `host.docker.internal`.

@@ -28,7 +28,7 @@
       Remote node
       <select name="remote_id" required>
         {% for remote in config.remotes %}
-        <option value="{{ remote.id }}">{{ remote.name }} — {{ remote.ae_title }} @ {{ remote.host }}:{{ remote.port }}</option>
+        <option value="{{ remote.id }}">{{ remote.name }} — {{ remote.ae_title }} @ {{ remote.connect_host }}:{{ remote.port }}</option>
         {% endfor %}
       </select>
     </label>
