@@ -56,7 +56,7 @@ def create_app(store: ConfigStore | None = None) -> FastAPI:
         scp.stop()
 
     app = FastAPI(
-        title="Dicommunication",
+        title="Arnout.pro Dicommunication Tool",
         description="Low-code DICOM communication validator and PACS admin toolkit.",
         version="0.1.0",
         lifespan=lifespan,
