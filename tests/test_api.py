@@ -11,6 +11,7 @@ def test_health_and_pages(client) -> None:
     assert b"nav-children" in home.content
     assert b"DIMSE" in home.content
     assert b"Connectivity" in home.content
+    assert b"<details" not in home.content
     assert b"C-ECHO all nodes" not in home.content
     assert b"Open worklist" not in home.content
     assert b"Open configuration" not in home.content
@@ -19,6 +20,7 @@ def test_health_and_pages(client) -> None:
     assert b"Configured nodes" in config.content
     assert b"Local DICOM AE" in config.content
     assert b"Advanced settings" not in config.content
+    assert b"config-tabs" not in config.content
     local_ae = client.get("/config/local")
     assert local_ae.status_code == 200
     assert b"Advanced settings" in local_ae.content
