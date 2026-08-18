@@ -63,7 +63,7 @@
             {% if row.remote.notes %}<div class="muted small">{{ row.remote.notes }}</div>{% endif %}
           </td>
           <td><code>{{ row.remote.ae_title }}</code></td>
-          <td><code>{{ row.remote.host }}:{{ row.remote.port }}</code></td>
+          <td><code>{{ row.remote.connect_host }}:{{ row.remote.port }}</code></td>
           <td>
             {% if row.result %}
             <span>{{ row.result.summary }}</span>
