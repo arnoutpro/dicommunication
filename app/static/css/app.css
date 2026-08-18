@@ -306,6 +306,13 @@ button:disabled, .button:disabled {
   cursor: wait;
 }
 
+label.checkbox {
+  flex-direction: row;
+  align-items: center;
+  gap: 0.6rem;
+}
+label.checkbox input { width: auto; accent-color: var(--accent); }
+
 @media (max-width: 900px) {
   .shell { grid-template-columns: 1fr; }
   .sidebar { border-right: 0; border-bottom: 1px solid var(--line); }

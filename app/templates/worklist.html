@@ -1,0 +1,211 @@
+{% extends "base.html" %}
+{% block title %}Worklist · Dicommunication{% endblock %}
+{% block content %}
+<header class="page-head">
+  <div>
+    <p class="eyebrow">DICOM Modality Worklist</p>
+    <h1>Worklist</h1>
+    <p class="lede">Query a remote DMWL with C-FIND, or manage a web worklist that this workstation can serve to modalities.</p>
+  </div>
+</header>
+
+{% if saved %}
+<div class="flash ok" data-autohide>Worklist updated.</div>
+{% endif %}
+{% if error %}
+<div class="flash fail">{{ error }}</div>
+{% endif %}
+
+<div class="grid-3">
+  <article class="card">
+    <p class="card-label">Calling AE</p>
+    <h2>{{ config.local.ae_title }}</h2>
+    <p class="muted">{% if config.local.station_ae_title %}Station {{ config.local.station_ae_title }}{% else %}No default station AE{% endif %}</p>
+  </article>
+  <article class="card">
+    <p class="card-label">DMWL nodes</p>
+    <h2>{{ config.mwl_remotes() | length }}</h2>
+    <p class="muted">Remote nodes marked as Modality Worklist</p>
+  </article>
+  <article class="card">
+    <p class="card-label">Local MWL SCP</p>
+    <h2 class="{% if mwl_scp_running %}ok-text{% else %}muted{% endif %}">{% if mwl_scp_running %}Listening{% else %}Off{% endif %}</h2>
+    <p class="muted">{% if mwl_scp_running %}{{ config.local.host }}:{{ config.local.port }}{% elif mwl_scp_error %}{{ mwl_scp_error }}{% else %}Enable it under Configuration{% endif %}</p>
+  </article>
+</div>
+
+<section class="panel">
+  <header class="panel-head">
+    <h2>Query worklist</h2>
+    <a href="/config">Configure DMWL nodes</a>
+  </header>
+  <form
+    class="form-grid"
+    method="post"
+    action="/worklist/query"
+    hx-post="/worklist/query"
+    hx-target="#worklist-results"
+    hx-indicator="#busy"
+    hx-timeout="120000"
+  >
+    <label>
+      Source
+      <select name="source">
+        <option value="local" {% if source == 'local' %}selected{% endif %}>Local web worklist</option>
+        {% for remote in config.remotes %}
+        <option value="{{ remote.id }}" {% if source == remote.id %}selected{% endif %}>
+          {{ remote.name }} — {{ remote.ae_title }}{% if remote.provides_mwl %} (DMWL){% endif %}
+        </option>
+        {% endfor %}
+      </select>
+    </label>
+    <label>
+      Patient name
+      <input name="patient_name" value="{{ query.patient_name }}" placeholder="DOE*">
+    </label>
+    <label>
+      Patient ID
+      <input name="patient_id" value="{{ query.patient_id }}">
+    </label>
+    <label>
+      Accession number
+      <input name="accession_number" value="{{ query.accession_number }}">
+    </label>
+    <label>
+      Modality
+      <input name="modality" value="{{ query.modality }}" placeholder="CT" maxlength="16">
+    </label>
+    <label>
+      Station AE Title
+      <input name="station_ae_title" value="{{ query.station_ae_title or config.local.station_ae_title }}" maxlength="16">
+    </label>
+    <label>
+      Scheduled date
+      <input name="scheduled_date" type="date" value="{{ query.scheduled_date }}">
+    </label>
+    <div class="form-actions">
+      <button class="button primary" type="submit">Query worklist</button>
+      <span id="busy" class="htmx-indicator spinner">Querying…</span>
+    </div>
+  </form>
+</section>
+
+<div id="worklist-results">
+  {% include "partials/worklist_results.html" %}
+</div>
+
+<section class="panel">
+  <header class="panel-head">
+    <h2>Add local worklist item</h2>
+    <span class="muted">Served to modalities when MWL SCP is enabled</span>
+  </header>
+  <form method="post" action="/worklist/entries" class="form-grid" autocomplete="off">
+    <label>
+      Patient name
+      <input name="patient_name" required placeholder="DOE^JANE">
+    </label>
+    <label>
+      Patient ID
+      <input name="patient_id" required placeholder="123456">
+    </label>
+    <label>
+      Birth date
+      <input name="patient_birth_date" type="date">
+    </label>
+    <label>
+      Sex
+      <select name="patient_sex">
+        <option value=""></option>
+        <option value="F">F</option>
+        <option value="M">M</option>
+        <option value="O">O</option>
+      </select>
+    </label>
+    <label>
+      Accession number
+      <input name="accession_number">
+    </label>
+    <label>
+      Procedure
+      <input name="requested_procedure_description" placeholder="CT CHEST">
+    </label>
+    <label>
+      Procedure ID
+      <input name="requested_procedure_id">
+    </label>
+    <label>
+      Modality
+      <input name="modality" value="CT" maxlength="16">
+    </label>
+    <label>
+      Station AE Title
+      <input name="station_ae_title" maxlength="16" value="{{ config.local.station_ae_title }}">
+    </label>
+    <label>
+      Station name
+      <input name="station_name">
+    </label>
+    <label>
+      Scheduled date
+      <input name="scheduled_date" type="date">
+    </label>
+    <label>
+      Scheduled time
+      <input name="scheduled_time" type="time">
+    </label>
+    <label class="span-2">
+      Performing physician
+      <input name="scheduled_physician">
+    </label>
+    <div class="form-actions">
+      <button class="button primary" type="submit">Add to local worklist</button>
+    </div>
+  </form>
+</section>
+
+<section class="panel">
+  <header class="panel-head">
+    <h2>Local worklist items</h2>
+    <span class="muted">{{ local_entries | length }} item{% if local_entries | length != 1 %}s{% endif %}</span>
+  </header>
+  {% if local_entries %}
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Patient</th>
+          <th>ID</th>
+          <th>Accession</th>
+          <th>Modality</th>
+          <th>When</th>
+          <th>Station</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for item in local_entries %}
+        <tr>
+          <td>
+            <strong>{{ item.patient_name }}</strong>
+            {% if item.requested_procedure_description %}<div class="muted small">{{ item.requested_procedure_description }}</div>{% endif %}
+          </td>
+          <td><code>{{ item.patient_id }}</code></td>
+          <td><code>{{ item.accession_number }}</code></td>
+          <td>{{ item.modality }}</td>
+          <td>{{ item.scheduled_date }} {{ item.scheduled_time }}</td>
+          <td><code>{{ item.station_ae_title }}</code></td>
+          <td class="actions">
+            <form method="post" action="/worklist/entries/{{ item.id }}/delete" class="inline" data-confirm="Delete this worklist item?">
+              <button type="submit" class="link-button danger">Delete</button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p class="muted">No local items yet. Add a scheduled procedure above, then enable the MWL SCP so a modality can C-FIND this AE.</p>
+  {% endif %}
+</section>
+{% endblock %}

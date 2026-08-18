@@ -37,3 +37,6 @@ def test_remote_node_requires_name_and_host() -> None:
         RemoteNode(name="  ", ae_title="PACS", host="10.0.0.1")
     node = RemoteNode(name="PACS", ae_title="PACS1", host="10.0.0.8", port=104)
     assert node.endpoint == "10.0.0.8:104"
+    mwl = RemoteNode(name="RIS MWL", ae_title="RISMWL", host="10.0.0.9", kind="mwl")
+    assert mwl.provides_mwl is True
+    assert mwl.kind_label == "DMWL"

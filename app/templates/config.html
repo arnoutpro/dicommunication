@@ -48,6 +48,15 @@
       Implementation version
       <input name="implementation_version" maxlength="16" value="{{ config.local.implementation_version }}">
     </label>
+    <label>
+      Station AE Title
+      <input name="station_ae_title" maxlength="16" value="{{ config.local.station_ae_title }}" placeholder="CTSCANNER">
+      <span class="hint">Default Scheduled Station AE Title for worklist queries and local MWL items.</span>
+    </label>
+    <label class="checkbox span-2">
+      <input type="checkbox" name="mwl_scp_enabled" value="on" {% if config.local.mwl_scp_enabled %}checked{% endif %}>
+      Serve the web worklist over DICOM (MWL SCP on the listen port)
+    </label>
     <div class="form-actions">
       <button class="button primary" type="submit">Save local AE</button>
     </div>
@@ -80,6 +89,21 @@
       <input name="port" type="number" min="1" max="65535" required value="{{ editing.port if editing else 11112 }}">
       <span class="hint">Common values: 104, 11112, 4242 (Orthanc).</span>
     </label>
+    <label>
+      Node type
+      <select name="kind">
+        {% set kind = editing.kind if editing else 'other' %}
+        <option value="other" {% if kind == 'other' %}selected{% endif %}>Other</option>
+        <option value="pacs" {% if kind == 'pacs' %}selected{% endif %}>PACS</option>
+        <option value="mwl" {% if kind == 'mwl' %}selected{% endif %}>Modality Worklist (DMWL)</option>
+        <option value="modality" {% if kind == 'modality' %}selected{% endif %}>Modality</option>
+        <option value="vna" {% if kind == 'vna' %}selected{% endif %}>VNA</option>
+      </select>
+    </label>
+    <label class="checkbox">
+      <input type="checkbox" name="provides_mwl" value="on" {% if editing and editing.provides_mwl %}checked{% endif %}>
+      This node provides DICOM Modality Worklist
+    </label>
     <label class="span-2">
       Notes
       <input name="notes" placeholder="VLAN, TLS, vendor, contact…" value="{{ editing.notes if editing else '' }}">
@@ -101,6 +125,7 @@
       <thead>
         <tr>
           <th>Name</th>
+          <th>Type</th>
           <th>Called AE</th>
           <th>Endpoint</th>
           <th></th>
@@ -112,6 +137,10 @@
           <td>
             <strong>{{ remote.name }}</strong>
             {% if remote.notes %}<div class="muted small">{{ remote.notes }}</div>{% endif %}
+          </td>
+          <td>
+            <span class="badge">{{ remote.kind_label }}</span>
+            {% if remote.provides_mwl %}<span class="badge ok">MWL</span>{% endif %}
           </td>
           <td><code>{{ remote.ae_title }}</code></td>
           <td><code>{{ remote.host }}:{{ remote.port }}</code></td>

@@ -5,9 +5,9 @@ from __future__ import annotations
 import re
 import uuid
 from datetime import datetime, timezone
-from typing import Any
+from typing import Any, Literal
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 AE_TITLE_MAX = 16
 AE_TITLE_PATTERN = re.compile(r"^[\x20-\x7e]+$")
@@ -36,6 +36,8 @@ class LocalAE(BaseModel):
     timeout_seconds: float = Field(default=10.0, gt=0, le=120)
     max_pdu: int = Field(default=16382, ge=4096, le=131072)
     implementation_version: str = "DICOMM_1"
+    station_ae_title: str = ""
+    mwl_scp_enabled: bool = False
 
     @field_validator("ae_title")
     @classmethod
@@ -58,6 +60,14 @@ class LocalAE(BaseModel):
             raise ValueError("Implementation version must be 16 characters or fewer")
         return value
 
+    @field_validator("station_ae_title")
+    @classmethod
+    def _station_ae_title(cls, value: str) -> str:
+        value = (value or "").strip()
+        if not value:
+            return ""
+        return normalize_ae_title(value)
+
 
 class RemoteNode(BaseModel):
     """A peer DICOM Application Entity (PACS, modality, VNA, test SCP)."""
@@ -68,6 +78,8 @@ class RemoteNode(BaseModel):
     host: str
     port: int = Field(default=11112, ge=1, le=65535)
     notes: str = ""
+    kind: Literal["pacs", "mwl", "modality", "vna", "other"] = "other"
+    provides_mwl: bool = False
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
     @field_validator("name", "host")
@@ -88,9 +100,26 @@ class RemoteNode(BaseModel):
     def _notes(cls, value: str) -> str:
         return (value or "").strip()
 
+    @model_validator(mode="after")
+    def _mwl_kind_enables_worklist(self) -> RemoteNode:
+        if self.kind == "mwl":
+            self.provides_mwl = True
+        return self
+
     @property
     def endpoint(self) -> str:
         return f"{self.host}:{self.port}"
+
+    @property
+    def kind_label(self) -> str:
+        labels = {
+            "pacs": "PACS",
+            "mwl": "DMWL",
+            "modality": "Modality",
+            "vna": "VNA",
+            "other": "Other",
+        }
+        return labels.get(self.kind, self.kind)
 
 
 class AppConfig(BaseModel):
@@ -102,6 +131,9 @@ class AppConfig(BaseModel):
             if remote.id == remote_id:
                 return remote
         return None
+
+    def mwl_remotes(self) -> list[RemoteNode]:
+        return [remote for remote in self.remotes if remote.provides_mwl]
 
 
 class ToolStep(BaseModel):
@@ -140,3 +172,80 @@ class EchoBoard(BaseModel):
     unknown: int = 0
     duration_ms: float | None = None
     ran_at: datetime | None = None
+
+
+class WorklistQuery(BaseModel):
+    patient_name: str = ""
+    patient_id: str = ""
+    accession_number: str = ""
+    modality: str = ""
+    station_ae_title: str = ""
+    scheduled_date: str = ""
+
+    @field_validator(
+        "patient_name",
+        "patient_id",
+        "accession_number",
+        "modality",
+        "station_ae_title",
+        "scheduled_date",
+    )
+    @classmethod
+    def _strip(cls, value: str) -> str:
+        return (value or "").strip()
+
+
+class WorklistEntry(BaseModel):
+    id: str = Field(default_factory=lambda: uuid.uuid4().hex[:12])
+    patient_name: str
+    patient_id: str
+    patient_birth_date: str = ""
+    patient_sex: str = ""
+    accession_number: str = ""
+    requested_procedure_id: str = ""
+    requested_procedure_description: str = ""
+    modality: str = "CT"
+    station_ae_title: str = ""
+    station_name: str = ""
+    scheduled_date: str = ""
+    scheduled_time: str = ""
+    scheduled_physician: str = ""
+    study_instance_uid: str = ""
+    scheduled_procedure_step_id: str = ""
+
+    @field_validator(
+        "patient_name",
+        "patient_id",
+        "patient_birth_date",
+        "patient_sex",
+        "accession_number",
+        "requested_procedure_id",
+        "requested_procedure_description",
+        "modality",
+        "station_ae_title",
+        "station_name",
+        "scheduled_date",
+        "scheduled_time",
+        "scheduled_physician",
+        "study_instance_uid",
+        "scheduled_procedure_step_id",
+    )
+    @classmethod
+    def _strip(cls, value: str) -> str:
+        return (value or "").strip()
+
+    @field_validator("station_ae_title")
+    @classmethod
+    def _station(cls, value: str) -> str:
+        if not value:
+            return ""
+        return normalize_ae_title(value)
+
+
+class WorklistQueryResult(BaseModel):
+    ok: bool
+    summary: str
+    source: str = ""
+    duration_ms: float = 0
+    entries: list[WorklistEntry] = Field(default_factory=list)
+    log: str = ""
