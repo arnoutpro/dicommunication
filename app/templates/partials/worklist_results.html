@@ -4,6 +4,7 @@
     <span class="badge {% if result.ok %}ok{% else %}fail{% endif %}">{% if result.ok %}Pass{% else %}Fail{% endif %}</span>
     <div>
       <strong>{{ result.source or "Worklist" }}</strong>
+      {% if result.calling_ae %}<span class="muted">as {{ result.calling_ae }}</span>{% endif %}
       <p>{{ result.summary }}</p>
     </div>
     <span class="muted">{{ result.duration_ms }} ms</span>

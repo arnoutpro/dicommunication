@@ -57,14 +57,15 @@ make run
 ## What you can do now
 
 1. **Local DICOM config** — calling AE Title, bind host, listen port, association timeout, max PDU.
-2. **Remote nodes** — name, called AE Title, host, port, notes. Add, edit, delete.
-3. **Network PING** — DNS resolve, ICMP echo, TCP connect to the DICOM port. ICMP is often blocked on clinical networks; TCP is the more reliable layer-4 check.
-4. **C-ECHO** — associate as the configured calling AE and send Verification (`1.2.840.10008.1.1`). This only proves connectivity, not Storage or Query/Retrieve.
-5. **C-ECHO board** — run Verification against every configured node in one click (`/echo-board` or `POST /api/echo-board/run`).
-6. **Testbench** — send a simulated **C-STORE** (tiny Secondary Capture), **Study Root C-FIND** (stored studies), or **MWL C-FIND** (scheduled procedures) to a remote node (`/testbench`). The result shows which SOP Classes the peer accepted or rejected. These are not interchangeable: Orthanc without the worklist plugin will accept Verification/Storage/Q/R and reject MWL.
-7. **DMWL / worklist** — mark a remote as a Modality Worklist SCP, query it from the web Worklist page (MWL C-FIND), and optionally serve a local web worklist to modalities on the DICOM listen port.
+2. **Virtual local AE titles** — extra calling AEs so you can impersonate modalities (CT1, MR1, …) on C-ECHO, C-STORE, C-FIND, and MWL without extra listen ports. Pick **Present as** on Worklist, Testbench, and tool pages. The station AE Title is the worklist query filter; it defaults to the calling AE.
+3. **Remote nodes** — name, called AE Title, host, port, notes. Add, edit, delete.
+4. **Network PING** — DNS resolve, ICMP echo, TCP connect to the DICOM port. ICMP is often blocked on clinical networks; TCP is the more reliable layer-4 check.
+5. **C-ECHO** — associate as the configured calling AE and send Verification (`1.2.840.10008.1.1`). This only proves connectivity, not Storage or Query/Retrieve.
+6. **C-ECHO board** — run Verification against every configured node in one click (`/echo-board` or `POST /api/echo-board/run`).
+7. **Testbench** — send a simulated **C-STORE** (tiny Secondary Capture), **Study Root C-FIND** (stored studies), or **MWL C-FIND** (scheduled procedures) to a remote node (`/testbench`). The result shows which SOP Classes the peer accepted or rejected. These are not interchangeable: Orthanc without the worklist plugin will accept Verification/Storage/Q/R and reject MWL.
+8. **DMWL / worklist** — mark a remote as a Modality Worklist SCP, query it from the web Worklist page (MWL C-FIND), and optionally serve a local web worklist to modalities on the DICOM listen port.
 
-There is also a JSON API under `/api` for the same operations (`/api/config`, `/api/remotes`, `/api/tools/{id}/run`, `/api/echo-board/run`, `/api/worklist/query`).
+There is also a JSON API under `/api` for the same operations (`/api/config`, `/api/remotes`, `/api/identities`, `/api/tools/{id}/run`, `/api/echo-board/run`, `/api/worklist/query`).
 
 ## Add a future tool
 
@@ -101,7 +102,7 @@ C-ECHO tests start an in-process Verification SCP; C-STORE and C-FIND tests star
 ## Notes for PACS admins
 
 - Config, results, and the local worklist are saved in `~/.dicommunication` so a new Docker image does not reset your AE titles.
-- AE Titles are 1–16 printable ASCII characters and must match what the remote node is configured to accept.
+- AE Titles are 1–16 printable ASCII characters and must match what the remote node is configured to accept. Each **virtual local AE** is a different calling AE Title — add every one you impersonate to Orthanc `DicomModalities` (or the equivalent allow-list).
 - Default unprivileged DICOM port is `11112`. `104` and Orthanc `4242` are also common. Docker publishes `8080` (web) and `11112` (optional local MWL SCP).
 - From Docker, a PACS on the same Mac can be reached as `host.docker.internal`.
 - Enable **Serve the web worklist over DICOM** in Configuration if a modality should C-FIND this workstation.

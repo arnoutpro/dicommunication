@@ -1,0 +1,24 @@
+<label>
+  Present as
+  <select name="identity_id">
+    <option
+      value=""
+      data-station="{{ config.local.station_ae_title }}"
+      data-modality=""
+      {% if not identity_id|default('') %}selected{% endif %}
+    >
+      {{ config.local.ae_title }} (workstation)
+    </option>
+    {% for identity in config.identities %}
+    <option
+      value="{{ identity.id }}"
+      data-station="{{ identity.scheduled_station_ae_title }}"
+      data-modality="{{ identity.modality }}"
+      {% if identity_id|default('') == identity.id %}selected{% endif %}
+    >
+      {{ identity.name }} — {{ identity.ae_title }}
+    </option>
+    {% endfor %}
+  </select>
+  <span class="hint">Calling AE Title on the association. Worklist station AE follows the identity unless you override it.{% if not config.identities %} Add virtual titles under Configuration to impersonate modalities.{% endif %}</span>
+</label>
