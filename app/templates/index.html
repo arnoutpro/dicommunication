@@ -9,6 +9,7 @@
   </div>
   <div class="hero-actions">
     <a class="button primary" href="/echo-board">C-ECHO all nodes</a>
+    <a class="button" href="/worklist">Open worklist</a>
     <a class="button" href="/config">Open configuration</a>
   </div>
 </section>
@@ -62,6 +63,7 @@
             {% elif row.status == "fail" %}
             <span class="badge fail">Echo</span>
             {% endif %}
+            {% if row.remote.provides_mwl %}<span class="badge ok">MWL</span>{% endif %}
             <a href="/tools/ping">PING</a>
             <a href="/tools/c-echo">C-ECHO</a>
           </td>

@@ -32,7 +32,7 @@ docker compose up -d
 or without Compose:
 
 ```bash
-docker run --rm -p 8080:8080 -v "$(pwd)/data:/app/data" ghcr.io/arnoutpro/dicommunication:latest
+docker run --rm -p 8080:8080 -p 11112:11112 -v "$(pwd)/data:/app/data" ghcr.io/arnoutpro/dicommunication:latest
 ```
 
 ### Update
@@ -58,8 +58,9 @@ make run
 3. **Network PING** — DNS resolve, ICMP echo, TCP connect to the DICOM port. ICMP is often blocked on clinical networks; TCP is the more reliable layer-4 check.
 4. **C-ECHO** — associate as the configured calling AE and send Verification (`1.2.840.10008.1.1`).
 5. **C-ECHO board** — run Verification against every configured node in one click (`/echo-board` or `POST /api/echo-board/run`).
+6. **DMWL / worklist** — mark a remote as a Modality Worklist SCP, query it from the web Worklist page (C-FIND), and optionally serve a local web worklist to modalities on the DICOM listen port.
 
-There is also a JSON API under `/api` for the same operations (`/api/config`, `/api/remotes`, `/api/tools/{id}/run`, `/api/echo-board/run`).
+There is also a JSON API under `/api` for the same operations (`/api/config`, `/api/remotes`, `/api/tools/{id}/run`, `/api/echo-board/run`, `/api/worklist/query`).
 
 ## Add a future tool
 
@@ -96,6 +97,7 @@ C-ECHO tests start an in-process Verification SCP; PING tests use loopback ICMP 
 ## Notes for PACS admins
 
 - AE Titles are 1–16 printable ASCII characters and must match what the remote node is configured to accept.
-- Default unprivileged DICOM port is `11112`. `104` and Orthanc `4242` are also common.
+- Default unprivileged DICOM port is `11112`. `104` and Orthanc `4242` are also common. Docker publishes `8080` (web) and `11112` (optional local MWL SCP).
 - From Docker, a PACS on the same Mac can be reached as `host.docker.internal`.
+- Enable **Serve the web worklist over DICOM** in Configuration if a modality should C-FIND this workstation.
 - This is a trusted-network admin tool. Do not expose it to the internet without an authenticating reverse proxy.

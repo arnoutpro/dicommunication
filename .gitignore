@@ -11,5 +11,6 @@ dist/
 build/
 data/config.json
 data/results.json
+data/worklist.json
 .DS_Store
 .env
