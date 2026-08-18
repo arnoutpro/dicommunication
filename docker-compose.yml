@@ -1,0 +1,13 @@
+services:
+  dicommunication:
+    build: .
+    ports:
+      - "8080:8080"
+    volumes:
+      - dicomm-data:/app/data
+    environment:
+      DICOMM_DATA_DIR: /app/data
+    restart: unless-stopped
+
+volumes:
+  dicomm-data:

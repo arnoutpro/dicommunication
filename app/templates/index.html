@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+{% block title %}Dashboard · Dicommunication{% endblock %}
+{% block content %}
+<section class="hero">
+  <div>
+    <p class="eyebrow">DICOM communication validator</p>
+    <h1>Verify the path before you chase the study.</h1>
+    <p class="lede">Configure this workstation and the remote AE, then run network PING and C-ECHO. New checks drop in as Python plugins.</p>
+  </div>
+  <a class="button primary" href="/config">Open configuration</a>
+</section>
+
+<div class="grid-3">
+  <article class="card">
+    <p class="card-label">Local AE</p>
+    <h2>{{ config.local.ae_title }}</h2>
+    <p class="muted">{{ config.local.host }}:{{ config.local.port }} · timeout {{ config.local.timeout_seconds | int }}s</p>
+  </article>
+  <article class="card">
+    <p class="card-label">Remote nodes</p>
+    <h2>{{ config.remotes | length }}</h2>
+    <p class="muted">{% if config.remotes %}Ready for PING and C-ECHO{% else %}Add a PACS, modality, or test SCP{% endif %}</p>
+  </article>
+  <article class="card">
+    <p class="card-label">Registered tools</p>
+    <h2>{{ tools | length }}</h2>
+    <p class="muted">{% for item in tools %}{{ item.name }}{% if not loop.last %} · {% endif %}{% endfor %}</p>
+  </article>
+</div>
+
+<section class="panel">
+  <header class="panel-head">
+    <h2>Remote DICOM nodes</h2>
+    <a href="/config">Manage</a>
+  </header>
+  {% if config.remotes %}
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Called AE</th>
+          <th>Endpoint</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for remote in config.remotes %}
+        <tr>
+          <td>
+            <strong>{{ remote.name }}</strong>
+            {% if remote.notes %}<div class="muted small">{{ remote.notes }}</div>{% endif %}
+          </td>
+          <td><code>{{ remote.ae_title }}</code></td>
+          <td><code>{{ remote.host }}:{{ remote.port }}</code></td>
+          <td class="actions">
+            <a href="/tools/ping">PING</a>
+            <a href="/tools/c-echo">C-ECHO</a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="empty">
+    <strong>No remote nodes yet</strong>
+    <p>Add the PACS or modality AE Title, host, and port on the configuration screen.</p>
+    <a class="button" href="/config">Add a remote node</a>
+  </div>
+  {% endif %}
+</section>
+
+<section class="panel">
+  <header class="panel-head">
+    <h2>Recent results</h2>
+  </header>
+  {% if results %}
+  <ul class="timeline">
+    {% for item in results %}
+    <li>
+      <span class="dot {% if item.ok %}ok{% else %}fail{% endif %}"></span>
+      <div>
+        <strong>{{ item.tool_name }}</strong>
+        {% if item.remote_name %}<span class="muted">→ {{ item.remote_name }}</span>{% endif %}
+        <p>{{ item.summary }}</p>
+      </div>
+      <time>{{ item.started_at.strftime("%H:%M:%S") }}</time>
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p class="muted">No tests have been run yet. Start with Network PING, then C-ECHO.</p>
+  {% endif %}
+</section>
+{% endblock %}
