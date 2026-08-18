@@ -75,6 +75,47 @@ class LocalAE(BaseModel):
         return normalize_ae_title(value)
 
 
+class VirtualAE(BaseModel):
+    """A saved calling-AE identity for impersonating a modality without extra listen ports."""
+
+    id: str = Field(default_factory=lambda: uuid.uuid4().hex[:12])
+    name: str
+    ae_title: str
+    station_ae_title: str = ""
+    modality: str = ""
+    notes: str = ""
+
+    @field_validator("name")
+    @classmethod
+    def _required_name(cls, value: str) -> str:
+        value = (value or "").strip()
+        if not value:
+            raise ValueError("This field is required")
+        return value
+
+    @field_validator("ae_title")
+    @classmethod
+    def _ae_title(cls, value: str) -> str:
+        return normalize_ae_title(value)
+
+    @field_validator("station_ae_title")
+    @classmethod
+    def _station_ae_title(cls, value: str) -> str:
+        value = (value or "").strip()
+        if not value:
+            return ""
+        return normalize_ae_title(value)
+
+    @field_validator("modality", "notes")
+    @classmethod
+    def _optional_text(cls, value: str) -> str:
+        return (value or "").strip()
+
+    @property
+    def scheduled_station_ae_title(self) -> str:
+        return self.station_ae_title or self.ae_title
+
+
 class RemoteNode(BaseModel):
     """A peer DICOM Application Entity (PACS, modality, VNA, test SCP)."""
 
@@ -139,6 +180,7 @@ class RemoteNode(BaseModel):
 
 class AppConfig(BaseModel):
     local: LocalAE = Field(default_factory=LocalAE)
+    identities: list[VirtualAE] = Field(default_factory=list)
     remotes: list[RemoteNode] = Field(default_factory=list)
 
     def get_remote(self, remote_id: str) -> RemoteNode | None:
@@ -146,6 +188,28 @@ class AppConfig(BaseModel):
             if remote.id == remote_id:
                 return remote
         return None
+
+    def get_identity(self, identity_id: str | None) -> VirtualAE | None:
+        if not identity_id:
+            return None
+        for identity in self.identities:
+            if identity.id == identity_id:
+                return identity
+        return None
+
+    def calling_ae(self, identity_id: str | None = None) -> LocalAE:
+        """Workstation listen settings with an optional virtual calling AE Title."""
+        if not identity_id:
+            return self.local
+        identity = self.get_identity(identity_id)
+        if identity is None:
+            raise KeyError(identity_id)
+        return self.local.model_copy(
+            update={
+                "ae_title": identity.ae_title,
+                "station_ae_title": identity.scheduled_station_ae_title,
+            }
+        )
 
     def mwl_remotes(self) -> list[RemoteNode]:
         return [remote for remote in self.remotes if remote.provides_mwl]
@@ -173,6 +237,7 @@ class ToolResult(BaseModel):
     log: str = ""
     contexts: list[dict[str, Any]] = Field(default_factory=list)
     records: list[dict[str, Any]] = Field(default_factory=list)
+    calling_ae: str | None = None
 
 
 class EchoBoardRow(BaseModel):
@@ -267,3 +332,4 @@ class WorklistQueryResult(BaseModel):
     entries: list[WorklistEntry] = Field(default_factory=list)
     log: str = ""
     contexts: list[dict[str, Any]] = Field(default_factory=list)
+    calling_ae: str = ""

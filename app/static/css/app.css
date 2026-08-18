@@ -211,7 +211,8 @@ input:focus, select:focus {
   outline: 2px solid rgba(77, 228, 212, 0.45);
   border-color: var(--accent);
 }
-.hint, .small { font-size: 0.75rem; color: var(--muted); }
+.panel > .hint { margin: 0 0 1rem; }
+.panel .form-grid + .table-wrap { margin-top: 1rem; }
 .form-actions { grid-column: 1 / -1; }
 
 .button {

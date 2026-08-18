@@ -33,7 +33,7 @@
       </nav>
       <div class="sidebar-foot">
         <code class="ae-chip" title="Local AE Title">{{ config.local.ae_title }}</code>
-        <span>Calling AE · listen {{ config.local.port }}</span>
+        <span>Calling AE · listen {{ config.local.port }}{% if config.identities %} · {{ config.identities | length }} virtual{% endif %}</span>
       </div>
     </aside>
     <main class="main">

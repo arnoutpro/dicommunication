@@ -13,7 +13,7 @@
   <article class="card">
     <p class="card-label">Local AE</p>
     <h2>{{ config.local.ae_title }}</h2>
-    <p class="muted">{{ config.local.host }}:{{ config.local.port }} · timeout {{ config.local.timeout_seconds | int }}s</p>
+    <p class="muted">{{ config.local.host }}:{{ config.local.port }} · timeout {{ config.local.timeout_seconds | int }}s{% if config.identities %} · {{ config.identities | length }} virtual AE{% if config.identities | length != 1 %}s{% endif %}{% endif %}</p>
   </article>
   <article class="card">
     <p class="card-label">Remote nodes</p>

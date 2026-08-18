@@ -8,7 +8,7 @@ import tempfile
 from pathlib import Path
 from threading import Lock
 
-from app.models import AppConfig, RemoteNode, ToolResult, WorklistEntry
+from app.models import AppConfig, RemoteNode, ToolResult, VirtualAE, WorklistEntry
 
 def _default_data_dir() -> Path:
     env = os.environ.get("DICOMM_DATA_DIR")
@@ -81,6 +81,39 @@ class ConfigStore:
         with self._lock:
             config = self._load_unlocked()
             config.remotes = [item for item in config.remotes if item.id != remote_id]
+            self._write_json(self.config_path, config.model_dump(mode="json"))
+            return config
+
+    def add_identity(self, identity: VirtualAE) -> AppConfig:
+        with self._lock:
+            config = self._load_unlocked()
+            config.identities.append(identity)
+            self._write_json(self.config_path, config.model_dump(mode="json"))
+            return config
+
+    def update_identity(self, identity_id: str, identity: VirtualAE) -> AppConfig:
+        with self._lock:
+            config = self._load_unlocked()
+            updated: list[VirtualAE] = []
+            found = False
+            for existing in config.identities:
+                if existing.id == identity_id:
+                    payload = identity.model_dump()
+                    payload["id"] = identity_id
+                    updated.append(VirtualAE.model_validate(payload))
+                    found = True
+                else:
+                    updated.append(existing)
+            if not found:
+                raise KeyError(identity_id)
+            config.identities = updated
+            self._write_json(self.config_path, config.model_dump(mode="json"))
+            return config
+
+    def delete_identity(self, identity_id: str) -> AppConfig:
+        with self._lock:
+            config = self._load_unlocked()
+            config.identities = [item for item in config.identities if item.id != identity_id]
             self._write_json(self.config_path, config.model_dump(mode="json"))
             return config
 

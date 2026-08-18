@@ -15,7 +15,7 @@ from pydicom.uid import generate_uid
 
 from app.echo_board import run_all as run_echo_board
 from app.echo_board import snapshot as echo_board_snapshot
-from app.models import LocalAE, RemoteNode, ToolResult, WorklistEntry, WorklistQuery
+from app.models import LocalAE, RemoteNode, ToolResult, WorklistEntry, WorklistQuery, VirtualAE
 from app.mwl import query_worklist
 from app.mwl_scp import WorklistSCP
 from app.store import ConfigStore
@@ -41,6 +41,7 @@ def _as_bool(value: str | None) -> bool:
 class RunRequest(BaseModel):
     remote_id: str
     options: dict[str, Any] | None = None
+    identity_id: str | None = None
 
 
 TESTBENCH_SERVICES = {
@@ -53,6 +54,7 @@ TESTBENCH_SERVICES = {
 
 class WorklistApiQuery(WorklistQuery):
     source: str = "local"
+    identity_id: str = ""
 
 
 def create_app(store: ConfigStore | None = None) -> FastAPI:
@@ -95,6 +97,7 @@ def create_app(store: ConfigStore | None = None) -> FastAPI:
         tool_id: str,
         remote_id: str,
         options: dict[str, Any] | None = None,
+        identity_id: str | None = None,
     ) -> ToolResult:
         config = app.state.store.load()
         try:
@@ -104,9 +107,37 @@ def create_app(store: ConfigStore | None = None) -> FastAPI:
         remote = config.get_remote(remote_id)
         if tool.requires_remote and remote is None:
             raise HTTPException(status_code=400, detail="A remote DICOM node is required")
-        result = tool.run(config.local, remote, options)
+        try:
+            local = config.calling_ae(identity_id or None)
+        except KeyError as exc:
+            raise HTTPException(status_code=400, detail="Virtual local AE not found") from exc
+        result = tool.run(local, remote, options)
+        result.calling_ae = local.ae_title
         app.state.store.add_result(result)
         return result
+
+    def config_view(
+        request: Request,
+        *,
+        editing: RemoteNode | None = None,
+        editing_identity: VirtualAE | None = None,
+        saved: str | None = None,
+        error: str | None = None,
+        status_code: int = 200,
+    ):
+        return templates.TemplateResponse(
+            request,
+            "config.html",
+            page(
+                request,
+                nav="config",
+                editing=editing,
+                editing_identity=editing_identity,
+                saved=saved,
+                error=error,
+            ),
+            status_code=status_code,
+        )
 
     def _testbench_options(
         service: str,
@@ -177,19 +208,18 @@ def create_app(store: ConfigStore | None = None) -> FastAPI:
         )
 
     @app.get("/config", response_class=HTMLResponse)
-    def config_page(request: Request, edit: str | None = None, saved: str | None = None) -> HTMLResponse:
+    def config_page(
+        request: Request,
+        edit: str | None = None,
+        identity: str | None = None,
+        saved: str | None = None,
+    ) -> HTMLResponse:
         config = app.state.store.load()
-        editing = config.get_remote(edit) if edit else None
-        return templates.TemplateResponse(
+        return config_view(
             request,
-            "config.html",
-            page(
-                request,
-                nav="config",
-                editing=editing,
-                saved=saved,
-                error=None,
-            ),
+            editing=config.get_remote(edit) if edit else None,
+            editing_identity=config.get_identity(identity),
+            saved=saved,
         )
 
     @app.post("/config/local")
@@ -218,12 +248,7 @@ def create_app(store: ConfigStore | None = None) -> FastAPI:
                 mwl_scp_enabled=_as_bool(mwl_scp_enabled),
             )
         except ValidationError as exc:
-            return templates.TemplateResponse(
-                request,
-                "config.html",
-                page(request, nav="config", editing=None, saved=None, error=_first_error(exc)),
-                status_code=400,
-            )
+            return config_view(request, error=_first_error(exc), status_code=400)
         app.state.store.save_local(local)
         app.state.mwl_scp.restart()
         return RedirectResponse("/config?saved=local", status_code=303)
@@ -255,16 +280,10 @@ def create_app(store: ConfigStore | None = None) -> FastAPI:
         except ValidationError as exc:
             config = app.state.store.load()
             editing = config.get_remote(remote_id) if remote_id else None
-            return templates.TemplateResponse(
+            return config_view(
                 request,
-                "config.html",
-                page(
-                    request,
-                    nav="config",
-                    editing=editing,
-                    saved=None,
-                    error=_first_error(exc),
-                ),
+                editing=editing,
+                error=_first_error(exc),
                 status_code=400,
             )
         if remote_id:
@@ -279,6 +298,47 @@ def create_app(store: ConfigStore | None = None) -> FastAPI:
     @app.post("/config/remotes/{remote_id}/delete")
     def delete_remote(remote_id: str):
         app.state.store.delete_remote(remote_id)
+        return RedirectResponse("/config?saved=deleted", status_code=303)
+
+    @app.post("/config/identities")
+    def add_or_update_identity(
+        request: Request,
+        name: str = Form(...),
+        ae_title: str = Form(...),
+        station_ae_title: str = Form(""),
+        modality: str = Form(""),
+        notes: str = Form(""),
+        identity_id: str = Form(""),
+    ):
+        try:
+            identity = VirtualAE(
+                name=name,
+                ae_title=ae_title,
+                station_ae_title=station_ae_title,
+                modality=modality,
+                notes=notes,
+            )
+        except ValidationError as exc:
+            config = app.state.store.load()
+            editing_identity = config.get_identity(identity_id) if identity_id else None
+            return config_view(
+                request,
+                editing_identity=editing_identity,
+                error=_first_error(exc),
+                status_code=400,
+            )
+        if identity_id:
+            try:
+                app.state.store.update_identity(identity_id, identity)
+            except KeyError:
+                raise HTTPException(status_code=404, detail="Virtual local AE not found") from None
+            return RedirectResponse("/config?saved=identity", status_code=303)
+        app.state.store.add_identity(identity)
+        return RedirectResponse("/config?saved=identity", status_code=303)
+
+    @app.post("/config/identities/{identity_id}/delete")
+    def delete_identity(identity_id: str):
+        app.state.store.delete_identity(identity_id)
         return RedirectResponse("/config?saved=deleted", status_code=303)
 
     @app.get("/testbench", response_class=HTMLResponse)
@@ -301,6 +361,7 @@ def create_app(store: ConfigStore | None = None) -> FastAPI:
         modality: str = Form(""),
         station_ae_title: str = Form(""),
         scheduled_date: str = Form(""),
+        identity_id: str = Form(""),
     ):
         if service not in TESTBENCH_SERVICES:
             raise HTTPException(status_code=400, detail="Unknown testbench service")
@@ -315,7 +376,7 @@ def create_app(store: ConfigStore | None = None) -> FastAPI:
             scheduled_date,
         )
         try:
-            result = execute_tool(service, remote_id, options)
+            result = execute_tool(service, remote_id, options, identity_id or None)
         except HTTPException as exc:
             failure = ToolResult(
                 tool_id=service,
@@ -354,6 +415,7 @@ def create_app(store: ConfigStore | None = None) -> FastAPI:
                 query=WorklistQuery(),
                 result=None,
                 source="local",
+                identity_id="",
                 local_entries=app.state.store.list_worklist(),
                 saved=saved,
             ),
@@ -369,6 +431,7 @@ def create_app(store: ConfigStore | None = None) -> FastAPI:
         modality: str = Form(""),
         station_ae_title: str = Form(""),
         scheduled_date: str = Form(""),
+        identity_id: str = Form(""),
     ):
         query = WorklistQuery(
             patient_name=patient_name,
@@ -378,13 +441,14 @@ def create_app(store: ConfigStore | None = None) -> FastAPI:
             station_ae_title=station_ae_title,
             scheduled_date=scheduled_date,
         )
-        result = query_worklist(app.state.store, source, query)
+        result = query_worklist(app.state.store, source, query, identity_id or None)
         context = page(
             request,
             nav="worklist",
             query=query,
             result=result,
             source=source,
+            identity_id=identity_id,
             local_entries=app.state.store.list_worklist(),
         )
         if _hx(request):
@@ -436,6 +500,7 @@ def create_app(store: ConfigStore | None = None) -> FastAPI:
                     query=WorklistQuery(),
                     result=None,
                     source="local",
+                    identity_id="",
                     local_entries=app.state.store.list_worklist(),
                     error=_first_error(exc),
                 ),
@@ -462,9 +527,14 @@ def create_app(store: ConfigStore | None = None) -> FastAPI:
         )
 
     @app.post("/tools/{tool_id}/run")
-    def run_tool_form(request: Request, tool_id: str, remote_id: str = Form(...)):
+    def run_tool_form(
+        request: Request,
+        tool_id: str,
+        remote_id: str = Form(...),
+        identity_id: str = Form(""),
+    ):
         try:
-            result = execute_tool(tool_id, remote_id)
+            result = execute_tool(tool_id, remote_id, identity_id=identity_id or None)
         except HTTPException as exc:
             failure = ToolResult(
                 tool_id=tool_id,
@@ -506,7 +576,7 @@ def create_app(store: ConfigStore | None = None) -> FastAPI:
 
     @app.post("/api/worklist/query")
     def api_worklist_query(body: WorklistApiQuery):
-        return query_worklist(app.state.store, body.source, body)
+        return query_worklist(app.state.store, body.source, body, body.identity_id or None)
 
     @app.get("/api/worklist")
     def api_worklist_local():
@@ -552,6 +622,27 @@ def create_app(store: ConfigStore | None = None) -> FastAPI:
         app.state.store.delete_remote(remote_id)
         return JSONResponse({"ok": True, "id": remote_id})
 
+    @app.get("/api/identities")
+    def api_identities():
+        return app.state.store.load().identities
+
+    @app.post("/api/identities", status_code=201)
+    def api_add_identity(identity: VirtualAE):
+        app.state.store.add_identity(identity)
+        return identity
+
+    @app.put("/api/identities/{identity_id}")
+    def api_update_identity(identity_id: str, identity: VirtualAE):
+        try:
+            return app.state.store.update_identity(identity_id, identity)
+        except KeyError as exc:
+            raise HTTPException(status_code=404, detail="Virtual local AE not found") from exc
+
+    @app.delete("/api/identities/{identity_id}")
+    def api_delete_identity(identity_id: str):
+        app.state.store.delete_identity(identity_id)
+        return JSONResponse({"ok": True, "id": identity_id})
+
     @app.get("/api/tools")
     def api_tools():
         return [
@@ -566,7 +657,7 @@ def create_app(store: ConfigStore | None = None) -> FastAPI:
 
     @app.post("/api/tools/{tool_id}/run")
     def api_run_tool(tool_id: str, body: RunRequest):
-        return execute_tool(tool_id, body.remote_id, body.options)
+        return execute_tool(tool_id, body.remote_id, body.options, body.identity_id)
 
     return app
 
