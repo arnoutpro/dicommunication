@@ -20,7 +20,7 @@ class ConfigStore:
         self.config_path = self.data_dir / "config.json"
         self.results_path = self.data_dir / "results.json"
         self._lock = Lock()
-        self._max_results = 50
+        self._max_results = 200
 
     def load(self) -> AppConfig:
         with self._lock:
@@ -73,10 +73,15 @@ class ConfigStore:
             return config
 
     def add_result(self, result: ToolResult) -> None:
+        self.add_results([result])
+
+    def add_results(self, new_results: list[ToolResult]) -> None:
+        if not new_results:
+            return
         with self._lock:
             results = self._load_results_unlocked()
-            results.insert(0, result.model_dump(mode="json"))
-            self._write_json(self.results_path, results[: self._max_results])
+            payload = [item.model_dump(mode="json") for item in new_results]
+            self._write_json(self.results_path, (payload + results)[: self._max_results])
 
     def list_results(self, limit: int = 20) -> list[ToolResult]:
         with self._lock:

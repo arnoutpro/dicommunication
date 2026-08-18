@@ -29,6 +29,7 @@ Config is stored as JSON under `data/` (or the `DICOMM_DATA_DIR` volume in Compo
 2. **Remote nodes** — name, called AE Title, host, port, notes. Add, edit, delete.
 3. **Network PING** — DNS resolve, ICMP echo, TCP connect to the DICOM port. ICMP is often blocked on clinical networks; TCP is the more reliable layer-4 check.
 4. **C-ECHO** — associate as the configured calling AE and send Verification (`1.2.840.10008.1.1`).
+5. **C-ECHO board** — run Verification against every configured node in one click (`/echo-board` or `POST /api/echo-board/run`).
 
 There is also a JSON API under `/api` for the same operations (`/api/config`, `/api/remotes`, `/api/tools/{id}/run`).
 

@@ -22,6 +22,7 @@
       </a>
       <nav>
         <a href="/" class="{% if nav == 'home' %}active{% endif %}">Dashboard</a>
+        <a href="/echo-board" class="{% if nav == 'echo-board' %}active{% endif %}">C-ECHO board</a>
         <a href="/config" class="{% if nav == 'config' %}active{% endif %}">Configuration</a>
         <p class="nav-label">Test tools</p>
         {% for item in tools %}
