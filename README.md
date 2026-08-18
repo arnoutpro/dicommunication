@@ -4,24 +4,52 @@ A low-code DICOM communication validator for PACS administrators.
 
 Configure this workstation as a local Application Entity, register remote DICOM nodes, and run the first two checks every connectivity ticket starts with: **network PING** and **DICOM C-ECHO**. New tools are Python plugins — drop in a file and they appear in the UI.
 
-## Run it
+## Run it (Docker)
+
+The image already contains Python, FastAPI, pynetdicom, and `ping`. You do not need a local virtualenv.
+
+```bash
+git clone https://github.com/arnoutpro/dicommunication.git
+cd dicommunication
+docker compose up --build
+```
+
+Open [http://127.0.0.1:8080](http://127.0.0.1:8080). Stop with Ctrl+C, or run detached:
+
+```bash
+docker compose up --build -d
+```
+
+Config is stored in `./data` on the host (`config.json`, `results.json`), so it survives rebuilds.
+
+After `main` builds the published image, this also works:
+
+```bash
+docker compose pull
+docker compose up -d
+```
+
+or without Compose:
+
+```bash
+docker run --rm -p 8080:8080 -v "$(pwd)/data:/app/data" ghcr.io/arnoutpro/dicommunication:latest
+```
+
+### Update
+
+```bash
+git pull origin main
+docker compose up --build -d
+```
+
+### Local Python (optional)
 
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
-pip install -r requirements.txt
+pip install -r requirements-dev.txt
 make run
 ```
-
-Open [http://127.0.0.1:8080](http://127.0.0.1:8080).
-
-### Docker
-
-```bash
-docker compose up --build
-```
-
-Config is stored as JSON under `data/` (or the `DICOMM_DATA_DIR` volume in Compose).
 
 ## What you can do now
 
@@ -31,7 +59,7 @@ Config is stored as JSON under `data/` (or the `DICOMM_DATA_DIR` volume in Compo
 4. **C-ECHO** — associate as the configured calling AE and send Verification (`1.2.840.10008.1.1`).
 5. **C-ECHO board** — run Verification against every configured node in one click (`/echo-board` or `POST /api/echo-board/run`).
 
-There is also a JSON API under `/api` for the same operations (`/api/config`, `/api/remotes`, `/api/tools/{id}/run`).
+There is also a JSON API under `/api` for the same operations (`/api/config`, `/api/remotes`, `/api/tools/{id}/run`, `/api/echo-board/run`).
 
 ## Add a future tool
 
@@ -54,11 +82,12 @@ class CStoreTool(BaseTool):
 register(CStoreTool())
 ```
 
-Restart the app. The tool shows up in the sidebar, on `/tools/c-store`, and at `POST /api/tools/c-store/run`.
+Rebuild or restart the app. The tool shows up in the sidebar, on `/tools/c-store`, and at `POST /api/tools/c-store/run`.
 
 ## Tests
 
 ```bash
+pip install -r requirements-dev.txt
 make test
 ```
 
@@ -68,4 +97,5 @@ C-ECHO tests start an in-process Verification SCP; PING tests use loopback ICMP 
 
 - AE Titles are 1–16 printable ASCII characters and must match what the remote node is configured to accept.
 - Default unprivileged DICOM port is `11112`. `104` and Orthanc `4242` are also common.
+- From Docker, a PACS on the same Mac can be reached as `host.docker.internal`.
 - This is a trusted-network admin tool. Do not expose it to the internet without an authenticating reverse proxy.
