@@ -1,0 +1,136 @@
+{% extends "base.html" %}
+{% block title %}Configuration · Dicommunication{% endblock %}
+{% block content %}
+<header class="page-head">
+  <div>
+    <p class="eyebrow">Station identity</p>
+    <h1>Configuration</h1>
+    <p class="lede">Set the calling AE for this workstation and the remote DICOM nodes you want to test against.</p>
+  </div>
+</header>
+
+{% if saved %}
+<div class="flash ok" data-autohide>Configuration saved.</div>
+{% endif %}
+{% if error %}
+<div class="flash fail">{{ error }}</div>
+{% endif %}
+
+<section class="panel">
+  <header class="panel-head">
+    <h2>Local DICOM AE</h2>
+    <span class="muted">Presented as the calling AE Title</span>
+  </header>
+  <form method="post" action="/config/local" class="form-grid" autocomplete="off">
+    <label>
+      AE Title
+      <input name="ae_title" maxlength="16" required value="{{ config.local.ae_title }}">
+      <span class="hint">1–16 printable ASCII characters. Remote nodes must accept this calling AE.</span>
+    </label>
+    <label>
+      Bind host
+      <input name="host" required value="{{ config.local.host }}">
+      <span class="hint">Listen address for future SCP tools. C-ECHO uses an ephemeral client port.</span>
+    </label>
+    <label>
+      Listen port
+      <input name="port" type="number" min="1" max="65535" required value="{{ config.local.port }}">
+    </label>
+    <label>
+      Timeout (seconds)
+      <input name="timeout_seconds" type="number" min="1" max="120" step="0.5" required value="{{ config.local.timeout_seconds }}">
+    </label>
+    <label>
+      Max PDU size
+      <input name="max_pdu" type="number" min="4096" max="131072" required value="{{ config.local.max_pdu }}">
+    </label>
+    <label>
+      Implementation version
+      <input name="implementation_version" maxlength="16" value="{{ config.local.implementation_version }}">
+    </label>
+    <div class="form-actions">
+      <button class="button primary" type="submit">Save local AE</button>
+    </div>
+  </form>
+</section>
+
+<section class="panel">
+  <header class="panel-head">
+    <h2>{% if editing %}Edit remote node{% else %}Add remote DICOM node{% endif %}</h2>
+    {% if editing %}<a href="/config">Cancel</a>{% endif %}
+  </header>
+  <form method="post" action="/config/remotes" class="form-grid" autocomplete="off">
+    {% if editing %}
+    <input type="hidden" name="remote_id" value="{{ editing.id }}">
+    {% endif %}
+    <label>
+      Display name
+      <input name="name" required placeholder="PACS production" value="{{ editing.name if editing else '' }}">
+    </label>
+    <label>
+      AE Title
+      <input name="ae_title" maxlength="16" required placeholder="ORTHANC" value="{{ editing.ae_title if editing else '' }}">
+    </label>
+    <label>
+      Host
+      <input name="host" required placeholder="192.168.1.10" value="{{ editing.host if editing else '' }}">
+    </label>
+    <label>
+      Port
+      <input name="port" type="number" min="1" max="65535" required value="{{ editing.port if editing else 11112 }}">
+      <span class="hint">Common values: 104, 11112, 4242 (Orthanc).</span>
+    </label>
+    <label class="span-2">
+      Notes
+      <input name="notes" placeholder="VLAN, TLS, vendor, contact…" value="{{ editing.notes if editing else '' }}">
+    </label>
+    <div class="form-actions">
+      <button class="button primary" type="submit">{% if editing %}Save remote node{% else %}Add remote node{% endif %}</button>
+    </div>
+  </form>
+</section>
+
+<section class="panel">
+  <header class="panel-head">
+    <h2>Configured remotes</h2>
+    <span class="muted">{{ config.remotes | length }} node{% if config.remotes | length != 1 %}s{% endif %}</span>
+  </header>
+  {% if config.remotes %}
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Called AE</th>
+          <th>Endpoint</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for remote in config.remotes %}
+        <tr>
+          <td>
+            <strong>{{ remote.name }}</strong>
+            {% if remote.notes %}<div class="muted small">{{ remote.notes }}</div>{% endif %}
+          </td>
+          <td><code>{{ remote.ae_title }}</code></td>
+          <td><code>{{ remote.host }}:{{ remote.port }}</code></td>
+          <td class="actions">
+            <a href="/config?edit={{ remote.id }}">Edit</a>
+            <form method="post" action="/config/remotes/{{ remote.id }}/delete" class="inline" data-confirm="Delete remote node {{ remote.name }}?">
+              <button type="submit" class="link-button danger">Delete</button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="empty">
+    <strong>Add the node you want to test</strong>
+    <p>Use the AE Title, hostname or IP, and DICOM port published by the PACS or modality.</p>
+  </div>
+  {% endif %}
+</section>
+{% endblock %}
