@@ -143,7 +143,13 @@ Writes are atomic (temp file + replace). Replacing the Docker image does not res
 
 ## Configuration
 
-Open **Configuration**. Basic fields are enough to start; **Advanced settings** hides PDU, timeouts, and MWL SCP options.
+Open **Configuration**. The overview (`/config`) lists this workstation, virtual calling AEs, and remotes. Add or edit them on the subpages:
+
+- `/config/local` — Local DICOM AE
+- `/config/identities` — virtual local AE titles
+- `/config/remotes` — remote DICOM nodes
+
+On Local AE, **Advanced settings** hides PDU, timeouts, and MWL SCP options.
 
 ### Local DICOM AE (the workstation)
 

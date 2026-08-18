@@ -119,18 +119,26 @@ def create_app(store: ConfigStore | None = None) -> FastAPI:
     def config_view(
         request: Request,
         *,
+        page_id: str = "overview",
         editing: RemoteNode | None = None,
         editing_identity: VirtualAE | None = None,
         saved: str | None = None,
         error: str | None = None,
         status_code: int = 200,
     ):
+        templates_by_page = {
+            "overview": ("config.html", "config"),
+            "local": ("config_local.html", "config-local"),
+            "identities": ("config_identities.html", "config-identities"),
+            "remotes": ("config_remotes.html", "config-remotes"),
+        }
+        template_name, nav = templates_by_page[page_id]
         return templates.TemplateResponse(
             request,
-            "config.html",
+            template_name,
             page(
                 request,
-                nav="config",
+                nav=nav,
                 editing=editing,
                 editing_identity=editing_identity,
                 saved=saved,
@@ -213,12 +221,42 @@ def create_app(store: ConfigStore | None = None) -> FastAPI:
         edit: str | None = None,
         identity: str | None = None,
         saved: str | None = None,
+    ):
+        if edit:
+            return RedirectResponse(f"/config/remotes?edit={edit}", status_code=303)
+        if identity:
+            return RedirectResponse(f"/config/identities?edit={identity}", status_code=303)
+        return config_view(request, page_id="overview", saved=saved)
+
+    @app.get("/config/local", response_class=HTMLResponse)
+    def config_local_page(request: Request, saved: str | None = None) -> HTMLResponse:
+        return config_view(request, page_id="local", saved=saved)
+
+    @app.get("/config/identities", response_class=HTMLResponse)
+    def config_identities_page(
+        request: Request,
+        edit: str | None = None,
+        saved: str | None = None,
     ) -> HTMLResponse:
         config = app.state.store.load()
         return config_view(
             request,
+            page_id="identities",
+            editing_identity=config.get_identity(edit),
+            saved=saved,
+        )
+
+    @app.get("/config/remotes", response_class=HTMLResponse)
+    def config_remotes_page(
+        request: Request,
+        edit: str | None = None,
+        saved: str | None = None,
+    ) -> HTMLResponse:
+        config = app.state.store.load()
+        return config_view(
+            request,
+            page_id="remotes",
             editing=config.get_remote(edit) if edit else None,
-            editing_identity=config.get_identity(identity),
             saved=saved,
         )
 
@@ -248,10 +286,10 @@ def create_app(store: ConfigStore | None = None) -> FastAPI:
                 mwl_scp_enabled=_as_bool(mwl_scp_enabled),
             )
         except ValidationError as exc:
-            return config_view(request, error=_first_error(exc), status_code=400)
+            return config_view(request, page_id="local", error=_first_error(exc), status_code=400)
         app.state.store.save_local(local)
         app.state.mwl_scp.restart()
-        return RedirectResponse("/config?saved=local", status_code=303)
+        return RedirectResponse("/config/local?saved=local", status_code=303)
 
     @app.post("/config/remotes")
     def add_or_update_remote(
@@ -282,6 +320,7 @@ def create_app(store: ConfigStore | None = None) -> FastAPI:
             editing = config.get_remote(remote_id) if remote_id else None
             return config_view(
                 request,
+                page_id="remotes",
                 editing=editing,
                 error=_first_error(exc),
                 status_code=400,
@@ -291,14 +330,14 @@ def create_app(store: ConfigStore | None = None) -> FastAPI:
                 app.state.store.update_remote(remote_id, remote)
             except KeyError:
                 raise HTTPException(status_code=404, detail="Remote node not found") from None
-            return RedirectResponse("/config?saved=remote", status_code=303)
+            return RedirectResponse("/config/remotes?saved=remote", status_code=303)
         app.state.store.add_remote(remote)
-        return RedirectResponse("/config?saved=remote", status_code=303)
+        return RedirectResponse("/config/remotes?saved=remote", status_code=303)
 
     @app.post("/config/remotes/{remote_id}/delete")
     def delete_remote(remote_id: str):
         app.state.store.delete_remote(remote_id)
-        return RedirectResponse("/config?saved=deleted", status_code=303)
+        return RedirectResponse("/config/remotes?saved=deleted", status_code=303)
 
     @app.post("/config/identities")
     def add_or_update_identity(
@@ -323,6 +362,7 @@ def create_app(store: ConfigStore | None = None) -> FastAPI:
             editing_identity = config.get_identity(identity_id) if identity_id else None
             return config_view(
                 request,
+                page_id="identities",
                 editing_identity=editing_identity,
                 error=_first_error(exc),
                 status_code=400,
@@ -332,14 +372,14 @@ def create_app(store: ConfigStore | None = None) -> FastAPI:
                 app.state.store.update_identity(identity_id, identity)
             except KeyError:
                 raise HTTPException(status_code=404, detail="Virtual local AE not found") from None
-            return RedirectResponse("/config?saved=identity", status_code=303)
+            return RedirectResponse("/config/identities?saved=identity", status_code=303)
         app.state.store.add_identity(identity)
-        return RedirectResponse("/config?saved=identity", status_code=303)
+        return RedirectResponse("/config/identities?saved=identity", status_code=303)
 
     @app.post("/config/identities/{identity_id}/delete")
     def delete_identity(identity_id: str):
         app.state.store.delete_identity(identity_id)
-        return RedirectResponse("/config?saved=deleted", status_code=303)
+        return RedirectResponse("/config/identities?saved=deleted", status_code=303)
 
     @app.get("/testbench", response_class=HTMLResponse)
     def testbench_page(request: Request) -> HTMLResponse:
