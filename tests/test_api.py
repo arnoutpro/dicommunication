@@ -7,7 +7,10 @@ def test_health_and_pages(client) -> None:
     assert client.get("/health").json() == {"status": "ok"}
     home = client.get("/")
     assert home.status_code == 200
-    assert b"Dicommunication" in home.content
+    assert b"Arnout.pro Dicommunication Tool" in home.content
+    assert b"C-ECHO all nodes" not in home.content
+    assert b"Open worklist" not in home.content
+    assert b"Open configuration" not in home.content
     config = client.get("/config")
     assert config.status_code == 200
     assert b"Local DICOM AE" in config.content
