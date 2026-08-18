@@ -273,10 +273,42 @@ input:focus, select:focus {
 .spinner { color: var(--accent); }
 .htmx-indicator { display: none; }
 .htmx-request.htmx-indicator, .htmx-request .htmx-indicator { display: inline; }
+.page-head form,
+.hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.7rem;
+  align-items: center;
+}
+.grid-4 {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.9rem;
+  margin-bottom: 1.2rem;
+}
+.ok-text { color: var(--ok); }
+.fail-text { color: var(--fail); }
+.run-meta { margin: 0 0 1rem; }
+.echo-table tr.row-pass td:first-child { box-shadow: inset 3px 0 0 var(--ok); }
+.echo-table tr.row-fail td:first-child { box-shadow: inset 3px 0 0 var(--fail); }
+.badge:not(.ok):not(.fail) {
+  background: rgba(147, 164, 191, 0.16);
+  color: var(--muted);
+}
+.step-list {
+  margin: 0.4rem 0 0;
+  padding-left: 1.1rem;
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+button:disabled, .button:disabled {
+  opacity: 0.55;
+  cursor: wait;
+}
 
 @media (max-width: 900px) {
   .shell { grid-template-columns: 1fr; }
   .sidebar { border-right: 0; border-bottom: 1px solid var(--line); }
-  .grid-3, .form-grid { grid-template-columns: 1fr; }
+  .grid-3, .grid-4, .form-grid { grid-template-columns: 1fr; }
   .main { padding: 1.2rem; }
 }

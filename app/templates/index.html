@@ -7,7 +7,10 @@
     <h1>Verify the path before you chase the study.</h1>
     <p class="lede">Configure this workstation and the remote AE, then run network PING and C-ECHO. New checks drop in as Python plugins.</p>
   </div>
-  <a class="button primary" href="/config">Open configuration</a>
+  <div class="hero-actions">
+    <a class="button primary" href="/echo-board">C-ECHO all nodes</a>
+    <a class="button" href="/config">Open configuration</a>
+  </div>
 </section>
 
 <div class="grid-3">
@@ -45,15 +48,20 @@
         </tr>
       </thead>
       <tbody>
-        {% for remote in config.remotes %}
+        {% for row in echo_board.rows %}
         <tr>
           <td>
-            <strong>{{ remote.name }}</strong>
-            {% if remote.notes %}<div class="muted small">{{ remote.notes }}</div>{% endif %}
+            <strong>{{ row.remote.name }}</strong>
+            {% if row.remote.notes %}<div class="muted small">{{ row.remote.notes }}</div>{% endif %}
           </td>
-          <td><code>{{ remote.ae_title }}</code></td>
-          <td><code>{{ remote.host }}:{{ remote.port }}</code></td>
+          <td><code>{{ row.remote.ae_title }}</code></td>
+          <td><code>{{ row.remote.host }}:{{ row.remote.port }}</code></td>
           <td class="actions">
+            {% if row.status == "pass" %}
+            <span class="badge ok">Echo</span>
+            {% elif row.status == "fail" %}
+            <span class="badge fail">Echo</span>
+            {% endif %}
             <a href="/tools/ping">PING</a>
             <a href="/tools/c-echo">C-ECHO</a>
           </td>
