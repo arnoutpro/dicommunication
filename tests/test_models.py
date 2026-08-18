@@ -37,6 +37,17 @@ def test_remote_node_requires_name_and_host() -> None:
         RemoteNode(name="  ", ae_title="PACS", host="10.0.0.1")
     node = RemoteNode(name="PACS", ae_title="PACS1", host="10.0.0.8", port=104)
     assert node.endpoint == "10.0.0.8:104"
+    named = RemoteNode(name="PACS DNS", ae_title="PACS1", hostname="pacs.hospital.local")
+    assert named.connect_host == "pacs.hospital.local"
+    both = RemoteNode(
+        name="PACS both",
+        ae_title="PACS1",
+        hostname="pacs.hospital.local",
+        host="10.0.0.8",
+    )
+    assert both.connect_host == "10.0.0.8"
+    with pytest.raises(ValidationError):
+        RemoteNode(name="PACS", ae_title="PACS1")
     mwl = RemoteNode(name="RIS MWL", ae_title="RISMWL", host="10.0.0.9", kind="mwl")
     assert mwl.provides_mwl is True
     assert mwl.kind_label == "DMWL"

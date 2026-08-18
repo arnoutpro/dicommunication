@@ -54,10 +54,10 @@ class PingTool(BaseTool):
         ok = dns_ok and tcp_ok
 
         if ok and icmp_ok:
-            summary = f"{remote.host}:{remote.port} is reachable over ICMP and TCP."
+            summary = f"{remote.connect_host}:{remote.port} is reachable over ICMP and TCP."
         elif ok:
             summary = (
-                f"TCP {remote.host}:{remote.port} is open. "
+                f"TCP {remote.connect_host}:{remote.port} is open. "
                 "ICMP ping failed (often blocked on clinical networks)."
             )
         elif not dns_ok:
@@ -79,12 +79,12 @@ class PingTool(BaseTool):
     def _resolve(self, remote: RemoteNode) -> ToolStep:
         started = time.perf_counter()
         try:
-            infos = socket.getaddrinfo(remote.host, remote.port, type=socket.SOCK_STREAM)
+            infos = socket.getaddrinfo(remote.connect_host, remote.port, type=socket.SOCK_STREAM)
             addresses = sorted({item[4][0] for item in infos})
             return ToolStep(
                 name="DNS resolve",
                 ok=True,
-                message=f"{remote.host} → {', '.join(addresses)}",
+                message=f"{remote.connect_host} → {', '.join(addresses)}",
                 duration_ms=_elapsed_ms(started),
                 details={"addresses": addresses},
             )
@@ -92,7 +92,7 @@ class PingTool(BaseTool):
             return ToolStep(
                 name="DNS resolve",
                 ok=False,
-                message=f"Could not resolve {remote.host}: {exc}",
+                message=f"Could not resolve {remote.connect_host}: {exc}",
                 duration_ms=_elapsed_ms(started),
             )
 
@@ -109,7 +109,7 @@ class PingTool(BaseTool):
 
         count = 3
         wait_s = max(1, int(timeout))
-        command = [ping_bin, "-c", str(count), "-W", str(wait_s), remote.host]
+        command = [ping_bin, "-c", str(count), "-W", str(wait_s), remote.connect_host]
         try:
             completed = subprocess.run(
                 command,
@@ -122,7 +122,7 @@ class PingTool(BaseTool):
             return ToolStep(
                 name="ICMP ping",
                 ok=False,
-                message=f"ICMP ping to {remote.host} timed out.",
+                message=f"ICMP ping to {remote.connect_host} timed out.",
                 duration_ms=_elapsed_ms(started),
             )
 
@@ -132,9 +132,9 @@ class PingTool(BaseTool):
             name="ICMP ping",
             ok=ok,
             message=(
-                f"{remote.host} responded to ICMP"
+                f"{remote.connect_host} responded to ICMP"
                 if ok
-                else f"{remote.host} did not respond to ICMP"
+                else f"{remote.connect_host} did not respond to ICMP"
             ),
             duration_ms=_elapsed_ms(started),
             details={"returncode": completed.returncode, "output": output[-1500:]},
@@ -143,18 +143,18 @@ class PingTool(BaseTool):
     def _tcp(self, remote: RemoteNode, timeout: float) -> ToolStep:
         started = time.perf_counter()
         try:
-            with socket.create_connection((remote.host, remote.port), timeout=timeout):
+            with socket.create_connection((remote.connect_host, remote.port), timeout=timeout):
                 return ToolStep(
                     name="TCP port",
                     ok=True,
-                    message=f"TCP {remote.host}:{remote.port} is open",
+                    message=f"TCP {remote.connect_host}:{remote.port} is open",
                     duration_ms=_elapsed_ms(started),
                 )
         except OSError as exc:
             return ToolStep(
                 name="TCP port",
                 ok=False,
-                message=f"TCP {remote.host}:{remote.port} is closed or filtered: {exc}",
+                message=f"TCP {remote.connect_host}:{remote.port} is closed or filtered: {exc}",
                 duration_ms=_elapsed_ms(started),
             )
 

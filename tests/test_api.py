@@ -11,6 +11,7 @@ def test_health_and_pages(client) -> None:
     config = client.get("/config")
     assert config.status_code == 200
     assert b"Local DICOM AE" in config.content
+    assert b"Advanced settings" in config.content
     echo_board = client.get("/echo-board")
     assert echo_board.status_code == 200
     worklist = client.get("/worklist")
@@ -28,10 +29,8 @@ def test_save_local_ae_and_remote_via_forms(client) -> None:
         data={
             "ae_title": "WORKSTA",
             "host": "127.0.0.1",
+            "hostname": "workstation1",
             "port": "11113",
-            "timeout_seconds": "8",
-            "max_pdu": "16382",
-            "implementation_version": "DICOMM_1",
         },
         follow_redirects=True,
     )
@@ -43,6 +42,7 @@ def test_save_local_ae_and_remote_via_forms(client) -> None:
         data={
             "name": "Lab PACS",
             "ae_title": "LABPACS",
+            "hostname": "pacs.lab.local",
             "host": "10.0.0.5",
             "port": "104",
             "notes": "test VLAN",

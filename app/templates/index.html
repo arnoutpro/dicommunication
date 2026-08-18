@@ -56,7 +56,7 @@
             {% if row.remote.notes %}<div class="muted small">{{ row.remote.notes }}</div>{% endif %}
           </td>
           <td><code>{{ row.remote.ae_title }}</code></td>
-          <td><code>{{ row.remote.host }}:{{ row.remote.port }}</code></td>
+          <td><code>{{ row.remote.connect_host }}:{{ row.remote.port }}</code></td>
           <td class="actions">
             {% if row.status == "pass" %}
             <span class="badge ok">Echo</span>

@@ -22,10 +22,10 @@
       </a>
       <nav>
         <a href="/" class="{% if nav == 'home' %}active{% endif %}">Dashboard</a>
-        <a href="/echo-board" class="{% if nav == 'echo-board' %}active{% endif %}">C-ECHO board</a>
-        <a href="/worklist" class="{% if nav == 'worklist' %}active{% endif %}">Worklist</a>
         <a href="/config" class="{% if nav == 'config' %}active{% endif %}">Configuration</a>
         <p class="nav-label">Test tools</p>
+        <a href="/echo-board" class="{% if nav == 'echo-board' %}active{% endif %}">C-ECHO board</a>
+        <a href="/worklist" class="{% if nav == 'worklist' %}active{% endif %}">Worklist</a>
         {% for item in tools %}
         <a href="/tools/{{ item.id }}" class="{% if tool_id == item.id %}active{% endif %}">{{ item.name }}</a>
         {% endfor %}

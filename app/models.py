@@ -32,6 +32,7 @@ class LocalAE(BaseModel):
 
     ae_title: str = "DICOMM"
     host: str = "0.0.0.0"
+    hostname: str = ""
     port: int = Field(default=11112, ge=1, le=65535)
     timeout_seconds: float = Field(default=10.0, gt=0, le=120)
     max_pdu: int = Field(default=16382, ge=4096, le=131072)
@@ -51,6 +52,11 @@ class LocalAE(BaseModel):
         if not value:
             raise ValueError("Host is required")
         return value
+
+    @field_validator("hostname")
+    @classmethod
+    def _hostname(cls, value: str) -> str:
+        return (value or "").strip()
 
     @field_validator("implementation_version")
     @classmethod
@@ -75,40 +81,49 @@ class RemoteNode(BaseModel):
     id: str = Field(default_factory=lambda: uuid.uuid4().hex[:12])
     name: str
     ae_title: str
-    host: str
+    host: str = ""
+    hostname: str = ""
     port: int = Field(default=11112, ge=1, le=65535)
     notes: str = ""
     kind: Literal["pacs", "mwl", "modality", "vna", "other"] = "other"
     provides_mwl: bool = False
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
-    @field_validator("name", "host")
+    @field_validator("name")
     @classmethod
-    def _required_text(cls, value: str) -> str:
-        value = value.strip()
+    def _required_name(cls, value: str) -> str:
+        value = (value or "").strip()
         if not value:
             raise ValueError("This field is required")
         return value
+
+    @field_validator("host", "hostname", "notes")
+    @classmethod
+    def _optional_text(cls, value: str) -> str:
+        return (value or "").strip()
 
     @field_validator("ae_title")
     @classmethod
     def _ae_title(cls, value: str) -> str:
         return normalize_ae_title(value)
 
-    @field_validator("notes")
-    @classmethod
-    def _notes(cls, value: str) -> str:
-        return (value or "").strip()
-
     @model_validator(mode="after")
-    def _mwl_kind_enables_worklist(self) -> RemoteNode:
+    def _normalize_connection_and_kind(self) -> RemoteNode:
+        if not self.host and not self.hostname:
+            raise ValueError("IP address or hostname is required")
+        if not self.host:
+            self.host = self.hostname
         if self.kind == "mwl":
             self.provides_mwl = True
         return self
 
     @property
+    def connect_host(self) -> str:
+        return self.host or self.hostname
+
+    @property
     def endpoint(self) -> str:
-        return f"{self.host}:{self.port}"
+        return f"{self.connect_host}:{self.port}"
 
     @property
     def kind_label(self) -> str:
