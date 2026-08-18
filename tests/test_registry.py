@@ -5,9 +5,10 @@ from app.tools import get_tool, list_tools
 
 def test_builtin_tools_are_registered() -> None:
     tools = {tool.id: tool for tool in list_tools()}
-    assert set(tools) >= {"ping", "c-echo"}
+    assert set(tools) >= {"ping", "c-echo", "mwl-find"}
     assert tools["ping"].name == "Network PING"
     assert tools["c-echo"].name == "C-ECHO"
+    assert tools["mwl-find"].name == "MWL C-FIND"
     assert get_tool("ping") is tools["ping"]
 
 

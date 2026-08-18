@@ -6,6 +6,7 @@ services:
       dockerfile: Dockerfile
     ports:
       - "8080:8080"
+      - "11112:11112"
     volumes:
       - ./data:/app/data
     environment:

@@ -8,7 +8,7 @@ import tempfile
 from pathlib import Path
 from threading import Lock
 
-from app.models import AppConfig, RemoteNode, ToolResult
+from app.models import AppConfig, RemoteNode, ToolResult, WorklistEntry
 
 DEFAULT_DATA_DIR = Path(os.environ.get("DICOMM_DATA_DIR", "data"))
 
@@ -19,6 +19,7 @@ class ConfigStore:
         self.data_dir.mkdir(parents=True, exist_ok=True)
         self.config_path = self.data_dir / "config.json"
         self.results_path = self.data_dir / "results.json"
+        self.worklist_path = self.data_dir / "worklist.json"
         self._lock = Lock()
         self._max_results = 200
 
@@ -88,6 +89,31 @@ class ConfigStore:
             raw = self._load_results_unlocked()
         return [ToolResult.model_validate(item) for item in raw[:limit]]
 
+    def list_worklist(self) -> list[WorklistEntry]:
+        with self._lock:
+            return [WorklistEntry.model_validate(item) for item in self._load_worklist_unlocked()]
+
+    def save_worklist(self, entries: list[WorklistEntry]) -> list[WorklistEntry]:
+        with self._lock:
+            self._write_json(self.worklist_path, [item.model_dump(mode="json") for item in entries])
+            return entries
+
+    def add_worklist_entry(self, entry: WorklistEntry) -> WorklistEntry:
+        with self._lock:
+            entries = [WorklistEntry.model_validate(item) for item in self._load_worklist_unlocked()]
+            entries.insert(0, entry)
+            self._write_json(self.worklist_path, [item.model_dump(mode="json") for item in entries])
+            return entry
+
+    def delete_worklist_entry(self, entry_id: str) -> None:
+        with self._lock:
+            entries = [
+                WorklistEntry.model_validate(item)
+                for item in self._load_worklist_unlocked()
+                if item.get("id") != entry_id
+            ]
+            self._write_json(self.worklist_path, [item.model_dump(mode="json") for item in entries])
+
     def _load_unlocked(self) -> AppConfig:
         if not self.config_path.exists():
             config = AppConfig()
@@ -101,6 +127,15 @@ class ConfigStore:
             return []
         try:
             data = json.loads(self.results_path.read_text(encoding="utf-8"))
+        except json.JSONDecodeError:
+            return []
+        return data if isinstance(data, list) else []
+
+    def _load_worklist_unlocked(self) -> list:
+        if not self.worklist_path.exists():
+            return []
+        try:
+            data = json.loads(self.worklist_path.read_text(encoding="utf-8"))
         except json.JSONDecodeError:
             return []
         return data if isinstance(data, list) else []

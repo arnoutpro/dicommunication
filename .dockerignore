@@ -8,6 +8,7 @@ __pycache__
 tests
 data/config.json
 data/results.json
+data/worklist.json
 *.md
 .env
 Dockerfile

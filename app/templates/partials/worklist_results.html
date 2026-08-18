@@ -1,0 +1,50 @@
+{% if result %}
+<article class="result {% if result.ok %}ok{% else %}fail{% endif %}">
+  <header>
+    <span class="badge {% if result.ok %}ok{% else %}fail{% endif %}">{% if result.ok %}Pass{% else %}Fail{% endif %}</span>
+    <div>
+      <strong>{{ result.source or "Worklist" }}</strong>
+      <p>{{ result.summary }}</p>
+    </div>
+    <span class="muted">{{ result.duration_ms }} ms</span>
+  </header>
+  {% if result.entries %}
+  <div class="table-wrap">
+    <table class="echo-table">
+      <thead>
+        <tr>
+          <th>Patient</th>
+          <th>ID</th>
+          <th>Accession</th>
+          <th>Modality</th>
+          <th>Procedure</th>
+          <th>When</th>
+          <th>Station</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for item in result.entries %}
+        <tr>
+          <td><strong>{{ item.patient_name }}</strong></td>
+          <td><code>{{ item.patient_id }}</code></td>
+          <td><code>{{ item.accession_number }}</code></td>
+          <td>{{ item.modality }}</td>
+          <td>{{ item.requested_procedure_description }}</td>
+          <td>{{ item.scheduled_date }} {{ item.scheduled_time }}</td>
+          <td><code>{{ item.station_ae_title }}</code></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% elif result.ok %}
+  <p class="muted">No matching scheduled procedures.</p>
+  {% endif %}
+  {% if result.log %}
+  <details>
+    <summary>Association log</summary>
+    <pre class="log">{{ result.log }}</pre>
+  </details>
+  {% endif %}
+</article>
+{% endif %}
