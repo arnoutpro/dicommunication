@@ -143,7 +143,7 @@ Writes are atomic (temp file + replace). Replacing the Docker image does not res
 
 ## Configuration
 
-Open **Configuration**. In the left menu, **Configured nodes** is a parent item: expand it for Local DICOM AE, Virtual AEs, and Remote nodes. The overview (`/config`) lists everything at a glance. Add or edit on the child pages:
+Open **Configured nodes** in the left menu. Child links stay visible: Local DICOM AE, Virtual AEs, and Remote nodes. The overview (`/config`) lists everything at a glance. Add or edit on the child pages:
 
 - `/config/local` — Local DICOM AE
 - `/config/identities` — virtual local AE titles
@@ -210,7 +210,7 @@ Every virtual calling AE must be allowed on the remote, the same way the worksta
 
 ## Test tools
 
-Sidebar **Test tools** is a collapsible parent. Expand it for Testbench, C-ECHO board, and Worklist, then **Connectivity** (PING) and **DIMSE** (C-ECHO, C-STORE, C-FIND, MWL C-FIND). New plugin tools appear under their `category`.
+The left menu keeps **Configured nodes** and **Test tools** open. Under Test tools: Testbench, C-ECHO board, Worklist, then **Connectivity** (PING) and **DIMSE** (C-ECHO, C-STORE, C-FIND, MWL C-FIND). New plugin tools appear under their `category`.
 
 ### Testbench (`/testbench`)
 

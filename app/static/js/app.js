@@ -1,8 +1,4 @@
-document.querySelectorAll(".nav-branch > summary a").forEach((link) => {
-  link.addEventListener("click", (event) => {
-    event.stopPropagation();
-  });
-});
+document.addEventListener("submit", (event) => {
   const form = event.target;
   if (!(form instanceof HTMLFormElement)) {
     return;
