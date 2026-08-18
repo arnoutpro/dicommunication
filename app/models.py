@@ -124,3 +124,19 @@ class ToolResult(BaseModel):
     duration_ms: float = 0
     steps: list[ToolStep] = Field(default_factory=list)
     log: str = ""
+
+
+class EchoBoardRow(BaseModel):
+    remote: RemoteNode
+    result: ToolResult | None = None
+    status: str = "unknown"
+
+
+class EchoBoard(BaseModel):
+    rows: list[EchoBoardRow] = Field(default_factory=list)
+    total: int = 0
+    passed: int = 0
+    failed: int = 0
+    unknown: int = 0
+    duration_ms: float | None = None
+    ran_at: datetime | None = None

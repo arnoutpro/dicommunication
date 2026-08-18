@@ -11,6 +11,8 @@ def test_health_and_pages(client) -> None:
     config = client.get("/config")
     assert config.status_code == 200
     assert b"Local DICOM AE" in config.content
+    echo_board = client.get("/echo-board")
+    assert echo_board.status_code == 200
     ping = client.get("/tools/ping")
     assert ping.status_code == 200
     echo = client.get("/tools/c-echo")

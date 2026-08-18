@@ -10,6 +10,8 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, ValidationError
 
+from app.echo_board import run_all as run_echo_board
+from app.echo_board import snapshot as echo_board_snapshot
 from app.models import LocalAE, RemoteNode, ToolResult
 from app.store import ConfigStore
 from app.tools import get_tool, list_tools
@@ -72,7 +74,38 @@ def create_app(store: ConfigStore | None = None) -> FastAPI:
 
     @app.get("/", response_class=HTMLResponse)
     def dashboard(request: Request) -> HTMLResponse:
-        return templates.TemplateResponse(request, "index.html", page(request, nav="home"))
+        return templates.TemplateResponse(
+            request,
+            "index.html",
+            page(request, nav="home", echo_board=echo_board_snapshot(app.state.store)),
+        )
+
+    @app.get("/echo-board", response_class=HTMLResponse)
+    def echo_board_page(request: Request) -> HTMLResponse:
+        return templates.TemplateResponse(
+            request,
+            "echo_board.html",
+            page(
+                request,
+                nav="echo-board",
+                echo_board=echo_board_snapshot(app.state.store),
+            ),
+        )
+
+    @app.post("/echo-board/run")
+    def echo_board_run(request: Request):
+        board = run_echo_board(app.state.store)
+        if _hx(request):
+            return templates.TemplateResponse(
+                request,
+                "partials/echo_board.html",
+                {"request": request, "echo_board": board, "config": app.state.store.load()},
+            )
+        return templates.TemplateResponse(
+            request,
+            "echo_board.html",
+            page(request, nav="echo-board", echo_board=board),
+        )
 
     @app.get("/config", response_class=HTMLResponse)
     def config_page(request: Request, edit: str | None = None, saved: str | None = None) -> HTMLResponse:
@@ -212,6 +245,14 @@ def create_app(store: ConfigStore | None = None) -> FastAPI:
             "tool.html",
             page(request, nav="tools", tool=tool, tool_id=tool_id, result=result),
         )
+
+    @app.get("/api/echo-board")
+    def api_echo_board():
+        return echo_board_snapshot(app.state.store)
+
+    @app.post("/api/echo-board/run")
+    def api_echo_board_run():
+        return run_echo_board(app.state.store)
 
     @app.get("/api/config")
     def api_config():

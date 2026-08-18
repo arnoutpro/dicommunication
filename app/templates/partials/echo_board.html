@@ -1,0 +1,99 @@
+<div class="grid-4">
+  <article class="card">
+    <p class="card-label">Nodes</p>
+    <h2>{{ echo_board.total }}</h2>
+    <p class="muted">Configured remotes</p>
+  </article>
+  <article class="card">
+    <p class="card-label">Pass</p>
+    <h2 class="ok-text">{{ echo_board.passed }}</h2>
+    <p class="muted">C-ECHO Success</p>
+  </article>
+  <article class="card">
+    <p class="card-label">Fail</p>
+    <h2 class="fail-text">{{ echo_board.failed }}</h2>
+    <p class="muted">Association or DIMSE error</p>
+  </article>
+  <article class="card">
+    <p class="card-label">Not run</p>
+    <h2>{{ echo_board.unknown }}</h2>
+    <p class="muted">No C-ECHO result yet</p>
+  </article>
+</div>
+
+{% if echo_board.ran_at %}
+<p class="muted run-meta">
+  Last batch finished in {{ echo_board.duration_ms }} ms
+  · calling AE {{ config.local.ae_title }}
+</p>
+{% endif %}
+
+<section class="panel">
+  <header class="panel-head">
+    <h2>Remote nodes</h2>
+    <a href="/config">Manage nodes</a>
+  </header>
+  {% if echo_board.rows %}
+  <div class="table-wrap">
+    <table class="echo-table">
+      <thead>
+        <tr>
+          <th>Status</th>
+          <th>Name</th>
+          <th>Called AE</th>
+          <th>Endpoint</th>
+          <th>Result</th>
+          <th>Time</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in echo_board.rows %}
+        <tr class="row-{{ row.status }}">
+          <td>
+            {% if row.status == "pass" %}
+            <span class="badge ok">Pass</span>
+            {% elif row.status == "fail" %}
+            <span class="badge fail">Fail</span>
+            {% else %}
+            <span class="badge">Unknown</span>
+            {% endif %}
+          </td>
+          <td>
+            <strong>{{ row.remote.name }}</strong>
+            {% if row.remote.notes %}<div class="muted small">{{ row.remote.notes }}</div>{% endif %}
+          </td>
+          <td><code>{{ row.remote.ae_title }}</code></td>
+          <td><code>{{ row.remote.host }}:{{ row.remote.port }}</code></td>
+          <td>
+            {% if row.result %}
+            <span>{{ row.result.summary }}</span>
+            {% if row.result.steps %}
+            <details>
+              <summary>Steps</summary>
+              <ul class="step-list">
+                {% for step in row.result.steps %}
+                <li class="{% if step.ok %}ok-text{% else %}fail-text{% endif %}">{{ step.name }} — {{ step.message }}</li>
+                {% endfor %}
+              </ul>
+            </details>
+            {% endif %}
+            {% else %}
+            <span class="muted">Not checked yet</span>
+            {% endif %}
+          </td>
+          <td class="muted">
+            {% if row.result %}{{ row.result.duration_ms }} ms{% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="empty">
+    <strong>No remote nodes yet</strong>
+    <p>Add PACS and modality AEs on the configuration screen, then run C-ECHO against all of them from here.</p>
+    <a class="button" href="/config">Add a remote node</a>
+  </div>
+  {% endif %}
+</section>
