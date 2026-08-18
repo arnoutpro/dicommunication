@@ -83,6 +83,65 @@ nav a:hover, nav a.active {
   text-transform: uppercase;
   color: var(--muted);
 }
+.nav-branch {
+  display: flex;
+  flex-direction: column;
+}
+.nav-branch > summary {
+  display: flex;
+  align-items: center;
+  gap: 0.15rem;
+  list-style: none;
+  cursor: pointer;
+  color: var(--muted);
+  padding: 0.2rem 0.15rem;
+  border-radius: 0.55rem;
+  user-select: none;
+}
+.nav-branch > summary::-webkit-details-marker { display: none; }
+.nav-branch > summary::before {
+  content: "";
+  width: 0.42rem;
+  height: 0.42rem;
+  border-right: 2px solid var(--muted);
+  border-bottom: 2px solid var(--muted);
+  transform: rotate(-45deg);
+  margin: 0 0.45rem 0 0.55rem;
+  flex-shrink: 0;
+}
+.nav-branch[open] > summary::before {
+  transform: rotate(45deg);
+  margin-top: -0.12rem;
+}
+.nav-branch > summary:hover,
+.nav-branch.is-current > summary {
+  color: var(--text);
+}
+.nav-branch > summary a {
+  flex: 1;
+  padding: 0.4rem 0.55rem 0.4rem 0;
+}
+.nav-children {
+  display: flex;
+  flex-direction: column;
+  gap: 0.12rem;
+  margin: 0.12rem 0 0.3rem 0.85rem;
+  padding-left: 0.65rem;
+  border-left: 1px solid var(--line);
+}
+.nav-children a {
+  padding: 0.42rem 0.6rem;
+  font-size: 0.9rem;
+}
+.nav-children .nav-branch > summary {
+  padding: 0.15rem 0;
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.nav-children .nav-branch > summary::before {
+  margin-left: 0.35rem;
+}
 .config-tabs {
   display: flex;
   flex-wrap: wrap;

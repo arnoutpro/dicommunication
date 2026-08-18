@@ -8,6 +8,9 @@ def test_health_and_pages(client) -> None:
     home = client.get("/")
     assert home.status_code == 200
     assert b"Arnout.pro Dicommunication Tool" in home.content
+    assert b"nav-children" in home.content
+    assert b"DIMSE" in home.content
+    assert b"Connectivity" in home.content
     assert b"C-ECHO all nodes" not in home.content
     assert b"Open worklist" not in home.content
     assert b"Open configuration" not in home.content
