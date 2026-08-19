@@ -135,7 +135,16 @@ Python **is** required to *serve* that page and to speak DICOM (FastAPI, pynetdi
 
 **Those components cannot be installed from this app’s webpage.** The UI is served *by* the Python process, so the page only exists after the backend is already running. A “download Python from this screen” button would be a chicken-and-egg, and a web bootstrapper that fetches python.org at install time is a poor fit for hospital VLANs (often offline, SmartScreen/AV, no admin). The MSI is the offline installer IT can push with Intune or GPO. A public download page can *host* that MSI later; it still will not pip-install the server from inside the running UI.
 
-CI builds `dicommunication-<version>-win64.msi` on `windows-latest` (workflow **Windows MSI**). Install it, start **Dicommunication** from the Start menu, and leave the console window open. The default browser opens the UI. Config lives in `%LOCALAPPDATA%\dicommunication` and survives upgrades.
+CI builds `dicommunication-<version>-win64.msi` on `windows-latest` (workflow **Windows MSI**). A `v*` tag attaches that MSI to the GitHub Release and also publishes **`dicommunication.msi`** on [GitHub Packages](https://github.com/arnoutpro/dicommunication/pkgs/nuget/dicommunication.msi) (NuGet). GitHub has no MSI registry; the nupkg carries `tools/dicommunication-<version>-win64.msi`. GitHub Packages always needs a token, even for a public package — anonymous hospital downloads should keep using the [GitHub Release](https://github.com/arnoutpro/dicommunication/releases).
+
+```text
+dotnet nuget add source --name github-arnoutpro --username YOUR_GITHUB_USERNAME --password YOUR_PAT --store-password-in-clear-text https://nuget.pkg.github.com/arnoutpro/index.json
+dotnet nuget install dicommunication.msi --version 0.2.0 --source github-arnoutpro
+```
+
+The already-cut `v0.2.0` MSI can be wrapped without rebuilding: **Actions → Windows MSI → Run workflow** and set `nuget_from_release` to `v0.2.0`.
+
+Install the MSI, start **Dicommunication** from the Start menu, and leave the console window open. The default browser opens the UI. Config lives in `%LOCALAPPDATA%\dicommunication` and survives upgrades.
 
 Unsigned builds trigger SmartScreen until a code-signing certificate is used. If a modality must C-FIND this workstation, allow inbound TCP for `dicommunication.exe` (listen port 11112). Details and a local build script: [`packaging/windows/README.md`](packaging/windows/README.md).
 
