@@ -115,6 +115,8 @@ def test_launcher_reuses_running_server(monkeypatch) -> None:
     opened: list[str] = []
     monkeypatch.setattr("app.launcher.apply_runtime_env", lambda: None)
     monkeypatch.setattr("app.launcher.server_is_up", lambda url, timeout=0.4: True)
+    monkeypatch.setattr("app.desktop.is_frozen", lambda: False)
+    monkeypatch.delenv("DICOMM_UI", raising=False)
     monkeypatch.setattr("app.launcher.webbrowser.open", lambda url: opened.append(url))
     assert main(["--host", "127.0.0.1", "--port", "8080"]) == 0
     assert opened == ["http://127.0.0.1:8080/"]
@@ -205,6 +207,12 @@ def test_keep_alive_hint_windows(monkeypatch) -> None:
     assert "window" in keep_alive_hint()
 
 
+def test_keep_alive_hint_native_window() -> None:
+    from app.desktop import UI_WINDOW
+
+    assert "Close the Dicommunication window" in keep_alive_hint(UI_WINDOW)
+
+
 def test_macos_spec_is_windowed_app_bundle() -> None:
     spec = (ROOT / "packaging" / "macos" / "dicommunication.spec").read_text(encoding="utf-8")
     assert "BUNDLE(" in spec
@@ -213,6 +221,7 @@ def test_macos_spec_is_windowed_app_bundle() -> None:
     assert "console=False" in spec
     assert "launcher.py" in spec
     assert "pro.arnout.dicommunication" in spec
+    assert "webview" in spec
     assert "app.icns" in spec
     assert "icon=None" not in spec
 
@@ -224,6 +233,7 @@ def test_macos_build_script_exists() -> None:
     assert "dicommunication.spec" in text
     assert "make_dmg.py" in text
     assert "Dicommunication.app" in text
+    assert "requirements-desktop.txt" in text
 
 
 def test_macos_dmg_workflow() -> None:
@@ -234,6 +244,7 @@ def test_macos_dmg_workflow() -> None:
     assert "actions/upload-artifact@v7" in workflow
     assert "softprops/action-gh-release@v3" in workflow
     assert "packaging/macos/build.sh" in workflow
+    assert "requirements-desktop.txt" in workflow
     assert "release_tag" in workflow
     assert "dist/*.dmg" in workflow
 
@@ -258,7 +269,7 @@ def test_make_dmg_stages_app_and_applications_link(tmp_path) -> None:
     assert (staging / "Applications").readlink() == Path("/Applications")
     readme = (staging / "Read Me.txt").read_text(encoding="utf-8")
     assert "Gatekeeper" in readme
-    assert "127.0.0.1:8080" in readme
+    assert "own window" in readme
 
 
 def test_make_dmg_stage_only_cli(tmp_path) -> None:
@@ -285,6 +296,91 @@ def test_make_dmg_stage_only_cli(tmp_path) -> None:
     staging = out / "dmg-staging"
     assert (staging / "Dicommunication.app").is_dir()
     assert not list(out.glob("*.dmg"))
+
+
+def test_resolve_ui_mode_frozen_defaults_to_window(monkeypatch) -> None:
+    from app.desktop import UI_WINDOW, resolve_ui_mode
+
+    monkeypatch.setattr("app.desktop.is_frozen", lambda: True)
+    monkeypatch.delenv("DICOMM_UI", raising=False)
+    assert resolve_ui_mode(no_browser=False, browser=False, window=False) == UI_WINDOW
+
+
+def test_resolve_ui_mode_source_defaults_to_browser(monkeypatch) -> None:
+    from app.desktop import UI_BROWSER, resolve_ui_mode
+
+    monkeypatch.setattr("app.desktop.is_frozen", lambda: False)
+    monkeypatch.delenv("DICOMM_UI", raising=False)
+    assert resolve_ui_mode(no_browser=False, browser=False, window=False) == UI_BROWSER
+
+
+def test_resolve_ui_mode_env_and_flags(monkeypatch) -> None:
+    from app.desktop import UI_BROWSER, UI_NONE, UI_WINDOW, resolve_ui_mode
+
+    monkeypatch.setattr("app.desktop.is_frozen", lambda: True)
+    monkeypatch.setenv("DICOMM_UI", "browser")
+    assert resolve_ui_mode(no_browser=False, browser=False, window=False) == UI_BROWSER
+    assert resolve_ui_mode(no_browser=True, browser=False, window=False) == UI_NONE
+    assert resolve_ui_mode(no_browser=False, browser=False, window=True) == UI_WINDOW
+
+
+def test_frozen_reuses_running_server_in_native_window(monkeypatch) -> None:
+    from app.desktop import UI_WINDOW
+
+    opened: list[str] = []
+    monkeypatch.setattr("app.launcher.apply_runtime_env", lambda: None)
+    monkeypatch.setattr("app.launcher.server_is_up", lambda url, timeout=0.4: True)
+    monkeypatch.setattr("app.launcher.resolve_ui_mode", lambda **kwargs: UI_WINDOW)
+    monkeypatch.setattr(
+        "app.launcher.run_native_window",
+        lambda url: opened.append(url) or True,
+    )
+    monkeypatch.setattr(
+        "app.launcher.webbrowser.open",
+        lambda url: opened.append(f"browser:{url}"),
+    )
+    assert main(["--host", "127.0.0.1", "--port", "8080"]) == 0
+    assert opened == ["http://127.0.0.1:8080/"]
+
+
+def test_run_native_window_starts_webview(monkeypatch, tmp_path) -> None:
+    import types
+
+    from app.desktop import WINDOW_TITLE, run_native_window
+
+    calls: dict = {}
+    mod = types.ModuleType("webview")
+
+    def create_window(title, url, **kwargs):
+        calls["create"] = (title, url, kwargs)
+        return object()
+
+    def start(**kwargs):
+        calls["start"] = kwargs
+
+    mod.create_window = create_window
+    mod.start = start
+    monkeypatch.setitem(sys.modules, "webview", mod)
+    monkeypatch.setenv("DICOMM_DATA_DIR", str(tmp_path))
+    monkeypatch.setattr("app.desktop.native_gui", lambda: "cocoa")
+    assert run_native_window("http://127.0.0.1:8080/") is True
+    assert calls["create"][0] == WINDOW_TITLE
+    assert calls["create"][1] == "http://127.0.0.1:8080/"
+    assert calls["start"]["private_mode"] is False
+    assert calls["start"]["gui"] == "cocoa"
+    assert (tmp_path / "webview").is_dir()
+
+
+def test_windows_spec_hides_console_and_bundles_webview() -> None:
+    spec = (ROOT / "packaging" / "windows" / "dicommunication.spec").read_text(
+        encoding="utf-8"
+    )
+    assert "console=False" in spec
+    assert "webview" in spec
+    workflow = (ROOT / ".github" / "workflows" / "windows-msi.yml").read_text(
+        encoding="utf-8"
+    )
+    assert "requirements-desktop.txt" in workflow
 
 
 def test_packaging_icons_match_favicon() -> None:

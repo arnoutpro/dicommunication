@@ -145,7 +145,7 @@ dotnet nuget install dicommunication.msi --version 0.2.0 --source github-arnoutp
 
 The already-cut `v0.2.0` MSI can be wrapped without rebuilding: **Actions → Windows MSI → Run workflow** and set `nuget_from_release` to `v0.2.0`.
 
-Install the MSI, start **Dicommunication** from the Start menu, and leave the console window open. The default browser opens the UI. Config lives in `%LOCALAPPDATA%\dicommunication` and survives upgrades.
+Install the MSI, start **Dicommunication** from the Start menu. The UI opens in its own window (Edge WebView2 — not a browser tab). Close that window to stop the server. Config lives in `%LOCALAPPDATA%\dicommunication` and survives upgrades. Windows 10/11 already have WebView2; if it is missing the app falls back to the default browser.
 
 Unsigned builds trigger SmartScreen until a code-signing certificate is used. If a modality must C-FIND this workstation, allow inbound TCP for `dicommunication.exe` (listen port 11112). Details and a local build script: [`packaging/windows/README.md`](packaging/windows/README.md).
 
@@ -159,7 +159,7 @@ CI builds `dicommunication-<version>-macos-arm64.dmg` on `macos-latest` (workflo
 
 The already-cut `v0.2.0` release can get a DMG without a new version tag: **Actions → macOS DMG → Run workflow** and set `release_tag` to `v0.2.0`.
 
-Open the DMG, drag **Dicommunication** to Applications, then right-click the app and choose **Open** the first time (unsigned builds trip Gatekeeper). The Dock icon is the **Sansation Bold** A from the watermark. The default browser opens the UI. Quit **Dicommunication** from the Dock to stop the server. Config lives in `~/.dicommunication` and survives upgrades.
+Open the DMG, drag **Dicommunication** to Applications, then right-click the app and choose **Open** the first time (unsigned builds trip Gatekeeper). The Dock icon is the **Sansation Bold** A from the watermark. The UI opens in its own window (not a Safari tab). Close the window or quit from the Dock to stop the server. Config lives in `~/.dicommunication` and survives upgrades.
 
 Apple Silicon only for now. Intel Macs keep using Docker Compose. If a modality must C-FIND this workstation, allow incoming TCP for **Dicommunication** (listen port 11112). Details: [`packaging/macos/README.md`](packaging/macos/README.md).
 
@@ -417,7 +417,7 @@ This is a trusted-network admin tool. The web UI has no login. Do not publish po
 | Cannot reach Orthanc from Docker | Use `host.docker.internal` (same Mac/host) or the LAN IP; publish/check `4242`. |
 | Config vanished after image rebuild | Config should be in `~/.dicommunication` (Windows MSI: `%LOCALAPPDATA%\dicommunication`). Legacy `./data` is only used until the home folder exists. |
 | Windows SmartScreen blocks the MSI | Unsigned first builds are expected. Use an Authenticode certificate for hospital rollout, or IT can allow the publisher. |
-| MSI UI opens then nothing listens | Leave the black console window open. Closing it stops uvicorn. |
+| MSI UI opens then nothing listens | Close the Dicommunication window only when you are done. The old black console is no longer the server. |
 | macOS Gatekeeper blocks the app | Unsigned first builds are expected. Right-click **Open**, or run `xattr -dr com.apple.quarantine /Applications/Dicommunication.app`. |
-| macOS browser opens then nothing listens | The Dock icon is the server. Closing the tab does not stop uvicorn; quit **Dicommunication** from the Dock when you are done. |
+| UI opens in Safari/Chrome instead of an app window | Frozen builds should use a native window. Pass `--window`, or check WebView2 on Windows. `--browser` forces the system browser. |
 | Modality cannot C-FIND this tool | Enable the MWL SCP, publish/allow `11112` (Windows: inbound TCP for `dicommunication.exe`; macOS: allow incoming for **Dicommunication**), and put this workstation AE on the modality’s worklist node list. |

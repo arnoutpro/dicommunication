@@ -2,7 +2,7 @@
 
 Hospital Macs often cannot run Docker. This folder freezes the FastAPI app with PyInstaller into `Dicommunication.app` and wraps it in a drag-to-Applications DMG.
 
-The DMG **bundles a private Python runtime**. The person who opens the UI only needs a browser. They do not install Python from python.org.
+The DMG **bundles a private Python runtime**. The UI opens in the app’s own window. They do not install Python from python.org.
 
 The installer cannot live *inside* this app’s webpage. That page is served by the already-running Python server. Ship the DMG through IT (or a USB stick), not through a button on localhost.
 
@@ -11,8 +11,8 @@ The installer cannot live *inside* this app’s webpage. That page is served by 
 1. Open `dicommunication-<version>-macos-arm64.dmg`.
 2. Drag **Dicommunication** onto **Applications**.
 3. The first time, right-click the app and choose **Open** (unsigned builds trip Gatekeeper). The Dock icon is the **Sansation Bold** A from the watermark, not PyInstaller’s floppy disk.
-4. The default browser opens [http://127.0.0.1:8080](http://127.0.0.1:8080).
-5. Quit **Dicommunication** from the Dock to stop the server.
+4. The UI opens in its own window (not a Safari tab).
+5. Close the window or quit from the Dock to stop the server.
 
 Config stays in `~/.dicommunication` across upgrades.
 
