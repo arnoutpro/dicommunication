@@ -3,17 +3,22 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="color-scheme" content="light dark">
+  <meta name="color-scheme" content="dark">
   <title>{% block title %}Arnout.pro Dicommunication Tool{% endblock %}</title>
   <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
   <script>
     (function () {
       var pref = localStorage.getItem("theme");
       var systemLight = window.matchMedia("(prefers-color-scheme: light)").matches;
+      var light = pref === "light" || ((!pref || pref === "system") && systemLight);
       if (pref === "professional") {
         document.documentElement.classList.add("professional-mode");
-      } else if (pref === "light" || ((!pref || pref === "system") && systemLight)) {
+      } else if (light) {
         document.documentElement.classList.add("light-mode");
+      }
+      var meta = document.querySelector('meta[name="color-scheme"]');
+      if (meta) {
+        meta.setAttribute("content", light && pref !== "professional" ? "light" : "dark");
       }
     })();
   </script>

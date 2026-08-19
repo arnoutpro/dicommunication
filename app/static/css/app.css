@@ -52,7 +52,10 @@
 
 * { box-sizing: border-box; }
 html, body { margin: 0; min-height: 100%; }
-html { overflow-x: clip; }
+html {
+  overflow-x: clip;
+  color-scheme: dark;
+}
 body {
   color: var(--text);
   background: var(--bg);
@@ -521,10 +524,15 @@ input, select, textarea {
   background-origin: border-box;
   background-clip: padding-box, border-box;
   color: #f8fafc;
+  color-scheme: dark;
   border-radius: 0.7rem;
   padding: 0.62rem 0.75rem;
   font: inherit;
   transition: background-image 0.3s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.3s;
+}
+option {
+  background-color: #020617;
+  color: #e2e8f0;
 }
 input::placeholder { color: #475569; }
 input:hover, select:hover, textarea:hover {
@@ -948,9 +956,14 @@ html.light-mode input,
 html.light-mode select,
 html.light-mode textarea {
   color: #0f172a;
+  color-scheme: light;
   background-image:
     linear-gradient(#ffffff, #ffffff),
     linear-gradient(135deg, rgba(15, 23, 42, 0.12) 0%, rgba(15, 23, 42, 0.06) 100%);
+}
+html.light-mode option {
+  background-color: #ffffff;
+  color: #0f172a;
 }
 html.light-mode input::placeholder { color: #94a3b8; }
 html.light-mode input:hover,
@@ -1126,9 +1139,14 @@ html.professional-mode input,
 html.professional-mode select,
 html.professional-mode textarea {
   color: #fafaf9;
+  color-scheme: dark;
   background-image:
     linear-gradient(rgba(0, 0, 0, 0.85), rgba(0, 0, 0, 0.85)),
     linear-gradient(135deg, rgba(251, 191, 36, 0.16) 0%, rgba(255, 255, 255, 0.04) 100%);
+}
+html.professional-mode option {
+  background-color: #000000;
+  color: #e7e5e4;
 }
 html.professional-mode input:hover,
 html.professional-mode select:hover,

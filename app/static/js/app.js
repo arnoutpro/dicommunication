@@ -50,11 +50,17 @@ function themeButtonLabel(preference) {
 function applyThemePreference(preference) {
   const root = document.documentElement;
   const systemLight = window.matchMedia("(prefers-color-scheme: light)").matches;
+  const light =
+    preference === "light" || ((preference === "system" || !preference) && systemLight);
   root.classList.remove("light-mode", "professional-mode");
   if (preference === "professional") {
     root.classList.add("professional-mode");
-  } else if (preference === "light" || ((preference === "system" || !preference) && systemLight)) {
+  } else if (light) {
     root.classList.add("light-mode");
+  }
+  const meta = document.querySelector('meta[name="color-scheme"]');
+  if (meta) {
+    meta.setAttribute("content", light && preference !== "professional" ? "light" : "dark");
   }
 
   const iconSun = document.getElementById("icon-sun");
