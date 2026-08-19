@@ -45,7 +45,7 @@
   --text-xl: 1.5rem;     /* 24px metric values */
   --text-2xl: 1.75rem;   /* 28px page titles */
   --brand-letter: #ffffff;
-  --brand-copy: rgb(255 255 255 / 0.82);
+  --brand-copy: rgb(226 232 240 / 0.92);
   font-family: "Plus Jakarta Sans", system-ui, sans-serif;
   font-size: 16px;
 }
@@ -238,9 +238,11 @@ h1, h2, h3, h4 {
 }
 .site-brand-copy {
   position: absolute;
-  right: -0.4rem;
-  bottom: 0;
-  font-size: var(--text-2xs);
+  right: -0.55rem;
+  bottom: 0.12rem;
+  z-index: 1;
+  font-family: "Plus Jakarta Sans", system-ui, sans-serif;
+  font-size: 0.75rem;
   font-weight: 700;
   line-height: 1;
   color: var(--brand-copy);
@@ -847,7 +849,7 @@ html.light-mode {
   --log-bg: rgba(241, 245, 249, 0.92);
   --aurora-base: radial-gradient(circle at center, #dcebf0 0%, #bad0d7 100%);
   --brand-letter: #000000;
-  --brand-copy: rgb(0 0 0 / 0.72);
+  --brand-copy: rgb(15 23 42 / 0.78);
 }
 html.light-mode .aurora-item {
   opacity: 0.6;
@@ -984,7 +986,7 @@ html.professional-mode {
   --log-bg: rgba(0, 0, 0, 0.72);
   --aurora-base: #000000;
   --brand-letter: #ffffff;
-  --brand-copy: rgb(255 255 255 / 0.82);
+  --brand-copy: rgb(231 229 228 / 0.92);
 }
 html.professional-mode .aurora-container {
   inset: auto;
