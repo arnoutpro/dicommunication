@@ -66,6 +66,68 @@ def native_gui() -> str | None:
     return None
 
 
+def _bring_app_to_front() -> None:
+    """Make the native window key after Cocoa/PyInstaller already started NSApp."""
+    if sys.platform != "darwin":
+        return
+    try:
+        from AppKit import NSApp, NSApplicationActivationPolicyRegular
+
+        NSApp.setActivationPolicy_(NSApplicationActivationPolicyRegular)
+        NSApp.activateIgnoringOtherApps_(True)
+        for window in NSApp.windows():
+            window.makeKeyAndOrderFront_(None)
+    except Exception as exc:  # noqa: BLE001 — activation is best-effort
+        print(f"Could not bring the Mac window forward ({exc})", flush=True)
+
+
+def _macos_run_until_windows_close(webview) -> None:
+    """Keep Cocoa alive if pywebview's start() returned while windows still exist.
+
+    PyInstaller argv emulation can leave NSApplication already ``isRunning``, so
+    pywebview skips ``NSApp.run()``. The process then either exits or sits in the
+    Dock with no visible window. If windows are still open, show them and pump
+    events ourselves.
+    """
+    if sys.platform != "darwin":
+        return
+    windows = list(getattr(webview, "windows", []) or [])
+    if not windows:
+        return
+    _bring_app_to_front()
+    for win in windows:
+        show = getattr(win, "show", None)
+        if callable(show):
+            try:
+                show()
+            except Exception:
+                continue
+    try:
+        from AppKit import NSApp
+        from Foundation import NSDate, NSDefaultRunLoopMode, NSRunLoop
+        from PyObjCTools import AppHelper
+    except Exception as exc:  # noqa: BLE001
+        print(f"Cocoa event loop unavailable ({exc})", flush=True)
+        return
+
+    if not NSApp.isRunning():
+        print("Cocoa was not in a run loop; starting one for the window.", flush=True)
+        try:
+            AppHelper.runEventLoop()
+        except Exception as exc:  # noqa: BLE001
+            print(f"Cocoa event loop unavailable ({exc})", flush=True)
+        return
+
+    print("Cocoa was already running; pumping events until the window closes.", flush=True)
+    runloop = NSRunLoop.currentRunLoop()
+    while list(getattr(webview, "windows", []) or []):
+        _bring_app_to_front()
+        runloop.runMode_beforeDate_(
+            NSDefaultRunLoopMode,
+            NSDate.dateWithTimeIntervalSinceNow_(0.25),
+        )
+
+
 def run_native_window(ui: str) -> bool:
     """Open ``ui`` in a native window. Return False if the WebView cannot start."""
     try:
@@ -75,24 +137,36 @@ def run_native_window(ui: str) -> bool:
         return False
 
     gui = native_gui()
+    window_kwargs = {
+        "width": 1280,
+        "height": 860,
+        "min_size": (880, 600),
+        "text_select": True,
+        "background_color": "#020617",
+        "hidden": False,
+    }
     try:
-        webview.create_window(
-            WINDOW_TITLE,
-            ui,
-            width=1280,
-            height=860,
-            min_size=(880, 600),
-            text_select=True,
-            background_color="#020617",
-            zoomable=True,
-        )
+        try:
+            window = webview.create_window(
+                WINDOW_TITLE, ui, zoomable=True, **window_kwargs
+            )
+        except TypeError:
+            window = webview.create_window(WINDOW_TITLE, ui, **window_kwargs)
+        shown = getattr(getattr(window, "events", None), "shown", None)
+        if shown is not None:
+            try:
+                shown += _bring_app_to_front
+            except TypeError:
+                pass
         start_kwargs: dict = {
             "private_mode": False,
             "storage_path": str(webview_storage_dir()),
         }
         if gui:
             start_kwargs["gui"] = gui
+        print(f"Opening native window ({gui or 'default'}) for {ui}", flush=True)
         webview.start(**start_kwargs)
+        _macos_run_until_windows_close(webview)
         return True
     except Exception as exc:  # noqa: BLE001 — any GUI/runtime miss falls back
         print(f"Native window unavailable ({exc}). Opening the system browser.", flush=True)
