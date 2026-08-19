@@ -1,6 +1,6 @@
 # App icons
 
-Source art is [`app/static/favicon.svg`](../../app/static/favicon.svg) — the dark rounded square and aurora “A” used as the browser tab icon.
+Source art is [`app/static/favicon.svg`](../../app/static/favicon.svg): slate rounded square and the **Sansation Bold** capital A (same letter as the watermark and sidebar mark). The glyph is converted to a path so the favicon does not need a webfont.
 
 `render.py` rasterizes that SVG into:
 
