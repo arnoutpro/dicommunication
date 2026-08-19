@@ -14,6 +14,7 @@ Open [http://127.0.0.1:8080](http://127.0.0.1:8080) after starting the stack.
 - [DICOM services this tool distinguishes](#dicom-services-this-tool-distinguishes)
 - [Run it](#run-it)
 - [Windows MSI](#windows-msi)
+- [macOS DMG](#macos-dmg)
 - [Where data is stored](#where-data-is-stored)
 - [Configuration](#configuration)
 - [Logs](#logs)
@@ -148,7 +149,21 @@ Install the MSI, start **Dicommunication** from the Start menu, and leave the co
 
 Unsigned builds trigger SmartScreen until a code-signing certificate is used. If a modality must C-FIND this workstation, allow inbound TCP for `dicommunication.exe` (listen port 11112). Details and a local build script: [`packaging/windows/README.md`](packaging/windows/README.md).
 
-macOS and Linux keep using Docker Compose.
+## macOS DMG
+
+Same idea as the MSI: the browser does **not** need Python. The DMG freezes a private runtime into `Dicommunication.app`. You should not install Python yourself on a locked-down PACS Mac. Docker does the same thing inside the image.
+
+**Those components cannot be installed from this app’s webpage.** The UI is served *by* the Python process, so the page only exists after the backend is already running. Ship the DMG through IT (or a USB stick), not through a button on localhost.
+
+CI builds `dicommunication-<version>-macos-arm64.dmg` on `macos-latest` (workflow **macOS DMG**). A `v*` tag attaches that DMG to the GitHub Release next to the Windows MSI.
+
+The already-cut `v0.2.0` release can get a DMG without a new version tag: **Actions → macOS DMG → Run workflow** and set `release_tag` to `v0.2.0`.
+
+Open the DMG, drag **Dicommunication** to Applications, then right-click the app and choose **Open** the first time (unsigned builds trip Gatekeeper). The default browser opens the UI. Quit **Dicommunication** from the Dock to stop the server. Config lives in `~/.dicommunication` and survives upgrades.
+
+Apple Silicon only for now. Intel Macs keep using Docker Compose. If a modality must C-FIND this workstation, allow incoming TCP for **Dicommunication** (listen port 11112). Details: [`packaging/macos/README.md`](packaging/macos/README.md).
+
+Linux keeps using Docker Compose.
 
 ## Where data is stored
 
@@ -403,4 +418,6 @@ This is a trusted-network admin tool. The web UI has no login. Do not publish po
 | Config vanished after image rebuild | Config should be in `~/.dicommunication` (Windows MSI: `%LOCALAPPDATA%\dicommunication`). Legacy `./data` is only used until the home folder exists. |
 | Windows SmartScreen blocks the MSI | Unsigned first builds are expected. Use an Authenticode certificate for hospital rollout, or IT can allow the publisher. |
 | MSI UI opens then nothing listens | Leave the black console window open. Closing it stops uvicorn. |
-| Modality cannot C-FIND this tool | Enable the MWL SCP, publish/allow `11112` (Windows: inbound TCP for `dicommunication.exe`), and put this workstation AE on the modality’s worklist node list. |
+| macOS Gatekeeper blocks the app | Unsigned first builds are expected. Right-click **Open**, or run `xattr -dr com.apple.quarantine /Applications/Dicommunication.app`. |
+| macOS browser opens then nothing listens | The Dock icon is the server. Closing the tab does not stop uvicorn; quit **Dicommunication** from the Dock when you are done. |
+| Modality cannot C-FIND this tool | Enable the MWL SCP, publish/allow `11112` (Windows: inbound TCP for `dicommunication.exe`; macOS: allow incoming for **Dicommunication**), and put this workstation AE on the modality’s worklist node list. |

@@ -33,4 +33,4 @@ To publish an already-cut GitHub Release as a package without rebuilding, run **
 
 Unsigned MSIs trigger SmartScreen. Code signing is a follow-up; keep the certificate out of git.
 
-Docker Compose remains the supported path on macOS and Linux.
+macOS also has a DMG (`packaging/macos`). Linux remains on Docker Compose.
