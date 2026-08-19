@@ -17,8 +17,8 @@ README_TEXT = """Dicommunication — Arnout.pro
 1. Drag Dicommunication.app onto Applications.
 2. The first time, right-click the app and choose Open (the build is unsigned;
    Gatekeeper will warn).
-3. The default browser opens http://127.0.0.1:8080
-4. Quit Dicommunication from the Dock to stop the server.
+3. Dicommunication opens in its own window (not a browser tab).
+4. Close the window or quit from the Dock to stop the server.
 
 Config and logs stay in ~/.dicommunication across upgrades.
 

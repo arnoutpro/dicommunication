@@ -21,7 +21,7 @@ fi
 
 if [[ "$SKIP_PIP" != "1" ]]; then
   "$PYTHON" -m pip install --upgrade pip
-  "$PYTHON" -m pip install -r requirements.txt pyinstaller
+  "$PYTHON" -m pip install -r requirements.txt -r requirements-desktop.txt pyinstaller
 fi
 
 "$PYTHON" -m PyInstaller --noconfirm --clean packaging/macos/dicommunication.spec

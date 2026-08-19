@@ -1,8 +1,8 @@
-"""Desktop entry: start the local UI server and open a browser.
+"""Desktop entry: start the local UI server and show the workstation.
 
-The Windows MSI, macOS DMG, and `python -m app` use this module. Python is
-bundled inside those frozen builds; the browser does not need a system Python
-install.
+The Windows MSI, macOS DMG, and `python -m app` use this module. Frozen
+builds open a native app window. `python -m app` still opens the system
+browser unless you pass ``--window``.
 """
 
 from __future__ import annotations
@@ -18,6 +18,13 @@ import webbrowser
 from multiprocessing import freeze_support
 from pathlib import Path
 
+from app.desktop import (
+    UI_BROWSER,
+    UI_NONE,
+    UI_WINDOW,
+    resolve_ui_mode,
+    run_native_window,
+)
 from app.paths import runtime_os_name
 
 DEFAULT_HOST = "127.0.0.1"
@@ -40,8 +47,10 @@ def apply_runtime_env() -> None:
         os.environ["DICOMM_DATA_DIR"] = str(windows_data_dir())
 
 
-def keep_alive_hint() -> str:
-    """How to stop the frozen desktop app once the browser is open."""
+def keep_alive_hint(mode: str | None = None) -> str:
+    """How to stop the desktop app once the UI is open."""
+    if mode == UI_WINDOW:
+        return "Close the Dicommunication window to stop the server."
     if sys.platform == "darwin":
         return "Quit Dicommunication from the Dock to stop the server."
     if runtime_os_name() == "nt":
@@ -57,12 +66,32 @@ def server_is_up(url: str, timeout: float = 0.4) -> bool:
         return False
 
 
-def open_browser_when_ready(url: str, attempts: int = 50) -> None:
+def wait_until_up(url: str, attempts: int = 75) -> bool:
     for _ in range(attempts):
         if server_is_up(url):
-            webbrowser.open(url)
-            return
+            return True
         time.sleep(0.2)
+    return False
+
+
+def open_browser_when_ready(url: str, attempts: int = 50) -> None:
+    if wait_until_up(url, attempts=attempts):
+        webbrowser.open(url)
+
+
+def _serve(app, host: str, port: int) -> None:
+    import uvicorn
+
+    uvicorn.run(app, host=host, port=port, log_level="info")
+
+
+def _hold_server() -> int:
+    """Keep a background uvicorn thread alive after a window fallback."""
+    try:
+        while True:
+            time.sleep(3600)
+    except KeyboardInterrupt:
+        return 0
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -76,32 +105,70 @@ def main(argv: list[str] | None = None) -> int:
         type=int,
         default=int(os.environ.get("DICOMM_PORT", str(DEFAULT_PORT))),
     )
-    parser.add_argument(
+    ui = parser.add_mutually_exclusive_group()
+    ui.add_argument(
+        "--window",
+        action="store_true",
+        help="Open the UI in a native app window (default for the Mac/Windows desktop builds).",
+    )
+    ui.add_argument(
+        "--browser",
+        action="store_true",
+        help="Open the UI in the default web browser.",
+    )
+    ui.add_argument(
         "--no-browser",
         action="store_true",
-        help="Start the server without opening a browser.",
+        help="Start the server without opening a window or browser.",
     )
     args = parser.parse_args(argv)
 
     apply_runtime_env()
+    mode = resolve_ui_mode(
+        no_browser=args.no_browser,
+        browser=args.browser,
+        window=args.window,
+    )
 
-    ui = f"http://{args.host}:{args.port}/"
+    ui_url = f"http://{args.host}:{args.port}/"
     health = f"http://{args.host}:{args.port}/health"
     if server_is_up(health):
-        if not args.no_browser:
-            webbrowser.open(ui)
-        print(f"Already running at {ui}", flush=True)
+        print(f"Already running at {ui_url}", flush=True)
+        if mode == UI_NONE:
+            return 0
+        if mode == UI_WINDOW and run_native_window(ui_url):
+            return 0
+        if mode != UI_NONE:
+            webbrowser.open(ui_url)
         return 0
 
     import uvicorn
 
     from app.main import app
 
-    if not args.no_browser:
-        threading.Thread(target=open_browser_when_ready, args=(ui,), daemon=True).start()
+    if mode == UI_WINDOW:
+        threading.Thread(
+            target=_serve,
+            args=(app, args.host, args.port),
+            daemon=True,
+            name="dicommunication-uvicorn",
+        ).start()
+        if not wait_until_up(health):
+            print(f"Server did not start at {ui_url}", flush=True)
+            return 1
+        print(f"Dicommunication UI: {ui_url}", flush=True)
+        print(keep_alive_hint(UI_WINDOW), flush=True)
+        if run_native_window(ui_url):
+            return 0
+        webbrowser.open(ui_url)
+        print(keep_alive_hint(UI_BROWSER), flush=True)
+        return _hold_server()
 
-    print(f"Dicommunication UI: {ui}", flush=True)
-    print(keep_alive_hint(), flush=True)
+    if mode == UI_BROWSER:
+        threading.Thread(target=open_browser_when_ready, args=(ui_url,), daemon=True).start()
+
+    print(f"Dicommunication UI: {ui_url}", flush=True)
+    print(keep_alive_hint(mode), flush=True)
     uvicorn.run(app, host=args.host, port=args.port, log_level="info")
     return 0
 

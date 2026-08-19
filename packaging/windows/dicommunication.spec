@@ -45,6 +45,18 @@ datas = [
 ]
 datas += collect_data_files("pydicom")
 datas += collect_data_files("pynetdicom")
+datas += collect_data_files("webview")
+
+hiddenimports = (
+    list(hiddenimports)
+    + collect_submodules("webview")
+    + [
+        "bottle",
+        "proxy_tools",
+        "clr",
+        "pythonnet",
+    ]
+)
 
 a = Analysis(
     [str(ROOT / "app" / "launcher.py")],
@@ -71,7 +83,7 @@ exe = EXE(
     bootloader_ignore_signals=False,
     strip=False,
     upx=False,
-    console=True,
+    console=False,
     disable_windowed_traceback=False,
     argv_emulation=False,
     target_arch=None,

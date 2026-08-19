@@ -11,7 +11,7 @@ if (-not $Version) {
 }
 
 python -m pip install --upgrade pip
-python -m pip install -r requirements.txt pyinstaller
+python -m pip install -r requirements.txt -r requirements-desktop.txt pyinstaller
 python -m PyInstaller --noconfirm --clean packaging\windows\dicommunication.spec
 python packaging\windows\harvest.py dist\dicommunication packaging\windows\harvested.wxs
 
