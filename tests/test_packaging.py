@@ -7,7 +7,13 @@ from pathlib import Path
 
 import pytest
 
-from app.launcher import apply_runtime_env, keep_alive_hint, main, windows_data_dir
+from app.launcher import (
+    apply_runtime_env,
+    keep_alive_hint,
+    main,
+    redirect_frozen_stdio,
+    windows_data_dir,
+)
 from app.paths import package_dir
 from app.store import _default_data_dir
 from app.tools.ping import icmp_argv
@@ -217,13 +223,21 @@ def test_macos_spec_is_windowed_app_bundle() -> None:
     spec = (ROOT / "packaging" / "macos" / "dicommunication.spec").read_text(encoding="utf-8")
     assert "BUNDLE(" in spec
     assert 'name="Dicommunication.app"' in spec
-    assert "argv_emulation=True" in spec
+    assert "argv_emulation=False" in spec
+    assert "argv_emulation=True" not in spec
     assert "console=False" in spec
     assert "launcher.py" in spec
     assert "pro.arnout.dicommunication" in spec
     assert "webview" in spec
+    assert "webview.platforms.cocoa" in spec
+    assert "AppKit" in spec
+    assert "NSPrincipalClass" in spec
+    assert "rthook_cocoa.py" in spec
     assert "app.icns" in spec
     assert "icon=None" not in spec
+    rthook = ROOT / "packaging" / "macos" / "rthook_cocoa.py"
+    assert rthook.is_file()
+    assert "NSApplicationActivationPolicyRegular" in rthook.read_text(encoding="utf-8")
 
 
 def test_macos_build_script_exists() -> None:
@@ -346,14 +360,23 @@ def test_frozen_reuses_running_server_in_native_window(monkeypatch) -> None:
 def test_run_native_window_starts_webview(monkeypatch, tmp_path) -> None:
     import types
 
-    from app.desktop import WINDOW_TITLE, run_native_window
+    from app.desktop import WINDOW_TITLE, _bring_app_to_front, run_native_window
 
     calls: dict = {}
+
+    class Shown:
+        def __iadd__(self, fn):
+            calls["shown"] = fn
+            return self
+
+    class Window:
+        events = types.SimpleNamespace(shown=Shown())
+
     mod = types.ModuleType("webview")
 
     def create_window(title, url, **kwargs):
         calls["create"] = (title, url, kwargs)
-        return object()
+        return Window()
 
     def start(**kwargs):
         calls["start"] = kwargs
@@ -366,9 +389,142 @@ def test_run_native_window_starts_webview(monkeypatch, tmp_path) -> None:
     assert run_native_window("http://127.0.0.1:8080/") is True
     assert calls["create"][0] == WINDOW_TITLE
     assert calls["create"][1] == "http://127.0.0.1:8080/"
+    assert calls["create"][2]["hidden"] is False
     assert calls["start"]["private_mode"] is False
     assert calls["start"]["gui"] == "cocoa"
+    assert calls["shown"] is _bring_app_to_front
     assert (tmp_path / "webview").is_dir()
+
+
+def test_macos_run_until_windows_close_pumps_when_app_already_running(monkeypatch) -> None:
+    import types
+
+    from app import desktop
+
+    shown: list[str] = []
+
+    class Win:
+        def show(self) -> None:
+            shown.append("show")
+
+    class FakeWebview:
+        windows = [Win()]
+
+    class FakeNSApp:
+        @staticmethod
+        def isRunning() -> bool:
+            return True
+
+        @staticmethod
+        def setActivationPolicy_(_policy) -> None:
+            return None
+
+        @staticmethod
+        def activateIgnoringOtherApps_(_flag) -> None:
+            return None
+
+        @staticmethod
+        def windows() -> list:
+            return []
+
+    class FakeRunLoop:
+        @staticmethod
+        def currentRunLoop():
+            return FakeRunLoop()
+
+        def runMode_beforeDate_(self, mode, date) -> None:
+            FakeWebview.windows.clear()
+
+    appkit = types.ModuleType("AppKit")
+    appkit.NSApp = FakeNSApp
+    appkit.NSApplicationActivationPolicyRegular = 0
+    foundation = types.ModuleType("Foundation")
+    foundation.NSDate = types.SimpleNamespace(dateWithTimeIntervalSinceNow_=lambda _s: "later")
+    foundation.NSDefaultRunLoopMode = "NSDefaultRunLoopMode"
+    foundation.NSRunLoop = FakeRunLoop
+    pyobjc = types.ModuleType("PyObjCTools")
+    pyobjc.AppHelper = types.SimpleNamespace(runEventLoop=lambda: shown.append("loop"))
+
+    monkeypatch.setattr(desktop.sys, "platform", "darwin")
+    monkeypatch.setitem(sys.modules, "AppKit", appkit)
+    monkeypatch.setitem(sys.modules, "Foundation", foundation)
+    monkeypatch.setitem(sys.modules, "PyObjCTools", pyobjc)
+
+    desktop._macos_run_until_windows_close(FakeWebview)
+    assert shown == ["show"]
+    assert FakeWebview.windows == []
+
+
+def test_macos_run_until_windows_close_starts_loop_when_idle(monkeypatch) -> None:
+    import types
+
+    from app import desktop
+
+    loops: list[str] = []
+
+    class FakeWebview:
+        windows = [object()]
+
+    class FakeNSApp:
+        @staticmethod
+        def isRunning() -> bool:
+            return False
+
+        @staticmethod
+        def setActivationPolicy_(_policy) -> None:
+            return None
+
+        @staticmethod
+        def activateIgnoringOtherApps_(_flag) -> None:
+            return None
+
+        @staticmethod
+        def windows() -> list:
+            return []
+
+    appkit = types.ModuleType("AppKit")
+    appkit.NSApp = FakeNSApp
+    appkit.NSApplicationActivationPolicyRegular = 0
+    foundation = types.ModuleType("Foundation")
+    foundation.NSDate = types.SimpleNamespace(dateWithTimeIntervalSinceNow_=lambda _s: "later")
+    foundation.NSDefaultRunLoopMode = "NSDefaultRunLoopMode"
+    foundation.NSRunLoop = types.SimpleNamespace(currentRunLoop=lambda: None)
+    pyobjc = types.ModuleType("PyObjCTools")
+    pyobjc.AppHelper = types.SimpleNamespace(runEventLoop=lambda: loops.append("loop"))
+
+    monkeypatch.setattr(desktop.sys, "platform", "darwin")
+    monkeypatch.setitem(sys.modules, "AppKit", appkit)
+    monkeypatch.setitem(sys.modules, "Foundation", foundation)
+    monkeypatch.setitem(sys.modules, "PyObjCTools", pyobjc)
+
+    desktop._macos_run_until_windows_close(FakeWebview)
+    assert loops == ["loop"]
+
+
+def test_redirect_frozen_stdio_writes_launch_log(monkeypatch, tmp_path) -> None:
+    monkeypatch.setattr("app.launcher.is_frozen", lambda: True)
+    monkeypatch.setenv("DICOMM_DATA_DIR", str(tmp_path))
+    old_out, old_err = sys.stdout, sys.stderr
+    handle = None
+    try:
+        redirect_frozen_stdio()
+        handle = sys.stdout
+        print("hello-from-frozen", flush=True)
+    finally:
+        sys.stdout = old_out
+        sys.stderr = old_err
+        if handle is not None and handle not in {old_out, old_err}:
+            handle.close()
+    text = (tmp_path / "launch.log").read_text(encoding="utf-8")
+    assert "dicommunication launch" in text
+    assert "hello-from-frozen" in text
+
+
+def test_redirect_frozen_stdio_skips_unfrozen(monkeypatch) -> None:
+    monkeypatch.setattr("app.launcher.is_frozen", lambda: False)
+    old = sys.stdout
+    redirect_frozen_stdio()
+    assert sys.stdout is old
 
 
 def test_windows_spec_hides_console_and_bundles_webview() -> None:

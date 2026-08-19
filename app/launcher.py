@@ -15,6 +15,7 @@ import time
 import urllib.error
 import urllib.request
 import webbrowser
+from datetime import datetime, timezone
 from multiprocessing import freeze_support
 from pathlib import Path
 
@@ -22,6 +23,7 @@ from app.desktop import (
     UI_BROWSER,
     UI_NONE,
     UI_WINDOW,
+    is_frozen,
     resolve_ui_mode,
     run_native_window,
 )
@@ -45,6 +47,28 @@ def apply_runtime_env() -> None:
         return
     if runtime_os_name() == "nt":
         os.environ["DICOMM_DATA_DIR"] = str(windows_data_dir())
+
+
+def _launch_log_path() -> Path:
+    if os.environ.get("DICOMM_DATA_DIR"):
+        base = Path(os.environ["DICOMM_DATA_DIR"])
+    elif runtime_os_name() == "nt":
+        base = windows_data_dir()
+    else:
+        base = Path.home() / ".dicommunication"
+    base.mkdir(parents=True, exist_ok=True)
+    return base / "launch.log"
+
+
+def redirect_frozen_stdio() -> None:
+    """Windowed .app / .exe builds have no console; keep a launch log instead."""
+    if not is_frozen():
+        return
+    handle = open(_launch_log_path(), "a", encoding="utf-8", buffering=1)
+    sys.stdout = handle
+    sys.stderr = handle
+    stamp = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    print(f"--- dicommunication launch {stamp} ---", flush=True)
 
 
 def keep_alive_hint(mode: str | None = None) -> str:
@@ -124,6 +148,7 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     apply_runtime_env()
+    redirect_frozen_stdio()
     mode = resolve_ui_mode(
         no_browser=args.no_browser,
         browser=args.browser,

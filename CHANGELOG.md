@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Mac DMG: Finder launches show the native window. PyInstaller argv emulation was fighting Cocoa/pywebview (Dock icon and a live process, no window). Frozen launches also append `~/.dicommunication/launch.log`.
 - Frozen Mac and Windows builds open the UI in a native app window (WKWebView / Edge WebView2), not a Safari or Chrome tab. `--browser` still uses the system browser; `--no-browser` is server-only.
 - Dock, Finder, the Windows Start menu, and the native window use the **Sansation Bold** capital A (same letter as the watermark), not a geometric stand-in and not PyInstaller’s floppy-disk icon.
 - macOS Apple Silicon DMG: CI freezes `Dicommunication.app` and attaches `dicommunication-<version>-macos-arm64.dmg` to `v*` GitHub Releases. The already-cut `v0.2.0` tag can get a DMG without a new version: **Actions → macOS DMG → Run workflow** with `release_tag=v0.2.0`.

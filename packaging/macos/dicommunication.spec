@@ -64,6 +64,14 @@ hiddenimports = (
     + [
         "bottle",
         "proxy_tools",
+        "webview.platforms.cocoa",
+        "objc",
+        "AppKit",
+        "Foundation",
+        "WebKit",
+        "CoreFoundation",
+        "PyObjCTools",
+        "PyObjCTools.AppHelper",
     ]
 )
 
@@ -75,7 +83,7 @@ a = Analysis(
     hiddenimports=hiddenimports,
     hookspath=[],
     hooksconfig={},
-    runtime_hooks=[],
+    runtime_hooks=[str(SPECDIR / "rthook_cocoa.py")],
     excludes=["tkinter", "matplotlib", "numpy.tests", "pytest", "pygments"],
     noarchive=False,
 )
@@ -94,7 +102,9 @@ exe = EXE(
     upx=False,
     console=False,
     disable_windowed_traceback=False,
-    argv_emulation=True,
+    # Must stay False. Argv emulation starts NSApplication in the bootloader and
+    # fights pywebview: Dock icon + live process, no visible window.
+    argv_emulation=False,
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
@@ -124,6 +134,8 @@ app = BUNDLE(
         "CFBundleShortVersionString": VERSION,
         "CFBundleVersion": VERSION,
         "NSHighResolutionCapable": True,
+        "NSPrincipalClass": "NSApplication",
+        "NSSupportsAutomaticGraphicsSwitching": True,
         "NSAppTransportSecurity": {"NSAllowsLocalNetworking": True},
     },
 )
