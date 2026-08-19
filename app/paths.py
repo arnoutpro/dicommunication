@@ -2,11 +2,27 @@
 
 from __future__ import annotations
 
+import os
 import sys
 from pathlib import Path
 
 
+def runtime_os_name() -> str:
+    """`os.name` wrapper so tests can fake Windows without breaking pathlib."""
+    return os.name
+
+
 def package_dir() -> Path:
+    """Directory that contains `templates/` and `static/`.
+
+    PyInstaller onedir unpacks datas into `sys._MEIPASS`. Source installs use
+    this package directory next to `main.py`.
+    """
+    meipass = getattr(sys, "_MEIPASS", None)
+    if getattr(sys, "frozen", False) and meipass:
+        return Path(meipass) / "app"
+    return Path(__file__).resolve().parent
+
     """Directory that contains `templates/` and `static/`.
 
     PyInstaller onedir unpacks datas into `sys._MEIPASS`. Source installs use

@@ -28,7 +28,7 @@ def _load_harvest():
 
 
 def test_icmp_argv_posix(monkeypatch) -> None:
-    monkeypatch.setattr("app.tools.ping.os.name", "posix")
+    monkeypatch.setattr("app.tools.ping.runtime_os_name", lambda: "posix")
     assert icmp_argv("/bin/ping", "10.1.2.3", 3, 10) == [
         "/bin/ping",
         "-c",
@@ -40,7 +40,7 @@ def test_icmp_argv_posix(monkeypatch) -> None:
 
 
 def test_icmp_argv_windows(monkeypatch) -> None:
-    monkeypatch.setattr("app.tools.ping.os.name", "nt")
+    monkeypatch.setattr("app.tools.ping.runtime_os_name", lambda: "nt")
     assert icmp_argv("ping.exe", "10.1.2.3", 3, 2.5) == [
         "ping.exe",
         "-n",
@@ -64,7 +64,7 @@ def test_package_dir_frozen(monkeypatch, tmp_path) -> None:
 
 
 def test_default_data_dir_windows(monkeypatch, tmp_path) -> None:
-    monkeypatch.setattr("app.store.os.name", "nt")
+    monkeypatch.setattr("app.store.runtime_os_name", lambda: "nt")
     monkeypatch.delenv("DICOMM_DATA_DIR", raising=False)
     monkeypatch.setenv("LOCALAPPDATA", str(tmp_path))
     assert _default_data_dir() == tmp_path / "dicommunication"
@@ -72,12 +72,12 @@ def test_default_data_dir_windows(monkeypatch, tmp_path) -> None:
 
 def test_default_data_dir_env_wins(monkeypatch, tmp_path) -> None:
     monkeypatch.setenv("DICOMM_DATA_DIR", str(tmp_path / "custom"))
-    monkeypatch.setattr("app.store.os.name", "nt")
+    monkeypatch.setattr("app.store.runtime_os_name", lambda: "nt")
     assert _default_data_dir() == tmp_path / "custom"
 
 
 def test_apply_runtime_env_windows(monkeypatch, tmp_path) -> None:
-    monkeypatch.setattr("app.launcher.os.name", "nt")
+    monkeypatch.setattr("app.launcher.runtime_os_name", lambda: "nt")
     monkeypatch.delenv("DICOMM_DATA_DIR", raising=False)
     monkeypatch.setenv("LOCALAPPDATA", str(tmp_path))
     apply_runtime_env()
@@ -86,7 +86,7 @@ def test_apply_runtime_env_windows(monkeypatch, tmp_path) -> None:
 
 
 def test_apply_runtime_env_posix_leaves_unset(monkeypatch) -> None:
-    monkeypatch.setattr("app.launcher.os.name", "posix")
+    monkeypatch.setattr("app.launcher.runtime_os_name", lambda: "posix")
     monkeypatch.delenv("DICOMM_DATA_DIR", raising=False)
     apply_runtime_env()
     assert "DICOMM_DATA_DIR" not in os.environ

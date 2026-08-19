@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import os
 import shutil
 import socket
 import subprocess
@@ -10,6 +9,7 @@ import time
 from typing import Any
 
 from app.models import LocalAE, RemoteNode, ToolResult, ToolStep
+from app.paths import runtime_os_name
 from app.tools.base import BaseTool
 from app.tools.registry import register
 
@@ -20,7 +20,7 @@ def _elapsed_ms(started: float) -> float:
 
 def icmp_argv(ping_bin: str, host: str, count: int, timeout_s: float) -> list[str]:
     """Build a `ping` command that works on Windows and POSIX."""
-    if os.name == "nt":
+    if runtime_os_name() == "nt":
         wait_ms = max(1000, int(timeout_s * 1000))
         return [ping_bin, "-n", str(count), "-w", str(wait_ms), host]
     wait_s = max(1, int(timeout_s))
