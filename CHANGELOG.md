@@ -1,0 +1,14 @@
+# Changelog
+
+## 0.2.0
+
+Application logging and an in-app log viewer.
+
+- Rotating `dicommunication.log` next to config (level, max file size, kept rotations)
+- **Logs** page: settings, live tail, download, clear
+- `INFO` for startup, configuration, tool runs, and MWL SCP; `DEBUG` for HTTP
+- Windows MSI version follows `app.__version__`; a `v*` tag publishes the MSI on the GitHub Release
+
+## 0.1.0
+
+First packaged workstation: FastAPI + HTMX UI, DICOM tools, Docker image, and Windows MSI.

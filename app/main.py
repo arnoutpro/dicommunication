@@ -13,6 +13,7 @@ from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, ValidationError
 from pydicom.uid import generate_uid
 
+from app import __version__
 from app.applog import (
     configure as configure_logging,
     clear_log,
@@ -86,7 +87,8 @@ def create_app(store: ConfigStore | None = None) -> FastAPI:
         settings = store.load().logging
         configure_logging(store.data_dir, settings)
         log.info(
-            "Dicommunication started (data dir %s, log level %s)",
+            "Dicommunication %s started (data dir %s, log level %s)",
+            __version__,
             store.data_dir,
             settings.level,
         )
@@ -102,7 +104,7 @@ def create_app(store: ConfigStore | None = None) -> FastAPI:
     app = FastAPI(
         title="Arnout.pro Dicommunication Tool",
         description="Low-code DICOM communication validator and PACS admin toolkit.",
-        version="0.1.0",
+        version=__version__,
         lifespan=lifespan,
     )
     app.state.store = store
@@ -148,6 +150,7 @@ def create_app(store: ConfigStore | None = None) -> FastAPI:
             "results": app.state.store.list_results(10),
             "mwl_scp_running": bool(scp and scp.running),
             "mwl_scp_error": getattr(scp, "last_error", None) if scp else None,
+            "app_version": __version__,
             **extra,
         }
 
@@ -280,7 +283,7 @@ def create_app(store: ConfigStore | None = None) -> FastAPI:
 
     @app.get("/health")
     def health() -> dict[str, str]:
-        return {"status": "ok"}
+        return {"status": "ok", "version": __version__}
 
     @app.get("/logs", response_class=HTMLResponse)
     def logs_page(request: Request, saved: str | None = None) -> HTMLResponse:
