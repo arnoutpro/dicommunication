@@ -13,6 +13,7 @@ Open [http://127.0.0.1:8080](http://127.0.0.1:8080) after starting the stack.
 - [What this is (and is not)](#what-this-is-and-is-not)
 - [DICOM services this tool distinguishes](#dicom-services-this-tool-distinguishes)
 - [Run it](#run-it)
+- [Windows MSI](#windows-msi)
 - [Where data is stored](#where-data-is-stored)
 - [Configuration](#configuration)
 - [Virtual local AE titles](#virtual-local-ae-titles)
@@ -125,6 +126,20 @@ make run
 
 That serves the UI on port 8080 with reload. Use this when developing plugins; Docker is the supported way to run it on a PACS admin laptop.
 
+## Windows MSI
+
+The browser does **not** need Python. Opening [http://127.0.0.1:8080](http://127.0.0.1:8080) is a normal web page.
+
+Python **is** required to *serve* that page and to speak DICOM (FastAPI, pynetdicom, ping, disk config). You should not install Python yourself on a locked-down PACS PC. The MSI freezes a private runtime into `Program Files\Dicommunication`. Docker does the same thing inside the image. A local venv is only for developers.
+
+**Those components cannot be installed from this app’s webpage.** The UI is served *by* the Python process, so the page only exists after the backend is already running. A “download Python from this screen” button would be a chicken-and-egg, and a web bootstrapper that fetches python.org at install time is a poor fit for hospital VLANs (often offline, SmartScreen/AV, no admin). The MSI is the offline installer IT can push with Intune or GPO. A public download page can *host* that MSI later; it still will not pip-install the server from inside the running UI.
+
+CI builds `dicommunication-<version>-win64.msi` on `windows-latest` (workflow **Windows MSI**). Install it, start **Dicommunication** from the Start menu, and leave the console window open. The default browser opens the UI. Config lives in `%LOCALAPPDATA%\dicommunication` and survives upgrades.
+
+Unsigned builds trigger SmartScreen until a code-signing certificate is used. If a modality must C-FIND this workstation, allow inbound TCP for `dicommunication.exe` (listen port 11112). Details and a local build script: [`packaging/windows/README.md`](packaging/windows/README.md).
+
+macOS and Linux keep using Docker Compose.
+
 ## Where data is stored
 
 | File | Contents |
@@ -135,9 +150,10 @@ That serves the UI on port 8080 with reload. Use this when developing plugins; D
 
 Default directory:
 
-1. `$DICOMM_DATA_DIR` if set (Docker Compose sets this to `/app/data`)
-2. else `~/.dicommunication` on the host (`/app/data` in the container, bind-mounted to `~/.dicommunication`)
-3. else legacy `./data` if that folder already has `config.json` and `~/.dicommunication/config.json` does not exist
+1. `$DICOMM_DATA_DIR` if set (Docker Compose sets this to `/app/data`; the Windows launcher sets `%LOCALAPPDATA%\dicommunication` when unset)
+2. else `%LOCALAPPDATA%\dicommunication` on Windows
+3. else `~/.dicommunication` on the host (`/app/data` in the container, bind-mounted to `~/.dicommunication`)
+4. else legacy `./data` if that folder already has `config.json` and `~/.dicommunication/config.json` does not exist (non-Windows only)
 
 Writes are atomic (temp file + replace). Replacing the Docker image does not reset this folder.
 
@@ -360,5 +376,7 @@ This is a trusted-network admin tool. The web UI has no login. Do not publish po
 | PING ICMP fails, TCP succeeds | Normal on locked-down clinical networks. Trust TCP to the DICOM port. |
 | `docker compose --build` fails at `apt-get` with exit 100 | Debian mirrors were unreachable from the Docker builder. Current images copy a static `ping` and do not run apt. Pull/rebuild from this change. |
 | Cannot reach Orthanc from Docker | Use `host.docker.internal` (same Mac/host) or the LAN IP; publish/check `4242`. |
-| Config vanished after image rebuild | Config should be in `~/.dicommunication`. Legacy `./data` is only used until the home folder exists. |
-| Modality cannot C-FIND this tool | Enable the MWL SCP, publish `11112`, and put this workstation AE on the modality’s worklist node list. |
+| Config vanished after image rebuild | Config should be in `~/.dicommunication` (Windows MSI: `%LOCALAPPDATA%\dicommunication`). Legacy `./data` is only used until the home folder exists. |
+| Windows SmartScreen blocks the MSI | Unsigned first builds are expected. Use an Authenticode certificate for hospital rollout, or IT can allow the publisher. |
+| MSI UI opens then nothing listens | Leave the black console window open. Closing it stops uvicorn. |
+| Modality cannot C-FIND this tool | Enable the MWL SCP, publish/allow `11112` (Windows: inbound TCP for `dicommunication.exe`), and put this workstation AE on the modality’s worklist node list. |

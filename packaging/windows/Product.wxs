@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<?ifndef ProductVersion ?>
+<?define ProductVersion = "0.1.0" ?>
+<?endif?>
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs"
+     xmlns:ui="http://wixtoolset.org/schemas/v4/wxs/ui">
+  <Package
+      Name="Arnout.pro Dicommunication Tool"
+      Manufacturer="Arnout.pro"
+      Version="$(var.ProductVersion)"
+      UpgradeCode="8f3c2a91-6d4e-4b17-9e5a-1c7d0f8a2b63"
+      Language="1033"
+      Scope="perMachine">
+    <SummaryInformation Description="DICOM communication validator and PACS admin toolkit" />
+    <MajorUpgrade DowngradeErrorMessage="A newer version of Dicommunication is already installed." />
+    <MediaTemplate EmbedCab="yes" />
+
+    <StandardDirectory Id="ProgramFiles64Folder">
+      <Directory Id="INSTALLFOLDER" Name="Dicommunication" />
+    </StandardDirectory>
+
+    <StandardDirectory Id="ProgramMenuFolder">
+      <Directory Id="ApplicationProgramsFolder" Name="Arnout.pro" />
+    </StandardDirectory>
+
+    <ComponentGroup Id="Shortcuts" Directory="ApplicationProgramsFolder">
+      <Component Id="StartMenuShortcut" Guid="c4e91b07-2f6a-4d8e-9b31-7a5c0e12d844">
+        <Shortcut
+            Id="AppShortcut"
+            Name="Dicommunication"
+            Description="Open the Dicommunication workstation UI"
+            Target="[INSTALLFOLDER]dicommunication.exe"
+            WorkingDirectory="INSTALLFOLDER" />
+        <RemoveFolder Id="RemoveApplicationProgramsFolder" On="uninstall" />
+        <RegistryValue
+            Root="HKCU"
+            Key="Software\Arnout.pro\Dicommunication"
+            Name="installed"
+            Type="integer"
+            Value="1"
+            KeyPath="yes" />
+      </Component>
+    </ComponentGroup>
+
+    <Feature Id="Main" Title="Dicommunication" Level="1">
+      <ComponentGroupRef Id="AppFiles" />
+      <ComponentGroupRef Id="Shortcuts" />
+    </Feature>
+
+    <Property Id="WIXUI_INSTALLDIR" Value="INSTALLFOLDER" />
+    <ui:WixUI Id="WixUI_InstallDir" />
+    <WixVariable Id="WixUILicenseRtf" Value="packaging\windows\License.rtf" />
+  </Package>
+</Wix>
