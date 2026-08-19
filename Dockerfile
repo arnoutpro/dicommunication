@@ -8,9 +8,9 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends iputils-ping \
-    && rm -rf /var/lib/apt/lists/*
+# BusyBox ping is a static binary, so the image does not need apt-get.
+# Debian mirrors often fail during `docker compose --build` (exit code 100).
+COPY --from=busybox:1.37.0-uclibc /bin/busybox /usr/local/bin/ping
 
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
