@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% block title %}Logs · Dicommunication{% endblock %}
+{% block content %}
+<header class="page-head">
+  <div>
+    <p class="eyebrow">Workstation</p>
+    <h1>Logs</h1>
+    <p class="lede">Application log for this Dicommunication process: startup, configuration changes, tool runs, and MWL SCP. HTTP requests are recorded at Debug. The file rotates in the data directory.</p>
+  </div>
+</header>
+{% if saved == "logging" %}
+<div class="flash ok" data-autohide>Logging settings saved.</div>
+{% elif saved == "cleared" %}
+<div class="flash ok" data-autohide>Log file cleared.</div>
+{% endif %}
+{% if error %}
+<div class="flash fail">{{ error }}</div>
+{% endif %}
+
+<section class="panel">
+  <header class="panel-head">
+    <h2>Amount and file size</h2>
+    <span class="muted">Applies immediately to this process</span>
+  </header>
+  <form method="post" action="/logs" class="form-grid" autocomplete="off">
+    <label>
+      Log level
+      <select name="level">
+        {% for item in ["DEBUG", "INFO", "WARNING", "ERROR"] %}
+        <option value="{{ item }}" {% if config.logging.level == item %}selected{% endif %}>{{ item | title }}</option>
+        {% endfor %}
+      </select>
+      <span class="hint">Debug is verbose. Info is the usual setting on a PACS workstation.</span>
+    </label>
+    <label>
+      Max file size (MB)
+      <input name="max_megabytes" type="number" min="1" max="50" required value="{{ config.logging.max_megabytes }}">
+      <span class="hint">When the file reaches this size it is rotated. 1–50 MB.</span>
+    </label>
+    <label>
+      Rotated files to keep
+      <input name="backup_count" type="number" min="1" max="20" required value="{{ config.logging.backup_count }}">
+      <span class="hint">Older files are named dicommunication.log.1, .2, …</span>
+    </label>
+    <div class="form-actions">
+      <button class="button primary" type="submit">Save logging</button>
+    </div>
+  </form>
+</section>
+
+<section class="panel">
+  <header class="panel-head">
+    <h2>Log view</h2>
+  </header>
+  <div class="log-toolbar">
+    <label class="checkbox">
+      <input type="checkbox" id="log-follow" checked>
+      Follow new lines
+    </label>
+    <a class="button" href="/logs/download">Download log</a>
+    <form method="post" action="/logs/clear" onsubmit="return confirm('Clear the current log file? Rotated files are kept.');">
+      <button class="button" type="submit">Clear log</button>
+    </form>
+  </div>
+  {% include "partials/log_view.html" %}
+</section>
+{% endblock %}

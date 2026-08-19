@@ -8,7 +8,7 @@ import tempfile
 from pathlib import Path
 from threading import Lock
 
-from app.models import AppConfig, RemoteNode, ToolResult, VirtualAE, WorklistEntry
+from app.models import AppConfig, LoggingSettings, RemoteNode, ToolResult, VirtualAE, WorklistEntry
 from app.paths import runtime_os_name
 
 def _windows_data_dir() -> Path:
@@ -55,6 +55,13 @@ class ConfigStore:
         with self._lock:
             config = self._load_unlocked()
             config.local = local
+            self._write_json(self.config_path, config.model_dump(mode="json"))
+            return config
+
+    def save_logging(self, settings: LoggingSettings) -> AppConfig:
+        with self._lock:
+            config = self._load_unlocked()
+            config.logging = settings
             self._write_json(self.config_path, config.model_dump(mode="json"))
             return config
 

@@ -185,8 +185,27 @@ document.body.addEventListener("change", (event) => {
   }
 });
 
+document.body.addEventListener("htmx:afterSwap", (event) => {
+  const target = event.detail.target;
+  if (target && target.id === "log-view-panel") {
+    const view = document.getElementById("log-view");
+    const follow = document.getElementById("log-follow");
+    if (view instanceof HTMLElement && follow instanceof HTMLInputElement && follow.checked) {
+      view.scrollTop = view.scrollHeight;
+    }
+  }
+});
+
+const initialLogView = document.getElementById("log-view");
+if (initialLogView) {
+  initialLogView.scrollTop = initialLogView.scrollHeight;
+}
+
 document.body.addEventListener("htmx:responseError", (event) => {
   const target = event.detail.target;
+  if (target && target.id === "log-view-panel") {
+    return;
+  }
   if (target) {
     target.innerHTML =
       '<article class="result fail"><header><span class="badge fail">Fail</span><div><strong>Request failed</strong><p>The tool could not be started. Check the application logs.</p></div></header></article>';

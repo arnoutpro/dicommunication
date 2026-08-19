@@ -178,10 +178,23 @@ class RemoteNode(BaseModel):
         return labels.get(self.kind, self.kind)
 
 
+class LoggingSettings(BaseModel):
+    """Rotating application log written next to config.json."""
+
+    level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = "INFO"
+    max_bytes: int = Field(default=2 * 1024 * 1024, ge=256 * 1024, le=50 * 1024 * 1024)
+    backup_count: int = Field(default=3, ge=1, le=20)
+
+    @property
+    def max_megabytes(self) -> int:
+        return max(1, round(self.max_bytes / (1024 * 1024)))
+
+
 class AppConfig(BaseModel):
     local: LocalAE = Field(default_factory=LocalAE)
     identities: list[VirtualAE] = Field(default_factory=list)
     remotes: list[RemoteNode] = Field(default_factory=list)
+    logging: LoggingSettings = Field(default_factory=LoggingSettings)
 
     def get_remote(self, remote_id: str) -> RemoteNode | None:
         for remote in self.remotes:
