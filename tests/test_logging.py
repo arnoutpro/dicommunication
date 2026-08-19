@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from pathlib import Path
+
 from app.applog import configure, format_size, line_level, log, log_path, read_tail, viewer_lines
 from app.models import LoggingSettings
 
@@ -41,7 +43,25 @@ def test_logs_page_and_settings_form(client, store) -> None:
     assert page.status_code == 200
     assert b"Amount and file size" in page.content
     assert b"Log view" in page.content
-    assert b'name="max_megabytes"' in page.content
+    assert b'name="level"' in page.content
+    css = (Path(__file__).resolve().parents[1] / "app" / "static" / "css" / "app.css").read_text(
+        encoding="utf-8"
+    )
+    assert "color-scheme: dark" in css
+    assert "html.light-mode { color-scheme: light; }" in css
+    assert ".choice-menu" in css
+    js = (Path(__file__).resolve().parents[1] / "app" / "static" / "js" / "app.js").read_text(
+        encoding="utf-8"
+    )
+    assert "enhanceSelectMenus" in js
+    js = (Path(__file__).resolve().parents[1] / "app" / "static" / "js" / "app.js").read_text(
+        encoding="utf-8"
+    )
+    assert 'meta[name="color-scheme"]' in js
+    html = (Path(__file__).resolve().parents[1] / "app" / "templates" / "base.html").read_text(
+        encoding="utf-8"
+    )
+    assert 'name="color-scheme" content="dark"' in html
     assert b'id="log-view"' in page.content
     assert b'href="/logs"' in client.get("/").content
 
