@@ -10,7 +10,7 @@ The installer cannot live *inside* this app’s webpage. That page is served by 
 
 1. Open `dicommunication-<version>-macos-arm64.dmg`.
 2. Drag **Dicommunication** onto **Applications**.
-3. The first time, right-click the app and choose **Open** (unsigned builds trip Gatekeeper).
+3. The first time, right-click the app and choose **Open** (unsigned builds trip Gatekeeper). The Dock icon is the aurora **A** from the browser tab, not PyInstaller’s floppy disk.
 4. The default browser opens [http://127.0.0.1:8080](http://127.0.0.1:8080).
 5. Quit **Dicommunication** from the Dock to stop the server.
 

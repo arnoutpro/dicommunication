@@ -14,6 +14,8 @@
     <SummaryInformation Description="DICOM communication validator and PACS admin toolkit" />
     <MajorUpgrade DowngradeErrorMessage="A newer version of Dicommunication is already installed." />
     <MediaTemplate EmbedCab="yes" />
+    <Icon Id="AppIcon" SourceFile="packaging\icons\app.ico" />
+    <Property Id="ARPPRODUCTICON" Value="AppIcon" />
 
     <StandardDirectory Id="ProgramFiles64Folder">
       <Directory Id="INSTALLFOLDER" Name="Dicommunication" />
@@ -30,7 +32,8 @@
             Name="Dicommunication"
             Description="Open the Dicommunication workstation UI"
             Target="[INSTALLFOLDER]dicommunication.exe"
-            WorkingDirectory="INSTALLFOLDER" />
+            WorkingDirectory="INSTALLFOLDER"
+            Icon="AppIcon" />
         <RemoveFolder Id="RemoveApplicationProgramsFolder" On="uninstall" />
         <RegistryValue
             Root="HKCU"
