@@ -16,6 +16,7 @@ Open [http://127.0.0.1:8080](http://127.0.0.1:8080) after starting the stack.
 - [Windows MSI](#windows-msi)
 - [Where data is stored](#where-data-is-stored)
 - [Configuration](#configuration)
+- [Logs](#logs)
 - [Virtual local AE titles](#virtual-local-ae-titles)
 - [Test tools](#test-tools)
 - [Worklist](#worklist)
@@ -144,9 +145,10 @@ macOS and Linux keep using Docker Compose.
 
 | File | Contents |
 | --- | --- |
-| `config.json` | Local AE, virtual identities, remote nodes |
+| `config.json` | Local AE, virtual identities, remote nodes, logging settings |
 | `results.json` | Recent tool runs (capped at 200) |
 | `worklist.json` | Local web worklist entries |
+| `dicommunication.log` | Rotating application log (level and size set on **Logs**) |
 
 Default directory:
 
@@ -200,6 +202,17 @@ A remote is any peer you want to test: PACS, Orthanc, RIS/MWL, modality, VNA, or
 | Notes | VLAN, TLS front-end, vendor, contact — not sent on the wire |
 
 From Docker, a PACS on the same Mac or Linux host is usually `host.docker.internal`. On Linux Compose this mapping is already added.
+
+## Logs
+
+Open **Logs** in the left menu (`/logs`).
+
+The page has two parts:
+
+- **Amount and file size** — log level (`DEBUG`, `INFO`, `WARNING`, `ERROR`), maximum size of the current file (1–50 MB), and how many rotated files to keep. Changes apply immediately and are stored in `config.json`.
+- **Log view** — the tail of `dicommunication.log`, refreshed every two seconds. Download the current file, or clear it (rotated files stay).
+
+`INFO` records startup, configuration changes, tool runs, and MWL SCP start/stop. `DEBUG` also records HTTP requests (except health, static files, and the live tail poll). The console window on Windows shows the same stream.
 
 ## Virtual local AE titles
 
@@ -279,12 +292,14 @@ If the association is rejected entirely, the calling AE is not in Orthanc’s al
 
 ## JSON API
 
-Same operations as the UI. `GET /health` returns `{"status":"ok"}`. Interactive docs: [http://127.0.0.1:8080/docs](http://127.0.0.1:8080/docs).
+Same operations as the UI. `GET /health` returns `{"status":"ok","version":"..."}`. Interactive docs: [http://127.0.0.1:8080/docs](http://127.0.0.1:8080/docs).
 
 | Method | Path | Purpose |
 | --- | --- | --- |
 | GET | `/api/config` | Full config |
 | PUT | `/api/config/local` | Replace local AE |
+| GET/PUT | `/api/logging` | Log level and rotation |
+| GET | `/api/logs` | Tail of the application log |
 | GET/POST/PUT/DELETE | `/api/remotes`, `/api/remotes/{id}` | Remote nodes |
 | GET/POST/PUT/DELETE | `/api/identities`, `/api/identities/{id}` | Virtual local AEs |
 | GET | `/api/tools` | Registered tools |

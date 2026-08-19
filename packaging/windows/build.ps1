@@ -7,7 +7,7 @@ Set-Location $Root
 
 $Version = $env:DICOMM_MSI_VERSION
 if (-not $Version) {
-    $Version = "0.1.0"
+    $Version = python -c "from app import __version__; print(__version__)"
 }
 
 python -m pip install --upgrade pip

@@ -74,6 +74,8 @@
           </div>
         </div>
 
+        <a href="/logs" class="{% if nav == 'logs' %}active{% endif %}">Logs</a>
+
         <div class="nav-group">
           <span class="nav-parent">Test tools</span>
           <div class="nav-children">
@@ -156,6 +158,7 @@
         </div>
         <code class="ae-chip" title="Local AE Title">{{ config.local.ae_title }}</code>
         <span>Calling AE · listen {{ config.local.port }}{% if config.identities %} · {{ config.identities | length }} virtual{% endif %}</span>
+        <span class="muted">v{{ app_version }}</span>
       </div>
     </aside>
     <main class="main">

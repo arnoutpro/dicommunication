@@ -1,0 +1,10 @@
+<div
+  id="log-view-panel"
+  hx-get="/logs/live"
+  hx-trigger="every 2s"
+  hx-swap="outerHTML"
+>
+  <p class="muted log-view-status">{% if log_empty %}No log lines yet. Run a tool or save configuration to see activity.{% else %}{{ log_size_label }} · {{ log_path }}{% endif %}</p>
+  <pre id="log-view" class="log-view" tabindex="0">{% if log_lines %}{% for line in log_lines %}<span class="log-line log-line-{{ line.level }}">{{ line.text }}</span>
+{% endfor %}{% endif %}</pre>
+</div>
