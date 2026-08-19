@@ -290,6 +290,8 @@ def test_make_dmg_stage_only_cli(tmp_path) -> None:
 def test_packaging_icons_match_favicon() -> None:
     svg = (ROOT / "app" / "static" / "favicon.svg").read_text(encoding="utf-8")
     assert "arnout.pro" in svg
+    assert "Sansation Bold" in svg
+    assert "M32 10 12 54" not in svg
     ico = ROOT / "packaging" / "icons" / "app.ico"
     icns = ROOT / "packaging" / "icons" / "app.icns"
     preview = ROOT / "packaging" / "icons" / "app-1024.png"
