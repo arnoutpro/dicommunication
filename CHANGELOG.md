@@ -3,7 +3,7 @@
 ## Unreleased
 
 - Version tags also publish `dicommunication.msi` to GitHub Packages (NuGet). The already-cut `v0.2.0` MSI can be wrapped without rebuilding: **Actions → Windows MSI → Run workflow** with `nuget_from_release=v0.2.0`.
-- Logs page is denser: one settings row, less chrome, and the live view fills leftover viewport.
+- Page chrome is denser across Dashboard, Configured nodes, Testbench, Worklist, and tool pages: tighter headers, panels, forms, tables, and buttons. Logs still uses leftover height for the live viewer.
 - Log level and other `<select>` menus use the themed glass panel in Dark mode, so the OS does not paint a white popup.
 
 ## 0.2.0
