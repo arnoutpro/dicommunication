@@ -1,0 +1,78 @@
+name: Windows MSI
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  msi:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements-dev.txt pyinstaller
+
+      - name: Test
+        run: python -m pytest -q
+
+      - name: Resolve MSI version
+        id: version
+        shell: bash
+        run: |
+          if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
+            echo "value=${GITHUB_REF#refs/tags/v}" >> "$GITHUB_OUTPUT"
+          else
+            echo "value=0.1.0" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Freeze application
+        run: python -m PyInstaller --noconfirm --clean packaging/windows/dicommunication.spec
+
+      - name: Smoke-test frozen launcher
+        run: .\dist\dicommunication\dicommunication.exe --help
+
+      - name: Harvest PyInstaller output
+        run: python packaging/windows/harvest.py dist/dicommunication packaging/windows/harvested.wxs
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      - name: Install WiX
+        run: |
+          dotnet tool install --global wix --version 5.0.2
+          wix extension add -g WixToolset.UI.wixext/5.0.2
+
+      - name: Build MSI
+        run: >
+          wix build
+          packaging/windows/Product.wxs
+          packaging/windows/harvested.wxs
+          -ext WixToolset.UI.wixext
+          -arch x64
+          -d ProductVersion=${{ steps.version.outputs.value }}
+          -bindpath dist/dicommunication
+          -o dist/dicommunication-${{ steps.version.outputs.value }}-win64.msi
+
+      - name: Upload MSI
+        uses: actions/upload-artifact@v4
+        with:
+          name: dicommunication-msi
+          path: dist/*.msi
+          if-no-files-found: error

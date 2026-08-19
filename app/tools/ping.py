@@ -9,12 +9,22 @@ import time
 from typing import Any
 
 from app.models import LocalAE, RemoteNode, ToolResult, ToolStep
+from app.paths import runtime_os_name
 from app.tools.base import BaseTool
 from app.tools.registry import register
 
 
 def _elapsed_ms(started: float) -> float:
     return round((time.perf_counter() - started) * 1000, 1)
+
+
+def icmp_argv(ping_bin: str, host: str, count: int, timeout_s: float) -> list[str]:
+    """Build a `ping` command that works on Windows and POSIX."""
+    if runtime_os_name() == "nt":
+        wait_ms = max(1000, int(timeout_s * 1000))
+        return [ping_bin, "-n", str(count), "-w", str(wait_ms), host]
+    wait_s = max(1, int(timeout_s))
+    return [ping_bin, "-c", str(count), "-W", str(wait_s), host]
 
 
 class PingTool(BaseTool):
@@ -109,7 +119,7 @@ class PingTool(BaseTool):
 
         count = 3
         wait_s = max(1, int(timeout))
-        command = [ping_bin, "-c", str(count), "-W", str(wait_s), remote.connect_host]
+        command = icmp_argv(ping_bin, remote.connect_host, count, timeout)
         try:
             completed = subprocess.run(
                 command,
