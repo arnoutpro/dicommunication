@@ -9,7 +9,7 @@ The installer cannot live *inside* this app’s webpage. That page is served by 
 ## What the user does
 
 1. Install `dicommunication-<version>-win64.msi` (admin rights; lands in `Program Files\Dicommunication`).
-2. Start **Dicommunication** from the Start menu.
+2. Start **Dicommunication** from the Start menu (**Sansation Bold** A icon, same as the watermark).
 3. The UI opens in its own window (Edge WebView2, not a browser tab). Close that window to stop the server.
 4. Config stays in `%LOCALAPPDATA%\dicommunication` across upgrades and uninstalls.
 

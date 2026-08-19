@@ -16,6 +16,7 @@ sys.path.insert(0, str(ROOT))
 from app import __version__ as APP_VERSION  # noqa: E402
 
 VERSION = os.environ.get("DICOMM_DMG_VERSION") or APP_VERSION
+ICON = str(ROOT / "packaging" / "icons" / "app.icns")
 
 
 def _not_test_module(name: str) -> bool:
@@ -97,6 +98,7 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
+    icon=ICON,
 )
 
 coll = COLLECT(
@@ -112,7 +114,7 @@ coll = COLLECT(
 app = BUNDLE(
     coll,
     name="Dicommunication.app",
-    icon=None,
+    icon=ICON,
     bundle_identifier="pro.arnout.dicommunication",
     info_plist={
         "CFBundleName": "Dicommunication",
