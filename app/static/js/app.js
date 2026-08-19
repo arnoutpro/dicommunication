@@ -5,13 +5,13 @@ async function refreshSansationClips() {
   } catch {
     /* font loading is best-effort */
   }
-  document.querySelectorAll(".site-brand-mark-svg clipPath text, .brand-watermark-svg clipPath text").forEach((node) => {
+  document.querySelectorAll(".brand-watermark-svg clipPath text").forEach((node) => {
     node.setAttribute("font-family", "Sansation, sans-serif");
     node.setAttribute("font-weight", "700");
     node.style.fontFamily = "Sansation, sans-serif";
     node.style.fontWeight = "700";
   });
-  document.querySelectorAll(".site-brand-mark-svg foreignObject[clip-path], .brand-watermark-svg foreignObject[clip-path]").forEach((node) => {
+  document.querySelectorAll(".brand-watermark-svg foreignObject[clip-path]").forEach((node) => {
     const value = node.getAttribute("clip-path");
     if (!value || value === "none") {
       return;
