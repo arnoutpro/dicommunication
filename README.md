@@ -292,7 +292,7 @@ If the association is rejected entirely, the calling AE is not in Orthanc’s al
 
 ## JSON API
 
-Same operations as the UI. `GET /health` returns `{"status":"ok"}`. Interactive docs: [http://127.0.0.1:8080/docs](http://127.0.0.1:8080/docs).
+Same operations as the UI. `GET /health` returns `{"status":"ok","version":"..."}`. Interactive docs: [http://127.0.0.1:8080/docs](http://127.0.0.1:8080/docs).
 
 | Method | Path | Purpose |
 | --- | --- | --- |

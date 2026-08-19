@@ -1,13 +1,15 @@
 from __future__ import annotations
 
+from app import __version__
 from app.models import RemoteNode
 
 
 def test_health_and_pages(client) -> None:
-    assert client.get("/health").json() == {"status": "ok"}
+    assert client.get("/health").json() == {"status": "ok", "version": __version__}
     home = client.get("/")
     assert home.status_code == 200
     assert b"Arnout.pro Dicommunication Tool" in home.content
+    assert f"v{__version__}".encode() in home.content
     assert b"nav-children" in home.content
     assert b"sidebar" in home.content
     assert b"aurora-wrapper" in home.content
