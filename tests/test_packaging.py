@@ -222,6 +222,8 @@ def test_macos_spec_is_windowed_app_bundle() -> None:
     assert "launcher.py" in spec
     assert "pro.arnout.dicommunication" in spec
     assert "webview" in spec
+    assert "app.icns" in spec
+    assert "icon=None" not in spec
 
 
 def test_macos_build_script_exists() -> None:
@@ -379,3 +381,28 @@ def test_windows_spec_hides_console_and_bundles_webview() -> None:
         encoding="utf-8"
     )
     assert "requirements-desktop.txt" in workflow
+
+
+def test_packaging_icons_match_favicon() -> None:
+    svg = (ROOT / "app" / "static" / "favicon.svg").read_text(encoding="utf-8")
+    assert "arnout.pro" in svg
+    assert "Sansation Bold" in svg
+    assert "M32 10 12 54" not in svg
+    ico = ROOT / "packaging" / "icons" / "app.ico"
+    icns = ROOT / "packaging" / "icons" / "app.icns"
+    preview = ROOT / "packaging" / "icons" / "app-1024.png"
+    assert ico.read_bytes()[:4] == b"\x00\x00\x01\x00"
+    assert icns.read_bytes()[:4] == b"icns"
+    assert preview.read_bytes()[:8] == b"\x89PNG\r\n\x1a\n"
+    assert ico.stat().st_size > 1024
+    assert icns.stat().st_size > 16_000
+
+
+def test_windows_spec_and_wix_use_app_icon() -> None:
+    spec = (ROOT / "packaging" / "windows" / "dicommunication.spec").read_text(encoding="utf-8")
+    wxs = (ROOT / "packaging" / "windows" / "Product.wxs").read_text(encoding="utf-8")
+    assert "app.ico" in spec
+    assert 'icon=ICON' in spec
+    assert 'SourceFile="packaging\\icons\\app.ico"' in wxs
+    assert 'Icon="AppIcon"' in wxs
+    assert "ARPPRODUCTICON" in wxs
