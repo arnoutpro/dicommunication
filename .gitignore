@@ -14,3 +14,5 @@ data/results.json
 data/worklist.json
 .DS_Store
 .env
+*.msi
+packaging/windows/harvested.wxs

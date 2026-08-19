@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from contextlib import asynccontextmanager
-from pathlib import Path
 from typing import Any
 
 from fastapi import FastAPI, Form, HTTPException, Request
@@ -18,10 +17,11 @@ from app.echo_board import snapshot as echo_board_snapshot
 from app.models import LocalAE, RemoteNode, ToolResult, WorklistEntry, WorklistQuery, VirtualAE
 from app.mwl import query_worklist
 from app.mwl_scp import WorklistSCP
+from app.paths import package_dir
 from app.store import ConfigStore
 from app.tools import get_tool, list_tools, list_tools_by_category
 
-BASE_DIR = Path(__file__).resolve().parent
+BASE_DIR = package_dir()
 
 
 def _first_error(exc: ValidationError) -> str:
