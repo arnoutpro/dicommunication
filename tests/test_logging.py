@@ -43,6 +43,8 @@ def test_logs_page_and_settings_form(client, store) -> None:
     assert page.status_code == 200
     assert b"Amount and file size" in page.content
     assert b"Log view" in page.content
+    assert b"page-logs" in page.content
+    assert b"logs-settings" in page.content
     assert b'name="level"' in page.content
     css = (Path(__file__).resolve().parents[1] / "app" / "static" / "css" / "app.css").read_text(
         encoding="utf-8"
