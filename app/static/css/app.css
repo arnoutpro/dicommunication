@@ -483,10 +483,10 @@ th {
   color: var(--muted);
   font-weight: 600;
 }
-.form-grid label > input,
+.form-grid label > input:not([type="checkbox"]),
 .form-grid label > select,
 .form-grid label > textarea,
-.run-form label > input,
+.run-form label > input:not([type="checkbox"]),
 .run-form label > select,
 .run-form label > textarea {
   width: 100%;
