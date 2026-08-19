@@ -17,7 +17,8 @@ def test_health_and_pages(client) -> None:
     assert b'data-theme-option="system"' in home.content
     assert b'data-theme-option="professional"' in home.content
     assert b"brand-watermark" in home.content
-    assert b"site-brand-sansation-a" in home.content
+    assert b"site-brand-mark-letter" in home.content
+    assert b"site-brand-copy" in home.content
     assert b"DIMSE" in home.content
     assert b"Connectivity" in home.content
     assert b"<details" not in home.content
