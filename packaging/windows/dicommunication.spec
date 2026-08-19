@@ -7,6 +7,7 @@ from PyInstaller.utils.hooks import collect_data_files, collect_submodules
 
 SPECDIR = Path(SPECPATH).resolve()
 ROOT = SPECDIR.parents[1]
+ICON = str(ROOT / "packaging" / "icons" / "app.ico")
 
 def _not_test_module(name: str) -> bool:
     skipped = (".tests", ".benchmarks", ".apps.tests")
@@ -77,6 +78,7 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
+    icon=ICON,
 )
 
 coll = COLLECT(

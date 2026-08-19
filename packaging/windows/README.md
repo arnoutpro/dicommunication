@@ -9,7 +9,7 @@ The installer cannot live *inside* this app’s webpage. That page is served by 
 ## What the user does
 
 1. Install `dicommunication-<version>-win64.msi` (admin rights; lands in `Program Files\Dicommunication`).
-2. Start **Dicommunication** from the Start menu.
+2. Start **Dicommunication** from the Start menu (**Sansation Bold** A icon, same as the watermark).
 3. Leave the console window open. The default browser opens [http://127.0.0.1:8080](http://127.0.0.1:8080).
 4. Config stays in `%LOCALAPPDATA%\dicommunication` across upgrades and uninstalls.
 
