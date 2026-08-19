@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from app.launcher import apply_runtime_env, main, windows_data_dir
+from app.launcher import apply_runtime_env, keep_alive_hint, main, windows_data_dir
 from app.paths import package_dir
 from app.store import _default_data_dir
 from app.tools.ping import icmp_argv
@@ -33,6 +33,17 @@ def _load_harvest():
 
 def _load_pack_nuget():
     return _load_module("windows_pack_nuget", "pack_nuget.py")
+
+
+def _load_make_dmg():
+    spec = importlib.util.spec_from_file_location(
+        "macos_make_dmg",
+        ROOT / "packaging" / "macos" / "make_dmg.py",
+    )
+    assert spec and spec.loader
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
 
 
 def test_icmp_argv_posix(monkeypatch) -> None:
@@ -181,3 +192,94 @@ def test_pack_nuget_cli(tmp_path) -> None:
         == 0
     )
     assert (tmp_path / "dicommunication.msi.9.9.9.nupkg").is_file()
+
+
+def test_keep_alive_hint_macos(monkeypatch) -> None:
+    monkeypatch.setattr("app.launcher.sys.platform", "darwin")
+    assert "Dock" in keep_alive_hint()
+
+
+def test_keep_alive_hint_windows(monkeypatch) -> None:
+    monkeypatch.setattr("app.launcher.sys.platform", "win32")
+    monkeypatch.setattr("app.launcher.runtime_os_name", lambda: "nt")
+    assert "window" in keep_alive_hint()
+
+
+def test_macos_spec_is_windowed_app_bundle() -> None:
+    spec = (ROOT / "packaging" / "macos" / "dicommunication.spec").read_text(encoding="utf-8")
+    assert "BUNDLE(" in spec
+    assert 'name="Dicommunication.app"' in spec
+    assert "argv_emulation=True" in spec
+    assert "console=False" in spec
+    assert "launcher.py" in spec
+    assert "pro.arnout.dicommunication" in spec
+
+
+def test_macos_build_script_exists() -> None:
+    script = ROOT / "packaging" / "macos" / "build.sh"
+    assert script.is_file()
+    text = script.read_text(encoding="utf-8")
+    assert "dicommunication.spec" in text
+    assert "make_dmg.py" in text
+    assert "Dicommunication.app" in text
+
+
+def test_macos_dmg_workflow() -> None:
+    workflow = (ROOT / ".github" / "workflows" / "macos-dmg.yml").read_text(encoding="utf-8")
+    assert "runs-on: macos-latest" in workflow
+    assert "actions/setup-python@v7" in workflow
+    assert "actions/checkout@v7" in workflow
+    assert "actions/upload-artifact@v7" in workflow
+    assert "softprops/action-gh-release@v3" in workflow
+    assert "packaging/macos/build.sh" in workflow
+    assert "release_tag" in workflow
+    assert "dist/*.dmg" in workflow
+
+
+def test_make_dmg_normalizes_arch_and_filename() -> None:
+    make_dmg = _load_make_dmg()
+    assert make_dmg.normalize_arch("aarch64") == "arm64"
+    assert make_dmg.normalize_arch("AMD64") == "x86_64"
+    assert make_dmg.dmg_filename("0.2.0", "arm64") == "dicommunication-0.2.0-macos-arm64.dmg"
+
+
+def test_make_dmg_stages_app_and_applications_link(tmp_path) -> None:
+    app = tmp_path / "Dicommunication.app"
+    macos_dir = app / "Contents" / "MacOS"
+    macos_dir.mkdir(parents=True)
+    (macos_dir / "dicommunication").write_text("fake", encoding="utf-8")
+    staging = tmp_path / "stage"
+    make_dmg = _load_make_dmg()
+    make_dmg.stage_app(app, staging)
+    assert (staging / "Dicommunication.app" / "Contents" / "MacOS" / "dicommunication").is_file()
+    assert (staging / "Applications").is_symlink()
+    assert (staging / "Applications").readlink() == Path("/Applications")
+    readme = (staging / "Read Me.txt").read_text(encoding="utf-8")
+    assert "Gatekeeper" in readme
+    assert "127.0.0.1:8080" in readme
+
+
+def test_make_dmg_stage_only_cli(tmp_path) -> None:
+    app = tmp_path / "Dicommunication.app"
+    (app / "Contents").mkdir(parents=True)
+    (app / "Contents" / "Info.plist").write_text("<plist/>", encoding="utf-8")
+    make_dmg = _load_make_dmg()
+    out = tmp_path / "dist"
+    assert (
+        make_dmg.main(
+            [
+                str(app),
+                "--version",
+                "0.2.0",
+                "--arch",
+                "arm64",
+                "--output",
+                str(out),
+                "--stage-only",
+            ]
+        )
+        == 0
+    )
+    staging = out / "dmg-staging"
+    assert (staging / "Dicommunication.app").is_dir()
+    assert not list(out.glob("*.dmg"))
