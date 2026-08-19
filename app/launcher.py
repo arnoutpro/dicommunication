@@ -1,13 +1,15 @@
 """Desktop entry: start the local UI server and open a browser.
 
-The MSI and `python -m app` use this module. Python is bundled inside the
-Windows build; the browser does not need a system Python install.
+The Windows MSI, macOS DMG, and `python -m app` use this module. Python is
+bundled inside those frozen builds; the browser does not need a system Python
+install.
 """
 
 from __future__ import annotations
 
 import argparse
 import os
+import sys
 import threading
 import time
 import urllib.error
@@ -28,11 +30,23 @@ def windows_data_dir() -> Path:
 
 
 def apply_runtime_env() -> None:
-    """Set a Windows data dir before ConfigStore is imported."""
+    """Set a Windows data dir before ConfigStore is imported.
+
+    macOS and Linux keep the default `~/.dicommunication` from ConfigStore.
+    """
     if "DICOMM_DATA_DIR" in os.environ:
         return
     if runtime_os_name() == "nt":
         os.environ["DICOMM_DATA_DIR"] = str(windows_data_dir())
+
+
+def keep_alive_hint() -> str:
+    """How to stop the frozen desktop app once the browser is open."""
+    if sys.platform == "darwin":
+        return "Quit Dicommunication from the Dock to stop the server."
+    if runtime_os_name() == "nt":
+        return "Leave this window open while you use the tool. Close it to stop the server."
+    return "Leave this process running while you use the tool. Stop it to shut down the server."
 
 
 def server_is_up(url: str, timeout: float = 0.4) -> bool:
@@ -87,7 +101,7 @@ def main(argv: list[str] | None = None) -> int:
         threading.Thread(target=open_browser_when_ready, args=(ui,), daemon=True).start()
 
     print(f"Dicommunication UI: {ui}", flush=True)
-    print("Leave this window open while you use the tool. Close it to stop the server.", flush=True)
+    print(keep_alive_hint(), flush=True)
     uvicorn.run(app, host=args.host, port=args.port, log_level="info")
     return 0
 

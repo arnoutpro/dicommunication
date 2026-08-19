@@ -16,4 +16,5 @@ data/*.log
 .DS_Store
 .env
 *.msi
+*.dmg
 packaging/windows/harvested.wxs
