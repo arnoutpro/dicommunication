@@ -5,6 +5,7 @@ from __future__ import annotations
 from pynetdicom import AE, evt
 from pynetdicom.sop_class import ModalityWorklistInformationFind, Verification
 
+from app.applog import log
 from app.mwl import entry_to_dataset, matches_entry, query_from_identifier
 from app.store import ConfigStore
 
@@ -34,9 +35,11 @@ class WorklistSCP:
                 ],
             )
             self.last_error = None
+            log.info("MWL SCP listening on %s:%s as %s", bind_host, config.local.port, config.local.ae_title)
         except OSError as exc:
             self.server = None
             self.last_error = f"Could not start MWL SCP on {bind_host}:{config.local.port}: {exc}"
+            log.warning("%s", self.last_error)
 
     def stop(self) -> None:
         if self.server is not None:
@@ -45,6 +48,7 @@ class WorklistSCP:
             except Exception:  # noqa: BLE001
                 pass
             self.server = None
+            log.info("MWL SCP stopped")
 
     def restart(self) -> None:
         self.start()

@@ -12,6 +12,7 @@ build/
 data/config.json
 data/results.json
 data/worklist.json
+data/*.log
 .DS_Store
 .env
 *.msi
