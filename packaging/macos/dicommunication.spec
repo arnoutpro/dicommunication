@@ -55,6 +55,16 @@ datas = [
 ]
 datas += collect_data_files("pydicom")
 datas += collect_data_files("pynetdicom")
+datas += collect_data_files("webview")
+
+hiddenimports = (
+    list(hiddenimports)
+    + collect_submodules("webview")
+    + [
+        "bottle",
+        "proxy_tools",
+    ]
+)
 
 a = Analysis(
     [str(ROOT / "app" / "launcher.py")],
@@ -112,5 +122,6 @@ app = BUNDLE(
         "CFBundleShortVersionString": VERSION,
         "CFBundleVersion": VERSION,
         "NSHighResolutionCapable": True,
+        "NSAppTransportSecurity": {"NSAllowsLocalNetworking": True},
     },
 )

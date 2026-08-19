@@ -2,7 +2,7 @@
 
 Hospital PACS PCs often cannot run Docker. This folder freezes the FastAPI app with PyInstaller and wraps the onedir payload in a per-machine WiX MSI.
 
-The MSI **bundles a private Python runtime**. The person who opens the UI only needs a browser. They do not install Python from python.org.
+The MSI **bundles a private Python runtime**. The UI opens in the app’s own window. They do not install Python from python.org.
 
 The installer cannot live *inside* this app’s webpage. That page is served by the already-running Python server. Ship the MSI through IT (Intune / GPO / a USB stick), not through a button on localhost.
 
@@ -10,7 +10,7 @@ The installer cannot live *inside* this app’s webpage. That page is served by 
 
 1. Install `dicommunication-<version>-win64.msi` (admin rights; lands in `Program Files\Dicommunication`).
 2. Start **Dicommunication** from the Start menu.
-3. Leave the console window open. The default browser opens [http://127.0.0.1:8080](http://127.0.0.1:8080).
+3. The UI opens in its own window (Edge WebView2, not a browser tab). Close that window to stop the server.
 4. Config stays in `%LOCALAPPDATA%\dicommunication` across upgrades and uninstalls.
 
 `ping.exe` is already on Windows. ICMP uses `-n` / `-w`; TCP to the DICOM port is still the useful check on clinical networks.
