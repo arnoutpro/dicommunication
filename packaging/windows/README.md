@@ -25,7 +25,11 @@ wix extension add -g WixToolset.UI.wixext
 .\packaging\windows\build.ps1
 ```
 
-CI does the same on `windows-latest` and uploads `dicommunication-*-win64.msi`.
+CI does the same on `windows-latest` and uploads `dicommunication-*-win64.msi`. Local `build.ps1` also wraps the MSI as `dicommunication.msi.<version>.nupkg`.
+
+A `v*` tag publishes that nupkg to GitHub Packages (`https://nuget.pkg.github.com/arnoutpro/index.json`, package id `dicommunication.msi`) and attaches it to the GitHub Release. GitHub has no native MSI feed; this is a NuGet package whose `tools/` folder holds the installer. Installing from GitHub Packages requires a PAT even when the repo is public — use the Release asset for anonymous downloads.
+
+To publish an already-cut GitHub Release as a package without rebuilding, run **Windows MSI** with `nuget_from_release` set to the tag (for example `v0.2.0`).
 
 Unsigned MSIs trigger SmartScreen. Code signing is a follow-up; keep the certificate out of git.
 
