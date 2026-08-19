@@ -2,10 +2,14 @@
 
 from __future__ import annotations
 
+import pkgutil
 from importlib import import_module
 from pathlib import Path
 
 from app.tools.base import BaseTool
+
+# Fallback when pkgutil cannot see frozen modules. Keep in sync with app/tools/*.py.
+BUILTIN_TOOL_MODULES = ("echo", "find", "mwl", "ping", "store")
 
 _REGISTRY: dict[str, BaseTool] = {}
 _DISCOVERED = False
@@ -70,9 +74,24 @@ def discover() -> None:
     global _DISCOVERED
     if _DISCOVERED:
         return
+    names = set(BUILTIN_TOOL_MODULES)
     package_dir = Path(__file__).parent
-    for path in sorted(package_dir.glob("*.py")):
-        if path.name in {"__init__.py", "base.py", "registry.py"}:
-            continue
-        import_module(f"app.tools.{path.stem}")
+    try:
+        for path in sorted(package_dir.glob("*.py")):
+            if path.name in {"__init__.py", "base.py", "registry.py"}:
+                continue
+            names.add(path.stem)
+    except OSError:
+        pass
+    try:
+        import app.tools as tools_pkg
+
+        for module_info in pkgutil.iter_modules(tools_pkg.__path__):
+            if module_info.name in {"base", "registry"}:
+                continue
+            names.add(module_info.name)
+    except (ImportError, AttributeError, OSError):
+        pass
+    for name in sorted(names):
+        import_module(f"app.tools.{name}")
     _DISCOVERED = True
