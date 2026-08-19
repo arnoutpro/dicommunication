@@ -3,18 +3,37 @@
 from __future__ import annotations
 
 from contextlib import asynccontextmanager
+from time import perf_counter
 from typing import Any
 
 from fastapi import FastAPI, Form, HTTPException, Request
-from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, ValidationError
 from pydicom.uid import generate_uid
 
+from app.applog import (
+    configure as configure_logging,
+    clear_log,
+    format_size,
+    log,
+    log_path,
+    read_tail,
+    should_skip_http_log,
+    viewer_lines,
+)
 from app.echo_board import run_all as run_echo_board
 from app.echo_board import snapshot as echo_board_snapshot
-from app.models import LocalAE, RemoteNode, ToolResult, WorklistEntry, WorklistQuery, VirtualAE
+from app.models import (
+    LocalAE,
+    LoggingSettings,
+    RemoteNode,
+    ToolResult,
+    WorklistEntry,
+    WorklistQuery,
+    VirtualAE,
+)
 from app.mwl import query_worklist
 from app.mwl_scp import WorklistSCP
 from app.paths import package_dir
@@ -60,11 +79,24 @@ class WorklistApiQuery(WorklistQuery):
 def create_app(store: ConfigStore | None = None) -> FastAPI:
     store = store or ConfigStore()
     scp = WorklistSCP(store)
+    configure_logging(store.data_dir, store.load().logging)
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
+        settings = store.load().logging
+        configure_logging(store.data_dir, settings)
+        log.info(
+            "Dicommunication started (data dir %s, log level %s)",
+            store.data_dir,
+            settings.level,
+        )
         scp.start()
+        if scp.running:
+            log.info("MWL SCP is listening")
+        elif scp.last_error:
+            log.warning("%s", scp.last_error)
         yield
+        log.info("Dicommunication stopping")
         scp.stop()
 
     app = FastAPI(
@@ -79,6 +111,31 @@ def create_app(store: ConfigStore | None = None) -> FastAPI:
     static_dir = BASE_DIR / "static"
     if static_dir.exists():
         app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
+
+    @app.middleware("http")
+    async def log_requests(request: Request, call_next):
+        path = request.url.path
+        started = perf_counter()
+        try:
+            response = await call_next(request)
+        except Exception:
+            log.exception("%s %s failed", request.method, path)
+            raise
+        if not should_skip_http_log(path):
+            duration_ms = round((perf_counter() - started) * 1000, 1)
+            message = "%s %s -> %s (%.1f ms)" % (
+                request.method,
+                path,
+                response.status_code,
+                duration_ms,
+            )
+            if response.status_code >= 500:
+                log.error(message)
+            elif response.status_code >= 400:
+                log.warning(message)
+            else:
+                log.debug(message)
+        return response
 
     def page(request: Request, **extra: object) -> dict:
         config = app.state.store.load()
@@ -115,6 +172,12 @@ def create_app(store: ConfigStore | None = None) -> FastAPI:
         result = tool.run(local, remote, options)
         result.calling_ae = local.ae_title
         app.state.store.add_result(result)
+        target = remote.name if remote else "local"
+        message = "Run %s as %s → %s: %s" % (tool_id, local.ae_title, target, result.summary)
+        if result.ok:
+            log.info(message)
+        else:
+            log.warning(message)
         return result
 
     def config_view(
@@ -177,9 +240,90 @@ def create_app(store: ConfigStore | None = None) -> FastAPI:
             }
         return {}
 
+    def _log_view_payload() -> dict[str, object]:
+        path = log_path(app.state.store.data_dir)
+        text = read_tail(path)
+        size = path.stat().st_size if path.is_file() else 0
+        return {
+            "log_path": str(path),
+            "log_text": text,
+            "log_lines": viewer_lines(text),
+            "log_size": size,
+            "log_empty": not text.strip(),
+            "log_size_label": format_size(size),
+        }
+
+    def _logs_page(
+        request: Request,
+        *,
+        saved: str | None = None,
+        error: str | None = None,
+        status_code: int = 200,
+    ):
+        return templates.TemplateResponse(
+            request,
+            "logs.html",
+            page(request, nav="logs", saved=saved, error=error, **_log_view_payload()),
+            status_code=status_code,
+        )
+
+    def _apply_logging(settings: LoggingSettings) -> LoggingSettings:
+        app.state.store.save_logging(settings)
+        configure_logging(app.state.store.data_dir, settings)
+        log.info(
+            "Logging set to %s, rotate at %s MB, keep %s files",
+            settings.level,
+            settings.max_megabytes,
+            settings.backup_count,
+        )
+        return settings
+
     @app.get("/health")
     def health() -> dict[str, str]:
         return {"status": "ok"}
+
+    @app.get("/logs", response_class=HTMLResponse)
+    def logs_page(request: Request, saved: str | None = None) -> HTMLResponse:
+        return _logs_page(request, saved=saved)
+
+    @app.get("/logs/live", response_class=HTMLResponse)
+    def logs_live(request: Request) -> HTMLResponse:
+        return templates.TemplateResponse(
+            request,
+            "partials/log_view.html",
+            {"request": request, **_log_view_payload()},
+        )
+
+    @app.get("/logs/download")
+    def logs_download():
+        path = log_path(app.state.store.data_dir)
+        if not path.is_file():
+            raise HTTPException(status_code=404, detail="Log file not found")
+        return FileResponse(path, filename="dicommunication.log", media_type="text/plain")
+
+    @app.post("/logs")
+    def save_logging(
+        request: Request,
+        level: str = Form(...),
+        max_megabytes: int = Form(...),
+        backup_count: int = Form(3),
+    ):
+        try:
+            settings = LoggingSettings(
+                level=level,  # type: ignore[arg-type]
+                max_bytes=max_megabytes * 1024 * 1024,
+                backup_count=backup_count,
+            )
+        except ValidationError as exc:
+            return _logs_page(request, error=_first_error(exc), status_code=400)
+        _apply_logging(settings)
+        return RedirectResponse("/logs?saved=logging", status_code=303)
+
+    @app.post("/logs/clear")
+    def logs_clear():
+        settings = app.state.store.load().logging
+        clear_log(app.state.store.data_dir, settings)
+        return RedirectResponse("/logs?saved=cleared", status_code=303)
 
     @app.get("/", response_class=HTMLResponse)
     def dashboard(request: Request) -> HTMLResponse:
@@ -204,6 +348,13 @@ def create_app(store: ConfigStore | None = None) -> FastAPI:
     @app.post("/echo-board/run")
     def echo_board_run(request: Request):
         board = run_echo_board(app.state.store)
+        log.info(
+            "C-ECHO board: %s passed, %s failed, %s unknown of %s",
+            board.passed,
+            board.failed,
+            board.unknown,
+            board.total,
+        )
         if _hx(request):
             return templates.TemplateResponse(
                 request,
@@ -289,6 +440,13 @@ def create_app(store: ConfigStore | None = None) -> FastAPI:
         except ValidationError as exc:
             return config_view(request, page_id="local", error=_first_error(exc), status_code=400)
         app.state.store.save_local(local)
+        log.info(
+            "Saved local AE %s on %s:%s (MWL SCP %s)",
+            local.ae_title,
+            local.host,
+            local.port,
+            "on" if local.mwl_scp_enabled else "off",
+        )
         app.state.mwl_scp.restart()
         return RedirectResponse("/config/local?saved=local", status_code=303)
 
@@ -331,13 +489,16 @@ def create_app(store: ConfigStore | None = None) -> FastAPI:
                 app.state.store.update_remote(remote_id, remote)
             except KeyError:
                 raise HTTPException(status_code=404, detail="Remote node not found") from None
+            log.info("Updated remote %s (%s %s)", remote.name, remote.ae_title, remote.endpoint)
             return RedirectResponse("/config/remotes?saved=remote", status_code=303)
         app.state.store.add_remote(remote)
+        log.info("Added remote %s (%s %s)", remote.name, remote.ae_title, remote.endpoint)
         return RedirectResponse("/config/remotes?saved=remote", status_code=303)
 
     @app.post("/config/remotes/{remote_id}/delete")
     def delete_remote(remote_id: str):
         app.state.store.delete_remote(remote_id)
+        log.info("Deleted remote %s", remote_id)
         return RedirectResponse("/config/remotes?saved=deleted", status_code=303)
 
     @app.post("/config/identities")
@@ -373,13 +534,16 @@ def create_app(store: ConfigStore | None = None) -> FastAPI:
                 app.state.store.update_identity(identity_id, identity)
             except KeyError:
                 raise HTTPException(status_code=404, detail="Virtual local AE not found") from None
+            log.info("Updated virtual AE %s (%s)", identity.name, identity.ae_title)
             return RedirectResponse("/config/identities?saved=identity", status_code=303)
         app.state.store.add_identity(identity)
+        log.info("Added virtual AE %s (%s)", identity.name, identity.ae_title)
         return RedirectResponse("/config/identities?saved=identity", status_code=303)
 
     @app.post("/config/identities/{identity_id}/delete")
     def delete_identity(identity_id: str):
         app.state.store.delete_identity(identity_id)
+        log.info("Deleted virtual AE %s", identity_id)
         return RedirectResponse("/config/identities?saved=deleted", status_code=303)
 
     @app.get("/testbench", response_class=HTMLResponse)
@@ -641,6 +805,24 @@ def create_app(store: ConfigStore | None = None) -> FastAPI:
     @app.put("/api/config/local")
     def api_put_local(local: LocalAE):
         return app.state.store.save_local(local)
+
+    @app.get("/api/logging")
+    def api_logging():
+        return app.state.store.load().logging
+
+    @app.put("/api/logging")
+    def api_put_logging(settings: LoggingSettings):
+        return _apply_logging(settings)
+
+    @app.get("/api/logs")
+    def api_logs():
+        path = log_path(app.state.store.data_dir)
+        text = read_tail(path)
+        return {
+            "path": str(path),
+            "size": path.stat().st_size if path.is_file() else 0,
+            "text": text,
+        }
 
     @app.get("/api/remotes")
     def api_remotes():

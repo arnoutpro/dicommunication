@@ -19,6 +19,7 @@ def test_health_and_pages(client) -> None:
     assert b"brand-watermark" in home.content
     assert b"site-brand-mark-letter" in home.content
     assert b"site-brand-copy" in home.content
+    assert b'href="/logs"' in home.content
     assert b"DIMSE" in home.content
     assert b"Connectivity" in home.content
     assert b"<details" not in home.content
@@ -50,6 +51,9 @@ def test_health_and_pages(client) -> None:
     assert b"Worklist" in worklist.content
     ping = client.get("/tools/ping")
     assert ping.status_code == 200
+    logs = client.get("/logs")
+    assert logs.status_code == 200
+    assert b"Log view" in logs.content
     echo = client.get("/tools/c-echo")
     assert echo.status_code == 200
     testbench = client.get("/testbench")
