@@ -17,7 +17,7 @@
 
   {% if config.remotes %}
   <form
-    class="run-form"
+    class="form-grid"
     method="post"
     action="/tools/{{ tool.id }}/run"
     hx-post="/tools/{{ tool.id }}/run"
@@ -33,10 +33,12 @@
       </select>
     </label>
     {% include "partials/identity_select.html" %}
-    <button class="button primary" type="submit">
-      Run {{ tool.name }}
-    </button>
-    <span id="busy" class="htmx-indicator spinner">Running…</span>
+    <div class="form-actions">
+      <button class="button primary" type="submit">
+        Run {{ tool.name }}
+      </button>
+      <span id="busy" class="htmx-indicator spinner">Running…</span>
+    </div>
   </form>
   {% else %}
   <div class="empty">
