@@ -28,7 +28,7 @@
   <link rel="stylesheet" href="/static/css/app.css">
   <script src="https://unpkg.com/htmx.org@2.0.4" defer></script>
 </head>
-<body>
+<body class="{% block body_class %}{% endblock %}">
   <div class="aurora-wrapper" aria-hidden="true">
     <div class="aurora-container">
       <div class="aurora-item aurora-1"></div>
