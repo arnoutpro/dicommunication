@@ -747,11 +747,11 @@ body.page-logs .main {
   display: flex;
   flex-direction: column;
   min-height: 0;
-  gap: 0.65rem;
+  gap: 0.45rem;
 }
 .logs-page .page-head {
   margin-bottom: 0;
-  gap: 0.6rem;
+  gap: 0.45rem;
 }
 .logs-page .eyebrow { margin-bottom: 0.15rem; }
 .logs-page h1 {
@@ -770,24 +770,31 @@ body.page-logs .main {
   flex-direction: column;
   min-height: 0;
   margin-bottom: 0;
-  padding: 0.75rem 0.9rem 0.8rem;
+  padding: 0.65rem 0.8rem 0.7rem;
 }
 .logs-shell .panel-head {
-  margin-bottom: 0.5rem;
-  gap: 0.6rem;
+  margin-bottom: 0.4rem;
+  gap: 0.5rem;
 }
-.logs-shell .panel-head h2 { gap: 0.28rem; }
+.logs-shell .panel-head h2 { gap: 0.22rem; }
 .logs-shell .panel-head h2::after {
   height: 3px;
-  width: 2.4rem;
+  width: 2.2rem;
 }
 .logs-settings {
-  grid-template-columns: minmax(8.5rem, 1.15fr) minmax(7rem, 0.85fr) minmax(8rem, 0.85fr) auto;
-  gap: 0.45rem 0.75rem;
+  display: grid;
+  grid-template-columns: 11.5rem 7.75rem 10rem auto;
+  width: max-content;
+  max-width: 100%;
+  gap: 0.35rem 0.65rem;
   align-items: end;
-  margin-bottom: 0.65rem;
+  margin-bottom: 0.45rem;
 }
-.logs-settings .form-actions { grid-column: auto; }
+.logs-settings > label { min-width: 0; }
+.logs-settings .form-actions {
+  grid-column: auto;
+  padding-bottom: 0;
+}
 .logs-page input,
 .logs-page select,
 .logs-page .choice-toggle,
@@ -797,14 +804,15 @@ body.page-logs .main {
 .logs-page .button { border-radius: 0.7rem; }
 .logs-view-head {
   align-items: center;
-  margin-bottom: 0.45rem;
+  margin-bottom: 0.3rem;
 }
+.logs-view-head h2::after { display: none; }
 .logs-page .log-toolbar {
   margin-bottom: 0;
-  gap: 0.45rem;
+  gap: 0.4rem;
 }
 .logs-page .log-view-status {
-  margin: 0 0 0.4rem;
+  margin: 0 0 0.3rem;
   font-size: var(--text-xs);
 }
 .log-view-panel {
@@ -817,9 +825,9 @@ body.page-logs .main {
   flex: 1;
   max-height: none;
   min-height: 12rem;
-  padding: 0.6rem 0.75rem;
+  padding: 0.45rem 0.65rem;
   font-size: var(--text-xs);
-  line-height: 1.4;
+  line-height: 1.32;
 }
 
 .spinner { color: var(--accent); }
@@ -882,7 +890,10 @@ label.checkbox input { width: auto; accent-color: var(--accent); }
     border-bottom: 1px solid var(--line-strong);
   }
   .grid-3, .grid-4, .form-grid { grid-template-columns: 1fr; }
-  .logs-settings { grid-template-columns: 1fr 1fr; }
+  .logs-settings {
+    grid-template-columns: 1fr 1fr;
+    width: 100%;
+  }
   .logs-settings .form-actions { grid-column: 1 / -1; }
   .logs-view-head { flex-wrap: wrap; }
   .main { padding: 1.2rem; }
