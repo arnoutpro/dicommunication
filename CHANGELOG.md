@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Version tags also publish `dicommunication.msi` to GitHub Packages (NuGet). The already-cut `v0.2.0` MSI can be wrapped without rebuilding: **Actions → Windows MSI → Run workflow** with `nuget_from_release=v0.2.0`.
+
 ## 0.2.0
 
 Application logging and an in-app log viewer.

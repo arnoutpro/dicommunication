@@ -6,12 +6,20 @@ on:
     tags: ["v*"]
   pull_request:
   workflow_dispatch:
+    inputs:
+      nuget_from_release:
+        description: Existing release tag to publish as a GitHub Package (e.g. v0.2.0). Leave empty to build the MSI.
+        required: false
+        type: string
+        default: ""
 
 permissions:
   contents: write
+  packages: write
 
 jobs:
   msi:
+    if: github.event_name != 'workflow_dispatch' || github.event.inputs.nuget_from_release == ''
     runs-on: windows-latest
     steps:
       - name: Checkout
@@ -70,6 +78,13 @@ jobs:
           -bindpath dist/dicommunication
           -o dist/dicommunication-${{ steps.version.outputs.value }}-win64.msi
 
+      - name: Pack NuGet package
+        run: >
+          python packaging/windows/pack_nuget.py
+          dist/dicommunication-${{ steps.version.outputs.value }}-win64.msi
+          --version ${{ steps.version.outputs.value }}
+          --output dist
+
       - name: Upload MSI
         uses: actions/upload-artifact@v4
         with:
@@ -77,9 +92,79 @@ jobs:
           path: dist/*.msi
           if-no-files-found: error
 
-      - name: Attach MSI to GitHub Release
+      - name: Upload NuGet package
+        uses: actions/upload-artifact@v4
+        with:
+          name: dicommunication-msi-nuget
+          path: dist/*.nupkg
+          if-no-files-found: error
+
+      - name: Attach MSI and NuGet package to GitHub Release
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
-          files: dist/*.msi
+          files: |
+            dist/*.msi
+            dist/*.nupkg
           generate_release_notes: true
+
+      - name: Publish NuGet package to GitHub Packages
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: pwsh
+        run: |
+          $nupkg = Get-Item dist/*.nupkg
+          dotnet nuget push $nupkg.FullName --api-key "${{ secrets.GITHUB_TOKEN }}" --source "https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json" --skip-duplicate
+
+  nuget-from-release:
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.nuget_from_release != ''
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      - name: Download MSI from GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mkdir -p dist
+          gh release download "${{ github.event.inputs.nuget_from_release }}" \
+            --repo "${{ github.repository }}" \
+            --pattern "*.msi" \
+            --dir dist
+
+      - name: Pack and publish NuGet package
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          VER="${{ github.event.inputs.nuget_from_release }}"
+          VER="${VER#v}"
+          shopt -s nullglob
+          msis=(dist/dicommunication-*-win64.msi)
+          if [[ ${#msis[@]} -ne 1 ]]; then
+            echo "expected one MSI under dist/, found ${#msis[@]}: ${msis[*]}" >&2
+            exit 1
+          fi
+          python packaging/windows/pack_nuget.py "${msis[0]}" --version "$VER" --output dist
+          nupkgs=(dist/*.nupkg)
+          if [[ ${#nupkgs[@]} -ne 1 ]]; then
+            echo "expected one nupkg under dist/, found ${#nupkgs[@]}: ${nupkgs[*]}" >&2
+            exit 1
+          fi
+          dotnet nuget push "${nupkgs[0]}" \
+            --api-key "${GH_TOKEN}" \
+            --source "https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json" \
+            --skip-duplicate
+          gh release upload "${{ github.event.inputs.nuget_from_release }}" "${nupkgs[0]}" \
+            --repo "${{ github.repository }}" \
+            --clobber

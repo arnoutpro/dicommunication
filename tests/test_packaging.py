@@ -16,15 +16,23 @@ from app.tools.registry import BUILTIN_TOOL_MODULES
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def _load_harvest():
+def _load_module(name: str, filename: str):
     spec = importlib.util.spec_from_file_location(
-        "windows_harvest",
-        ROOT / "packaging" / "windows" / "harvest.py",
+        name,
+        ROOT / "packaging" / "windows" / filename,
     )
     assert spec and spec.loader
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
+
+
+def _load_harvest():
+    return _load_module("windows_harvest", "harvest.py")
+
+
+def _load_pack_nuget():
+    return _load_module("windows_pack_nuget", "pack_nuget.py")
 
 
 def test_icmp_argv_posix(monkeypatch) -> None:
@@ -140,3 +148,36 @@ def test_harvest_wix_fragment(tmp_path) -> None:
     out = tmp_path / "harvested.wxs"
     assert harvest.main([str(dist), str(out)]) == 0
     assert out.read_text(encoding="utf-8") == xml
+
+
+def test_pack_nuget_wraps_msi(tmp_path) -> None:
+    import zipfile
+    from xml.etree import ElementTree
+
+    msi = tmp_path / "dicommunication-0.2.0-win64.msi"
+    msi.write_bytes(b"msi-payload")
+    pack_nuget = _load_pack_nuget()
+    nupkg = pack_nuget.pack(msi, "0.2.0", tmp_path / "out")
+    assert nupkg == tmp_path / "out" / "dicommunication.msi.0.2.0.nupkg"
+    with zipfile.ZipFile(nupkg) as zf:
+        names = set(zf.namelist())
+        assert "dicommunication.msi.nuspec" in names
+        assert "tools/dicommunication-0.2.0-win64.msi" in names
+        assert zf.read("tools/dicommunication-0.2.0-win64.msi") == b"msi-payload"
+        nuspec = ElementTree.fromstring(zf.read("dicommunication.msi.nuspec"))
+        ns = {"n": "http://schemas.microsoft.com/packaging/2013/05/nuspec.xsd"}
+        assert nuspec.find("n:metadata/n:id", ns).text == "dicommunication.msi"
+        assert nuspec.find("n:metadata/n:version", ns).text == "0.2.0"
+
+
+def test_pack_nuget_cli(tmp_path) -> None:
+    msi = tmp_path / "dicommunication-9.9.9-win64.msi"
+    msi.write_bytes(b"msi")
+    pack_nuget = _load_pack_nuget()
+    assert (
+        pack_nuget.main(
+            [str(msi), "--version", "9.9.9", "--output", str(tmp_path)]
+        )
+        == 0
+    )
+    assert (tmp_path / "dicommunication.msi.9.9.9.nupkg").is_file()

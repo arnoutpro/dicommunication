@@ -25,4 +25,7 @@ wix build `
     -bindpath dist\dicommunication `
     -o "dist\dicommunication-$Version-win64.msi"
 
+python packaging\windows\pack_nuget.py "dist\dicommunication-$Version-win64.msi" --version $Version --output dist
+
 Write-Host "Built dist\dicommunication-$Version-win64.msi"
+Write-Host "Built dist\dicommunication.msi.$Version.nupkg"
