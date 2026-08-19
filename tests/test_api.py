@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from pathlib import Path
+
 from app import __version__
 from app.models import RemoteNode
 
@@ -63,6 +65,16 @@ def test_health_and_pages(client) -> None:
     assert b"C-STORE" in testbench.content
     assert b"Study Root" in testbench.content
     assert b"1.2.840.10008.5.1.4.31" in testbench.content
+
+
+def test_shared_layout_is_dense() -> None:
+    css = (Path(__file__).resolve().parents[1] / "app" / "static" / "css" / "app.css").read_text(
+        encoding="utf-8"
+    )
+    assert ".main {\n  padding: 1rem 1.25rem 1.15rem;" in css
+    assert ".panel { padding: 0.75rem 0.9rem 0.85rem; margin-bottom: 0.7rem; }" in css
+    assert "h1 { margin: 0 0 0.15rem; font-size: var(--text-xl);" in css
+    assert "gap: 0.5rem 0.75rem;" in css
 
 
 def test_save_local_ae_and_remote_via_forms(client) -> None:
