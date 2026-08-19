@@ -530,10 +530,6 @@ input, select, textarea {
   font: inherit;
   transition: background-image 0.3s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.3s;
 }
-option {
-  background-color: #020617;
-  color: #e2e8f0;
-}
 input::placeholder { color: #475569; }
 input:hover, select:hover, textarea:hover {
   background-image:
@@ -961,10 +957,6 @@ html.light-mode textarea {
     linear-gradient(#ffffff, #ffffff),
     linear-gradient(135deg, rgba(15, 23, 42, 0.12) 0%, rgba(15, 23, 42, 0.06) 100%);
 }
-html.light-mode option {
-  background-color: #ffffff;
-  color: #0f172a;
-}
 html.light-mode input::placeholder { color: #94a3b8; }
 html.light-mode input:hover,
 html.light-mode select:hover,
@@ -1143,10 +1135,6 @@ html.professional-mode textarea {
   background-image:
     linear-gradient(rgba(0, 0, 0, 0.85), rgba(0, 0, 0, 0.85)),
     linear-gradient(135deg, rgba(251, 191, 36, 0.16) 0%, rgba(255, 255, 255, 0.04) 100%);
-}
-html.professional-mode option {
-  background-color: #000000;
-  color: #e7e5e4;
 }
 html.professional-mode input:hover,
 html.professional-mode select:hover,
