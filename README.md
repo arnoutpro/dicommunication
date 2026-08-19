@@ -358,6 +358,7 @@ This is a trusted-network admin tool. The web UI has no login. Do not publish po
 | Worklist and MWL C-FIND look the same | They are the same SOP Class. Use Testbench Study Root C-FIND to search stored studies. |
 | Empty MWL / C-FIND table but Pass | The SOP Class was accepted and the query succeeded with zero matches. Check station AE, date, and **Present as**. |
 | PING ICMP fails, TCP succeeds | Normal on locked-down clinical networks. Trust TCP to the DICOM port. |
+| `docker compose --build` fails at `apt-get` with exit 100 | Debian mirrors were unreachable from the Docker builder. Current images copy a static `ping` and do not run apt. Pull/rebuild from this change. |
 | Cannot reach Orthanc from Docker | Use `host.docker.internal` (same Mac/host) or the LAN IP; publish/check `4242`. |
 | Config vanished after image rebuild | Config should be in `~/.dicommunication`. Legacy `./data` is only used until the home folder exists. |
 | Modality cannot C-FIND this tool | Enable the MWL SCP, publish `11112`, and put this workstation AE on the modality’s worklist node list. |
