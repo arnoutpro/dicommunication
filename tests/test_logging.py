@@ -49,6 +49,11 @@ def test_logs_page_and_settings_form(client, store) -> None:
     )
     assert "color-scheme: dark" in css
     assert "html.light-mode { color-scheme: light; }" in css
+    assert ".choice-menu" in css
+    js = (Path(__file__).resolve().parents[1] / "app" / "static" / "js" / "app.js").read_text(
+        encoding="utf-8"
+    )
+    assert "enhanceSelectMenus" in js
     js = (Path(__file__).resolve().parents[1] / "app" / "static" / "js" / "app.js").read_text(
         encoding="utf-8"
     )

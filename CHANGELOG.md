@@ -3,7 +3,7 @@
 ## Unreleased
 
 - Version tags also publish `dicommunication.msi` to GitHub Packages (NuGet). The already-cut `v0.2.0` MSI can be wrapped without rebuilding: **Actions → Windows MSI → Run workflow** with `nuget_from_release=v0.2.0`.
-- Native `<select>` menus (Log level, remotes, identities) follow the active theme. Dark and professional set `color-scheme: dark` so the OS dropdown is not a white popup.
+- Log level and other `<select>` menus use the themed glass panel in Dark mode, so the OS does not paint a white popup.
 
 ## 0.2.0
 
