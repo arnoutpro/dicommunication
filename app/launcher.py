@@ -8,7 +8,6 @@ from __future__ import annotations
 
 import argparse
 import os
-import sys
 import threading
 import time
 import urllib.error
@@ -16,6 +15,8 @@ import urllib.request
 import webbrowser
 from multiprocessing import freeze_support
 from pathlib import Path
+
+from app.paths import runtime_os_name
 
 DEFAULT_HOST = "127.0.0.1"
 DEFAULT_PORT = 8080
@@ -30,7 +31,7 @@ def apply_runtime_env() -> None:
     """Set a Windows data dir before ConfigStore is imported."""
     if "DICOMM_DATA_DIR" in os.environ:
         return
-    if os.name == "nt":
+    if runtime_os_name() == "nt":
         os.environ["DICOMM_DATA_DIR"] = str(windows_data_dir())
 
 

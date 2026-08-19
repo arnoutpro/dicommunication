@@ -9,6 +9,7 @@ from pathlib import Path
 from threading import Lock
 
 from app.models import AppConfig, RemoteNode, ToolResult, VirtualAE, WorklistEntry
+from app.paths import runtime_os_name
 
 def _windows_data_dir() -> Path:
     base = os.environ.get("LOCALAPPDATA") or str(Path.home() / "AppData" / "Local")
@@ -19,7 +20,7 @@ def _default_data_dir() -> Path:
     env = os.environ.get("DICOMM_DATA_DIR")
     if env:
         return Path(env)
-    if os.name == "nt":
+    if runtime_os_name() == "nt":
         return _windows_data_dir()
     home_dir = Path.home() / ".dicommunication"
     legacy = Path("data")

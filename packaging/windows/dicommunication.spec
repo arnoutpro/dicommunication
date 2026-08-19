@@ -8,10 +8,15 @@ from PyInstaller.utils.hooks import collect_data_files, collect_submodules
 SPECDIR = Path(SPECPATH).resolve()
 ROOT = SPECDIR.parents[1]
 
+def _not_test_module(name: str) -> bool:
+    skipped = (".tests", ".benchmarks", ".apps.tests")
+    return not any(part in name for part in skipped)
+
+
 hiddenimports = (
     collect_submodules("app")
-    + collect_submodules("pynetdicom")
-    + collect_submodules("pydicom")
+    + collect_submodules("pynetdicom", filter=_not_test_module)
+    + collect_submodules("pydicom", filter=_not_test_module)
     + collect_submodules("uvicorn")
     + [
         "anyio",
@@ -50,7 +55,7 @@ a = Analysis(
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
-    excludes=["tkinter", "matplotlib", "numpy.tests"],
+    excludes=["tkinter", "matplotlib", "numpy.tests", "pytest", "pygments"],
     noarchive=False,
 )
 
