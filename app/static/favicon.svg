@@ -1,4 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="arnout.pro">
+  <!-- Sansation Bold “A” glyph (SIL OFL), converted to a path so this file does not need a webfont. -->
   <defs>
     <linearGradient id="a" x1="8" y1="4" x2="56" y2="60" gradientUnits="userSpaceOnUse">
       <stop stop-color="#00e5ff"/>
@@ -8,5 +9,5 @@
     </linearGradient>
   </defs>
   <rect width="64" height="64" rx="16" fill="#020617"/>
-  <path fill="url(#a)" d="M32 10 12 54h8.6l3.7-8.4h15.4l3.7 8.4H52L32 10zm0 14.2 5.4 12.4H26.6L32 24.2z"/>
+  <path fill="url(#a)" d="M15.35 56.59H6L26.88 7.41H36.68L58 56.59H48.2L42.59 43.18H26.26L29.39 35.27H39.29L31.55 16.8Z"/>
 </svg>

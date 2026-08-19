@@ -159,7 +159,7 @@ CI builds `dicommunication-<version>-macos-arm64.dmg` on `macos-latest` (workflo
 
 The already-cut `v0.2.0` release can get a DMG without a new version tag: **Actions → macOS DMG → Run workflow** and set `release_tag` to `v0.2.0`.
 
-Open the DMG, drag **Dicommunication** to Applications, then right-click the app and choose **Open** the first time (unsigned builds trip Gatekeeper). The default browser opens the UI. Quit **Dicommunication** from the Dock to stop the server. Config lives in `~/.dicommunication` and survives upgrades.
+Open the DMG, drag **Dicommunication** to Applications, then right-click the app and choose **Open** the first time (unsigned builds trip Gatekeeper). The Dock icon is the **Sansation Bold** A from the watermark. The default browser opens the UI. Quit **Dicommunication** from the Dock to stop the server. Config lives in `~/.dicommunication` and survives upgrades.
 
 Apple Silicon only for now. Intel Macs keep using Docker Compose. If a modality must C-FIND this workstation, allow incoming TCP for **Dicommunication** (listen port 11112). Details: [`packaging/macos/README.md`](packaging/macos/README.md).
 
