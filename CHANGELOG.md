@@ -2,7 +2,11 @@
 
 ## Unreleased
 
-- HL7 send: the UI can set ORC-1 to XO (change order) and put OBR-31 into the CE text component (`^text`). A new MSH-10 alone is not an order update. The Send result also repeats OBR-25 and adds a Hint when an ACK is likely not a PACS update.
+- HL7 send: the UI can set ORC-1 to XO (change order) and put OBR-31 into a CE `id^text`. A new MSH-10 alone is not an order update. The Send result also repeats OBR-25 and adds a Hint when an ACK is likely not a PACS update.
+- HL7 send: XO also stamps ORC-9. OBR-31 CE now fills an empty identifier (`arnout.pro^arnout.pro SEH` instead of `^arnout.pro SEH`). A **Set OBR-25 to SC** checkbox tests the usual completed-exam skip; an ACK still does not rewrite images already in PACS.
+- HL7 send: **ORC-1 on change** can stamp Vue / IS Link **SC** (update order). XO is not in the Vue order-control table; a Mirth ACK is not Vue applying the order.
+- HL7 send: if Vue **IS Link is empty** after an ACK, Host/Port is not the IS Link listener. The ACK step shows **MSH-3** (who answered). Hints say to send to IS Link’s listen host:port from IS Link Configuration — no Mirth access required.
+- HL7 send: Philips Vue **10010** can be the HL7 VIP **and** IS Link’s Listener Port Number. The Listeners page is settings, not the queue — look at **Queues & Notifications**. Control Port (often 2112) is not MLLP. The transcript also repeats **MSH-5 / MSH-6**.
 
 ## 0.3.0
 
