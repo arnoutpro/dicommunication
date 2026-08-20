@@ -135,17 +135,28 @@ def orc_order_control(message: str) -> str:
 
 def stamp_order_control(message: str, code: str = "XO") -> str:
     """Set ORC-1 (order control). XO is change; NW is new. Does not invent an ORC."""
-    segments = _segments(message)
-    value = (code or "XO").strip() or "XO"
-    for index, seg in enumerate(segments):
-        if not seg.startswith("ORC|"):
-            continue
-        fields = seg.split("|")
-        while len(fields) < 2:
-            fields.append("")
-        fields[1] = value
-        segments[index] = "|".join(fields)
-    return "\r".join(segments)
+    return _set_field(message, "ORC|", 1, (code or "XO").strip() or "XO")
+
+
+def orc_status(message: str) -> str:
+    """ORC-5 (order status), if present."""
+    return _get_field(message, "ORC|", 5)
+
+
+def stamp_orc_status(message: str, status: str = "IP") -> str:
+    """Set ORC-5. IP is in progress. Does not invent an ORC."""
+    return _set_field(message, "ORC|", 5, (status or "IP").strip() or "IP")
+
+
+def orc_transaction_time(message: str) -> str:
+    """ORC-9 (date/time of transaction), if present."""
+    return _get_field(message, "ORC|", 9)
+
+
+def stamp_orc_transaction_time(message: str, *, timestamp: str | None = None) -> str:
+    """Set ORC-9. Some engines ignore XO without a transaction time."""
+    stamp = timestamp or datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S")
+    return _set_field(message, "ORC|", 9, stamp)
 
 
 def obr_reason(message: str) -> tuple[int, str | None]:
@@ -161,15 +172,32 @@ def obr_reason(message: str) -> tuple[int, str | None]:
 
 def obr_status(message: str) -> str:
     """OBR-25 (Result Status), if present."""
-    for seg in _segments(message):
-        if seg.startswith("OBR|"):
-            fields = seg.split("|")
-            return fields[25].strip() if len(fields) > 25 else ""
-    return ""
+    return _get_field(message, "OBR|", 25)
+
+
+def stamp_obr_status(message: str, status: str = "SC") -> str:
+    """Set OBR-25. SC is in progress. Does not invent an OBR."""
+    return _set_field(message, "OBR|", 25, (status or "SC").strip() or "SC")
+
+
+def _ce_with_text(value: str) -> str:
+    raw = (value or "").strip()
+    if not raw:
+        return raw
+    if "^" not in raw:
+        ident = raw.split()[0]
+        return f"{ident}^{raw}"
+    parts = raw.split("^")
+    ident = parts[0].strip()
+    text = parts[1].strip() if len(parts) > 1 else ""
+    if not ident and text:
+        parts[0] = text.split()[0]
+        return "^".join(parts)
+    return raw
 
 
 def stamp_obr_reason_ce_text(message: str) -> str:
-    """If OBR-31 has no ^, put the current value in the CE text component (^text)."""
+    """Make OBR-31 a CE: identifier^text. Fills an empty identifier from the text."""
     segments = _segments(message)
     for index, seg in enumerate(segments):
         if not seg.startswith("OBR|"):
@@ -177,10 +205,32 @@ def stamp_obr_reason_ce_text(message: str) -> str:
         fields = seg.split("|")
         if len(fields) <= 31:
             continue
-        value = fields[31]
-        if value and "^" not in value:
-            fields[31] = f"^{value}"
+        encoded = _ce_with_text(fields[31])
+        if encoded != fields[31]:
+            fields[31] = encoded
             segments[index] = "|".join(fields)
+    return "\r".join(segments)
+
+
+def _get_field(message: str, prefix: str, index: int) -> str:
+    for seg in _segments(message):
+        if not seg.startswith(prefix):
+            continue
+        fields = seg.split("|")
+        return fields[index].strip() if len(fields) > index else ""
+    return ""
+
+
+def _set_field(message: str, prefix: str, index: int, value: str) -> str:
+    segments = _segments(message)
+    for i, seg in enumerate(segments):
+        if not seg.startswith(prefix):
+            continue
+        fields = seg.split("|")
+        while len(fields) <= index:
+            fields.append("")
+        fields[index] = value
+        segments[i] = "|".join(fields)
     return "\r".join(segments)
 
 
@@ -199,15 +249,23 @@ def send_wire_hints(message: str) -> list[str]:
             "ORC-1 is still NW (new). Many PACS ACK a repeat new-order and leave the existing exam unchanged. Turn on Change existing order (ORC-1 XO)."
         )
     _, reason = obr_reason(message)
-    if reason and " " in reason and "^" not in reason:
+    if reason and " " in reason.split("^", 1)[0] and "^" not in reason:
         hints.append(
-            "OBR-31 has a space and no ^. Reason for Study is a CE (id^text). Turn on OBR-31 as CE text, or send ^your text / code^your text."
+            "OBR-31 has a space and no ^. Reason for Study is a CE (id^text). Turn on OBR-31 as CE text."
+        )
+    elif reason and reason.startswith("^"):
+        hints.append(
+            "OBR-31 has an empty identifier (^text). Many PACS read only the id. Turn on OBR-31 as CE text so it becomes id^text."
         )
     status = obr_status(message)
     status_id = status.split("^", 1)[0].strip().upper()
     if status_id in {"COMPLETED", "COMPLETE", "CM"}:
         hints.append(
-            f"OBR-25 is {status}. Some PACS do not apply order or reason updates after the exam is completed."
+            f"OBR-25 is {status}. This is the usual reason an XO is ACKed and PACS does not change. Turn on Set OBR-25 to SC (in progress) as a test."
+        )
+    elif has_obr and order_id in {"XO", "XX", "SC"}:
+        hints.append(
+            "An ACK does not rewrite images already in PACS. Study Description / Reason for Study is often set at C-STORE, not by a later ORM. If SC still does nothing, edit the study in PACS."
         )
     return hints
 

@@ -16,10 +16,15 @@ from app.hl7 import (
     obr_reason,
     obr_status,
     orc_order_control,
+    orc_status,
+    orc_transaction_time,
     send_hl7,
     send_wire_hints,
     stamp_new_control_id,
     stamp_obr_reason_ce_text,
+    stamp_obr_status,
+    stamp_orc_status,
+    stamp_orc_transaction_time,
     stamp_order_control,
     use_mllp,
 )
@@ -48,6 +53,12 @@ def _send_notes(message: str) -> str:
     order_control = orc_order_control(message)
     if order_control:
         bits.append(f"ORC-1 {order_control}")
+    status_code = orc_status(message)
+    if status_code:
+        bits.append(f"ORC-5 {status_code}")
+    txn = orc_transaction_time(message)
+    if txn:
+        bits.append(f"ORC-9 {txn}")
     status = obr_status(message)
     if status:
         bits.append(f"OBR-25 {status}")
@@ -106,6 +117,7 @@ class Hl7SendTool(BaseTool):
         new_control_id = _flag(options.get("new_control_id"), default=False)
         change_order = _flag(options.get("change_order"), default=False)
         obr_reason_ce = _flag(options.get("obr_reason_ce"), default=False)
+        obr_in_progress = _flag(options.get("obr_in_progress"), default=False)
 
         if not host:
             return ToolResult(
@@ -143,8 +155,12 @@ class Hl7SendTool(BaseTool):
             normalized = stamp_new_control_id(normalized)
         if change_order:
             normalized = stamp_order_control(normalized, "XO")
+            normalized = stamp_orc_transaction_time(normalized)
         if obr_reason_ce:
             normalized = stamp_obr_reason_ce_text(normalized)
+        if obr_in_progress:
+            normalized = stamp_obr_status(normalized, "SC")
+            normalized = stamp_orc_status(normalized, "IP")
 
         steps: list[ToolStep] = []
         connect_started = time.perf_counter()
