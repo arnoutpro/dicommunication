@@ -315,11 +315,22 @@ Add scheduled procedures here. If **Serve the web worklist over DICOM** is on, a
 - **Message** — HL7 v2 starting with `MSH`. The editor shows one segment per row (toggle **Raw** for the full paste). Long pipe-delimited lines wrap. Newlines become CR on the wire.
 - **ACK** — if the peer replies, the result shows the raw ACK and MSA-1 (`AA` / `AE` / `AR`). An ACK is not a promise that PACS applied an order update.
 - **New MSH-10** — on by default in the UI. The same Message Control ID is often ACKed and ignored.
-- **Change existing order (ORC-1 XO)** — on by default in the UI. Repeating `NW` on an order that already exists is usually ACKed and skipped. This sets ORC-1 to `XO` and ORC-9 to now; it does not invent an ORC.
-- **OBR-31 as CE text** — on by default in the UI. Reason for Study is `id^text`. A spaced identifier becomes `firstword^full text`. `^text` (empty id) is filled from the text. PACS that only read the identifier will not see a leading-caret value.
-- **Set OBR-25 to SC (in progress)** — on by default in the UI, test only. XO on a `COMPLETED` exam is the usual ACK-and-ignore case. This also sets ORC-5 to `IP`. An ACK still does not rewrite images already stored in PACS; Study Description is often set at C-STORE.
+- **Change existing order** — on by default. Stamps **ORC-1** (see the control next to it) and **ORC-9**. Philips Vue / IS Link uses **SC** to update an order (`NW` new, `CA` cancel). **XO** is generic HL7 change; Vue often ignores it while Mirth still ACKs.
+- **ORC-1 on change** — UI default is **SC** (Vue). JSON API still stamps `XO` unless you pass `"orc_control": "SC"`.
+- **OBR-31 as CE text** — on by default in the UI. Reason for Study is `id^text`. A spaced identifier becomes `firstword^full text`. `^text` (empty id) is filled from the text. Vue maps OBR-31 to DICOM `(0040,2010)`, which may not be the study description you see in the Vue UI (that is often OBR-4.2 / C-STORE).
+- **Set OBR-25 to SC (in progress)** — on by default, test only. That is **result status**, not Vue’s ORC-1 SC. Also sets ORC-5 to `IP`.
 - The Send result repeats MSH-10, ORC-1, OBR-25, and OBR-31 as they went on the wire, plus a Hint when the ACK is likely not a PACS update.
 - Saved drafts live in `hl7_messages.json` next to config.
+
+### Philips Vue PACS + Mirth Connect
+
+Send to **Mirth’s MLLP port**, not Vue’s DICOM port. The ACK you see is almost always **Mirth**, not Vue.
+
+1. In Mirth **Message Browser**, open the message: received → transformed → **sent** to the Vue / IS Link destination. If it never leaves Mirth (filter, transformer, destination error), Vue will not change.
+2. Vue IS Link order control is **NW** (new), **SC** (update), **CA** (cancel). **XO is not in that table.**
+3. Match the accession Vue already has: **ORC-3 / OBR-3** (filler / order number) and often **OBR-18**. A wrong accession is ACKed by Mirth and ignored by Vue.
+4. Vue maps **OBR-31** to DICOM Reason for Requested Procedure `(0040,2010)`. The text you stare at in Vue is often **Study Description** from the images (C-STORE) or **OBR-4.2**, not OBR-31.
+5. Updating an existing study may also need Vue’s **ZDS** Study Instance UID. IS Link config decides which ORM fields actually overwrite.
 
 ```bash
 curl -s -X POST http://127.0.0.1:8080/api/tools/hl7-send/run \
@@ -439,7 +450,7 @@ This is a trusted-network admin tool. The web UI has no login. Do not publish po
 | Worklist and MWL C-FIND look the same | They are the same SOP Class. Use Testbench Study Root C-FIND to search stored studies. |
 | Empty MWL / C-FIND table but Pass | The SOP Class was accepted and the query succeeded with zero matches. Check station AE, date, and **Present as**. |
 | HL7 send times out / no ACK | Peer is not listening, or that port is DICOM not MLLP. HL7 engines are often `2575` or `6661`, not `104`/`4242`. |
-| HL7 ACK AA but PACS did not update | Engine accepted the bytes. Usual causes: same MSH-10, ORC-1 still `NW`, OBR-31 empty id (`^text`), or OBR-25 `COMPLETED`. Even XO+SC will not rewrite Study Description on images already stored — that is often set at C-STORE. Check the Send transcript. |
+| HL7 ACK AA but Vue did not update | ACK is from **Mirth**, not Vue. Check Mirth sent the message to IS Link. Vue updates with **ORC-1 SC**, not XO. Accession must match ORC-3/OBR-3 (and often OBR-18). OBR-31 is `(0040,2010)`; the Vue UI may show Study Description from C-STORE instead. |
 | PING ICMP fails, TCP succeeds | Normal on locked-down clinical networks. Trust TCP to the DICOM port. |
 | `docker compose --build` fails at `apt-get` with exit 100 | Debian mirrors were unreachable from the Docker builder. Current images copy a static `ping` and do not run apt. Pull/rebuild from this change. |
 | Cannot reach Orthanc from Docker | Use `host.docker.internal` (same Mac/host) or the LAN IP; publish/check `4242`. |

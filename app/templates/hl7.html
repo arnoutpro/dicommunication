@@ -89,8 +89,17 @@
     </label>
     <label class="checkbox span-2">
       <input type="checkbox" name="change_order" value="on" {% if hl7_change_order %}checked{% endif %}>
-      Change existing order (ORC-1 XO)
-      <span class="hint">A new MSH-10 is not enough. Repeating ORC-1 NW on an order that already exists is usually ACKed and skipped. XO means change. This also sets ORC-9 (transaction time). It does not invent an ORC segment.</span>
+      Change existing order
+      <span class="hint">Stamps ORC-1 and ORC-9 (transaction time). Does not invent an ORC. Repeating NW is usually ACKed and skipped.</span>
+    </label>
+    <label>
+      ORC-1 on change
+      <select name="orc_control">
+        <option value="SC" {% if (hl7_orc_control|default("SC")) == "SC" %}selected{% endif %}>SC — Vue / IS Link update order</option>
+        <option value="XO" {% if (hl7_orc_control|default("SC")) == "XO" %}selected{% endif %}>XO — HL7 change order</option>
+        <option value="CA" {% if (hl7_orc_control|default("SC")) == "CA" %}selected{% endif %}>CA — cancel order</option>
+      </select>
+      <span class="hint">Philips Vue PACS (IS Link) documents NW = new, SC = update, CA = cancel. XO is not in that table. This is not OBR-25 SC. A Mirth ACK is not Vue applying the order.</span>
     </label>
     <label class="checkbox span-2">
       <input type="checkbox" name="obr_reason_ce" value="on" {% if hl7_obr_reason_ce %}checked{% endif %}>
@@ -100,7 +109,7 @@
     <label class="checkbox span-2">
       <input type="checkbox" name="obr_in_progress" value="on" {% if hl7_obr_in_progress %}checked{% endif %}>
       Set OBR-25 to SC (in progress)
-      <span class="hint">Test only. XO + a new MSH-10 is still ACKed and ignored when OBR-25 is COMPLETED. This also sets ORC-5 to IP. An ACK still does not rewrite images already stored in PACS.</span>
+      <span class="hint">Test only. Sets OBR-25 (result status) to SC and ORC-5 to IP. That is not the same as ORC-1 SC (Vue update). Vue may still skip a finished exam. An ACK still does not rewrite images already stored.</span>
     </label>
     <label>
       Save as
