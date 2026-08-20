@@ -6,6 +6,7 @@
 - HL7 send: XO also stamps ORC-9. OBR-31 CE now fills an empty identifier (`arnout.pro^arnout.pro SEH` instead of `^arnout.pro SEH`). A **Set OBR-25 to SC** checkbox tests the usual completed-exam skip; an ACK still does not rewrite images already in PACS.
 - HL7 send: **ORC-1 on change** can stamp Vue / IS Link **SC** (update order). XO is not in the Vue order-control table; a Mirth ACK is not Vue applying the order.
 - HL7 send: if Vue **IS Link is empty** after an ACK, Host/Port is not the IS Link listener. The ACK step shows **MSH-3** (who answered). Hints say to send to IS Link’s listen host:port from IS Link Configuration — no Mirth access required.
+- HL7 send: Philips Vue **10010** (and 4001/4003/4005) is the usual **HL7 VIP**, not IS Link’s process bind port. An ACK there with an empty IS Link queue is expected if Mirth or IBE sits behind the VIP. The transcript also repeats **MSH-5 / MSH-6**.
 
 ## 0.3.0
 

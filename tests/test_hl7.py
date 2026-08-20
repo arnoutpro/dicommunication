@@ -328,6 +328,29 @@ def test_send_wire_hints_for_repeat_new_order() -> None:
         ack="MSH|^~\\&|ISLINK|VUE\rMSA|AA|MSG00001",
     )
     assert any("looks like IS Link" in hint for hint in islink)
+    vip = send_wire_hints(
+        _orm(orc="SC", reason="arnout.pro^arnout.pro SEH", status="SC"),
+        ack="MSH|^~\\&|RECVAPP|FAC\rMSA|AA|MSG00001",
+        port=10010,
+    )
+    assert any("10010" in hint and "HL7 VIP" in hint for hint in vip)
+    mirth_vip = send_wire_hints(
+        _orm(orc="SC", reason="arnout.pro^arnout.pro SEH", status="SC"),
+        ack="MSH|^~\\&|MIRTH|HOSP\rMSA|AA|MSG00001",
+        port=10010,
+    )
+    assert any("ACK MSH-3 is MIRTH" in hint and "10010" in hint for hint in mirth_vip)
+    ibe = send_wire_hints(
+        _orm(orc="SC", reason="arnout.pro^arnout.pro SEH", status="SC"),
+        ack="MSH|^~\\&|IBE|VUE\rMSA|AA|MSG00001",
+        port=10010,
+    )
+    assert any("Vue IBE" in hint for hint in ibe)
+    scribe = send_wire_hints(
+        _orm(orc="SC", reason="arnout.pro^arnout.pro SEH", status="SC"),
+        ack="MSH|^~\\&|SCRIBE|FAC\rMSA|AA|MSG00001",
+    )
+    assert not any("Vue IBE" in hint for hint in scribe)
 
 
 def test_hl7_tool_stamps_control_id_when_requested() -> None:
@@ -525,6 +548,8 @@ def test_hl7_page_has_resend_hint(client) -> None:
     assert b"OBR-31" in page.content
     assert b"IS Link Incoming and Error" in page.content
     assert b"ACK MSH-3" in page.content
+    assert b"HL7 VIP" in page.content
+    assert b"10010" in page.content
 
 
 def test_hl7_page_has_wrapping_segment_editor(client) -> None:

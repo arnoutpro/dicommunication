@@ -242,38 +242,77 @@ def _set_field(message: str, prefix: str, index: int, value: str) -> str:
     return "\r".join(segments)
 
 
+# Philips Vue HL7_VIP (load-balancer front door). Not IS Link's process bind port.
+VUE_HL7_VIP_PORTS = frozenset({10010, 4001, 4003, 4005})
+
+
 def _ack_peer_kind(ack: str) -> str:
     """Best-effort label for who sent the ACK. Empty if unknown."""
-    blob = f"{msh_field(ack, 3)} {msh_field(ack, 4)}".upper()
-    compact = blob.replace(" ", "")
-    if "MIRTH" in blob or "NEXTGENCONNECT" in compact:
+    app_id = msh_field(ack, 3).split("^", 1)[0].strip().upper().replace(" ", "")
+    fac_id = msh_field(ack, 4).split("^", 1)[0].strip().upper().replace(" ", "")
+    blob = f"{app_id} {fac_id}"
+    if "MIRTH" in blob or "NEXTGENCONNECT" in blob.replace(" ", ""):
         return "mirth"
-    if "ISLINK" in compact or "CSISLINK" in compact or "CARESTREAM" in compact:
+    if app_id in {"ISLINK", "CSISLINK"} or "ISLINK" in app_id or fac_id in {"CARESTREAM"}:
         return "islink"
+    if app_id == "IBE":
+        return "ibe"
     return ""
 
 
-def send_wire_hints(message: str, ack: str = "") -> list[str]:
+def _routing_hint(message: str, ack: str = "", port: int | None = None) -> str | None:
+    """Empty IS Link after ACK is routing, not OBR-31. None if this is not an order."""
+    if not any(seg.startswith("OBR|") for seg in _segments(message)):
+        return None
+    ack_app = msh_field(ack, 3)
+    peer_kind = _ack_peer_kind(ack) if ack.strip() else ""
+    vip = port in VUE_HL7_VIP_PORTS if port is not None else False
+    vip_note = (
+        f" Port {port} is Philips Vue's usual HL7 VIP (10010/4001/4003/4005), not proof you hit IS Link's process."
+        if vip
+        else ""
+    )
+    if peer_kind == "mirth":
+        return (
+            f"ACK MSH-3 is {ack_app}. That is Mirth, not Vue.{vip_note} "
+            "IS Link stays empty because this never reached the IS Link listener. "
+            "In IS Link Configuration, read the Listener bind port. If it is not this port, send there. You do not need Mirth for that test."
+        )
+    if peer_kind == "ibe":
+        return (
+            f"ACK MSH-3 is {ack_app}. That looks like Vue IBE, not IS Link.{vip_note} "
+            "IS Link stays empty until the ORM reaches the IS Link Listener process. "
+            "In IS Link Configuration, read the Listener bind port and send there."
+        )
+    if peer_kind == "islink":
+        return (
+            f"ACK MSH-3 is {ack_app}. That looks like IS Link. If Incoming and Error are still empty, "
+            "this is the wrong IS Link instance, a date/filter miss, or MSH-5/MSH-6 do not match what that listener accepts."
+        )
+    who = f" ACK MSH-3 is {ack_app}." if ack_app else ""
+    if vip:
+        return (
+            f"Port {port} is Philips Vue's usual HL7 VIP (10010/4001/4003/4005), not IS Link's own bind port.{who} "
+            "The ACK is from the VIP or whatever sits behind it (often Mirth or IBE). "
+            "In IS Link Configuration, read the Listener process port. If it differs, send to that host:port. "
+            "On the IS Link server, check which executable owns this port."
+        )
+    return (
+        f"The ACK is from the TCP peer (often Mirth Connect), not Vue.{who} "
+        "If IS Link's incoming queue is empty, put IS Link's Listener bind host and port in Host/Port and send again. "
+        "You do not need Mirth for that test."
+    )
+
+
+def send_wire_hints(message: str, ack: str = "", port: int | None = None) -> list[str]:
     """Likely reasons an ACK AA still leaves PACS unchanged. Not a validator."""
     hints: list[str] = []
     order = orc_order_control(message)
     order_id = order.split("^", 1)[0].strip().upper()
+    routing = _routing_hint(message, ack=ack, port=port)
+    if routing:
+        hints.append(routing)
     has_obr = any(seg.startswith("OBR|") for seg in _segments(message))
-    ack_app = msh_field(ack, 3)
-    peer_kind = _ack_peer_kind(ack) if ack.strip() else ""
-    if has_obr and peer_kind == "mirth":
-        hints.append(
-            f"ACK MSH-3 is {ack_app}. That is Mirth, not Vue. IS Link stays empty because this never reached the IS Link listener. In IS Link Configuration, copy the HL7 listen host and port into Host/Port and send again. You do not need Mirth for that test."
-        )
-    elif has_obr and peer_kind == "islink":
-        hints.append(
-            f"ACK MSH-3 is {ack_app}. That looks like IS Link. If Incoming and Error are still empty, this is the wrong IS Link instance, or MSH-5/MSH-6 do not match what that listener accepts."
-        )
-    elif has_obr:
-        who = f" ACK MSH-3 is {ack_app}." if ack_app else ""
-        hints.append(
-            f"The ACK is from the TCP peer (often Mirth Connect), not Vue.{who} If IS Link's incoming queue is empty, put IS Link's listen host and port in Host/Port and send again. You do not need Mirth for that test."
-        )
     if has_obr and not order:
         hints.append(
             "This message has an OBR but no ORC. Many PACS ignore an order change without ORC-1 XO or SC."
