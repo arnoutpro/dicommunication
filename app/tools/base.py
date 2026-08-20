@@ -14,6 +14,7 @@ class BaseTool(ABC):
     description: ClassVar[str]
     category: ClassVar[str] = "general"
     requires_remote: ClassVar[bool] = True
+    template: ClassVar[str] = "tool.html"
 
     @abstractmethod
     def run(

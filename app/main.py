@@ -24,9 +24,11 @@ from app.applog import (
     should_skip_http_log,
     viewer_lines,
 )
+from app.hl7 import DEFAULT_PORT, display_hl7, sample_adt_a01
 from app.echo_board import run_all as run_echo_board
 from app.echo_board import snapshot as echo_board_snapshot
 from app.models import (
+    Hl7Message,
     LocalAE,
     LoggingSettings,
     RemoteNode,
@@ -59,7 +61,7 @@ def _as_bool(value: str | None) -> bool:
 
 
 class RunRequest(BaseModel):
-    remote_id: str
+    remote_id: str | None = None
     options: dict[str, Any] | None = None
     identity_id: str | None = None
 
@@ -156,7 +158,7 @@ def create_app(store: ConfigStore | None = None) -> FastAPI:
 
     def execute_tool(
         tool_id: str,
-        remote_id: str,
+        remote_id: str | None = None,
         options: dict[str, Any] | None = None,
         identity_id: str | None = None,
     ) -> ToolResult:
@@ -165,7 +167,7 @@ def create_app(store: ConfigStore | None = None) -> FastAPI:
             tool = get_tool(tool_id)
         except KeyError as exc:
             raise HTTPException(status_code=404, detail=str(exc)) from exc
-        remote = config.get_remote(remote_id)
+        remote = config.get_remote(remote_id) if remote_id else None
         if tool.requires_remote and remote is None:
             raise HTTPException(status_code=400, detail="A remote DICOM node is required")
         try:
@@ -173,9 +175,10 @@ def create_app(store: ConfigStore | None = None) -> FastAPI:
         except KeyError as exc:
             raise HTTPException(status_code=400, detail="Virtual local AE not found") from exc
         result = tool.run(local, remote, options)
-        result.calling_ae = local.ae_title
+        if tool.id != "hl7-send":
+            result.calling_ae = local.ae_title
         app.state.store.add_result(result)
-        target = remote.name if remote else "local"
+        target = remote.name if remote else (result.remote_name or "local")
         message = "Run %s as %s → %s: %s" % (tool_id, local.ae_title, target, result.summary)
         if result.ok:
             log.info(message)
@@ -722,15 +725,170 @@ def create_app(store: ConfigStore | None = None) -> FastAPI:
         app.state.store.delete_worklist_entry(entry_id)
         return RedirectResponse("/worklist?saved=deleted", status_code=303)
 
+    def _hl7_page(
+        request: Request,
+        *,
+        result: ToolResult | None = None,
+        error: str | None = None,
+        saved: str | None = None,
+        host: str = "",
+        port: str = "",
+        message: str = "",
+        mllp: bool = True,
+        save_name: str = "",
+        remote_id: str = "",
+        status_code: int = 200,
+    ):
+        tool = get_tool("hl7-send")
+        if not message:
+            message = display_hl7(
+                sample_adt_a01(sending_app=app.state.store.load().local.ae_title)
+            )
+        return templates.TemplateResponse(
+            request,
+            tool.template,
+            page(
+                request,
+                nav="tools",
+                tool=tool,
+                tool_id=tool.id,
+                result=result,
+                error=error,
+                saved=saved,
+                messages=app.state.store.list_hl7_messages(),
+                hl7_host=host,
+                hl7_port=str(port or DEFAULT_PORT),
+                hl7_message=message,
+                hl7_mllp=mllp,
+                hl7_save_name=save_name,
+                remote_id=remote_id,
+            ),
+            status_code=status_code,
+        )
+
+    @app.post("/tools/hl7-send/run")
+    def hl7_send_run(
+        request: Request,
+        host: str = Form(""),
+        port: str = Form(str(DEFAULT_PORT)),
+        message: str = Form(""),
+        mllp: str = Form("mllp"),
+        remote_id: str = Form(""),
+        name: str = Form(""),
+    ):
+        options = {"host": host, "port": port, "message": message, "mllp": mllp}
+        try:
+            result = execute_tool("hl7-send", remote_id or None, options)
+        except HTTPException as exc:
+            failure = ToolResult(
+                tool_id="hl7-send",
+                tool_name="HL7 send",
+                ok=False,
+                summary=str(exc.detail),
+            )
+            if _hx(request):
+                return templates.TemplateResponse(
+                    request,
+                    "partials/result.html",
+                    {"request": request, "result": failure},
+                    status_code=exc.status_code,
+                )
+            return _hl7_page(
+                request,
+                result=failure,
+                host=host,
+                port=port,
+                message=display_hl7(message),
+                mllp=mllp != "raw",
+                save_name=name,
+                remote_id=remote_id,
+                status_code=exc.status_code,
+            )
+        if _hx(request):
+            return templates.TemplateResponse(
+                request,
+                "partials/result.html",
+                {"request": request, "result": result},
+            )
+        return _hl7_page(
+            request,
+            result=result,
+            host=host,
+            port=port,
+            message=display_hl7(message),
+            mllp=mllp != "raw",
+            save_name=name,
+            remote_id=remote_id,
+        )
+
+    @app.post("/tools/hl7-send/messages")
+    def save_hl7_message(
+        request: Request,
+        name: str = Form(""),
+        message: str = Form(""),
+        host: str = Form(""),
+        port: str = Form(""),
+        mllp: str = Form("mllp"),
+        remote_id: str = Form(""),
+    ):
+        try:
+            entry = Hl7Message(name=name, body=message)
+        except ValidationError as exc:
+            return _hl7_page(
+                request,
+                error=_first_error(exc),
+                host=host,
+                port=port,
+                message=display_hl7(message) if message.strip() else "",
+                mllp=mllp != "raw",
+                save_name=name,
+                remote_id=remote_id,
+                status_code=400,
+            )
+        saved = app.state.store.add_hl7_message(entry)
+        log.info("Saved HL7 draft %s", saved.name)
+        return RedirectResponse(f"/tools/hl7-send?load={saved.id}&saved=1", status_code=303)
+
+    @app.post("/tools/hl7-send/messages/{message_id}/delete")
+    def delete_hl7_message(message_id: str):
+        app.state.store.delete_hl7_message(message_id)
+        log.info("Deleted HL7 draft %s", message_id)
+        return RedirectResponse("/tools/hl7-send?saved=deleted", status_code=303)
+
     @app.get("/tools/{tool_id}", response_class=HTMLResponse)
-    def tool_page(request: Request, tool_id: str) -> HTMLResponse:
+    def tool_page(
+        request: Request,
+        tool_id: str,
+        load: str | None = None,
+        saved: str | None = None,
+    ) -> HTMLResponse:
         try:
             tool = get_tool(tool_id)
         except KeyError as exc:
             raise HTTPException(status_code=404, detail=str(exc)) from exc
+        if tool_id == "hl7-send":
+            host = request.query_params.get("host", "")
+            port = request.query_params.get("port", str(DEFAULT_PORT))
+            message = ""
+            save_name = ""
+            if load:
+                stored = app.state.store.get_hl7_message(load)
+                if stored:
+                    message = display_hl7(stored.body)
+                    save_name = stored.name
+            return _hl7_page(
+                request,
+                saved=saved,
+                host=host,
+                port=port,
+                message=message,
+                mllp=request.query_params.get("mllp", "mllp") != "raw",
+                save_name=save_name,
+                remote_id=request.query_params.get("remote_id", ""),
+            )
         return templates.TemplateResponse(
             request,
-            "tool.html",
+            tool.template,
             page(request, nav="tools", tool=tool, tool_id=tool.id, result=None),
         )
 
@@ -770,7 +928,7 @@ def create_app(store: ConfigStore | None = None) -> FastAPI:
             tool = None
         return templates.TemplateResponse(
             request,
-            "tool.html",
+            tool.template if tool else "tool.html",
             page(request, nav="tools", tool=tool, tool_id=tool_id, result=result),
         )
 
@@ -800,6 +958,19 @@ def create_app(store: ConfigStore | None = None) -> FastAPI:
     def api_delete_worklist_entry(entry_id: str):
         app.state.store.delete_worklist_entry(entry_id)
         return JSONResponse({"ok": True, "id": entry_id})
+
+    @app.get("/api/hl7/messages")
+    def api_hl7_messages():
+        return app.state.store.list_hl7_messages()
+
+    @app.post("/api/hl7/messages", status_code=201)
+    def api_add_hl7_message(message: Hl7Message):
+        return app.state.store.add_hl7_message(message)
+
+    @app.delete("/api/hl7/messages/{message_id}")
+    def api_delete_hl7_message(message_id: str):
+        app.state.store.delete_hl7_message(message_id)
+        return JSONResponse({"ok": True, "id": message_id})
 
     @app.get("/api/config")
     def api_config():

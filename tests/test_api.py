@@ -60,6 +60,10 @@ def test_health_and_pages(client) -> None:
     assert b"Log view" in logs.content
     echo = client.get("/tools/c-echo")
     assert echo.status_code == 200
+    hl7 = client.get("/tools/hl7-send")
+    assert hl7.status_code == 200
+    assert b"HL7 send" in hl7.content
+    assert b"Send HL7" in hl7.content
     testbench = client.get("/testbench")
     assert testbench.status_code == 200
     assert b"C-STORE" in testbench.content
@@ -142,7 +146,7 @@ def test_reject_oversized_ae_title(client) -> None:
 def test_json_api_config_tools_and_run(client, store) -> None:
     listed = client.get("/api/tools").json()
     ids = {item["id"] for item in listed}
-    assert {"ping", "c-echo", "mwl-find", "c-store", "c-find"} <= ids
+    assert {"ping", "c-echo", "mwl-find", "c-store", "c-find", "hl7-send"} <= ids
 
     remote = RemoteNode(name="api node", ae_title="APINODE", host="127.0.0.1", port=9)
     created = client.post("/api/remotes", json=remote.model_dump(mode="json"))

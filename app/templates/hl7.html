@@ -1,0 +1,128 @@
+{% extends "base.html" %}
+{% block title %}{{ tool.name }} · Dicommunication{% endblock %}
+{% block content %}
+<header class="page-head">
+  <div>
+    <p class="eyebrow">{{ tool.category }}</p>
+    <h1>{{ tool.name }}</h1>
+    <p class="lede">{{ tool.description }}</p>
+  </div>
+</header>
+
+{% if saved %}
+<div class="flash ok" data-autohide>{% if saved == "deleted" %}Message deleted.{% else %}Message saved.{% endif %}</div>
+{% endif %}
+{% if error %}
+<div class="flash fail">{{ error }}</div>
+{% endif %}
+
+<section class="panel">
+  <header class="panel-head">
+    <h2>Send a message</h2>
+    <span class="muted">TCP {{ hl7_port }} · {{ "MLLP" if hl7_mllp else "raw" }}</span>
+  </header>
+  <form
+    class="form-grid"
+    method="post"
+    action="/tools/hl7-send/run"
+    autocomplete="off"
+  >
+    {% if config.remotes %}
+    <label>
+      Host from a remote node
+      <select name="remote_id">
+        <option value="">Type a host below</option>
+        {% for remote in config.remotes %}
+        <option value="{{ remote.id }}" {% if remote_id == remote.id %}selected{% endif %}>
+          {{ remote.name }} — {{ remote.connect_host }} (DICOM {{ remote.port }})
+        </option>
+        {% endfor %}
+      </select>
+      <span class="hint">Uses that node’s host only. HL7 ports are not DICOM ports.</span>
+    </label>
+    {% else %}
+    <input type="hidden" name="remote_id" value="">
+    {% endif %}
+    <label>
+      Host
+      <input name="host" value="{{ hl7_host }}" placeholder="10.0.0.20" {% if not config.remotes %}required{% endif %}>
+    </label>
+    <label>
+      Port
+      <input name="port" type="number" min="1" max="65535" value="{{ hl7_port }}" required>
+    </label>
+    <label>
+      Framing
+      <select name="mllp">
+        <option value="mllp" {% if hl7_mllp %}selected{% endif %}>MLLP (0x0B … 0x1C 0x0D)</option>
+        <option value="raw" {% if not hl7_mllp %}selected{% endif %}>Raw TCP</option>
+      </select>
+    </label>
+    <label class="span-2">
+      HL7 v2 message
+      <textarea class="hl7-body" name="message" rows="12" spellcheck="false" required>{{ hl7_message }}</textarea>
+      <span class="hint">Segments can be one per line. They are sent with CR separators. This screen does not validate fields.</span>
+    </label>
+    <label>
+      Save as
+      <input name="name" value="{{ hl7_save_name }}" placeholder="ADT A01 test">
+    </label>
+    <div class="form-actions">
+      <button
+        class="button primary"
+        type="submit"
+        hx-post="/tools/hl7-send/run"
+        hx-target="#result"
+        hx-indicator="#busy"
+        hx-timeout="120000"
+      >
+        Send HL7
+      </button>
+      <button class="button" type="submit" formaction="/tools/hl7-send/messages">Save message</button>
+      <span id="busy" class="htmx-indicator spinner">Sending…</span>
+    </div>
+  </form>
+</section>
+
+<div id="result">
+  {% if result %}
+    {% include "partials/result.html" %}
+  {% endif %}
+</div>
+
+<section class="panel">
+  <header class="panel-head">
+    <h2>Saved messages</h2>
+    <span class="muted">{{ messages | length }} draft{% if messages | length != 1 %}s{% endif %}</span>
+  </header>
+  {% if messages %}
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Starts with</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for item in messages %}
+        <tr>
+          <td><strong>{{ item.name }}</strong></td>
+          <td><code>{{ item.preview }}</code></td>
+          <td class="actions">
+            <a href="/tools/hl7-send?load={{ item.id }}">Load</a>
+            <form method="post" action="/tools/hl7-send/messages/{{ item.id }}/delete" class="inline" data-confirm="Delete this saved message?">
+              <button type="submit" class="link-button danger">Delete</button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p class="muted">No saved drafts yet. Paste a message, give it a name, and click Save message.</p>
+  {% endif %}
+</section>
+{% endblock %}
