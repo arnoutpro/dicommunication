@@ -268,7 +268,8 @@ def _routing_hint(message: str, ack: str = "", port: int | None = None) -> str |
     peer_kind = _ack_peer_kind(ack) if ack.strip() else ""
     vip = port in VUE_HL7_VIP_PORTS if port is not None else False
     vip_note = (
-        f" Port {port} is Philips Vue's usual HL7 VIP (10010/4001/4003/4005), not proof you hit IS Link's process."
+        f" Port {port} is a common Vue HL7 port (HL7 VIP and/or IS Link Listener bind). "
+        "Match Host to this IS Link server's Listener Host IP. Messages show under Queues & Notifications, not the Listeners settings page."
         if vip
         else ""
     )
@@ -276,13 +277,13 @@ def _routing_hint(message: str, ack: str = "", port: int | None = None) -> str |
         return (
             f"ACK MSH-3 is {ack_app}. That is Mirth, not Vue.{vip_note} "
             "IS Link stays empty because this never reached the IS Link listener. "
-            "In IS Link Configuration, read the Listener bind port. If it is not this port, send there. You do not need Mirth for that test."
+            "In IS Link Configuration, match Host to the Listener Host IP. Confirm the Listener process is started. You do not need Mirth for that test."
         )
     if peer_kind == "ibe":
         return (
             f"ACK MSH-3 is {ack_app}. That looks like Vue IBE, not IS Link.{vip_note} "
             "IS Link stays empty until the ORM reaches the IS Link Listener process. "
-            "In IS Link Configuration, read the Listener bind port and send there."
+            "In IS Link Configuration, match Host to the Listener Host IP and confirm the Listener process is started."
         )
     if peer_kind == "islink":
         return (
@@ -292,10 +293,10 @@ def _routing_hint(message: str, ack: str = "", port: int | None = None) -> str |
     who = f" ACK MSH-3 is {ack_app}." if ack_app else ""
     if vip:
         return (
-            f"Port {port} is Philips Vue's usual HL7 VIP (10010/4001/4003/4005), not IS Link's own bind port.{who} "
-            "The ACK is from the VIP or whatever sits behind it (often Mirth or IBE). "
-            "In IS Link Configuration, read the Listener process port. If it differs, send to that host:port. "
-            "On the IS Link server, check which executable owns this port."
+            f"Port {port} is a common Vue HL7 port (HL7 VIP and/or IS Link Listener bind).{who} "
+            "The Listeners page is settings, not the inbound queue. Send to that listener's Host IP on this port, "
+            "confirm the Listener process is started, then look at Queues & Notifications. "
+            "Control Port (often 2112) is not MLLP."
         )
     return (
         f"The ACK is from the TCP peer (often Mirth Connect), not Vue.{who} "

@@ -333,7 +333,7 @@ def test_send_wire_hints_for_repeat_new_order() -> None:
         ack="MSH|^~\\&|RECVAPP|FAC\rMSA|AA|MSG00001",
         port=10010,
     )
-    assert any("10010" in hint and "HL7 VIP" in hint for hint in vip)
+    assert any("10010" in hint and "Queues & Notifications" in hint for hint in vip)
     mirth_vip = send_wire_hints(
         _orm(orc="SC", reason="arnout.pro^arnout.pro SEH", status="SC"),
         ack="MSH|^~\\&|MIRTH|HOSP\rMSA|AA|MSG00001",
@@ -546,10 +546,10 @@ def test_hl7_page_has_resend_hint(client) -> None:
     assert b"Set OBR-25 to SC" in page.content
     assert b"ORC-1" in page.content
     assert b"OBR-31" in page.content
-    assert b"IS Link Incoming and Error" in page.content
+    assert b"Queues" in page.content
     assert b"ACK MSH-3" in page.content
-    assert b"HL7 VIP" in page.content
     assert b"10010" in page.content
+    assert b"2112" in page.content
 
 
 def test_hl7_page_has_wrapping_segment_editor(client) -> None:
