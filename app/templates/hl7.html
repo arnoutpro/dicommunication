@@ -25,6 +25,7 @@
     class="form-grid"
     method="post"
     action="/tools/hl7-send/run"
+    enctype="multipart/form-data"
     autocomplete="off"
   >
     {% if config.remotes %}
@@ -62,6 +63,11 @@
       HL7 v2 message
       <textarea class="hl7-body" name="message" rows="12" spellcheck="false" required>{{ hl7_message }}</textarea>
       <span class="hint">Segments can be one per line. They are sent with CR separators. This screen does not validate fields.</span>
+    </label>
+    <label class="checkbox span-2">
+      <input type="checkbox" name="new_control_id" value="on" {% if hl7_new_control_id %}checked{% endif %}>
+      New Message Control ID (MSH-10)
+      <span class="hint">An ACK only means the engine accepted the bytes. The same MSH-10 is often ACKed and ignored. To change an existing order, set ORC-1 to XO (not NW) and put Reason for Study in OBR-31 (the 31st OBR field).</span>
     </label>
     <label>
       Save as

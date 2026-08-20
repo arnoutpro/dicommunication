@@ -313,7 +313,8 @@ Add scheduled procedures here. If **Serve the web worklist over DICOM** is on, a
 - **Host / port** — the HL7 engine, not the DICOM port. Common MLLP ports are `2575` and `6661`. You can copy a *host* from a saved DICOM remote; you still type the HL7 port.
 - **Framing** — MLLP (`0x0B` … `0x1C 0x0D`) is the default. Raw TCP is there for engines that do not wrap.
 - **Message** — HL7 v2 starting with `MSH`. Newlines in the textarea become CR on the wire.
-- **ACK** — if the peer replies, the result shows the raw ACK and MSA-1 (`AA` / `AE` / `AR`). Fields are not mapped.
+- **ACK** — if the peer replies, the result shows the raw ACK and MSA-1 (`AA` / `AE` / `AR`). An ACK is not a promise that PACS applied an order update.
+- **New MSH-10** — on by default in the UI. The same Message Control ID is often ACKed and ignored. To change an existing ORM order, set **ORC-1** to `XO` (not `NW`) and put Reason for Study in **OBR-31** (count the pipes). The Send result repeats MSH-10, ORC-1, and OBR-31 as they went on the wire.
 - Saved drafts live in `hl7_messages.json` next to config.
 
 ```bash
@@ -434,6 +435,7 @@ This is a trusted-network admin tool. The web UI has no login. Do not publish po
 | Worklist and MWL C-FIND look the same | They are the same SOP Class. Use Testbench Study Root C-FIND to search stored studies. |
 | Empty MWL / C-FIND table but Pass | The SOP Class was accepted and the query succeeded with zero matches. Check station AE, date, and **Present as**. |
 | HL7 send times out / no ACK | Peer is not listening, or that port is DICOM not MLLP. HL7 engines are often `2575` or `6661`, not `104`/`4242`. |
+| HL7 ACK AA but PACS did not update | Same MSH-10 (duplicate) or ORC-1 still `NW` on an existing order. Use a new MSH-10 and `XO` to change. Check the Send transcript for OBR-31 — it must be the 31st OBR field. |
 | PING ICMP fails, TCP succeeds | Normal on locked-down clinical networks. Trust TCP to the DICOM port. |
 | `docker compose --build` fails at `apt-get` with exit 100 | Debian mirrors were unreachable from the Docker builder. Current images copy a static `ping` and do not run apt. Pull/rebuild from this change. |
 | Cannot reach Orthanc from Docker | Use `host.docker.internal` (same Mac/host) or the LAN IP; publish/check `4242`. |
