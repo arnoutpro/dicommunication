@@ -143,7 +143,7 @@ CI builds `dicommunication-<version>-win64.msi` on `windows-latest` (workflow **
 
 ```text
 dotnet nuget add source --name github-arnoutpro --username YOUR_GITHUB_USERNAME --password YOUR_PAT --store-password-in-clear-text https://nuget.pkg.github.com/arnoutpro/index.json
-dotnet nuget install dicommunication.msi --version 0.2.0 --source github-arnoutpro
+dotnet nuget install dicommunication.msi --version 0.3.0 --source github-arnoutpro
 ```
 
 The already-cut `v0.2.0` MSI can be wrapped without rebuilding: **Actions → Windows MSI → Run workflow** and set `nuget_from_release` to `v0.2.0`.
