@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- HL7 send: paste or save an HL7 v2 message and send it over TCP (MLLP by default) to a host:port. This is a sender, not a message analyzer; the result shows the raw ACK / MSA-1.
 - Mac DMG: Finder launches show the native window. PyInstaller argv emulation was fighting Cocoa/pywebview (Dock icon and a live process, no window). Frozen launches also append `~/.dicommunication/launch.log`.
 - Frozen Mac and Windows builds open the UI in a native app window (WKWebView / Edge WebView2), not a Safari or Chrome tab. `--browser` still uses the system browser; `--no-browser` is server-only.
 - Dock, Finder, the Windows Start menu, and the native window use the **Sansation Bold** capital A (same letter as the watermark), not a geometric stand-in and not PyInstaller’s floppy-disk icon.

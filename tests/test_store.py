@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from app.models import LocalAE, RemoteNode, VirtualAE
+from app.models import Hl7Message, LocalAE, RemoteNode, VirtualAE
 from app.store import ConfigStore
 
 
@@ -45,3 +45,16 @@ def test_store_roundtrip_virtual_ae(tmp_path) -> None:
     assert store.load().identities[0].scheduled_station_ae_title == "CTROOM1"
     store.delete_identity(identity.id)
     assert store.load().identities == []
+
+
+def test_store_roundtrip_hl7_messages(tmp_path) -> None:
+    store = ConfigStore(tmp_path)
+    stored = store.add_hl7_message(Hl7Message(name="ADT", body="MSH|^~\\&|A|B"))
+    listed = ConfigStore(tmp_path).list_hl7_messages()
+    assert len(listed) == 1
+    assert listed[0].id == stored.id
+    assert listed[0].name == "ADT"
+    assert store.get_hl7_message(stored.id) is not None
+    store.delete_hl7_message(stored.id)
+    assert store.list_hl7_messages() == []
+    assert store.get_hl7_message(stored.id) is None
