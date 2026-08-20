@@ -346,3 +346,33 @@ class WorklistQueryResult(BaseModel):
     log: str = ""
     contexts: list[dict[str, Any]] = Field(default_factory=list)
     calling_ae: str = ""
+
+
+class Hl7Message(BaseModel):
+    """A saved HL7 v2 draft. Stored as text; not parsed."""
+
+    id: str = Field(default_factory=lambda: uuid.uuid4().hex[:12])
+    name: str
+    body: str
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+    @field_validator("name")
+    @classmethod
+    def _required_name(cls, value: str) -> str:
+        value = (value or "").strip()
+        if not value:
+            raise ValueError("This field is required")
+        return value
+
+    @field_validator("body")
+    @classmethod
+    def _required_body(cls, value: str) -> str:
+        value = (value or "").strip()
+        if not value:
+            raise ValueError("Paste an HL7 v2 message first")
+        return value
+
+    @property
+    def preview(self) -> str:
+        text = self.body.replace("\r\n", " ").replace("\r", " ").replace("\n", " ").strip()
+        return text[:48]
