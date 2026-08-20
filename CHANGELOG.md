@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- HL7 send: the UI can set ORC-1 to XO (change order) and put OBR-31 into the CE text component (`^text`). A new MSH-10 alone is not an order update. The Send result also repeats OBR-25 and adds a Hint when an ACK is likely not a PACS update.
+
 ## 0.3.0
 
 HL7 send, native desktop window, Mac DMG, app icon, denser chrome, and MSI GitHub Packages.
