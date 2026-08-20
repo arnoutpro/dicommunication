@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- HL7 send: the Send result shows MSH-10, ORC-1, and OBR-31 as they went on the wire. The UI can stamp a new Message Control ID so a resend is not treated as a duplicate. An ACK still only means the engine accepted the bytes.
 - HL7 send: paste or save an HL7 v2 message and send it over TCP (MLLP by default) to a host:port. This is a sender, not a message analyzer; the result shows the raw ACK / MSA-1.
 - Mac DMG: Finder launches show the native window. PyInstaller argv emulation was fighting Cocoa/pywebview (Dock icon and a live process, no window). Frozen launches also append `~/.dicommunication/launch.log`.
 - Frozen Mac and Windows builds open the UI in a native app window (WKWebView / Edge WebView2), not a Safari or Chrome tab. `--browser` still uses the system browser; `--no-browser` is server-only.

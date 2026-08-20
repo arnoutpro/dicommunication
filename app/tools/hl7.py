@@ -9,9 +9,14 @@ from app.hl7 import (
     DEFAULT_PORT,
     MAX_MESSAGE_CHARS,
     display_hl7,
+    latin1_replaced,
+    msh_control_id,
     msa_ack_code,
     normalize_hl7,
+    obr_reason,
+    orc_order_control,
     send_hl7,
+    stamp_new_control_id,
     use_mllp,
 )
 from app.models import LocalAE, RemoteNode, ToolResult, ToolStep
@@ -21,6 +26,31 @@ from app.tools.registry import register
 
 def _elapsed_ms(started: float) -> float:
     return round((time.perf_counter() - started) * 1000, 1)
+
+
+def _flag(value: object, default: bool = False) -> bool:
+    if value is None or value == "":
+        return default
+    if isinstance(value, bool):
+        return value
+    return str(value).strip().lower() in {"1", "true", "on", "yes"}
+
+
+def _send_notes(message: str) -> str:
+    bits: list[str] = []
+    control_id = msh_control_id(message)
+    if control_id:
+        bits.append(f"MSH-10 {control_id}")
+    order_control = orc_order_control(message)
+    if order_control:
+        bits.append(f"ORC-1 {order_control}")
+    obr_fields, reason = obr_reason(message)
+    if obr_fields:
+        if reason is None:
+            bits.append(f"OBR has {obr_fields} fields (no OBR-31)")
+        else:
+            bits.append(f"OBR-31 {reason or '(empty)'}")
+    return f" · {' · '.join(bits)}" if bits else ""
 
 
 class Hl7SendTool(BaseTool):
@@ -66,6 +96,7 @@ class Hl7SendTool(BaseTool):
         message = str(options.get("message") or "")
         mllp = use_mllp(options.get("mllp"), default=True)
         timeout = float(options.get("timeout") or local.timeout_seconds)
+        new_control_id = _flag(options.get("new_control_id"), default=False)
 
         if not host:
             return ToolResult(
@@ -99,6 +130,8 @@ class Hl7SendTool(BaseTool):
                 summary="HL7 v2 messages start with an MSH segment.",
                 remote_name=endpoint,
             )
+        if new_control_id:
+            normalized = stamp_new_control_id(normalized)
 
         steps: list[ToolStep] = []
         connect_started = time.perf_counter()
@@ -125,11 +158,20 @@ class Hl7SendTool(BaseTool):
             )
 
         framing = "MLLP" if mllp else "raw TCP"
+        notes = _send_notes(normalized)
+        if latin1_replaced(normalized):
+            steps.append(
+                ToolStep(
+                    name="Encoding",
+                    ok=True,
+                    message="Non-Latin-1 characters were replaced with '?' before sending.",
+                )
+            )
         steps.append(
             ToolStep(
                 name="Send",
                 ok=True,
-                message=f"Sent {len(normalized)} characters to {host}:{port} ({framing})",
+                message=f"Sent {len(normalized)} characters to {host}:{port} ({framing}){notes}",
                 duration_ms=_elapsed_ms(connect_started),
                 details={"output": display_hl7(normalized)},
             )
