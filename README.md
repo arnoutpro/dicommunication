@@ -2,7 +2,7 @@
 
 A low-code DICOM communication validator and PACS admin toolkit.
 
-Configure this workstation as a DICOM Application Entity, register remote nodes (PACS, Orthanc, RIS/MWL, modalities), impersonate extra calling AE Titles, and run the checks a connectivity ticket actually needs: network PING, C-ECHO, simulated C-STORE, Study Root C-FIND, and Modality Worklist C-FIND.
+Configure this workstation as a DICOM Application Entity, register remote nodes (PACS, Orthanc, RIS/MWL, modalities), impersonate extra calling AE Titles, and run the checks a connectivity ticket actually needs: network PING, C-ECHO, simulated C-STORE, Study Root C-FIND, Modality Worklist C-FIND, and HL7 v2 send over MLLP.
 
 The web UI is FastAPI + HTMX. DICOM uses pynetdicom/pydicom. New test tools are Python plugins: drop a file in `app/tools/` and it appears in the sidebar.
 
@@ -21,6 +21,7 @@ Open [http://127.0.0.1:8080](http://127.0.0.1:8080) after starting the stack.
 - [Virtual local AE titles](#virtual-local-ae-titles)
 - [Test tools](#test-tools)
 - [Worklist](#worklist)
+- [HL7 send](#hl7-send)
 - [Talking to Orthanc on a LAN](#talking-to-orthanc-on-a-lan)
 - [JSON API](#json-api)
 - [Add a tool plugin](#add-a-tool-plugin)
@@ -38,12 +39,14 @@ It **does**:
 - Associate with a remote AE and show which SOP Classes were accepted or rejected
 - Send Verification (C-ECHO), a tiny Secondary Capture (C-STORE), Study Root Query/Retrieve C-FIND, and Modality Worklist C-FIND
 - Optionally serve a local web worklist as an MWL SCP on the listen port
+- Send an HL7 v2 message over TCP (MLLP by default) to a host:port
 
 It **does not**:
 
 - Implement C-MOVE / C-GET (yet; those are plugin slots)
 - Store a real archive of clinical images
 - Speak DICOM TLS, or authenticate the web UI
+- Parse, validate, or map HL7 fields — paste a message and send it
 
 A successful C-ECHO only proves Verification. Orthanc (or any PACS) can accept C-ECHO and still reject Storage, Query/Retrieve, or Modality Worklist. That difference is the point of the Testbench.
 
@@ -172,6 +175,7 @@ Linux keeps using Docker Compose.
 | `config.json` | Local AE, virtual identities, remote nodes, logging settings |
 | `results.json` | Recent tool runs (capped at 200) |
 | `worklist.json` | Local web worklist entries |
+| `hl7_messages.json` | Saved HL7 v2 drafts for the sender |
 | `dicommunication.log` | Rotating application log (level and size set on **Logs**) |
 
 Default directory:
@@ -263,7 +267,7 @@ Every virtual calling AE must be allowed on the remote, the same way the worksta
 
 ## Test tools
 
-The left menu keeps **Configured nodes** and **Test tools** open. Under Test tools: Testbench, C-ECHO board, Worklist, then **Connectivity** (PING) and **DIMSE** (C-ECHO, C-STORE, C-FIND, MWL C-FIND). New plugin tools appear under their `category`.
+The left menu keeps **Configured nodes** and **Test tools** open. Under Test tools: Testbench, C-ECHO board, Worklist, then **Connectivity** (PING), **DIMSE** (C-ECHO, C-STORE, C-FIND, MWL C-FIND), and **HL7** (HL7 send). New plugin tools appear under their `category`.
 
 ### Testbench (`/testbench`)
 
@@ -302,6 +306,22 @@ Empty filters on a remote mean “return what the SCP is willing to send”. Pre
 
 Add scheduled procedures here. If **Serve the web worklist over DICOM** is on, a modality can C-FIND this workstation on the listen port (`11112` by default). The local MWL SCP also answers C-ECHO. It uses the workstation AE Title, not virtual identities.
 
+## HL7 send
+
+`/tools/hl7-send` sends an HL7 v2 message to a TCP endpoint. It is a sender, not an analyzer: paste (or save) the pipe-delimited text and ship it.
+
+- **Host / port** — the HL7 engine, not the DICOM port. Common MLLP ports are `2575` and `6661`. You can copy a *host* from a saved DICOM remote; you still type the HL7 port.
+- **Framing** — MLLP (`0x0B` … `0x1C 0x0D`) is the default. Raw TCP is there for engines that do not wrap.
+- **Message** — HL7 v2 starting with `MSH`. Newlines in the textarea become CR on the wire.
+- **ACK** — if the peer replies, the result shows the raw ACK and MSA-1 (`AA` / `AE` / `AR`). Fields are not mapped.
+- Saved drafts live in `hl7_messages.json` next to config.
+
+```bash
+curl -s -X POST http://127.0.0.1:8080/api/tools/hl7-send/run \
+  -H 'Content-Type: application/json' \
+  -d '{"options":{"host":"10.0.0.20","port":2575,"message":"MSH|^~\\&|DICOMM|ARNPRO|RECVAPP|RECVFAC|20260101000000||ADT^A01|MSG00001|P|2.5\rPID|||ARNPRO-TEST||TEST^DICOMMUNICATE"}}'
+```
+
 ## Talking to Orthanc on a LAN
 
 Typical Orthanc DICOM port is `4242`. From Docker on a Mac, host is `host.docker.internal`.
@@ -332,8 +352,9 @@ Same operations as the UI. `GET /health` returns `{"status":"ok","version":"..."
 | POST | `/api/echo-board/run` | C-ECHO every remote |
 | GET/POST/DELETE | `/api/worklist`, `/api/worklist/{id}` | Local worklist items |
 | POST | `/api/worklist/query` | MWL query (local or remote) |
+| GET/POST/DELETE | `/api/hl7/messages`, `/api/hl7/messages/{id}` | Saved HL7 v2 drafts |
 
-Tool ids: `ping`, `c-echo`, `c-store`, `c-find`, `mwl-find`.
+Tool ids: `ping`, `c-echo`, `c-store`, `c-find`, `mwl-find`, `hl7-send`. `hl7-send` does not need `remote_id`; pass `options.host`, `options.port`, and `options.message`.
 
 Run a tool as a virtual AE:
 
@@ -396,11 +417,11 @@ pip install -r requirements-dev.txt
 make test
 ```
 
-C-ECHO, C-STORE, Study Root C-FIND, and MWL tests start in-process SCPs. PING uses loopback ICMP and a local TCP listener. Identity tests check that a virtual AE is the calling AE Title and the worklist station filter.
+C-ECHO, C-STORE, Study Root C-FIND, and MWL tests start in-process SCPs. PING uses loopback ICMP and a local TCP listener. HL7 send uses a loopback MLLP listener. Identity tests check that a virtual AE is the calling AE Title and the worklist station filter.
 
 ## Security
 
-This is a trusted-network admin tool. The web UI has no login. Do not publish port 8080 to the internet without an authenticating reverse proxy. Do not point it at production archives unless you intend to send the test C-STORE instance (`ARNPRO^TESTBENCH`). DICOM itself is sent in the clear unless you terminate TLS elsewhere.
+This is a trusted-network admin tool. The web UI has no login. Do not publish port 8080 to the internet without an authenticating reverse proxy. Do not point it at production archives unless you intend to send the test C-STORE instance (`ARNPRO^TESTBENCH`). DICOM and HL7 are sent in the clear unless you terminate TLS elsewhere. HL7 send transmits whatever you paste.
 
 ## Troubleshooting
 
@@ -412,6 +433,7 @@ This is a trusted-network admin tool. The web UI has no login. Do not publish po
 | C-ECHO / C-STORE / Q/R work, MWL fails | Peer does not offer Modality Worklist FIND. Enable the worklist plugin (Orthanc) or query a RIS. |
 | Worklist and MWL C-FIND look the same | They are the same SOP Class. Use Testbench Study Root C-FIND to search stored studies. |
 | Empty MWL / C-FIND table but Pass | The SOP Class was accepted and the query succeeded with zero matches. Check station AE, date, and **Present as**. |
+| HL7 send times out / no ACK | Peer is not listening, or that port is DICOM not MLLP. HL7 engines are often `2575` or `6661`, not `104`/`4242`. |
 | PING ICMP fails, TCP succeeds | Normal on locked-down clinical networks. Trust TCP to the DICOM port. |
 | `docker compose --build` fails at `apt-get` with exit 100 | Debian mirrors were unreachable from the Docker builder. Current images copy a static `ping` and do not run apt. Pull/rebuild from this change. |
 | Cannot reach Orthanc from Docker | Use `host.docker.internal` (same Mac/host) or the LAN IP; publish/check `4242`. |

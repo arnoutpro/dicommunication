@@ -59,7 +59,7 @@
   {% endif %}
   {% if result.log %}
   <details>
-    <summary>Association log</summary>
+    <summary>{% if result.contexts %}Association log{% else %}Log{% endif %}</summary>
     <pre class="log">{{ result.log }}</pre>
   </details>
   {% endif %}

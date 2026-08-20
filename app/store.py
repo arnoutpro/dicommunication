@@ -8,7 +8,7 @@ import tempfile
 from pathlib import Path
 from threading import Lock
 
-from app.models import AppConfig, LoggingSettings, RemoteNode, ToolResult, VirtualAE, WorklistEntry
+from app.models import AppConfig, Hl7Message, LoggingSettings, RemoteNode, ToolResult, VirtualAE, WorklistEntry
 from app.paths import runtime_os_name
 
 def _windows_data_dir() -> Path:
@@ -39,6 +39,7 @@ class ConfigStore:
         self.config_path = self.data_dir / "config.json"
         self.results_path = self.data_dir / "results.json"
         self.worklist_path = self.data_dir / "worklist.json"
+        self.hl7_path = self.data_dir / "hl7_messages.json"
         self._lock = Lock()
         self._max_results = 200
 
@@ -173,6 +174,34 @@ class ConfigStore:
             ]
             self._write_json(self.worklist_path, [item.model_dump(mode="json") for item in entries])
 
+    def list_hl7_messages(self) -> list[Hl7Message]:
+        with self._lock:
+            return [Hl7Message.model_validate(item) for item in self._load_hl7_unlocked()]
+
+    def get_hl7_message(self, message_id: str) -> Hl7Message | None:
+        with self._lock:
+            for item in self._load_hl7_unlocked():
+                message = Hl7Message.model_validate(item)
+                if message.id == message_id:
+                    return message
+            return None
+
+    def add_hl7_message(self, message: Hl7Message) -> Hl7Message:
+        with self._lock:
+            entries = [Hl7Message.model_validate(item) for item in self._load_hl7_unlocked()]
+            entries.insert(0, message)
+            self._write_json(self.hl7_path, [item.model_dump(mode="json") for item in entries])
+            return message
+
+    def delete_hl7_message(self, message_id: str) -> None:
+        with self._lock:
+            entries = [
+                Hl7Message.model_validate(item)
+                for item in self._load_hl7_unlocked()
+                if item.get("id") != message_id
+            ]
+            self._write_json(self.hl7_path, [item.model_dump(mode="json") for item in entries])
+
     def _load_unlocked(self) -> AppConfig:
         if not self.config_path.exists():
             config = AppConfig()
@@ -195,6 +224,15 @@ class ConfigStore:
             return []
         try:
             data = json.loads(self.worklist_path.read_text(encoding="utf-8"))
+        except json.JSONDecodeError:
+            return []
+        return data if isinstance(data, list) else []
+
+    def _load_hl7_unlocked(self) -> list:
+        if not self.hl7_path.exists():
+            return []
+        try:
+            data = json.loads(self.hl7_path.read_text(encoding="utf-8"))
         except json.JSONDecodeError:
             return []
         return data if isinstance(data, list) else []
