@@ -738,6 +738,8 @@ def create_app(store: ConfigStore | None = None) -> FastAPI:
         save_name: str = "",
         remote_id: str = "",
         new_control_id: bool = True,
+        change_order: bool = True,
+        obr_reason_ce: bool = True,
         status_code: int = 200,
     ):
         tool = get_tool("hl7-send")
@@ -763,6 +765,8 @@ def create_app(store: ConfigStore | None = None) -> FastAPI:
                 hl7_mllp=mllp,
                 hl7_save_name=save_name,
                 hl7_new_control_id=new_control_id,
+                hl7_change_order=change_order,
+                hl7_obr_reason_ce=obr_reason_ce,
                 remote_id=remote_id,
             ),
             status_code=status_code,
@@ -778,6 +782,8 @@ def create_app(store: ConfigStore | None = None) -> FastAPI:
         remote_id: str = Form(""),
         name: str = Form(""),
         new_control_id: str | None = Form(None),
+        change_order: str | None = Form(None),
+        obr_reason_ce: str | None = Form(None),
     ):
         options = {
             "host": host,
@@ -785,6 +791,8 @@ def create_app(store: ConfigStore | None = None) -> FastAPI:
             "message": message,
             "mllp": mllp,
             "new_control_id": _as_bool(new_control_id),
+            "change_order": _as_bool(change_order),
+            "obr_reason_ce": _as_bool(obr_reason_ce),
         }
         try:
             result = execute_tool("hl7-send", remote_id or None, options)
@@ -812,6 +820,8 @@ def create_app(store: ConfigStore | None = None) -> FastAPI:
                 save_name=name,
                 remote_id=remote_id,
                 new_control_id=_as_bool(new_control_id),
+                change_order=_as_bool(change_order),
+                obr_reason_ce=_as_bool(obr_reason_ce),
                 status_code=exc.status_code,
             )
         if _hx(request):
@@ -830,6 +840,8 @@ def create_app(store: ConfigStore | None = None) -> FastAPI:
             save_name=name,
             remote_id=remote_id,
             new_control_id=_as_bool(new_control_id),
+            change_order=_as_bool(change_order),
+            obr_reason_ce=_as_bool(obr_reason_ce),
         )
 
     @app.post("/tools/hl7-send/messages")

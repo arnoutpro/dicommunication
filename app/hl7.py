@@ -133,6 +133,21 @@ def orc_order_control(message: str) -> str:
     return ""
 
 
+def stamp_order_control(message: str, code: str = "XO") -> str:
+    """Set ORC-1 (order control). XO is change; NW is new. Does not invent an ORC."""
+    segments = _segments(message)
+    value = (code or "XO").strip() or "XO"
+    for index, seg in enumerate(segments):
+        if not seg.startswith("ORC|"):
+            continue
+        fields = seg.split("|")
+        while len(fields) < 2:
+            fields.append("")
+        fields[1] = value
+        segments[index] = "|".join(fields)
+    return "\r".join(segments)
+
+
 def obr_reason(message: str) -> tuple[int, str | None]:
     """OBR field count and OBR-31 (Reason for Study), if that field exists."""
     for seg in _segments(message):
@@ -142,6 +157,59 @@ def obr_reason(message: str) -> tuple[int, str | None]:
             value = fields[31] if len(fields) > 31 else None
             return count, value
     return 0, None
+
+
+def obr_status(message: str) -> str:
+    """OBR-25 (Result Status), if present."""
+    for seg in _segments(message):
+        if seg.startswith("OBR|"):
+            fields = seg.split("|")
+            return fields[25].strip() if len(fields) > 25 else ""
+    return ""
+
+
+def stamp_obr_reason_ce_text(message: str) -> str:
+    """If OBR-31 has no ^, put the current value in the CE text component (^text)."""
+    segments = _segments(message)
+    for index, seg in enumerate(segments):
+        if not seg.startswith("OBR|"):
+            continue
+        fields = seg.split("|")
+        if len(fields) <= 31:
+            continue
+        value = fields[31]
+        if value and "^" not in value:
+            fields[31] = f"^{value}"
+            segments[index] = "|".join(fields)
+    return "\r".join(segments)
+
+
+def send_wire_hints(message: str) -> list[str]:
+    """Likely reasons an ACK AA still leaves PACS unchanged. Not a validator."""
+    hints: list[str] = []
+    order = orc_order_control(message)
+    order_id = order.split("^", 1)[0].strip().upper()
+    has_obr = any(seg.startswith("OBR|") for seg in _segments(message))
+    if has_obr and not order:
+        hints.append(
+            "This message has an OBR but no ORC. Many PACS ignore an order change without ORC-1 XO."
+        )
+    elif order_id == "NW":
+        hints.append(
+            "ORC-1 is still NW (new). Many PACS ACK a repeat new-order and leave the existing exam unchanged. Turn on Change existing order (ORC-1 XO)."
+        )
+    _, reason = obr_reason(message)
+    if reason and " " in reason and "^" not in reason:
+        hints.append(
+            "OBR-31 has a space and no ^. Reason for Study is a CE (id^text). Turn on OBR-31 as CE text, or send ^your text / code^your text."
+        )
+    status = obr_status(message)
+    status_id = status.split("^", 1)[0].strip().upper()
+    if status_id in {"COMPLETED", "COMPLETE", "CM"}:
+        hints.append(
+            f"OBR-25 is {status}. Some PACS do not apply order or reason updates after the exam is completed."
+        )
+    return hints
 
 
 def use_mllp(value: object, default: bool = True) -> bool:

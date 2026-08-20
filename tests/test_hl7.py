@@ -11,10 +11,14 @@ from app.hl7 import (
     msa_ack_code,
     normalize_hl7,
     obr_reason,
+    obr_status,
     orc_order_control,
     sample_adt_a01,
     send_hl7,
+    send_wire_hints,
     stamp_new_control_id,
+    stamp_obr_reason_ce_text,
+    stamp_order_control,
     unwrap_mllp,
     wrap_mllp,
     MLLP_END,
@@ -221,6 +225,25 @@ def test_hl7_message_preview() -> None:
     assert item.preview.startswith("MSH|")
 
 
+def _orm(
+    *,
+    orc: str = "NW",
+    reason: str = "arnout.pro SEH",
+    status: str = "COMPLETED",
+    control_id: str = "MSG00001",
+) -> str:
+    fields = ["OBR"] + [""] * 31
+    fields[1] = "1"
+    fields[2] = "7205625601^CS"
+    fields[25] = status
+    fields[31] = reason
+    return (
+        f"MSH|^~\\&|A|B|||20260101000000||ORM^O01|{control_id}|P|2.5\r"
+        f"ORC|{orc}|7205625601^CS\r"
+        + "|".join(fields)
+    )
+
+
 def test_stamp_new_control_id_and_obr_31() -> None:
     original = sample_adt_a01(timestamp="20260101000000")
     assert msh_control_id(original) == "MSG00001"
@@ -239,6 +262,34 @@ def test_stamp_new_control_id_and_obr_31() -> None:
     assert count == 31
     assert reason == "follow-up CT"
     assert orc_order_control(long) == "XO"
+
+
+def test_stamp_order_control_and_obr_reason_ce() -> None:
+    original = _orm()
+    assert orc_order_control(original) == "NW"
+    changed = stamp_order_control(original, "XO")
+    assert orc_order_control(changed) == "XO"
+    assert orc_order_control(original) == "NW"
+    assert stamp_order_control("MSH|^~\\&|A|B\rPID|||X") == "MSH|^~\\&|A|B\rPID|||X"
+
+    _, reason = obr_reason(original)
+    assert reason == "arnout.pro SEH"
+    encoded = stamp_obr_reason_ce_text(original)
+    _, encoded_reason = obr_reason(encoded)
+    assert encoded_reason == "^arnout.pro SEH"
+    already = stamp_obr_reason_ce_text(encoded)
+    _, again = obr_reason(already)
+    assert again == "^arnout.pro SEH"
+    assert obr_status(original) == "COMPLETED"
+
+
+def test_send_wire_hints_for_repeat_new_order() -> None:
+    hints = send_wire_hints(_orm())
+    assert any("ORC-1 is still NW" in hint for hint in hints)
+    assert any("OBR-31 has a space" in hint for hint in hints)
+    assert any("OBR-25 is COMPLETED" in hint for hint in hints)
+    quiet = send_wire_hints(_orm(orc="XO", reason="^arnout.pro SEH", status="SC"))
+    assert quiet == []
 
 
 def test_hl7_tool_stamps_control_id_when_requested() -> None:
@@ -269,10 +320,71 @@ def test_hl7_tool_stamps_control_id_when_requested() -> None:
         server.close()
 
 
+def test_hl7_tool_stamps_order_change_when_requested() -> None:
+    tool = Hl7SendTool()
+    local = LocalAE(timeout_seconds=2)
+    message = _orm()
+    ack = "MSH|^~\\&|R|F\rMSA|AA|MSG00001"
+    port, received, thread, server = _serve_mllp_once(ack)
+    try:
+        result = tool.run(
+            local,
+            None,
+            {
+                "host": "127.0.0.1",
+                "port": port,
+                "message": message,
+                "new_control_id": True,
+                "change_order": True,
+                "obr_reason_ce": True,
+            },
+        )
+        thread.join(timeout=2)
+        assert result.ok
+        sent = unwrap_mllp(received["raw"]).decode("latin-1")
+        assert msh_control_id(sent) != "MSG00001"
+        assert orc_order_control(sent) == "XO"
+        _, reason = obr_reason(sent)
+        assert reason == "^arnout.pro SEH"
+        send_step = next(step for step in result.steps if step.name == "Send")
+        assert "ORC-1 XO" in send_step.message
+        assert "OBR-25 COMPLETED" in send_step.message
+        assert any(step.name == "Hint" and "COMPLETED" in step.message for step in result.steps)
+        assert "not a PACS update" in result.summary
+    finally:
+        server.close()
+
+
+def test_hl7_tool_leaves_orc_when_change_order_off() -> None:
+    tool = Hl7SendTool()
+    local = LocalAE(timeout_seconds=2)
+    message = _orm()
+    ack = "MSH|^~\\&|R|F\rMSA|AA|MSG00001"
+    port, received, thread, server = _serve_mllp_once(ack)
+    try:
+        result = tool.run(
+            local,
+            None,
+            {"host": "127.0.0.1", "port": port, "message": message},
+        )
+        thread.join(timeout=2)
+        assert result.ok
+        sent = unwrap_mllp(received["raw"]).decode("latin-1")
+        assert orc_order_control(sent) == "NW"
+        assert msh_control_id(sent) == "MSG00001"
+        assert any(step.name == "Hint" and "ORC-1 is still NW" in step.message for step in result.steps)
+    finally:
+        server.close()
+
+
 def test_hl7_page_has_resend_hint(client) -> None:
     page = client.get("/tools/hl7-send")
     assert b'enctype="multipart/form-data"' in page.content
     assert b"New Message Control ID" in page.content
+    assert b'name="change_order"' in page.content
+    assert b"Change existing order (ORC-1 XO)" in page.content
+    assert b'name="obr_reason_ce"' in page.content
+    assert b"OBR-31 as CE text" in page.content
     assert b"ORC-1" in page.content
     assert b"OBR-31" in page.content
 

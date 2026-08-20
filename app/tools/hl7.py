@@ -14,9 +14,13 @@ from app.hl7 import (
     msa_ack_code,
     normalize_hl7,
     obr_reason,
+    obr_status,
     orc_order_control,
     send_hl7,
+    send_wire_hints,
     stamp_new_control_id,
+    stamp_obr_reason_ce_text,
+    stamp_order_control,
     use_mllp,
 )
 from app.models import LocalAE, RemoteNode, ToolResult, ToolStep
@@ -44,6 +48,9 @@ def _send_notes(message: str) -> str:
     order_control = orc_order_control(message)
     if order_control:
         bits.append(f"ORC-1 {order_control}")
+    status = obr_status(message)
+    if status:
+        bits.append(f"OBR-25 {status}")
     obr_fields, reason = obr_reason(message)
     if obr_fields:
         if reason is None:
@@ -97,6 +104,8 @@ class Hl7SendTool(BaseTool):
         mllp = use_mllp(options.get("mllp"), default=True)
         timeout = float(options.get("timeout") or local.timeout_seconds)
         new_control_id = _flag(options.get("new_control_id"), default=False)
+        change_order = _flag(options.get("change_order"), default=False)
+        obr_reason_ce = _flag(options.get("obr_reason_ce"), default=False)
 
         if not host:
             return ToolResult(
@@ -132,6 +141,10 @@ class Hl7SendTool(BaseTool):
             )
         if new_control_id:
             normalized = stamp_new_control_id(normalized)
+        if change_order:
+            normalized = stamp_order_control(normalized, "XO")
+        if obr_reason_ce:
+            normalized = stamp_obr_reason_ce_text(normalized)
 
         steps: list[ToolStep] = []
         connect_started = time.perf_counter()
@@ -216,6 +229,12 @@ class Hl7SendTool(BaseTool):
                     )
                 )
                 summary = f"Sent to {host}:{port} over raw TCP."
+
+        hints = send_wire_hints(normalized)
+        for hint in hints:
+            steps.append(ToolStep(name="Hint", ok=True, message=hint))
+        if hints and ack.strip() and msa_ack_code(ack) in {"AA", "CA"}:
+            summary = f"{summary}. An ACK is not a PACS update — see Hint."
 
         ok = bool(steps) and all(step.ok for step in steps)
         return ToolResult(
