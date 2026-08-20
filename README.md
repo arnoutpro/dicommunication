@@ -312,7 +312,7 @@ Add scheduled procedures here. If **Serve the web worklist over DICOM** is on, a
 
 - **Host / port** — the HL7 engine, not the DICOM port. Common MLLP ports are `2575` and `6661`. You can copy a *host* from a saved DICOM remote; you still type the HL7 port.
 - **Framing** — MLLP (`0x0B` … `0x1C 0x0D`) is the default. Raw TCP is there for engines that do not wrap.
-- **Message** — HL7 v2 starting with `MSH`. Newlines in the textarea become CR on the wire.
+- **Message** — HL7 v2 starting with `MSH`. The editor shows one segment per row (toggle **Raw** for the full paste). Long pipe-delimited lines wrap. Newlines become CR on the wire.
 - **ACK** — if the peer replies, the result shows the raw ACK and MSA-1 (`AA` / `AE` / `AR`). An ACK is not a promise that PACS applied an order update.
 - **New MSH-10** — on by default in the UI. The same Message Control ID is often ACKed and ignored. To change an existing ORM order, set **ORC-1** to `XO` (not `NW`) and put Reason for Study in **OBR-31** (count the pipes). The Send result repeats MSH-10, ORC-1, and OBR-31 as they went on the wire.
 - Saved drafts live in `hl7_messages.json` next to config.

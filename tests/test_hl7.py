@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import socket
 import threading
+from pathlib import Path
 
 from app.hl7 import (
     DEFAULT_PORT,
@@ -274,3 +275,23 @@ def test_hl7_page_has_resend_hint(client) -> None:
     assert b"New Message Control ID" in page.content
     assert b"ORC-1" in page.content
     assert b"OBR-31" in page.content
+
+
+def test_hl7_page_has_wrapping_segment_editor(client) -> None:
+    page = client.get("/tools/hl7-send")
+    assert page.status_code == 200
+    assert b'data-hl7-editor' in page.content
+    assert b'data-hl7-view="segments"' in page.content
+    assert b'data-hl7-view="raw"' in page.content
+    assert b'data-hl7-segments' in page.content
+    assert b'wrap="soft"' in page.content
+    css = (Path(__file__).resolve().parents[1] / "app" / "static" / "css" / "app.css").read_text(
+        encoding="utf-8"
+    )
+    body_css = css[css.index("textarea.hl7-body") : css.index("[data-hl7-editor]")]
+    assert "white-space: pre-wrap;" in body_css
+    assert "overflow-wrap: anywhere;" in body_css
+    js = (Path(__file__).resolve().parents[1] / "app" / "static" / "js" / "app.js").read_text(
+        encoding="utf-8"
+    )
+    assert "function initHl7Editor" in js
