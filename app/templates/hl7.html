@@ -47,12 +47,12 @@
     <label>
       Host
       <input name="host" value="{{ hl7_host }}" placeholder="10.0.0.20" {% if not config.remotes %}required{% endif %}>
-      <span class="hint">MLLP listener, not DICOM. If Vue IS Link is empty after an ACK, this host is not IS Link (usually Mirth).</span>
+      <span class="hint">MLLP listener, not DICOM. Host must be this IS Link server’s Listener Host IP, not a different VIP or Mirth box.</span>
     </label>
     <label>
       Port
       <input name="port" type="number" min="1" max="65535" value="{{ hl7_port }}" required>
-      <span class="hint">IS Link Listener bind port, from IS Link Configuration. Site docs often list 10010 — that is Vue’s HL7 VIP, not proof this is IS Link.</span>
+      <span class="hint">IS Link Configuration → Listeners → Port Number. 10010 can be this bind port. Control Port (2112) is not MLLP. Encoding Cp1252 matches Latin-1 for ASCII HL7.</span>
     </label>
     <label>
       Framing
@@ -61,7 +61,7 @@
         <option value="raw" {% if not hl7_mllp %}selected{% endif %}>Raw TCP</option>
       </select>
     </label>
-    <p class="hint span-2">If Philips Vue IS Link Incoming and Error stay empty after an ACK to 10010, you hit Vue’s HL7 VIP (also 4001/4003/4005), not necessarily IS Link’s process. In IS Link Configuration, read the Listener bind port. If it is not 10010, send there. ACK MSH-3 is who answered. MSH-5/MSH-6 must match what IS Link accepts.</p>
+    <p class="hint span-2">IS Link Configuration → Listeners is settings, not the inbound queue. After a send to this Port Number, look at Queues &amp; Notifications (and start the Listener process if prompted). Host must be that listener’s Host IP. ACK MSH-3 is who answered. Do not send to Control Port 2112.</p>
     <div class="span-2" data-hl7-editor>
       <div class="hl7-editor-head">
         <span>HL7 v2 message</span>
