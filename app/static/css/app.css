@@ -536,6 +536,9 @@ textarea.hl7-body {
   align-items: center;
   gap: 0.3rem;
 }
+[data-hl7-editor].is-ready.is-raw .hl7-editor-tools {
+  display: none;
+}
 [data-hl7-editor].is-ready:not(.is-raw) [data-hl7-segments] {
   display: flex;
   flex-direction: column;
