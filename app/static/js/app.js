@@ -307,8 +307,184 @@ document.body.addEventListener("change", (event) => {
   }
 });
 
+function splitHl7Lines(text) {
+  const normalized = String(text || "").replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+  if (!normalized) {
+    return [""];
+  }
+  return normalized.split("\n");
+}
+
+function parseHl7Segment(line) {
+  const value = String(line || "").replace(/\r/g, "");
+  if (value.length >= 3) {
+    return { id: value.slice(0, 3), rest: value.slice(3) };
+  }
+  return { id: value, rest: "" };
+}
+
+function composeHl7Segment(id, rest) {
+  const type = String(id || "")
+    .replace(/[\r\n]/g, "")
+    .slice(0, 3)
+    .toUpperCase();
+  return type + String(rest || "").replace(/\r/g, "");
+}
+
+function resizeHl7Field(node) {
+  if (!(node instanceof HTMLTextAreaElement)) {
+    return;
+  }
+  node.style.height = "auto";
+  node.style.height = `${Math.max(node.scrollHeight, 42)}px`;
+}
+
+function initHl7Editor(root) {
+  if (!(root instanceof HTMLElement) || root.dataset.hl7Ready === "1") {
+    return;
+  }
+  const raw = root.querySelector(".hl7-body");
+  const segments = root.querySelector("[data-hl7-segments]");
+  const addBtn = root.querySelector("[data-hl7-add-segment]");
+  const form = root.closest("form");
+  if (!(raw instanceof HTMLTextAreaElement) || !(segments instanceof HTMLElement)) {
+    return;
+  }
+  root.dataset.hl7Ready = "1";
+  root.classList.add("is-ready");
+  let view = "segments";
+
+  function setView(next) {
+    view = next === "raw" ? "raw" : "segments";
+    root.classList.toggle("is-raw", view === "raw");
+    root.querySelectorAll("[data-hl7-view]").forEach((btn) => {
+      const active = btn.getAttribute("data-hl7-view") === view;
+      btn.classList.toggle("is-active", active);
+      btn.setAttribute("aria-pressed", active ? "true" : "false");
+    });
+    if (view === "segments") {
+      rebuildRows();
+    }
+  }
+
+  function syncRawFromRows() {
+    const lines = [...segments.querySelectorAll(".hl7-seg-row")].map((row) => {
+      const id = row.querySelector(".hl7-seg-id");
+      const fields = row.querySelector(".hl7-seg-fields");
+      const type = id instanceof HTMLInputElement ? id.value : "";
+      const rest = fields instanceof HTMLTextAreaElement ? fields.value : "";
+      return composeHl7Segment(type, rest);
+    });
+    raw.value = lines.join("\n");
+  }
+
+  function addRow(line) {
+    const parsed = parseHl7Segment(line);
+    const row = document.createElement("div");
+    row.className = "hl7-seg-row";
+
+    const id = document.createElement("input");
+    id.className = "hl7-seg-id";
+    id.type = "text";
+    id.maxLength = 3;
+    id.spellcheck = false;
+    id.autocomplete = "off";
+    id.setAttribute("aria-label", "Segment ID");
+    id.value = parsed.id;
+
+    const fields = document.createElement("textarea");
+    fields.className = "hl7-seg-fields";
+    fields.rows = 1;
+    fields.spellcheck = false;
+    fields.wrap = "soft";
+    fields.setAttribute("aria-label", "Segment fields");
+    fields.value = parsed.rest;
+
+    const remove = document.createElement("button");
+    remove.type = "button";
+    remove.className = "link-button danger hl7-seg-remove";
+    remove.setAttribute("aria-label", "Remove segment");
+    remove.textContent = "Remove";
+
+    id.addEventListener("input", () => {
+      id.value = id.value.replace(/[\r\n]/g, "").slice(0, 3).toUpperCase();
+      syncRawFromRows();
+    });
+    fields.addEventListener("input", () => {
+      resizeHl7Field(fields);
+      syncRawFromRows();
+    });
+    remove.addEventListener("click", () => {
+      const rows = segments.querySelectorAll(".hl7-seg-row");
+      if (rows.length <= 1) {
+        id.value = "";
+        fields.value = "";
+        resizeHl7Field(fields);
+      } else {
+        row.remove();
+      }
+      syncRawFromRows();
+    });
+
+    row.append(id, fields, remove);
+    segments.append(row);
+    resizeHl7Field(fields);
+  }
+
+  function rebuildRows() {
+    segments.replaceChildren();
+    splitHl7Lines(raw.value).forEach(addRow);
+  }
+
+  root.querySelectorAll("[data-hl7-view]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      if (view === "segments") {
+        syncRawFromRows();
+      }
+      setView(btn.getAttribute("data-hl7-view") || "segments");
+    });
+  });
+
+  if (addBtn) {
+    addBtn.addEventListener("click", () => {
+      addRow("");
+      syncRawFromRows();
+      const lastId = segments.querySelector(".hl7-seg-row:last-child .hl7-seg-id");
+      if (lastId instanceof HTMLInputElement) {
+        lastId.focus();
+      }
+    });
+  }
+
+  if (form) {
+    form.addEventListener("submit", () => {
+      if (view === "segments") {
+        syncRawFromRows();
+      }
+    });
+  }
+
+  setView("segments");
+}
+
+function initHl7Editors(scope) {
+  const root = scope instanceof Element ? scope : document;
+  if (root instanceof HTMLElement && root.matches("[data-hl7-editor]")) {
+    initHl7Editor(root);
+  }
+  root.querySelectorAll("[data-hl7-editor]").forEach(initHl7Editor);
+}
+
+initHl7Editors(document);
+window.addEventListener("resize", () => {
+  document.querySelectorAll(".hl7-seg-fields").forEach(resizeHl7Field);
+});
+
 document.body.addEventListener("htmx:afterSwap", (event) => {
   const target = event.detail.target;
+  if (target instanceof HTMLElement) {
+    initHl7Editors(target);
+  }
   if (target && target.id === "log-view-panel") {
     const view = document.getElementById("log-view");
     const follow = document.getElementById("log-follow");

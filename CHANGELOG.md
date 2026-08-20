@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- HL7 send: the message box wraps long pipe-delimited lines. A Segments view shows one row per segment (MSH, PID, OBR, …); Raw is the full paste. This is still a sender, not a field analyzer.
 - HL7 send: the Send result shows MSH-10, ORC-1, and OBR-31 as they went on the wire. The UI can stamp a new Message Control ID so a resend is not treated as a duplicate. An ACK still only means the engine accepted the bytes.
 - HL7 send: paste or save an HL7 v2 message and send it over TCP (MLLP by default) to a host:port. This is a sender, not a message analyzer; the result shows the raw ACK / MSA-1.
 - Mac DMG: Finder launches show the native window. PyInstaller argv emulation was fighting Cocoa/pywebview (Dock icon and a live process, no window). Frozen launches also append `~/.dicommunication/launch.log`.
