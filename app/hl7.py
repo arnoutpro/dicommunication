@@ -242,11 +242,15 @@ def send_wire_hints(message: str) -> list[str]:
     has_obr = any(seg.startswith("OBR|") for seg in _segments(message))
     if has_obr and not order:
         hints.append(
-            "This message has an OBR but no ORC. Many PACS ignore an order change without ORC-1 XO."
+            "This message has an OBR but no ORC. Many PACS ignore an order change without ORC-1 XO or SC."
         )
     elif order_id == "NW":
         hints.append(
-            "ORC-1 is still NW (new). Many PACS ACK a repeat new-order and leave the existing exam unchanged. Turn on Change existing order (ORC-1 XO)."
+            "ORC-1 is still NW (new). Philips Vue / IS Link uses SC to update an order. Repeating NW is usually ACKed and skipped."
+        )
+    elif order_id == "XO":
+        hints.append(
+            "ORC-1 is XO. Philips Vue / IS Link updates an order with ORC-1 SC (NW = new, SC = update, CA = cancel). XO is often ACKed by Mirth and ignored by Vue."
         )
     _, reason = obr_reason(message)
     if reason and " " in reason.split("^", 1)[0] and "^" not in reason:
@@ -261,11 +265,11 @@ def send_wire_hints(message: str) -> list[str]:
     status_id = status.split("^", 1)[0].strip().upper()
     if status_id in {"COMPLETED", "COMPLETE", "CM"}:
         hints.append(
-            f"OBR-25 is {status}. This is the usual reason an XO is ACKed and PACS does not change. Turn on Set OBR-25 to SC (in progress) as a test."
+            f"OBR-25 is {status}. Vue may still skip a finished exam. Set OBR-25 to SC (in progress) as a test — that is not the same as ORC-1 SC."
         )
-    elif has_obr and order_id in {"XO", "XX", "SC"}:
+    if has_obr:
         hints.append(
-            "An ACK does not rewrite images already in PACS. Study Description / Reason for Study is often set at C-STORE, not by a later ORM. If SC still does nothing, edit the study in PACS."
+            "The ACK is from the TCP peer (often Mirth Connect), not proof that Vue applied the order. In Mirth, open the message: received, transformed, and sent to Vue / IS Link."
         )
     return hints
 

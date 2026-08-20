@@ -300,10 +300,13 @@ def test_send_wire_hints_for_repeat_new_order() -> None:
     assert any("ORC-1 is still NW" in hint for hint in hints)
     assert any("OBR-31 has a space" in hint for hint in hints)
     assert any("OBR-25 is COMPLETED" in hint for hint in hints)
-    quiet = send_wire_hints(_orm(orc="XO", reason="arnout.pro^arnout.pro SEH", status="SC"))
+    quiet = send_wire_hints(_orm(orc="SC", reason="arnout.pro^arnout.pro SEH", status="SC"))
     assert not any("COMPLETED" in hint or "ORC-1 is still NW" in hint or "empty identifier" in hint for hint in quiet)
-    assert any("images already in PACS" in hint for hint in quiet)
-    empty_id = send_wire_hints(_orm(orc="XO", reason="^arnout.pro SEH", status="SC"))
+    assert any("Mirth" in hint for hint in quiet)
+    assert not any("ORC-1 is XO" in hint for hint in quiet)
+    xo = send_wire_hints(_orm(orc="XO", reason="arnout.pro^arnout.pro SEH", status="SC"))
+    assert any("ORC-1 is XO" in hint for hint in xo)
+    empty_id = send_wire_hints(_orm(orc="SC", reason="^arnout.pro SEH", status="SC"))
     assert any("empty identifier" in hint for hint in empty_id)
 
 
@@ -394,6 +397,35 @@ def test_hl7_tool_leaves_orc_when_change_order_off() -> None:
         server.close()
 
 
+def test_hl7_tool_stamps_orc_sc_for_vue_when_requested() -> None:
+    tool = Hl7SendTool()
+    local = LocalAE(timeout_seconds=2)
+    message = _orm()
+    ack = "MSH|^~\\&|R|F\rMSA|AA|MSG00001"
+    port, received, thread, server = _serve_mllp_once(ack)
+    try:
+        result = tool.run(
+            local,
+            None,
+            {
+                "host": "127.0.0.1",
+                "port": port,
+                "message": message,
+                "change_order": True,
+                "orc_control": "SC",
+            },
+        )
+        thread.join(timeout=2)
+        assert result.ok
+        sent = unwrap_mllp(received["raw"]).decode("latin-1")
+        assert orc_order_control(sent) == "SC"
+        send_step = next(step for step in result.steps if step.name == "Send")
+        assert "ORC-1 SC" in send_step.message
+        assert not any(step.name == "Hint" and "ORC-1 is XO" in step.message for step in result.steps)
+    finally:
+        server.close()
+
+
 def test_hl7_tool_stamps_obr_in_progress_when_requested() -> None:
     tool = Hl7SendTool()
     local = LocalAE(timeout_seconds=2)
@@ -423,7 +455,7 @@ def test_hl7_tool_stamps_obr_in_progress_when_requested() -> None:
         assert "OBR-25 SC" in send_step.message
         assert "ORC-5 IP" in send_step.message
         assert not any(step.name == "Hint" and "COMPLETED" in step.message for step in result.steps)
-        assert any(step.name == "Hint" and "images already in PACS" in step.message for step in result.steps)
+        assert any(step.name == "Hint" and "Mirth" in step.message for step in result.steps)
     finally:
         server.close()
 
@@ -433,7 +465,9 @@ def test_hl7_page_has_resend_hint(client) -> None:
     assert b'enctype="multipart/form-data"' in page.content
     assert b"New Message Control ID" in page.content
     assert b'name="change_order"' in page.content
-    assert b"Change existing order (ORC-1 XO)" in page.content
+    assert b"Change existing order" in page.content
+    assert b'name="orc_control"' in page.content
+    assert b"Vue / IS Link update order" in page.content
     assert b'name="obr_reason_ce"' in page.content
     assert b"OBR-31 as CE text" in page.content
     assert b'name="obr_in_progress"' in page.content

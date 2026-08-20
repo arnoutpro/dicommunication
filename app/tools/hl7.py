@@ -118,6 +118,9 @@ class Hl7SendTool(BaseTool):
         change_order = _flag(options.get("change_order"), default=False)
         obr_reason_ce = _flag(options.get("obr_reason_ce"), default=False)
         obr_in_progress = _flag(options.get("obr_in_progress"), default=False)
+        orc_control = str(options.get("orc_control") or "XO").strip().upper()
+        if orc_control not in {"XO", "SC", "XX", "CA"}:
+            orc_control = "XO"
 
         if not host:
             return ToolResult(
@@ -154,7 +157,7 @@ class Hl7SendTool(BaseTool):
         if new_control_id:
             normalized = stamp_new_control_id(normalized)
         if change_order:
-            normalized = stamp_order_control(normalized, "XO")
+            normalized = stamp_order_control(normalized, orc_control)
             normalized = stamp_orc_transaction_time(normalized)
         if obr_reason_ce:
             normalized = stamp_obr_reason_ce_text(normalized)
