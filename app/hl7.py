@@ -86,14 +86,22 @@ def _segments(message: str) -> list[str]:
     return [seg for seg in normalize_hl7(message).split("\r") if seg]
 
 
-def msh_control_id(message: str) -> str:
+def msh_field(message: str, number: int) -> str:
+    """HL7 MSH-n. MSH-3 is sending application. Split index 0 is ``MSH``, so MSH-n is fields[n-1]."""
+    if number < 2:
+        return ""
     parts = _segments(message)
     if not parts or not parts[0].startswith("MSH"):
         return ""
     msh = parts[0]
     sep = msh[3] if len(msh) > 3 else "|"
     fields = msh.split(sep)
-    return fields[9].strip() if len(fields) > 9 else ""
+    index = number - 1
+    return fields[index].strip() if len(fields) > index else ""
+
+
+def msh_control_id(message: str) -> str:
+    return msh_field(message, 10)
 
 
 def new_message_control_id(*, timestamp: str | None = None) -> str:
@@ -234,12 +242,38 @@ def _set_field(message: str, prefix: str, index: int, value: str) -> str:
     return "\r".join(segments)
 
 
-def send_wire_hints(message: str) -> list[str]:
+def _ack_peer_kind(ack: str) -> str:
+    """Best-effort label for who sent the ACK. Empty if unknown."""
+    blob = f"{msh_field(ack, 3)} {msh_field(ack, 4)}".upper()
+    compact = blob.replace(" ", "")
+    if "MIRTH" in blob or "NEXTGENCONNECT" in compact:
+        return "mirth"
+    if "ISLINK" in compact or "CSISLINK" in compact or "CARESTREAM" in compact:
+        return "islink"
+    return ""
+
+
+def send_wire_hints(message: str, ack: str = "") -> list[str]:
     """Likely reasons an ACK AA still leaves PACS unchanged. Not a validator."""
     hints: list[str] = []
     order = orc_order_control(message)
     order_id = order.split("^", 1)[0].strip().upper()
     has_obr = any(seg.startswith("OBR|") for seg in _segments(message))
+    ack_app = msh_field(ack, 3)
+    peer_kind = _ack_peer_kind(ack) if ack.strip() else ""
+    if has_obr and peer_kind == "mirth":
+        hints.append(
+            f"ACK MSH-3 is {ack_app}. That is Mirth, not Vue. IS Link stays empty because this never reached the IS Link listener. In IS Link Configuration, copy the HL7 listen host and port into Host/Port and send again. You do not need Mirth for that test."
+        )
+    elif has_obr and peer_kind == "islink":
+        hints.append(
+            f"ACK MSH-3 is {ack_app}. That looks like IS Link. If Incoming and Error are still empty, this is the wrong IS Link instance, or MSH-5/MSH-6 do not match what that listener accepts."
+        )
+    elif has_obr:
+        who = f" ACK MSH-3 is {ack_app}." if ack_app else ""
+        hints.append(
+            f"The ACK is from the TCP peer (often Mirth Connect), not Vue.{who} If IS Link's incoming queue is empty, put IS Link's listen host and port in Host/Port and send again. You do not need Mirth for that test."
+        )
     if has_obr and not order:
         hints.append(
             "This message has an OBR but no ORC. Many PACS ignore an order change without ORC-1 XO or SC."
@@ -266,10 +300,6 @@ def send_wire_hints(message: str) -> list[str]:
     if status_id in {"COMPLETED", "COMPLETE", "CM"}:
         hints.append(
             f"OBR-25 is {status}. Vue may still skip a finished exam. Set OBR-25 to SC (in progress) as a test — that is not the same as ORC-1 SC."
-        )
-    if has_obr:
-        hints.append(
-            "The ACK is from the TCP peer (often Mirth Connect), not proof that Vue applied the order. In Mirth, open the message: received, transformed, and sent to Vue / IS Link."
         )
     return hints
 

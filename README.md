@@ -310,10 +310,10 @@ Add scheduled procedures here. If **Serve the web worklist over DICOM** is on, a
 
 `/tools/hl7-send` sends an HL7 v2 message to a TCP endpoint. It is a sender, not an analyzer: paste (or save) the pipe-delimited text and ship it.
 
-- **Host / port** — the HL7 engine, not the DICOM port. Common MLLP ports are `2575` and `6661`. You can copy a *host* from a saved DICOM remote; you still type the HL7 port.
+- **Host / port** — the HL7 **listener**, not the DICOM port. Common MLLP ports are `2575` and `6661`. You can copy a *host* from a saved DICOM remote; you still type the HL7 port. On Philips Vue, if **IS Link is empty** after an ACK, Host/Port is almost always **Mirth**, not IS Link — send to the IS Link listen host:port from IS Link Configuration instead.
 - **Framing** — MLLP (`0x0B` … `0x1C 0x0D`) is the default. Raw TCP is there for engines that do not wrap.
 - **Message** — HL7 v2 starting with `MSH`. The editor shows one segment per row (toggle **Raw** for the full paste). Long pipe-delimited lines wrap. Newlines become CR on the wire.
-- **ACK** — if the peer replies, the result shows the raw ACK and MSA-1 (`AA` / `AE` / `AR`). An ACK is not a promise that PACS applied an order update.
+- **ACK** — if the peer replies, the result shows the raw ACK, MSA-1 (`AA` / `AE` / `AR`), and ACK **MSH-3** (who answered). An ACK is not a promise that PACS applied an order update.
 - **New MSH-10** — on by default in the UI. The same Message Control ID is often ACKed and ignored.
 - **Change existing order** — on by default. Stamps **ORC-1** (see the control next to it) and **ORC-9**. Philips Vue / IS Link uses **SC** to update an order (`NW` new, `CA` cancel). **XO** is generic HL7 change; Vue often ignores it while Mirth still ACKs.
 - **ORC-1 on change** — UI default is **SC** (Vue). JSON API still stamps `XO` unless you pass `"orc_control": "SC"`.
@@ -324,13 +324,21 @@ Add scheduled procedures here. If **Serve the web worklist over DICOM** is on, a
 
 ### Philips Vue PACS + Mirth Connect
 
-Send to **Mirth’s MLLP port**, not Vue’s DICOM port. The ACK you see is almost always **Mirth**, not Vue.
+The ACK you see is from **whoever is listening on Host/Port**. If that is Mirth, Vue / IS Link never saw the bytes.
 
-1. In Mirth **Message Browser**, open the message: received → transformed → **sent** to the Vue / IS Link destination. If it never leaves Mirth (filter, transformer, destination error), Vue will not change.
-2. Vue IS Link order control is **NW** (new), **SC** (update), **CA** (cancel). **XO is not in that table.**
-3. Match the accession Vue already has: **ORC-3 / OBR-3** (filler / order number) and often **OBR-18**. A wrong accession is ACKed by Mirth and ignored by Vue.
-4. Vue maps **OBR-31** to DICOM Reason for Requested Procedure `(0040,2010)`. The text you stare at in Vue is often **Study Description** from the images (C-STORE) or **OBR-4.2**, not OBR-31.
-5. Updating an existing study may also need Vue’s **ZDS** Study Instance UID. IS Link config decides which ORM fields actually overwrite.
+**If you cannot open Mirth, use IS Link.** An empty IS Link Incoming (and Error) queue means the ORM never arrived. Stop editing OBR-31 until a message shows up there.
+
+1. In **IS Link Configuration**, find the HL7 **Listener** host and port (site-configured; not Vue’s DICOM port). Confirm the listener process is running.
+2. In Dicommunication, put that host and port in **Host / Port**. Leave MLLP on. Send the same ORM.
+3. Refresh IS Link **Incoming** and **Error**:
+   - **Message appears** — routing was the problem (Mirth was not forwarding). Field mapping (ORC-1 **SC**, accession, OBR-31) can be checked next.
+   - **Still empty, connection refused / timeout** — wrong host/port, listener down, or the workstation cannot reach that VLAN.
+   - **Still empty, but you got an ACK** — look at ACK **MSH-3**. `MIRTH` (or similar) means you are still on Mirth’s port. An IS Link-looking MSH-3 with an empty queue means a different IS Link instance, or **MSH-5 / MSH-6** (receiving application / facility) do not match what that listener accepts (Mirth often rewrites those before forwarding).
+4. You do not need Mirth for that test. If you later get Mirth access: Message Browser received → transformed → **sent** to the IS Link destination.
+5. Vue IS Link order control is **NW** (new), **SC** (update), **CA** (cancel). **XO is not in that table.**
+6. Match the accession Vue already has: **ORC-3 / OBR-3** (filler / order number) and often **OBR-18**.
+7. Vue maps **OBR-31** to DICOM Reason for Requested Procedure `(0040,2010)`. The text you stare at in Vue is often **Study Description** from the images (C-STORE) or **OBR-4.2**, not OBR-31.
+8. Updating an existing study may also need Vue’s **ZDS** Study Instance UID. IS Link config decides which ORM fields actually overwrite.
 
 ```bash
 curl -s -X POST http://127.0.0.1:8080/api/tools/hl7-send/run \
@@ -450,7 +458,8 @@ This is a trusted-network admin tool. The web UI has no login. Do not publish po
 | Worklist and MWL C-FIND look the same | They are the same SOP Class. Use Testbench Study Root C-FIND to search stored studies. |
 | Empty MWL / C-FIND table but Pass | The SOP Class was accepted and the query succeeded with zero matches. Check station AE, date, and **Present as**. |
 | HL7 send times out / no ACK | Peer is not listening, or that port is DICOM not MLLP. HL7 engines are often `2575` or `6661`, not `104`/`4242`. |
-| HL7 ACK AA but Vue did not update | ACK is from **Mirth**, not Vue. Check Mirth sent the message to IS Link. Vue updates with **ORC-1 SC**, not XO. Accession must match ORC-3/OBR-3 (and often OBR-18). OBR-31 is `(0040,2010)`; the Vue UI may show Study Description from C-STORE instead. |
+| HL7 ACK AA but Vue IS Link is empty | You did not hit the IS Link listener. ACK **MSH-3** is who answered (often Mirth). Send to IS Link’s listen host:port from IS Link Configuration. You do not need Mirth for that test. |
+| HL7 ACK AA, IS Link queued, Vue UI unchanged | Vue updates with **ORC-1 SC**, not XO. Accession must match ORC-3/OBR-3 (and often OBR-18). OBR-31 is `(0040,2010)`; the Vue UI may show Study Description from C-STORE instead. |
 | PING ICMP fails, TCP succeeds | Normal on locked-down clinical networks. Trust TCP to the DICOM port. |
 | `docker compose --build` fails at `apt-get` with exit 100 | Debian mirrors were unreachable from the Docker builder. Current images copy a static `ping` and do not run apt. Pull/rebuild from this change. |
 | Cannot reach Orthanc from Docker | Use `host.docker.internal` (same Mac/host) or the LAN IP; publish/check `4242`. |

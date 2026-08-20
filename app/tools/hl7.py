@@ -11,6 +11,7 @@ from app.hl7 import (
     display_hl7,
     latin1_replaced,
     msh_control_id,
+    msh_field,
     msa_ack_code,
     normalize_hl7,
     obr_reason,
@@ -209,14 +210,16 @@ class Hl7SendTool(BaseTool):
             )
         )
         ack_code = msa_ack_code(ack)
+        ack_app = msh_field(ack, 3)
+        ack_who = f" (MSH-3 {ack_app})" if ack_app else ""
         if ack.strip():
             ack_ok = ack_code in {None, "AA", "CA"}
             if ack_code in {"AA", "CA"}:
-                ack_message = f"ACK {ack_code} from {host}:{port}"
+                ack_message = f"ACK {ack_code} from {host}:{port}{ack_who}"
             elif ack_code:
-                ack_message = f"ACK {ack_code} from {host}:{port}"
+                ack_message = f"ACK {ack_code} from {host}:{port}{ack_who}"
             else:
-                ack_message = f"Response from {host}:{port} (no MSA segment)"
+                ack_message = f"Response from {host}:{port} (no MSA segment){ack_who}"
             steps.append(
                 ToolStep(
                     name="ACK",
@@ -249,7 +252,7 @@ class Hl7SendTool(BaseTool):
                 )
                 summary = f"Sent to {host}:{port} over raw TCP."
 
-        hints = send_wire_hints(normalized)
+        hints = send_wire_hints(normalized, ack=ack)
         for hint in hints:
             steps.append(ToolStep(name="Hint", ok=True, message=hint))
         if hints and ack.strip() and msa_ack_code(ack) in {"AA", "CA"}:

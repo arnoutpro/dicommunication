@@ -8,6 +8,7 @@ from app.hl7 import (
     DEFAULT_PORT,
     display_hl7,
     msh_control_id,
+    msh_field,
     msa_ack_code,
     normalize_hl7,
     obr_reason,
@@ -295,6 +296,15 @@ def test_stamp_order_control_and_obr_reason_ce() -> None:
     assert orc_status(stamp_orc_status(original, "IP")) == "IP"
 
 
+def test_msh_field_sending_application() -> None:
+    ack = "MSH|^~\\&|MIRTH|HOSP|DICOMM|ARNPRO|20260101000001||ACK^O01|A1|P|2.5\rMSA|AA|MSG00001"
+    assert msh_field(ack, 3) == "MIRTH"
+    assert msh_field(ack, 4) == "HOSP"
+    assert msh_field(ack, 10) == "A1"
+    assert msh_control_id(ack) == "A1"
+    assert msh_field("PID|||1", 3) == ""
+
+
 def test_send_wire_hints_for_repeat_new_order() -> None:
     hints = send_wire_hints(_orm())
     assert any("ORC-1 is still NW" in hint for hint in hints)
@@ -302,12 +312,22 @@ def test_send_wire_hints_for_repeat_new_order() -> None:
     assert any("OBR-25 is COMPLETED" in hint for hint in hints)
     quiet = send_wire_hints(_orm(orc="SC", reason="arnout.pro^arnout.pro SEH", status="SC"))
     assert not any("COMPLETED" in hint or "ORC-1 is still NW" in hint or "empty identifier" in hint for hint in quiet)
-    assert any("Mirth" in hint for hint in quiet)
+    assert any("IS Link" in hint and "Mirth" in hint for hint in quiet)
     assert not any("ORC-1 is XO" in hint for hint in quiet)
     xo = send_wire_hints(_orm(orc="XO", reason="arnout.pro^arnout.pro SEH", status="SC"))
     assert any("ORC-1 is XO" in hint for hint in xo)
     empty_id = send_wire_hints(_orm(orc="SC", reason="^arnout.pro SEH", status="SC"))
     assert any("empty identifier" in hint for hint in empty_id)
+    mirth = send_wire_hints(
+        _orm(orc="SC", reason="arnout.pro^arnout.pro SEH", status="SC"),
+        ack="MSH|^~\\&|MIRTH|HOSP\rMSA|AA|MSG00001",
+    )
+    assert any("ACK MSH-3 is MIRTH" in hint and "IS Link stays empty" in hint for hint in mirth)
+    islink = send_wire_hints(
+        _orm(orc="SC", reason="arnout.pro^arnout.pro SEH", status="SC"),
+        ack="MSH|^~\\&|ISLINK|VUE\rMSA|AA|MSG00001",
+    )
+    assert any("looks like IS Link" in hint for hint in islink)
 
 
 def test_hl7_tool_stamps_control_id_when_requested() -> None:
@@ -456,6 +476,35 @@ def test_hl7_tool_stamps_obr_in_progress_when_requested() -> None:
         assert "ORC-5 IP" in send_step.message
         assert not any(step.name == "Hint" and "COMPLETED" in step.message for step in result.steps)
         assert any(step.name == "Hint" and "Mirth" in step.message for step in result.steps)
+        ack_step = next(step for step in result.steps if step.name == "ACK")
+        assert "MSH-3 R" in ack_step.message
+    finally:
+        server.close()
+
+
+def test_hl7_tool_names_mirth_ack_when_is_link_would_stay_empty() -> None:
+    tool = Hl7SendTool()
+    local = LocalAE(timeout_seconds=2)
+    message = _orm(orc="SC", reason="arnout.pro^arnout.pro SEH", status="SC")
+    ack = "MSH|^~\\&|MIRTH|HOSP\rMSA|AA|MSG00001"
+    port, _received, thread, server = _serve_mllp_once(ack)
+    try:
+        result = tool.run(
+            local,
+            None,
+            {
+                "host": "127.0.0.1",
+                "port": port,
+                "message": message,
+            },
+        )
+        thread.join(timeout=2)
+        assert result.ok
+        ack_step = next(step for step in result.steps if step.name == "ACK")
+        assert "MSH-3 MIRTH" in ack_step.message
+        assert any(
+            step.name == "Hint" and "IS Link stays empty" in step.message for step in result.steps
+        )
     finally:
         server.close()
 
@@ -474,6 +523,8 @@ def test_hl7_page_has_resend_hint(client) -> None:
     assert b"Set OBR-25 to SC" in page.content
     assert b"ORC-1" in page.content
     assert b"OBR-31" in page.content
+    assert b"IS Link Incoming and Error" in page.content
+    assert b"ACK MSH-3" in page.content
 
 
 def test_hl7_page_has_wrapping_segment_editor(client) -> None:

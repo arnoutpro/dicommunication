@@ -47,10 +47,12 @@
     <label>
       Host
       <input name="host" value="{{ hl7_host }}" placeholder="10.0.0.20" {% if not config.remotes %}required{% endif %}>
+      <span class="hint">MLLP listener, not DICOM. If Vue IS Link is empty after an ACK, this host is not IS Link (usually Mirth).</span>
     </label>
     <label>
       Port
       <input name="port" type="number" min="1" max="65535" value="{{ hl7_port }}" required>
+      <span class="hint">IS Link listen port is in IS Link Configuration (Listener). Not Vue DICOM 104.</span>
     </label>
     <label>
       Framing
@@ -59,6 +61,7 @@
         <option value="raw" {% if not hl7_mllp %}selected{% endif %}>Raw TCP</option>
       </select>
     </label>
+    <p class="hint span-2">If Philips Vue IS Link Incoming and Error are both empty after an ACK, this Host/Port is not the IS Link listener. Copy the listen host and port from IS Link Configuration, send the same ORM, and watch those queues. You do not need Mirth. ACK MSH-3 is who answered — MIRTH means Vue never saw the message.</p>
     <div class="span-2" data-hl7-editor>
       <div class="hl7-editor-head">
         <span>HL7 v2 message</span>
@@ -99,7 +102,7 @@
         <option value="XO" {% if (hl7_orc_control|default("SC")) == "XO" %}selected{% endif %}>XO — HL7 change order</option>
         <option value="CA" {% if (hl7_orc_control|default("SC")) == "CA" %}selected{% endif %}>CA — cancel order</option>
       </select>
-      <span class="hint">Philips Vue PACS (IS Link) documents NW = new, SC = update, CA = cancel. XO is not in that table. This is not OBR-25 SC. A Mirth ACK is not Vue applying the order.</span>
+      <span class="hint">Philips Vue PACS (IS Link) documents NW = new, SC = update, CA = cancel. XO is not in that table. This is not OBR-25 SC. An ACK is not Vue applying the order.</span>
     </label>
     <label class="checkbox span-2">
       <input type="checkbox" name="obr_reason_ce" value="on" {% if hl7_obr_reason_ce %}checked{% endif %}>
