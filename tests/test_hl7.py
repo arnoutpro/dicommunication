@@ -13,11 +13,16 @@ from app.hl7 import (
     obr_reason,
     obr_status,
     orc_order_control,
+    orc_status,
+    orc_transaction_time,
     sample_adt_a01,
     send_hl7,
     send_wire_hints,
     stamp_new_control_id,
     stamp_obr_reason_ce_text,
+    stamp_obr_status,
+    stamp_orc_status,
+    stamp_orc_transaction_time,
     stamp_order_control,
     unwrap_mllp,
     wrap_mllp,
@@ -276,11 +281,18 @@ def test_stamp_order_control_and_obr_reason_ce() -> None:
     assert reason == "arnout.pro SEH"
     encoded = stamp_obr_reason_ce_text(original)
     _, encoded_reason = obr_reason(encoded)
-    assert encoded_reason == "^arnout.pro SEH"
+    assert encoded_reason == "arnout.pro^arnout.pro SEH"
     already = stamp_obr_reason_ce_text(encoded)
     _, again = obr_reason(already)
-    assert again == "^arnout.pro SEH"
+    assert again == "arnout.pro^arnout.pro SEH"
+    caret_only = stamp_obr_reason_ce_text(_orm(reason="^arnout.pro SEH"))
+    _, filled = obr_reason(caret_only)
+    assert filled == "arnout.pro^arnout.pro SEH"
     assert obr_status(original) == "COMPLETED"
+    timed = stamp_orc_transaction_time(original, timestamp="20260820120000")
+    assert orc_transaction_time(timed) == "20260820120000"
+    assert obr_status(stamp_obr_status(original, "SC")) == "SC"
+    assert orc_status(stamp_orc_status(original, "IP")) == "IP"
 
 
 def test_send_wire_hints_for_repeat_new_order() -> None:
@@ -288,8 +300,11 @@ def test_send_wire_hints_for_repeat_new_order() -> None:
     assert any("ORC-1 is still NW" in hint for hint in hints)
     assert any("OBR-31 has a space" in hint for hint in hints)
     assert any("OBR-25 is COMPLETED" in hint for hint in hints)
-    quiet = send_wire_hints(_orm(orc="XO", reason="^arnout.pro SEH", status="SC"))
-    assert quiet == []
+    quiet = send_wire_hints(_orm(orc="XO", reason="arnout.pro^arnout.pro SEH", status="SC"))
+    assert not any("COMPLETED" in hint or "ORC-1 is still NW" in hint or "empty identifier" in hint for hint in quiet)
+    assert any("images already in PACS" in hint for hint in quiet)
+    empty_id = send_wire_hints(_orm(orc="XO", reason="^arnout.pro SEH", status="SC"))
+    assert any("empty identifier" in hint for hint in empty_id)
 
 
 def test_hl7_tool_stamps_control_id_when_requested() -> None:
@@ -344,11 +359,13 @@ def test_hl7_tool_stamps_order_change_when_requested() -> None:
         sent = unwrap_mllp(received["raw"]).decode("latin-1")
         assert msh_control_id(sent) != "MSG00001"
         assert orc_order_control(sent) == "XO"
+        assert orc_transaction_time(sent)
         _, reason = obr_reason(sent)
-        assert reason == "^arnout.pro SEH"
+        assert reason == "arnout.pro^arnout.pro SEH"
         send_step = next(step for step in result.steps if step.name == "Send")
         assert "ORC-1 XO" in send_step.message
         assert "OBR-25 COMPLETED" in send_step.message
+        assert "ORC-9" in send_step.message
         assert any(step.name == "Hint" and "COMPLETED" in step.message for step in result.steps)
         assert "not a PACS update" in result.summary
     finally:
@@ -377,6 +394,40 @@ def test_hl7_tool_leaves_orc_when_change_order_off() -> None:
         server.close()
 
 
+def test_hl7_tool_stamps_obr_in_progress_when_requested() -> None:
+    tool = Hl7SendTool()
+    local = LocalAE(timeout_seconds=2)
+    message = _orm()
+    ack = "MSH|^~\\&|R|F\rMSA|AA|MSG00001"
+    port, received, thread, server = _serve_mllp_once(ack)
+    try:
+        result = tool.run(
+            local,
+            None,
+            {
+                "host": "127.0.0.1",
+                "port": port,
+                "message": message,
+                "change_order": True,
+                "obr_reason_ce": True,
+                "obr_in_progress": True,
+            },
+        )
+        thread.join(timeout=2)
+        assert result.ok
+        sent = unwrap_mllp(received["raw"]).decode("latin-1")
+        assert orc_order_control(sent) == "XO"
+        assert obr_status(sent) == "SC"
+        assert orc_status(sent) == "IP"
+        send_step = next(step for step in result.steps if step.name == "Send")
+        assert "OBR-25 SC" in send_step.message
+        assert "ORC-5 IP" in send_step.message
+        assert not any(step.name == "Hint" and "COMPLETED" in step.message for step in result.steps)
+        assert any(step.name == "Hint" and "images already in PACS" in step.message for step in result.steps)
+    finally:
+        server.close()
+
+
 def test_hl7_page_has_resend_hint(client) -> None:
     page = client.get("/tools/hl7-send")
     assert b'enctype="multipart/form-data"' in page.content
@@ -385,6 +436,8 @@ def test_hl7_page_has_resend_hint(client) -> None:
     assert b"Change existing order (ORC-1 XO)" in page.content
     assert b'name="obr_reason_ce"' in page.content
     assert b"OBR-31 as CE text" in page.content
+    assert b'name="obr_in_progress"' in page.content
+    assert b"Set OBR-25 to SC" in page.content
     assert b"ORC-1" in page.content
     assert b"OBR-31" in page.content
 

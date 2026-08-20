@@ -2,7 +2,8 @@
 
 ## Unreleased
 
-- HL7 send: the UI can set ORC-1 to XO (change order) and put OBR-31 into the CE text component (`^text`). A new MSH-10 alone is not an order update. The Send result also repeats OBR-25 and adds a Hint when an ACK is likely not a PACS update.
+- HL7 send: the UI can set ORC-1 to XO (change order) and put OBR-31 into a CE `id^text`. A new MSH-10 alone is not an order update. The Send result also repeats OBR-25 and adds a Hint when an ACK is likely not a PACS update.
+- HL7 send: XO also stamps ORC-9. OBR-31 CE now fills an empty identifier (`arnout.pro^arnout.pro SEH` instead of `^arnout.pro SEH`). A **Set OBR-25 to SC** checkbox tests the usual completed-exam skip; an ACK still does not rewrite images already in PACS.
 
 ## 0.3.0
 
