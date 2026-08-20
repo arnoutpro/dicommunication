@@ -310,7 +310,7 @@ Add scheduled procedures here. If **Serve the web worklist over DICOM** is on, a
 
 `/tools/hl7-send` sends an HL7 v2 message to a TCP endpoint. It is a sender, not an analyzer: paste (or save) the pipe-delimited text and ship it.
 
-- **Host / port** — the HL7 **listener**, not the DICOM port. Common MLLP ports are `2575` and `6661`. You can copy a *host* from a saved DICOM remote; you still type the HL7 port. On Philips Vue, if **IS Link is empty** after an ACK, Host/Port is almost always **Mirth**, not IS Link — send to the IS Link listen host:port from IS Link Configuration instead.
+- **Host / port** — the HL7 **listener**, not the DICOM port. Common MLLP ports are `2575` and `6661`. On Philips Vue, **10010** (and 4001/4003/4005) is the usual **HL7 VIP**, not proof you hit IS Link’s process. If IS Link stays empty after an ACK to 10010, read the Listener **bind** port in IS Link Configuration and send there if it differs.
 - **Framing** — MLLP (`0x0B` … `0x1C 0x0D`) is the default. Raw TCP is there for engines that do not wrap.
 - **Message** — HL7 v2 starting with `MSH`. The editor shows one segment per row (toggle **Raw** for the full paste). Long pipe-delimited lines wrap. Newlines become CR on the wire.
 - **ACK** — if the peer replies, the result shows the raw ACK, MSA-1 (`AA` / `AE` / `AR`), and ACK **MSH-3** (who answered). An ACK is not a promise that PACS applied an order update.
@@ -319,21 +319,21 @@ Add scheduled procedures here. If **Serve the web worklist over DICOM** is on, a
 - **ORC-1 on change** — UI default is **SC** (Vue). JSON API still stamps `XO` unless you pass `"orc_control": "SC"`.
 - **OBR-31 as CE text** — on by default in the UI. Reason for Study is `id^text`. A spaced identifier becomes `firstword^full text`. `^text` (empty id) is filled from the text. Vue maps OBR-31 to DICOM `(0040,2010)`, which may not be the study description you see in the Vue UI (that is often OBR-4.2 / C-STORE).
 - **Set OBR-25 to SC (in progress)** — on by default, test only. That is **result status**, not Vue’s ORC-1 SC. Also sets ORC-5 to `IP`.
-- The Send result repeats MSH-10, ORC-1, OBR-25, and OBR-31 as they went on the wire, plus a Hint when the ACK is likely not a PACS update.
+- The Send result repeats MSH-10, MSH-5/MSH-6, ORC-1, OBR-25, and OBR-31 as they went on the wire, plus a Hint when the ACK is likely not a PACS update.
 - Saved drafts live in `hl7_messages.json` next to config.
 
 ### Philips Vue PACS + Mirth Connect
 
-The ACK you see is from **whoever is listening on Host/Port**. If that is Mirth, Vue / IS Link never saw the bytes.
+The ACK you see is from **whoever is listening on Host/Port**. Site docs that list **10010** as the HL7 listener are describing Vue’s **HL7 VIP** (also 4001/4003/4005), not IS Link’s own process bind port.
 
-**If you cannot open Mirth, use IS Link.** An empty IS Link Incoming (and Error) queue means the ORM never arrived. Stop editing OBR-31 until a message shows up there.
+**If you cannot open Mirth, use IS Link.** An empty IS Link Incoming (and Error) queue means the ORM never arrived at that IS Link process. Stop editing OBR-31 until a message shows up there.
 
-1. In **IS Link Configuration**, find the HL7 **Listener** host and port (site-configured; not Vue’s DICOM port). Confirm the listener process is running.
-2. In Dicommunication, put that host and port in **Host / Port**. Leave MLLP on. Send the same ORM.
-3. Refresh IS Link **Incoming** and **Error**:
-   - **Message appears** — routing was the problem (Mirth was not forwarding). Field mapping (ORC-1 **SC**, accession, OBR-31) can be checked next.
+1. In **IS Link Configuration**, read the Listener **bind** port (the process, not the site VIP table). Confirm the listener process is running.
+2. If that bind port is **not** 10010, send to the IS Link server’s bind host:port. 10010 can ACK from Mirth, IBE, or a load balancer in front of them.
+3. Refresh IS Link **Incoming** and **Error** (clear date filters):
+   - **Message appears** — routing was the problem. Field mapping (ORC-1 **SC**, accession, OBR-31) can be checked next.
    - **Still empty, connection refused / timeout** — wrong host/port, listener down, or the workstation cannot reach that VLAN.
-   - **Still empty, but you got an ACK** — look at ACK **MSH-3**. `MIRTH` (or similar) means you are still on Mirth’s port. An IS Link-looking MSH-3 with an empty queue means a different IS Link instance, or **MSH-5 / MSH-6** (receiving application / facility) do not match what that listener accepts (Mirth often rewrites those before forwarding).
+   - **Still empty, but you got an ACK on 10010** — look at ACK **MSH-3**. That is who answered on the VIP. On the IS Link server, see which executable owns 10010 (`netstat` / Resource Monitor). **MSH-5 / MSH-6** (receiving application / facility) must match what IS Link accepts; Mirth often rewrites those before forwarding.
 4. You do not need Mirth for that test. If you later get Mirth access: Message Browser received → transformed → **sent** to the IS Link destination.
 5. Vue IS Link order control is **NW** (new), **SC** (update), **CA** (cancel). **XO is not in that table.**
 6. Match the accession Vue already has: **ORC-3 / OBR-3** (filler / order number) and often **OBR-18**.
@@ -458,7 +458,7 @@ This is a trusted-network admin tool. The web UI has no login. Do not publish po
 | Worklist and MWL C-FIND look the same | They are the same SOP Class. Use Testbench Study Root C-FIND to search stored studies. |
 | Empty MWL / C-FIND table but Pass | The SOP Class was accepted and the query succeeded with zero matches. Check station AE, date, and **Present as**. |
 | HL7 send times out / no ACK | Peer is not listening, or that port is DICOM not MLLP. HL7 engines are often `2575` or `6661`, not `104`/`4242`. |
-| HL7 ACK AA but Vue IS Link is empty | You did not hit the IS Link listener. ACK **MSH-3** is who answered (often Mirth). Send to IS Link’s listen host:port from IS Link Configuration. You do not need Mirth for that test. |
+| HL7 ACK AA to 10010 but Vue IS Link is empty | **10010** is Vue’s HL7 VIP, not IS Link’s bind port. ACK **MSH-3** is who answered (Mirth, IBE, or a balancer). In IS Link Configuration, read the Listener process port and send there if it differs. MSH-5/MSH-6 must match what IS Link accepts. |
 | HL7 ACK AA, IS Link queued, Vue UI unchanged | Vue updates with **ORC-1 SC**, not XO. Accession must match ORC-3/OBR-3 (and often OBR-18). OBR-31 is `(0040,2010)`; the Vue UI may show Study Description from C-STORE instead. |
 | PING ICMP fails, TCP succeeds | Normal on locked-down clinical networks. Trust TCP to the DICOM port. |
 | `docker compose --build` fails at `apt-get` with exit 100 | Debian mirrors were unreachable from the Docker builder. Current images copy a static `ping` and do not run apt. Pull/rebuild from this change. |

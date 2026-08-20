@@ -52,7 +52,7 @@
     <label>
       Port
       <input name="port" type="number" min="1" max="65535" value="{{ hl7_port }}" required>
-      <span class="hint">IS Link listen port is in IS Link Configuration (Listener). Not Vue DICOM 104.</span>
+      <span class="hint">IS Link Listener bind port, from IS Link Configuration. Site docs often list 10010 — that is Vue’s HL7 VIP, not proof this is IS Link.</span>
     </label>
     <label>
       Framing
@@ -61,7 +61,7 @@
         <option value="raw" {% if not hl7_mllp %}selected{% endif %}>Raw TCP</option>
       </select>
     </label>
-    <p class="hint span-2">If Philips Vue IS Link Incoming and Error are both empty after an ACK, this Host/Port is not the IS Link listener. Copy the listen host and port from IS Link Configuration, send the same ORM, and watch those queues. You do not need Mirth. ACK MSH-3 is who answered — MIRTH means Vue never saw the message.</p>
+    <p class="hint span-2">If Philips Vue IS Link Incoming and Error stay empty after an ACK to 10010, you hit Vue’s HL7 VIP (also 4001/4003/4005), not necessarily IS Link’s process. In IS Link Configuration, read the Listener bind port. If it is not 10010, send there. ACK MSH-3 is who answered. MSH-5/MSH-6 must match what IS Link accepts.</p>
     <div class="span-2" data-hl7-editor>
       <div class="hl7-editor-head">
         <span>HL7 v2 message</span>

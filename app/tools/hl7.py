@@ -51,6 +51,12 @@ def _send_notes(message: str) -> str:
     control_id = msh_control_id(message)
     if control_id:
         bits.append(f"MSH-10 {control_id}")
+    recv_app = msh_field(message, 5)
+    if recv_app:
+        bits.append(f"MSH-5 {recv_app}")
+    recv_fac = msh_field(message, 6)
+    if recv_fac:
+        bits.append(f"MSH-6 {recv_fac}")
     order_control = orc_order_control(message)
     if order_control:
         bits.append(f"ORC-1 {order_control}")
@@ -252,7 +258,7 @@ class Hl7SendTool(BaseTool):
                 )
                 summary = f"Sent to {host}:{port} over raw TCP."
 
-        hints = send_wire_hints(normalized, ack=ack)
+        hints = send_wire_hints(normalized, ack=ack, port=port)
         for hint in hints:
             steps.append(ToolStep(name="Hint", ok=True, message=hint))
         if hints and ack.strip() and msa_ack_code(ack) in {"AA", "CA"}:
