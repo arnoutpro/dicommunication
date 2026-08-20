@@ -11,15 +11,21 @@ from app.hl7 import (
     display_hl7,
     latin1_replaced,
     msh_control_id,
+    msh_field,
     msa_ack_code,
     normalize_hl7,
     obr_reason,
     obr_status,
     orc_order_control,
+    orc_status,
+    orc_transaction_time,
     send_hl7,
     send_wire_hints,
     stamp_new_control_id,
     stamp_obr_reason_ce_text,
+    stamp_obr_status,
+    stamp_orc_status,
+    stamp_orc_transaction_time,
     stamp_order_control,
     use_mllp,
 )
@@ -45,9 +51,21 @@ def _send_notes(message: str) -> str:
     control_id = msh_control_id(message)
     if control_id:
         bits.append(f"MSH-10 {control_id}")
+    recv_app = msh_field(message, 5)
+    if recv_app:
+        bits.append(f"MSH-5 {recv_app}")
+    recv_fac = msh_field(message, 6)
+    if recv_fac:
+        bits.append(f"MSH-6 {recv_fac}")
     order_control = orc_order_control(message)
     if order_control:
         bits.append(f"ORC-1 {order_control}")
+    status_code = orc_status(message)
+    if status_code:
+        bits.append(f"ORC-5 {status_code}")
+    txn = orc_transaction_time(message)
+    if txn:
+        bits.append(f"ORC-9 {txn}")
     status = obr_status(message)
     if status:
         bits.append(f"OBR-25 {status}")
@@ -106,6 +124,10 @@ class Hl7SendTool(BaseTool):
         new_control_id = _flag(options.get("new_control_id"), default=False)
         change_order = _flag(options.get("change_order"), default=False)
         obr_reason_ce = _flag(options.get("obr_reason_ce"), default=False)
+        obr_in_progress = _flag(options.get("obr_in_progress"), default=False)
+        orc_control = str(options.get("orc_control") or "XO").strip().upper()
+        if orc_control not in {"XO", "SC", "XX", "CA"}:
+            orc_control = "XO"
 
         if not host:
             return ToolResult(
@@ -142,9 +164,13 @@ class Hl7SendTool(BaseTool):
         if new_control_id:
             normalized = stamp_new_control_id(normalized)
         if change_order:
-            normalized = stamp_order_control(normalized, "XO")
+            normalized = stamp_order_control(normalized, orc_control)
+            normalized = stamp_orc_transaction_time(normalized)
         if obr_reason_ce:
             normalized = stamp_obr_reason_ce_text(normalized)
+        if obr_in_progress:
+            normalized = stamp_obr_status(normalized, "SC")
+            normalized = stamp_orc_status(normalized, "IP")
 
         steps: list[ToolStep] = []
         connect_started = time.perf_counter()
@@ -190,14 +216,16 @@ class Hl7SendTool(BaseTool):
             )
         )
         ack_code = msa_ack_code(ack)
+        ack_app = msh_field(ack, 3)
+        ack_who = f" (MSH-3 {ack_app})" if ack_app else ""
         if ack.strip():
             ack_ok = ack_code in {None, "AA", "CA"}
             if ack_code in {"AA", "CA"}:
-                ack_message = f"ACK {ack_code} from {host}:{port}"
+                ack_message = f"ACK {ack_code} from {host}:{port}{ack_who}"
             elif ack_code:
-                ack_message = f"ACK {ack_code} from {host}:{port}"
+                ack_message = f"ACK {ack_code} from {host}:{port}{ack_who}"
             else:
-                ack_message = f"Response from {host}:{port} (no MSA segment)"
+                ack_message = f"Response from {host}:{port} (no MSA segment){ack_who}"
             steps.append(
                 ToolStep(
                     name="ACK",
@@ -230,7 +258,7 @@ class Hl7SendTool(BaseTool):
                 )
                 summary = f"Sent to {host}:{port} over raw TCP."
 
-        hints = send_wire_hints(normalized)
+        hints = send_wire_hints(normalized, ack=ack, port=port)
         for hint in hints:
             steps.append(ToolStep(name="Hint", ok=True, message=hint))
         if hints and ack.strip() and msa_ack_code(ack) in {"AA", "CA"}:
