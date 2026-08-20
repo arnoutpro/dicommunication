@@ -25,6 +25,7 @@
     class="form-grid"
     method="post"
     action="/tools/hl7-send/run"
+    enctype="multipart/form-data"
     autocomplete="off"
   >
     {% if config.remotes %}
@@ -58,10 +59,33 @@
         <option value="raw" {% if not hl7_mllp %}selected{% endif %}>Raw TCP</option>
       </select>
     </label>
-    <label class="span-2">
-      HL7 v2 message
-      <textarea class="hl7-body" name="message" rows="12" spellcheck="false" required>{{ hl7_message }}</textarea>
-      <span class="hint">Segments can be one per line. They are sent with CR separators. This screen does not validate fields.</span>
+    <div class="span-2" data-hl7-editor>
+      <div class="hl7-editor-head">
+        <span>HL7 v2 message</span>
+        <span class="hl7-view-toggle" role="group" aria-label="Message view">
+          <button type="button" class="button compact is-active" data-hl7-view="segments" aria-pressed="true">Segments</button>
+          <button type="button" class="button compact" data-hl7-view="raw" aria-pressed="false">Raw</button>
+        </span>
+      </div>
+      <div class="hl7-segments" data-hl7-segments></div>
+      <textarea
+        class="hl7-body"
+        name="message"
+        id="hl7-message"
+        rows="12"
+        spellcheck="false"
+        wrap="soft"
+        required
+      >{{ hl7_message }}</textarea>
+      <div class="hl7-editor-tools" data-hl7-tools>
+        <button type="button" class="button compact" data-hl7-add-segment>Add segment</button>
+      </div>
+      <span class="hint">One segment per row. Long lines wrap. They are sent with CR separators. This screen does not validate fields.</span>
+    </div>
+    <label class="checkbox span-2">
+      <input type="checkbox" name="new_control_id" value="on" {% if hl7_new_control_id %}checked{% endif %}>
+      New Message Control ID (MSH-10)
+      <span class="hint">An ACK only means the engine accepted the bytes. The same MSH-10 is often ACKed and ignored. To change an existing order, set ORC-1 to XO (not NW) and put Reason for Study in OBR-31 (the 31st OBR field).</span>
     </label>
     <label>
       Save as

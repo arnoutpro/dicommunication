@@ -2,14 +2,19 @@ from __future__ import annotations
 
 import socket
 import threading
+from pathlib import Path
 
 from app.hl7 import (
     DEFAULT_PORT,
     display_hl7,
+    msh_control_id,
     msa_ack_code,
     normalize_hl7,
+    obr_reason,
+    orc_order_control,
     sample_adt_a01,
     send_hl7,
+    stamp_new_control_id,
     unwrap_mllp,
     wrap_mllp,
     MLLP_END,
@@ -214,3 +219,79 @@ def test_hl7_form_and_api_send(client) -> None:
 def test_hl7_message_preview() -> None:
     item = Hl7Message(name="x", body="MSH|^~\\&|A\rEVN|A01")
     assert item.preview.startswith("MSH|")
+
+
+def test_stamp_new_control_id_and_obr_31() -> None:
+    original = sample_adt_a01(timestamp="20260101000000")
+    assert msh_control_id(original) == "MSG00001"
+    stamped = stamp_new_control_id(original, control_id="D999", timestamp="20260102000000")
+    assert msh_control_id(stamped) == "D999"
+    assert stamped.split("\r")[0].split("|")[6] == "20260102000000"
+
+    short = "MSH|^~\\&|A|B\rORC|NW|ORD1\rOBR|1|ORD1|||CTCHEST"
+    count, reason = obr_reason(short)
+    assert reason is None
+    assert count < 31
+    assert orc_order_control(short) == "NW"
+    obr = "|".join(["OBR"] + [""] * 30 + ["follow-up CT"])
+    long = f"MSH|^~\\&|A|B\rORC|XO|ORD1\r{obr}"
+    count, reason = obr_reason(long)
+    assert count == 31
+    assert reason == "follow-up CT"
+    assert orc_order_control(long) == "XO"
+
+
+def test_hl7_tool_stamps_control_id_when_requested() -> None:
+    tool = Hl7SendTool()
+    local = LocalAE(timeout_seconds=2)
+    message = sample_adt_a01(timestamp="20260101000000")
+    ack = "MSH|^~\\&|R|F\rMSA|AA|MSG00001"
+    port, received, thread, server = _serve_mllp_once(ack)
+    try:
+        result = tool.run(
+            local,
+            None,
+            {
+                "host": "127.0.0.1",
+                "port": port,
+                "message": message,
+                "new_control_id": True,
+            },
+        )
+        thread.join(timeout=2)
+        assert result.ok
+        sent = unwrap_mllp(received["raw"]).decode("latin-1")
+        assert msh_control_id(sent) != "MSG00001"
+        send_step = next(step for step in result.steps if step.name == "Send")
+        assert "MSH-10" in send_step.message
+        assert "MSG00001" not in send_step.message
+    finally:
+        server.close()
+
+
+def test_hl7_page_has_resend_hint(client) -> None:
+    page = client.get("/tools/hl7-send")
+    assert b'enctype="multipart/form-data"' in page.content
+    assert b"New Message Control ID" in page.content
+    assert b"ORC-1" in page.content
+    assert b"OBR-31" in page.content
+
+
+def test_hl7_page_has_wrapping_segment_editor(client) -> None:
+    page = client.get("/tools/hl7-send")
+    assert page.status_code == 200
+    assert b'data-hl7-editor' in page.content
+    assert b'data-hl7-view="segments"' in page.content
+    assert b'data-hl7-view="raw"' in page.content
+    assert b'data-hl7-segments' in page.content
+    assert b'wrap="soft"' in page.content
+    css = (Path(__file__).resolve().parents[1] / "app" / "static" / "css" / "app.css").read_text(
+        encoding="utf-8"
+    )
+    body_css = css[css.index("textarea.hl7-body") : css.index("[data-hl7-editor]")]
+    assert "white-space: pre-wrap;" in body_css
+    assert "overflow-wrap: anywhere;" in body_css
+    js = (Path(__file__).resolve().parents[1] / "app" / "static" / "js" / "app.js").read_text(
+        encoding="utf-8"
+    )
+    assert "function initHl7Editor" in js
