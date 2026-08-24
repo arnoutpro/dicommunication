@@ -3,6 +3,7 @@
 ## Unreleased
 
 - App chrome matches the quiet marketing site: squared corners (no pills), opaque panels instead of glass, slate-grey light mode, near-black dark mode, and bright cyan / amber / teal / rose accents on metrics, nav, and primary actions.
+- HL7 send: MSH-10, ORC-1, OBR-31, and OBR-25 stamps sit behind **Advanced troubleshooting**, with a short note on what each field actually changes (and that an ACK is still not a PACS update).
 - HL7 send: the UI can set ORC-1 to XO (change order) and put OBR-31 into a CE `id^text`. A new MSH-10 alone is not an order update. The Send result also repeats OBR-25 and adds a Hint when an ACK is likely not a PACS update.
 - HL7 send: XO also stamps ORC-9. OBR-31 CE now fills an empty identifier (`arnout.pro^arnout.pro SEH` instead of `^arnout.pro SEH`). A **Set OBR-25 to SC** checkbox tests the usual completed-exam skip; an ACK still does not rewrite images already in PACS.
 - HL7 send: **ORC-1 on change** can stamp Vue / IS Link **SC** (update order). XO is not in the Vue order-control table; a Mirth ACK is not Vue applying the order.

@@ -546,6 +546,9 @@ def test_hl7_page_has_resend_hint(client) -> None:
     assert b"Set OBR-25 to SC" in page.content
     assert b"ORC-1" in page.content
     assert b"OBR-31" in page.content
+    assert b"<details class=\"advanced\">" in page.content
+    assert b"Advanced troubleshooting" in page.content
+    assert b"optional stamps" in page.content.lower() or b"Optional stamps" in page.content
     assert b"Queues" in page.content
     assert b"ACK MSH-3" in page.content
     assert b"10010" in page.content

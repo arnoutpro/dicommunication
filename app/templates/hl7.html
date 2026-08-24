@@ -85,35 +85,49 @@
       </div>
       <span class="hint">One segment per row. Long lines wrap. They are sent with CR separators. This screen does not validate fields.</span>
     </div>
-    <label class="checkbox span-2">
-      <input type="checkbox" name="new_control_id" value="on" {% if hl7_new_control_id %}checked{% endif %}>
-      New Message Control ID (MSH-10)
-      <span class="hint">An ACK only means the engine accepted the bytes. The same MSH-10 is often ACKed and ignored.</span>
-    </label>
-    <label class="checkbox span-2">
-      <input type="checkbox" name="change_order" value="on" {% if hl7_change_order %}checked{% endif %}>
-      Change existing order
-      <span class="hint">Stamps ORC-1 and ORC-9 (transaction time). Does not invent an ORC. Repeating NW is usually ACKed and skipped.</span>
-    </label>
-    <label>
-      ORC-1 on change
-      <select name="orc_control">
-        <option value="SC" {% if (hl7_orc_control|default("SC")) == "SC" %}selected{% endif %}>SC — Vue / IS Link update order</option>
-        <option value="XO" {% if (hl7_orc_control|default("SC")) == "XO" %}selected{% endif %}>XO — HL7 change order</option>
-        <option value="CA" {% if (hl7_orc_control|default("SC")) == "CA" %}selected{% endif %}>CA — cancel order</option>
-      </select>
-      <span class="hint">Philips Vue PACS (IS Link) documents NW = new, SC = update, CA = cancel. XO is not in that table. This is not OBR-25 SC. An ACK is not Vue applying the order.</span>
-    </label>
-    <label class="checkbox span-2">
-      <input type="checkbox" name="obr_reason_ce" value="on" {% if hl7_obr_reason_ce %}checked{% endif %}>
-      OBR-31 as CE text
-      <span class="hint">Reason for Study is id^text. A space in the identifier is often ignored. This sends firstword^full text (and fills an empty ^text identifier). PACS that only read the id will not see ^arnout.pro SEH.</span>
-    </label>
-    <label class="checkbox span-2">
-      <input type="checkbox" name="obr_in_progress" value="on" {% if hl7_obr_in_progress %}checked{% endif %}>
-      Set OBR-25 to SC (in progress)
-      <span class="hint">Test only. Sets OBR-25 (result status) to SC and ORC-5 to IP. That is not the same as ORC-1 SC (Vue update). Vue may still skip a finished exam. An ACK still does not rewrite images already stored.</span>
-    </label>
+    <details class="advanced">
+      <summary>Advanced troubleshooting</summary>
+      <p class="hint">Optional stamps applied to the paste before send. They rewrite fields that already exist; they do not invent an ORC or OBR. An ACK still only means the listener accepted the bytes — not that PACS updated an order or a study.</p>
+      <div class="form-grid">
+        <label class="span-2 stamp-field">
+          <span class="stamp-field-title">
+            <input type="checkbox" name="new_control_id" value="on" {% if hl7_new_control_id %}checked{% endif %}>
+            New Message Control ID (MSH-10)
+          </span>
+          <span class="hint">MSH-10 is the unique id of this send. Many engines ACK a repeat of the same id and then ignore it (duplicate). Turn this on to stamp a fresh MSH-10 and MSH-7 time so a resend is a new message. It does not change order-control codes. An ACK still does not mean the order was applied.</span>
+        </label>
+        <label class="span-2 stamp-field">
+          <span class="stamp-field-title">
+            <input type="checkbox" name="change_order" value="on" {% if hl7_change_order %}checked{% endif %}>
+            Change existing order (ORC-1)
+          </span>
+          <span class="hint">Overwrites ORC-1 with the code below and stamps ORC-9 (transaction time). Use this when the accession already exists and you want an <em>update</em>, not a new order. It will not add an ORC if the paste has none. Repeating NW (new) is usually ACKed and skipped.</span>
+        </label>
+        <label class="span-2">
+          ORC-1 on change
+          <select name="orc_control">
+            <option value="SC" {% if (hl7_orc_control|default("SC")) == "SC" %}selected{% endif %}>SC — Vue / IS Link update order</option>
+            <option value="XO" {% if (hl7_orc_control|default("SC")) == "XO" %}selected{% endif %}>XO — HL7 change order</option>
+            <option value="CA" {% if (hl7_orc_control|default("SC")) == "CA" %}selected{% endif %}>CA — cancel order</option>
+          </select>
+          <span class="hint">Only used when “Change existing order” is on. Philips Vue / IS Link documents NW = new, SC = update, CA = cancel. XO is generic HL7 change; Vue often ignores XO while Mirth still ACKs. This is not OBR-25 SC (result status). An ACK is not Vue applying the order — check Queues &amp; Notifications.</span>
+        </label>
+        <label class="span-2 stamp-field">
+          <span class="stamp-field-title">
+            <input type="checkbox" name="obr_reason_ce" value="on" {% if hl7_obr_reason_ce %}checked{% endif %}>
+            OBR-31 as CE text
+          </span>
+          <span class="hint">OBR-31 is Reason for Study, a CE of id^text. A space in the identifier, or an empty id (^text), is often ignored. This rewrites OBR-31 to firstword^full text (and fills a missing id). Vue maps OBR-31 to DICOM (0040,2010); the description you see in the Vue UI is often Study Description from the images (C-STORE) or OBR-4.2, not this field.</span>
+        </label>
+        <label class="span-2 stamp-field">
+          <span class="stamp-field-title">
+            <input type="checkbox" name="obr_in_progress" value="on" {% if hl7_obr_in_progress %}checked{% endif %}>
+            Set OBR-25 to SC (in progress)
+          </span>
+          <span class="hint">Test only. Sets OBR-25 (result / exam status) to SC and ORC-5 to IP (in progress). That is not ORC-1 SC (Vue update-order). Use it to see whether Vue is skipping the update because the exam is already complete. An ACK still does not rewrite images already stored in PACS.</span>
+        </label>
+      </div>
+    </details>
     <label>
       Save as
       <input name="name" value="{{ hl7_save_name }}" placeholder="ADT A01 test">

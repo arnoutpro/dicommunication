@@ -314,11 +314,12 @@ Add scheduled procedures here. If **Serve the web worklist over DICOM** is on, a
 - **Framing** — MLLP (`0x0B` … `0x1C 0x0D`) is the default. Raw TCP is there for engines that do not wrap.
 - **Message** — HL7 v2 starting with `MSH`. The editor shows one segment per row (toggle **Raw** for the full paste). Long pipe-delimited lines wrap. Newlines become CR on the wire.
 - **ACK** — if the peer replies, the result shows the raw ACK, MSA-1 (`AA` / `AE` / `AR`), and ACK **MSH-3** (who answered). An ACK is not a promise that PACS applied an order update.
-- **New MSH-10** — on by default in the UI. The same Message Control ID is often ACKed and ignored.
-- **Change existing order** — on by default. Stamps **ORC-1** (see the control next to it) and **ORC-9**. Philips Vue / IS Link uses **SC** to update an order (`NW` new, `CA` cancel). **XO** is generic HL7 change; Vue often ignores it while Mirth still ACKs.
-- **ORC-1 on change** — UI default is **SC** (Vue). JSON API still stamps `XO` unless you pass `"orc_control": "SC"`.
-- **OBR-31 as CE text** — on by default in the UI. Reason for Study is `id^text`. A spaced identifier becomes `firstword^full text`. `^text` (empty id) is filled from the text. Vue maps OBR-31 to DICOM `(0040,2010)`, which may not be the study description you see in the Vue UI (that is often OBR-4.2 / C-STORE).
-- **Set OBR-25 to SC (in progress)** — on by default, test only. That is **result status**, not Vue’s ORC-1 SC. Also sets ORC-5 to `IP`.
+- **Advanced troubleshooting** — collapsed by default. Optional stamps applied to the paste before send (they do not invent missing ORC/OBR segments):
+  - **New MSH-10** — on by default in the UI. The same Message Control ID is often ACKed and ignored.
+  - **Change existing order** — on by default. Stamps **ORC-1** (see the control next to it) and **ORC-9**. Philips Vue / IS Link uses **SC** to update an order (`NW` new, `CA` cancel). **XO** is generic HL7 change; Vue often ignores it while Mirth still ACKs.
+  - **ORC-1 on change** — UI default is **SC** (Vue). JSON API still stamps `XO` unless you pass `"orc_control": "SC"`.
+  - **OBR-31 as CE text** — on by default in the UI. Reason for Study is `id^text`. A spaced identifier becomes `firstword^full text`. `^text` (empty id) is filled from the text. Vue maps OBR-31 to DICOM `(0040,2010)`, which may not be the study description you see in the Vue UI (that is often OBR-4.2 / C-STORE).
+  - **Set OBR-25 to SC (in progress)** — on by default, test only. That is **result status**, not Vue’s ORC-1 SC. Also sets ORC-5 to `IP`.
 - The Send result repeats MSH-10, MSH-5/MSH-6, ORC-1, OBR-25, and OBR-31 as they went on the wire, plus a Hint when the ACK is likely not a PACS update.
 - Saved drafts live in `hl7_messages.json` next to config.
 
