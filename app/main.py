@@ -339,6 +339,22 @@ def create_app(store: ConfigStore | None = None) -> FastAPI:
             page(request, nav="home", echo_board=echo_board_snapshot(app.state.store)),
         )
 
+    @app.get("/about", response_class=HTMLResponse)
+    def about_page(request: Request) -> HTMLResponse:
+        return templates.TemplateResponse(
+            request,
+            "about.html",
+            page(request, nav="about", data_dir=str(app.state.store.data_dir)),
+        )
+
+    @app.get("/help", response_class=HTMLResponse)
+    def help_page(request: Request) -> HTMLResponse:
+        return templates.TemplateResponse(
+            request,
+            "help.html",
+            page(request, nav="help", data_dir=str(app.state.store.data_dir)),
+        )
+
     @app.get("/echo-board", response_class=HTMLResponse)
     def echo_board_page(request: Request) -> HTMLResponse:
         return templates.TemplateResponse(
