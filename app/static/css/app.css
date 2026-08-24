@@ -601,7 +601,24 @@ textarea.hl7-body {
 .advanced > summary::-webkit-details-marker { display: none; }
 .advanced > summary::before { content: "▸ "; }
 .advanced[open] > summary::before { content: "▾ "; }
+.advanced > .hint {
+  display: block;
+  margin: 0 0 0.65rem;
+  max-width: 44rem;
+}
 .advanced .form-grid { margin-top: 0.2rem; }
+.stamp-field-title {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  color: var(--text);
+  font-weight: 700;
+}
+.stamp-field-title input[type="checkbox"] {
+  width: auto;
+  flex-shrink: 0;
+  accent-color: var(--accent);
+}
 
 input, select, textarea, .choice-toggle {
   background-color: rgba(255, 255, 255, 0.03);
