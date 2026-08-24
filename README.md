@@ -4,7 +4,7 @@ A low-code DICOM communication validator and PACS admin toolkit.
 
 Configure this workstation as a DICOM Application Entity, register remote nodes (PACS, Orthanc, RIS/MWL, modalities), impersonate extra calling AE Titles, and run the checks a connectivity ticket actually needs: network PING, C-ECHO, simulated C-STORE, Study Root C-FIND, Modality Worklist C-FIND, and HL7 v2 send over MLLP.
 
-The web UI is FastAPI + HTMX. DICOM uses pynetdicom/pydicom. New test tools are Python plugins: drop a file in `app/tools/` and it appears in the sidebar.
+The web UI is FastAPI + HTMX. DICOM uses pynetdicom/pydicom. New test tools are Python plugins: drop a file in `app/tools/` and it appears in the sidebar. The sidebar **About** button shows the running version; **Help** is the in-app administrator guide.
 
 Open [http://127.0.0.1:8080](http://127.0.0.1:8080) after starting the stack.
 
