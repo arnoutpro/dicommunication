@@ -1,0 +1,124 @@
+{% extends "base.html" %}
+{% block title %}About · Dicommunication{% endblock %}
+{% block content %}
+<header class="page-head">
+  <div>
+    <p class="eyebrow">Application</p>
+    <h1>About Dicommunication</h1>
+    <p class="lede">Version number, what this workstation is for, and where it stores its data on this computer.</p>
+  </div>
+</header>
+
+<div class="grid-3">
+  <article class="card">
+    <p class="card-label">Version</p>
+    <h2 class="about-version">v{{ app_version }}</h2>
+    <p class="muted">Arnout.pro Dicommunication Tool</p>
+  </article>
+  <article class="card">
+    <p class="card-label">This workstation</p>
+    <h2>{{ config.local.ae_title }}</h2>
+    <p class="muted">{{ config.local.host }}:{{ config.local.port }}{% if config.local.hostname %} · {{ config.local.hostname }}{% endif %}</p>
+  </article>
+  <article class="card">
+    <p class="card-label">Local MWL SCP</p>
+    <h2 class="{% if mwl_scp_running %}ok-text{% else %}muted{% endif %}">{% if mwl_scp_running %}Listening{% else %}Off{% endif %}</h2>
+    <p class="muted">{% if mwl_scp_running %}{{ config.local.host }}:{{ config.local.port }}{% elif mwl_scp_error %}{{ mwl_scp_error }}{% else %}Enable it under Configured nodes → Local DICOM AE{% endif %}</p>
+  </article>
+</div>
+
+<section class="panel">
+  <header class="panel-head">
+    <h2>What this application is</h2>
+  </header>
+  <p>Dicommunication is a <strong>trusted-network DICOM and HL7 connectivity workstation</strong> for IT staff and PACS administrators. Configure this computer as a DICOM Application Entity, register remote nodes (PACS, Orthanc, RIS/MWL, modalities), optionally impersonate extra calling AE Titles, and run the checks a connectivity ticket actually needs.</p>
+  <p>It is written by <strong>arnout.pro</strong> (Arnout). The web UI is FastAPI + HTMX. DICOM uses pynetdicom / pydicom. Frozen Windows and macOS builds open the UI in a native window; Docker Compose and a local Python process serve the same UI in a browser at <code>http://127.0.0.1:8080</code>.</p>
+  <p>This is <strong>not</strong> a PACS, not an image viewer, and not a replacement for a vendor modality simulator. It does not store a clinical archive. There is <strong>no web login</strong> — treat port 8080 like a diagnostic console on the PACS VLAN, a lab, or a jumphost.</p>
+  <p><a class="button" href="/help">Open Help</a> for how each screen and tool works, including C-ECHO versus C-STORE versus Study Root C-FIND versus Modality Worklist, and HL7 send to Vue / IS Link.</p>
+</section>
+
+<section class="panel">
+  <header class="panel-head">
+    <h2>What it does and does not do</h2>
+  </header>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>It does</th>
+          <th>It does not</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Present a calling AE Title (this workstation, or a virtual identity such as <code>CT1</code>)</td>
+          <td>Implement C-MOVE or C-GET (those remain plugin slots)</td>
+        </tr>
+        <tr>
+          <td>Associate with a remote AE and show which SOP Classes were accepted or rejected</td>
+          <td>Store a real archive of clinical images</td>
+        </tr>
+        <tr>
+          <td>Send Verification (C-ECHO), a tiny Secondary Capture (C-STORE), Study Root Query/Retrieve C-FIND, and Modality Worklist C-FIND</td>
+          <td>Speak DICOM TLS, or authenticate the web UI</td>
+        </tr>
+        <tr>
+          <td>Optionally serve a local web worklist as an MWL SCP on the listen port</td>
+          <td>Parse, validate, or map HL7 fields — paste a message and send it</td>
+        </tr>
+        <tr>
+          <td>Send an HL7 v2 message over TCP (MLLP by default) to a host:port</td>
+          <td>Promise that an HL7 ACK updated the PACS — ACK only means the listener accepted the bytes</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section class="panel">
+  <header class="panel-head">
+    <h2>This installation</h2>
+  </header>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Item</th>
+          <th>Value</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Version</td>
+          <td><code>v{{ app_version }}</code></td>
+        </tr>
+        <tr>
+          <td>Calling AE Title</td>
+          <td><code>{{ config.local.ae_title }}</code></td>
+        </tr>
+        <tr>
+          <td>Listen address / port</td>
+          <td><code>{{ config.local.host }}:{{ config.local.port }}</code></td>
+        </tr>
+        <tr>
+          <td>Station AE Title</td>
+          <td>{% if config.local.station_ae_title %}<code>{{ config.local.station_ae_title }}</code>{% else %}<span class="muted">Not set — worklist uses the calling AE unless a virtual identity fills it</span>{% endif %}</td>
+        </tr>
+        <tr>
+          <td>Virtual calling AEs</td>
+          <td>{{ config.identities | length }}</td>
+        </tr>
+        <tr>
+          <td>Remote DICOM nodes</td>
+          <td>{{ config.remotes | length }}</td>
+        </tr>
+        <tr>
+          <td>Data directory</td>
+          <td><code>{{ data_dir }}</code></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="hint">Settings, recent results, the local worklist, saved HL7 drafts, and the rotating log all live in that directory. Rebuilding a Docker image or upgrading the MSI / DMG does not wipe it.</p>
+</section>
+{% endblock %}

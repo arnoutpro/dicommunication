@@ -69,6 +69,18 @@ def test_health_and_pages(client) -> None:
     assert b"C-STORE" in testbench.content
     assert b"Study Root" in testbench.content
     assert b"1.2.840.10008.5.1.4.31" in testbench.content
+    assert b'href="/about"' in home.content
+    assert b'href="/help"' in home.content
+    about = client.get("/about")
+    assert about.status_code == 200
+    assert f"v{__version__}".encode() in about.content
+    assert b"trusted-network DICOM and HL7 connectivity workstation" in about.content
+    help_page = client.get("/help")
+    assert help_page.status_code == 200
+    assert b"C-ECHO" in help_page.content
+    assert b"Modality Worklist" in help_page.content
+    assert b"Advanced troubleshooting" in help_page.content
+    assert b"HL7 send" in help_page.content
 
 
 def test_shared_layout_is_dense() -> None:
