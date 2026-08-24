@@ -1,0 +1,582 @@
+{% extends "base.html" %}
+{% block title %}Help · Dicommunication{% endblock %}
+{% block body_class %}page-help{% endblock %}
+{% block content %}
+<header class="page-head">
+  <div>
+    <p class="eyebrow">Administrator guide</p>
+    <h1>Help</h1>
+    <p class="lede">How Dicommunication works, and a detailed description of every screen and tool for IT staff and PACS administrators. Version <strong>v{{ app_version }}</strong> · <a href="/about">About this installation</a>.</p>
+  </div>
+</header>
+
+<section class="panel">
+  <header class="panel-head">
+    <h2>On this page</h2>
+  </header>
+  <ul class="help-toc">
+    <li><a href="#what-it-is">What this is (and is not)</a></li>
+    <li><a href="#security">Security on a trusted network</a></li>
+    <li><a href="#ui">The user interface</a></li>
+    <li><a href="#dicom-services">DICOM services this tool distinguishes</a></li>
+    <li><a href="#calling-ae">Calling AE vs Scheduled Station AE</a></li>
+    <li><a href="#dashboard">Dashboard</a></li>
+    <li><a href="#configured-nodes">Configured nodes</a></li>
+    <li><a href="#local-ae">Local DICOM AE</a></li>
+    <li><a href="#virtual-aes">Virtual AEs</a></li>
+    <li><a href="#remote-nodes">Remote nodes</a></li>
+    <li><a href="#logs">Logs</a></li>
+    <li><a href="#testbench">Testbench</a></li>
+    <li><a href="#echo-board">C-ECHO board</a></li>
+    <li><a href="#worklist">Worklist</a></li>
+    <li><a href="#ping">Network PING</a></li>
+    <li><a href="#c-echo">C-ECHO</a></li>
+    <li><a href="#c-store">C-STORE</a></li>
+    <li><a href="#c-find">Study Root C-FIND</a></li>
+    <li><a href="#mwl-find">MWL C-FIND</a></li>
+    <li><a href="#hl7-send">HL7 send</a></li>
+    <li><a href="#reading-results">Reading accepted vs rejected SOP Classes</a></li>
+    <li><a href="#data">Where data is stored</a></li>
+    <li><a href="#json-api">JSON API</a></li>
+    <li><a href="#orthanc">Talking to Orthanc</a></li>
+    <li><a href="#troubleshooting">Troubleshooting</a></li>
+  </ul>
+</section>
+
+<div class="help-doc">
+<section class="panel help-section" id="what-it-is">
+  <header class="panel-head">
+    <h2>What this is (and is not)</h2>
+  </header>
+  <p>Dicommunication is a <strong>trusted-network admin workstation</strong>. Use it on the PACS VLAN, a lab, or a jumphost that can reach DICOM and HL7 ports. Configure this machine as a DICOM Application Entity, register remote nodes, impersonate extra calling AE Titles when a modality identity is required, and run the checks a connectivity ticket actually needs.</p>
+  <p>It is <strong>not</strong> a PACS, not a viewer, and not a replacement for vendor modality simulators. It does not keep a clinical image archive. Frozen Windows (MSI) and macOS (DMG) builds open the UI in a native window. Docker Compose and a local Python process serve the same UI in a browser. The page only exists after the backend is already running — you cannot install Python from inside this UI.</p>
+  <p>See <a href="/about">About</a> for the version of this process, the calling AE Title, the listen port, and the data directory on this computer.</p>
+</section>
+
+<section class="panel help-section" id="security">
+  <header class="panel-head">
+    <h2>Security on a trusted network</h2>
+  </header>
+  <p>The web UI has <strong>no login</strong>. Do not publish port 8080 to the internet without an authenticating reverse proxy. Do not point it at production archives unless you intend to send the test C-STORE instance (patient <code>ARNPRO^TESTBENCH</code> / ID <code>ARNPRO-TEST</code>).</p>
+  <p>DICOM and HL7 are sent in the clear unless you terminate TLS elsewhere. HL7 send transmits whatever you paste. Treat this like a diagnostic console, not a public website.</p>
+</section>
+
+<section class="panel help-section" id="ui">
+  <header class="panel-head">
+    <h2>The user interface</h2>
+  </header>
+  <p>The left sidebar stays open. <strong>Dashboard</strong> is the home page. <strong>Configured nodes</strong> holds this workstation AE, virtual calling AEs, and remote DICOM peers. <strong>Logs</strong> is the live application log. <strong>Test tools</strong> groups Testbench, C-ECHO board, Worklist, then plugin tools by category: Connectivity, DIMSE, and HL7.</p>
+  <p>At the bottom of the sidebar, <strong>About</strong> and <strong>Help</strong> open these documentation pages. The theme control switches Light, Dark, Follows device setting, or Professional dark. The AE chip is this workstation’s calling AE Title; the line under it is the listen port and how many virtual identities you have saved.</p>
+  <p>Most tool pages use HTMX: the form posts without a full page reload, and the result panel updates in place. Long DIMSE operations can take tens of seconds; wait for the result rather than clicking again.</p>
+</section>
+
+<section class="panel help-section" id="dicom-services">
+  <header class="panel-head">
+    <h2>DICOM services this tool distinguishes</h2>
+  </header>
+  <p>A working C-ECHO (or Orthanc answering MWL in its own UI) does <strong>not</strong> mean Storage or Query/Retrieve will succeed. These are different SOP Classes. That difference is the point of the Testbench.</p>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>UI name</th>
+          <th>DIMSE</th>
+          <th>SOP Class</th>
+          <th>What it actually tests</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>C-ECHO</strong></td>
+          <td>C-ECHO</td>
+          <td>Verification <code>1.2.840.10008.1.1</code></td>
+          <td>Association plus a DICOM ping. Connectivity only.</td>
+        </tr>
+        <tr>
+          <td><strong>C-STORE</strong></td>
+          <td>C-STORE</td>
+          <td>Secondary Capture Image Storage</td>
+          <td>Can the peer <em>receive</em> an instance? Orthanc usually yes; an MWL-only RIS usually no.</td>
+        </tr>
+        <tr>
+          <td><strong>C-FIND</strong></td>
+          <td>C-FIND</td>
+          <td>Study Root Query/Retrieve FIND</td>
+          <td>Search <em>stored studies</em> in a PACS archive. Zero matches can still be a successful Q/R C-FIND.</td>
+        </tr>
+        <tr>
+          <td><strong>MWL C-FIND / Worklist</strong></td>
+          <td>C-FIND</td>
+          <td>Modality Worklist <code>1.2.840.10008.5.1.4.31</code></td>
+          <td>Search <em>scheduled procedures</em>, not the archive.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  <p><strong>MWL C-FIND and the Worklist page are the same SOP Class.</strong> Study Root C-FIND is not. Orthanc without the worklist plugin typically accepts Verification, Storage, and Q/R, then rejects MWL. The Testbench and Worklist results show accepted vs rejected presentation contexts so that is visible.</p>
+</section>
+
+<section class="panel help-section" id="calling-ae">
+  <header class="panel-head">
+    <h2>Calling AE vs Scheduled Station AE</h2>
+  </header>
+  <p>Two AE Titles matter on a worklist query, and they are easy to mix up:</p>
+  <ul>
+    <li><strong>Calling AE Title</strong> — who you are on the association. The remote must allow this AE (Orthanc <code>DicomModalities</code>, vendor “known AEs”, and so on).</li>
+    <li><strong>Scheduled Station AE Title</strong> — a query key in the MWL identifier. Modalities normally ask for procedures scheduled to their own station (<code>CT1</code>, <code>MR1</code>, …).</li>
+  </ul>
+  <p>On Worklist, Testbench, and each DIMSE tool, <strong>Present as</strong> chooses who you are:</p>
+  <ul>
+    <li><code>(workstation)</code> — the Local DICOM AE Title from Configured nodes</li>
+    <li>a virtual identity — calling AE plus that identity’s station / modality defaults</li>
+  </ul>
+  <p>The result header shows <code>as CT1</code> (or whatever calling AE was used). Every virtual calling AE must be allowed on the remote, the same way the workstation AE is.</p>
+</section>
+
+<section class="panel help-section" id="dashboard">
+  <header class="panel-head">
+    <h2>Dashboard</h2>
+    <a href="/">Open</a>
+  </header>
+  <p>The home page summarises this workstation’s calling AE, how many remote nodes you have registered, and which test tools are loaded. The remote-node table is the same list as Configured nodes, with a last C-ECHO badge when the C-ECHO board has been run. Shortcuts go to Testbench, PING, and C-ECHO for that peer.</p>
+  <p><strong>Recent results</strong> is a short timeline of the last tool runs (capped in storage at 200). Start with Network PING, then C-ECHO, then the DIMSE service you actually care about. A green C-ECHO here does not mean Storage or MWL will work.</p>
+</section>
+
+<section class="panel help-section" id="configured-nodes">
+  <header class="panel-head">
+    <h2>Configured nodes</h2>
+    <a href="/config">Open</a>
+  </header>
+  <p>This is the station identity: this workstation, virtual calling AEs, and remote DICOM nodes. Settings are saved on disk in the data directory and kept when you rebuild Docker or upgrade the MSI / DMG. The overview lists everything at a glance. Add or edit on the child pages: Local DICOM AE, Virtual AEs, Remote nodes. On Local AE, <strong>Advanced settings</strong> hides PDU, timeouts, and MWL SCP options.</p>
+</section>
+
+<section class="panel help-section" id="local-ae">
+  <header class="panel-head">
+    <h2>Local DICOM AE</h2>
+    <a href="/config/local">Open</a>
+  </header>
+  <p>This is the real Application Entity of this software: listen address, listen port, timeouts, and the default calling AE Title when you are not impersonating a modality. The listen port is <strong>one</strong> workstation AE. Virtual titles do not add extra SCP ports.</p>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Field</th>
+          <th>Default</th>
+          <th>Meaning</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>AE Title</td>
+          <td><code>DICOMM</code></td>
+          <td>Calling AE Title on associations unless a virtual identity is selected. 1–16 printable ASCII characters, no backslash. Remote nodes must accept this AE.</td>
+        </tr>
+        <tr>
+          <td>IP address</td>
+          <td><code>0.0.0.0</code></td>
+          <td>Bind / listen address. <code>0.0.0.0</code> listens on all interfaces. DICOM connections <em>to</em> remotes use the remote’s host, not this field.</td>
+        </tr>
+        <tr>
+          <td>Hostname</td>
+          <td>empty</td>
+          <td>Documentation only. Listen still uses the IP address.</td>
+        </tr>
+        <tr>
+          <td>Port</td>
+          <td><code>11112</code></td>
+          <td>Listen port for the optional local MWL SCP. Common DICOM ports elsewhere: <code>104</code>, Orthanc <code>4242</code>.</td>
+        </tr>
+        <tr>
+          <td>Timeout</td>
+          <td>10 s</td>
+          <td>ACSE, DIMSE, and network timeout (1–120).</td>
+        </tr>
+        <tr>
+          <td>Max PDU</td>
+          <td>16382</td>
+          <td>Association max PDU (4096–131072).</td>
+        </tr>
+        <tr>
+          <td>Implementation version</td>
+          <td><code>DICOMM_1</code></td>
+          <td>DICOM implementation version name (≤16 characters).</td>
+        </tr>
+        <tr>
+          <td>Station AE Title</td>
+          <td>empty</td>
+          <td>Default Scheduled Station AE Title for worklist queries when no virtual identity is selected.</td>
+        </tr>
+        <tr>
+          <td>Serve the web worklist over DICOM (MWL SCP on the listen port)</td>
+          <td>off</td>
+          <td>Start an MWL SCP on the listen port, backed by the local web worklist. If a modality must C-FIND this workstation, allow inbound TCP for this process on that port.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section class="panel help-section" id="virtual-aes">
+  <header class="panel-head">
+    <h2>Virtual AEs</h2>
+    <a href="/config/identities">Open</a>
+  </header>
+  <p>A modality does not query worklist as a generic workstation. It associates as <code>CT1</code> (calling AE) and asks for scheduled procedures for station <code>CT1</code>.</p>
+  <p><strong>Virtual local AE titles</strong> are saved impersonation identities for <em>outbound</em> associations. Add as many as you need (<code>CT1</code>, <code>MR1</code>, <code>US1</code>, …). They do <strong>not</strong> listen. For Orthanc, add each one to <code>DicomModalities</code>.</p>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Field</th>
+          <th>Meaning</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Display name</td>
+          <td>e.g. <code>CT scanner 1</code></td>
+        </tr>
+        <tr>
+          <td>Calling AE Title</td>
+          <td>Who you are on C-ECHO, C-STORE, C-FIND, and MWL</td>
+        </tr>
+        <tr>
+          <td>Station AE Title</td>
+          <td>Worklist query filter. Empty means “same as calling AE”.</td>
+        </tr>
+        <tr>
+          <td>Default modality</td>
+          <td>Optional MWL / Q/R filter (<code>CT</code>, <code>MR</code>, …) filled when you pick this identity</td>
+        </tr>
+        <tr>
+          <td>Notes</td>
+          <td>Room, vendor, Orthanc modality key — not sent on the wire</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section class="panel help-section" id="remote-nodes">
+  <header class="panel-head">
+    <h2>Remote nodes</h2>
+    <a href="/config/remotes">Open</a>
+  </header>
+  <p>A remote is any peer you want to test: PACS, Orthanc, RIS/MWL, modality, VNA, or a vendor test SCP. From Docker, a PACS on the same Mac or Linux host is usually <code>host.docker.internal</code>.</p>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Field</th>
+          <th>Meaning</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Display name</td>
+          <td>Label in the UI</td>
+        </tr>
+        <tr>
+          <td>AE Title</td>
+          <td>Called AE Title (what you send as the called AE on associate)</td>
+        </tr>
+        <tr>
+          <td>Hostname / IP</td>
+          <td>Connection uses <strong>IP when set</strong>, otherwise hostname. Fill one or both.</td>
+        </tr>
+        <tr>
+          <td>Port</td>
+          <td>DICOM port (<code>104</code>, <code>11112</code>, <code>4242</code>, …). This is not the HL7 / MLLP port.</td>
+        </tr>
+        <tr>
+          <td>Node type</td>
+          <td>PACS, DMWL, modality, VNA, other</td>
+        </tr>
+        <tr>
+          <td>Provides Modality Worklist</td>
+          <td>Marks the node as an MWL SCP. Choosing type <strong>DMWL</strong> also sets this. The Worklist page only offers remotes marked this way as query sources.</td>
+        </tr>
+        <tr>
+          <td>Notes</td>
+          <td>VLAN, TLS front-end, vendor, contact — not sent on the wire</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section class="panel help-section" id="logs">
+  <header class="panel-head">
+    <h2>Logs</h2>
+    <a href="/logs">Open</a>
+  </header>
+  <p>The Logs page has two parts:</p>
+  <ul>
+    <li><strong>Amount and file size</strong> — log level (<code>DEBUG</code>, <code>INFO</code>, <code>WARNING</code>, <code>ERROR</code>), maximum size of the current file (1–50 MB), and how many rotated files to keep. Changes apply immediately to this process and are stored in <code>config.json</code>.</li>
+    <li><strong>Log view</strong> — the tail of <code>dicommunication.log</code>, refreshed every two seconds. Download the current file, or clear it (rotated files stay).</li>
+  </ul>
+  <p><code>INFO</code> records startup, configuration changes, tool runs, and MWL SCP start/stop. That is the usual setting on a PACS workstation. <code>DEBUG</code> also records HTTP requests (except health, static files, and the live tail poll). The console window on Windows shows the same stream.</p>
+</section>
+
+<section class="panel help-section" id="testbench">
+  <header class="panel-head">
+    <h2>Testbench</h2>
+    <a href="/testbench">Open</a>
+  </header>
+  <p>One form to send C-ECHO, C-STORE, Study Root C-FIND, or Modality Worklist C-FIND to a selected remote, optionally as a virtual AE. Use this when you need to prove which SOP Classes a peer actually offers, not just that the port answers.</p>
+  <ul>
+    <li><strong>C-STORE</strong> sends a 16×16 Secondary Capture: patient <code>ARNPRO^TESTBENCH</code> / <code>ARNPRO-TEST</code>, modality <code>OT</code>. Look that instance up on the PACS if Storage was accepted.</li>
+    <li><strong>C-FIND</strong> is Study Root, STUDY level. Leave filters empty for a broad query. Optional: patient name/ID, accession, study date, modality (<code>ModalitiesInStudy</code>).</li>
+    <li><strong>MWL C-FIND</strong> uses the worklist SOP Class and the identity’s station AE unless you override it.</li>
+    <li>The result lists <strong>SOP Classes negotiated</strong> (accepted vs rejected) plus returned/stored records and the association log.</li>
+  </ul>
+  <p>The individual DIMSE tool pages under Test tools use the same engines. Testbench is the place to switch services on one remote without leaving the page.</p>
+</section>
+
+<section class="panel help-section" id="echo-board">
+  <header class="panel-head">
+    <h2>C-ECHO board</h2>
+    <a href="/echo-board">Open</a>
+  </header>
+  <p>Runs Verification against <strong>every</strong> configured remote in one click (up to 8 in parallel). Uses the workstation calling AE, not a virtual identity. The Dashboard table picks up the last pass/fail badge from this board. Also available as <code>POST /api/echo-board/run</code>.</p>
+  <p>Use the board as a morning check that DICOM ports still answer. Then use Testbench (or the individual tools) for Storage, Query/Retrieve, or MWL on the node that matters.</p>
+</section>
+
+<section class="panel help-section" id="worklist">
+  <header class="panel-head">
+    <h2>Worklist</h2>
+    <a href="/worklist">Open</a>
+  </header>
+  <p><code>/worklist</code> is the table view for <strong>Modality Worklist C-FIND</strong> (<code>1.2.840.10008.5.1.4.31</code>). It is not Study Root C-FIND. Use the Testbench for C-STORE and Q/R C-FIND.</p>
+  <h3>Query worklist</h3>
+  <ul>
+    <li><strong>Source</strong> — local web worklist, or a remote node marked as providing Modality Worklist</li>
+    <li><strong>Present as</strong> — workstation or a virtual AE</li>
+    <li><strong>Filters</strong> — patient name (<code>DOE*</code> style), patient ID, accession, modality, station AE, scheduled date</li>
+  </ul>
+  <p>Empty filters on a remote mean “return what the SCP is willing to send”. Presenting as <code>CT1</code> fills station (and modality, if the identity has one) unless you override the fields. Zero rows with a Pass still means the SOP Class was accepted — check station AE, date, and Present as.</p>
+  <h3>Local web worklist</h3>
+  <p>Add scheduled procedures here. If <strong>Serve the web worklist over DICOM (MWL SCP on the listen port)</strong> is on under Local DICOM AE, a modality can C-FIND this workstation on the listen port (<code>11112</code> by default). The local MWL SCP also answers C-ECHO. It uses the workstation AE Title, not virtual identities.</p>
+</section>
+
+<section class="panel help-section" id="ping">
+  <header class="panel-head">
+    <h2>Network PING</h2>
+    <a href="/tools/ping">Open</a>
+  </header>
+  <p>DNS resolve, ICMP echo, then TCP connect to the DICOM port of the selected remote. ICMP is often blocked on clinical networks; the TCP check is the useful layer-4 result. A successful TCP connect does not prove DICOM — only that something is listening. Follow with C-ECHO.</p>
+</section>
+
+<section class="panel help-section" id="c-echo">
+  <header class="panel-head">
+    <h2>C-ECHO</h2>
+    <a href="/tools/c-echo">Open</a>
+  </header>
+  <p>Verification SOP Class <code>1.2.840.10008.1.1</code>. Associates with the selected remote as the chosen calling AE and sends C-ECHO. A pass means the peer accepted Verification and answered. It does <strong>not</strong> mean the peer will accept Storage, Study Root FIND, or Modality Worklist.</p>
+  <p>If the association is rejected entirely, the calling AE is not in the peer’s allow-list, or host / port / called AE are wrong. Check Configured nodes and the vendor “known AEs” list (Orthanc <code>DicomModalities</code>).</p>
+</section>
+
+<section class="panel help-section" id="c-store">
+  <header class="panel-head">
+    <h2>C-STORE</h2>
+    <a href="/tools/c-store">Open</a>
+  </header>
+  <p>Sends one tiny Secondary Capture Image Storage instance. This tests whether the peer is a Storage SCP for that SOP Class — not whether your real modality’s SOP Class (CT, MR, US, …) will be accepted. Many archives accept Secondary Capture; some modality-only gateways do not.</p>
+  <p>The instance is identifiable on the PACS: patient <code>ARNPRO^TESTBENCH</code>, ID <code>ARNPRO-TEST</code>, modality <code>OT</code>. Do not send it to a production archive unless that is intentional. If C-ECHO works and C-STORE fails, the peer is not a Storage SCP for Secondary Capture (or that SOP Class is disabled).</p>
+</section>
+
+<section class="panel help-section" id="c-find">
+  <header class="panel-head">
+    <h2>Study Root C-FIND</h2>
+    <a href="/tools/c-find">Open</a>
+  </header>
+  <p>Query/Retrieve Study Root FIND — search <em>stored studies</em> in a PACS archive. This is not Modality Worklist. Leave filters empty for a broad STUDY-level query. Optional filters: patient name, patient ID, accession, study date, modality in study.</p>
+  <p>Zero matches with a Pass still means the SOP Class was accepted and the query succeeded. If C-ECHO works and Study Root C-FIND fails, the peer is not a Q/R SCP (or that information model is not offered). Use Worklist / MWL C-FIND for scheduled procedures.</p>
+</section>
+
+<section class="panel help-section" id="mwl-find">
+  <header class="panel-head">
+    <h2>MWL C-FIND</h2>
+    <a href="/tools/mwl-find">Open</a>
+  </header>
+  <p>The same SOP Class as the Worklist page: Modality Worklist Information Model FIND <code>1.2.840.10008.5.1.4.31</code>. Use this single-tool page when you already know you want MWL, or use Testbench to compare it with Study Root on the same remote.</p>
+  <p>Station AE and modality defaults come from <strong>Present as</strong>. Orthanc without the worklist plugin typically rejects this SOP Class even when Verification and Storage succeed — that is expected, not a bug in this tool.</p>
+</section>
+
+<section class="panel help-section" id="hl7-send">
+  <header class="panel-head">
+    <h2>HL7 send</h2>
+    <a href="/tools/hl7-send">Open</a>
+  </header>
+  <p>Sends an HL7 v2 message to a TCP endpoint. It is a <strong>sender, not an analyzer</strong>: paste (or save) the pipe-delimited text and ship it. The editor shows one segment per row (toggle <strong>Raw</strong> for the full paste). Long lines wrap. Newlines become CR on the wire.</p>
+  <ul>
+    <li><strong>Host / port</strong> — the HL7 <strong>listener</strong>, not the DICOM port. Typical engine ports are <code>2575</code> or <code>6661</code>, not <code>104</code> / <code>4242</code>.</li>
+    <li><strong>Framing</strong> — MLLP (<code>0x0B</code> … <code>0x1C 0x0D</code>) is the default. Raw TCP is there for engines that do not wrap.</li>
+    <li><strong>ACK</strong> — if the peer replies, the result shows the raw ACK, MSA-1 (<code>AA</code> / <code>AE</code> / <code>AR</code>), and ACK <strong>MSH-3</strong> (who answered). An ACK is not a promise that PACS applied an order update.</li>
+    <li>Saved drafts live in <code>hl7_messages.json</code> next to config.</li>
+  </ul>
+  <h3>Advanced troubleshooting</h3>
+  <p>Collapsed by default. Optional stamps applied to the paste before send. They do not invent missing ORC / OBR segments. The UI defaults below still apply if Advanced stays closed.</p>
+  <ul>
+    <li><strong>New Message Control ID (MSH-10)</strong> — on by default in the UI. A new Message Control ID so a resend is not treated as a duplicate. The same MSH-10 is often ACKed and ignored.</li>
+    <li><strong>Change existing order (ORC-1)</strong> — on by default. Overwrites ORC-1 (see the control next to it) and stamps ORC-9. It does not invent an ORC. Repeating <code>NW</code> is usually ACKed and skipped.</li>
+    <li><strong>ORC-1 on change</strong> — Philips Vue / IS Link uses <code>SC</code> to update an order (<code>NW</code> new, <code>CA</code> cancel). <code>XO</code> is generic HL7 change; Vue often ignores it while Mirth still ACKs. This is not OBR-25 SC.</li>
+    <li><strong>OBR-31 as CE text</strong> — on by default. Reason for Study is <code>id^text</code>. Vue maps OBR-31 to DICOM <code>(0040,2010)</code>, which may not be the study description you see in the Vue UI (that is often OBR-4.2 / C-STORE).</li>
+    <li><strong>Set OBR-25 to SC (in progress)</strong> — on by default, test only. That is <strong>result status</strong>, not Vue’s ORC-1 SC. Also sets ORC-5 to <code>IP</code>. An ACK does not rewrite stored images.</li>
+  </ul>
+  <p>The Send result repeats MSH-10, MSH-5 / MSH-6, ORC-1, OBR-25, and OBR-31 as they went on the wire, plus a Hint when the ACK is likely not a PACS update.</p>
+  <h3>Philips Vue PACS + IS Link</h3>
+  <p>The ACK you see is from <strong>whoever answers on Host/Port</strong>. On Vue, <strong>IS Link Configuration → Listeners</strong> shows Port Number (often <code>10010</code>) and Host IP. That Listeners page is settings, not the inbound queue. <strong>Control Port</strong> (often <code>2112</code>) is not MLLP. Encoding <strong>Cp1252</strong> matches Latin-1 for ASCII HL7.</p>
+  <ol>
+    <li>Send to the Listener Host IP:Port Number. After Add/Edit Listener, IS Link reminds you to <strong>start the Listener process</strong>.</li>
+    <li>Look at <strong>Queues &amp; Notifications</strong>, not the Listeners form. A message there means routing worked; then ORC-1 <code>SC</code>, accession, and OBR-31 can matter.</li>
+    <li>Still empty with connection refused / timeout: wrong Host IP, Listener down, or this workstation cannot reach that VLAN.</li>
+    <li>Still empty but you got an ACK: ACK <strong>MSH-3</strong> is who answered. If it is Mirth/IBE, Host is not this IS Link. <strong>MSH-5 / MSH-6</strong> must match what IS Link accepts.</li>
+    <li>Vue order control is <code>NW</code> (new), <code>SC</code> (update), <code>CA</code> (cancel). <code>XO</code> is not in that table. Match the accession Vue already has: ORC-3 / OBR-3 and often OBR-18.</li>
+    <li>Updating an existing study may also need Vue’s ZDS Study Instance UID. HL7-PACS Field Mapping in that same tree decides which ORM fields actually overwrite.</li>
+  </ol>
+</section>
+
+<section class="panel help-section" id="reading-results">
+  <header class="panel-head">
+    <h2>Reading accepted vs rejected SOP Classes</h2>
+  </header>
+  <p>After a DIMSE association, the result lists presentation contexts the peer accepted and those it rejected. Read that list before you trust a green/red summary:</p>
+  <ul>
+    <li><strong>Accepted Verification, rejected Storage</strong> — C-ECHO will pass; C-STORE will not. Typical of an MWL-only RIS.</li>
+    <li><strong>Accepted Verification / Storage / Study Root, rejected MWL</strong> — stock Orthanc without the worklist plugin. Query the archive with Study Root C-FIND; query a RIS (or enable the plugin) for MWL.</li>
+    <li><strong>All requested SOP Classes rejected, or association aborted</strong> — called AE, host, or port wrong; or the calling AE is not allowed.</li>
+    <li><strong>Pass with zero rows</strong> — the FIND SOP Class was accepted and the query succeeded. Empty is a filter / data problem, not a connectivity failure.</li>
+  </ul>
+</section>
+
+<section class="panel help-section" id="data">
+  <header class="panel-head">
+    <h2>Where data is stored</h2>
+  </header>
+  <p>This installation’s data directory is <code>{{ data_dir }}</code>. Writes are atomic (temp file + replace).</p>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>File</th>
+          <th>Contents</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>config.json</code></td>
+          <td>Local AE, virtual identities, remote nodes, logging settings</td>
+        </tr>
+        <tr>
+          <td><code>results.json</code></td>
+          <td>Recent tool runs (capped at 200)</td>
+        </tr>
+        <tr>
+          <td><code>worklist.json</code></td>
+          <td>Local web worklist entries</td>
+        </tr>
+        <tr>
+          <td><code>hl7_messages.json</code></td>
+          <td>Saved HL7 v2 drafts for the sender</td>
+        </tr>
+        <tr>
+          <td><code>dicommunication.log</code></td>
+          <td>Rotating application log (level and size set on Logs)</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  <p>Default directory: <code>$DICOMM_DATA_DIR</code> if set (Docker Compose uses <code>/app/data</code>); else <code>%LOCALAPPDATA%\dicommunication</code> on Windows; else <code>~/.dicommunication</code>. A legacy <code>./data</code> folder is used only if it already has <code>config.json</code> and the home folder does not.</p>
+</section>
+
+<section class="panel help-section" id="json-api">
+  <header class="panel-head">
+    <h2>JSON API</h2>
+  </header>
+  <p>The same operations as the UI are available over HTTP. <code>GET /health</code> returns <code>{"status":"ok","version":"{{ app_version }}"}</code>. Interactive docs: <a href="/docs">/docs</a>.</p>
+  <p>Tool ids: <code>ping</code>, <code>c-echo</code>, <code>c-store</code>, <code>c-find</code>, <code>mwl-find</code>, <code>hl7-send</code>. <code>hl7-send</code> does not need a remote id; pass host, port, and message in options. DIMSE tools take <code>remote_id</code> and optional <code>identity_id</code> for a virtual calling AE. Worklist query <code>source</code> is <code>local</code> or a remote id.</p>
+  <p>This API has no authentication. Restrict it the same way you restrict the UI.</p>
+</section>
+
+<section class="panel help-section" id="orthanc">
+  <header class="panel-head">
+    <h2>Talking to Orthanc</h2>
+  </header>
+  <p>Typical Orthanc DICOM port is <code>4242</code>. From Docker on a Mac, host is <code>host.docker.internal</code>.</p>
+  <ol>
+    <li>Add a remote: AE Title <code>ORTHANC</code> (or whatever Orthanc uses), host <code>host.docker.internal</code> or the LAN IP, port <code>4242</code>.</li>
+    <li>In Orthanc <code>DicomModalities</code>, allow this tool’s calling AEs — the workstation (<code>DICOMM</code> by default) <strong>and</strong> every virtual title you will impersonate (<code>CT1</code>, …).</li>
+    <li>Testbench: C-ECHO should pass if the association is accepted.</li>
+    <li>C-STORE / Study Root C-FIND usually pass on a stock Orthanc Storage / Q/R setup.</li>
+    <li>MWL C-FIND passes only if the Orthanc worklist plugin (or equivalent) is enabled and that SOP Class is offered. Otherwise the Testbench shows MWL rejected. That is expected.</li>
+  </ol>
+</section>
+
+<section class="panel help-section" id="troubleshooting">
+  <header class="panel-head">
+    <h2>Troubleshooting</h2>
+  </header>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Symptom</th>
+          <th>Likely cause</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Association rejected / aborted</td>
+          <td>Called AE, host, or port wrong; calling AE not in the peer’s allow-list</td>
+        </tr>
+        <tr>
+          <td>C-ECHO works, C-STORE fails</td>
+          <td>Peer is not a Storage SCP for Secondary Capture (or that SOP Class is disabled)</td>
+        </tr>
+        <tr>
+          <td>C-ECHO works, Study Root C-FIND fails</td>
+          <td>Peer is not a Q/R SCP. This is not MWL.</td>
+        </tr>
+        <tr>
+          <td>C-ECHO / C-STORE / Q/R work, MWL fails</td>
+          <td>Peer does not offer Modality Worklist FIND. Enable the worklist plugin (Orthanc) or query a RIS.</td>
+        </tr>
+        <tr>
+          <td>Worklist and MWL C-FIND look the same</td>
+          <td>They are the same SOP Class. Use Testbench Study Root C-FIND to search stored studies.</td>
+        </tr>
+        <tr>
+          <td>Empty MWL / C-FIND table but Pass</td>
+          <td>The SOP Class was accepted and the query succeeded with zero matches. Check station AE, date, and Present as.</td>
+        </tr>
+        <tr>
+          <td>HL7 send times out / no ACK</td>
+          <td>Peer is not listening, or that port is DICOM not MLLP. HL7 engines are often 2575 or 6661, not 104 / 4242.</td>
+        </tr>
+        <tr>
+          <td>HL7 ACK AA to 10010 but Vue IS Link “empty”</td>
+          <td>Listeners is settings, not the queue. Look at Queues &amp; Notifications. Send to Listener Host IP:10010, not Control Port 2112. Confirm the Listener process is started. ACK MSH-3 is who answered.</td>
+        </tr>
+        <tr>
+          <td>HL7 ACK AA, IS Link queued, Vue UI unchanged</td>
+          <td>Vue updates with ORC-1 SC, not XO. Accession must match ORC-3 / OBR-3 (and often OBR-18). OBR-31 is (0040,2010); the Vue UI may show Study Description from C-STORE instead.</td>
+        </tr>
+        <tr>
+          <td>PING ICMP fails, TCP succeeds</td>
+          <td>Normal on locked-down clinical networks. Trust TCP to the DICOM port.</td>
+        </tr>
+        <tr>
+          <td>Cannot reach Orthanc from Docker</td>
+          <td>Use <code>host.docker.internal</code> (same Mac / host) or the LAN IP; publish / check 4242.</td>
+        </tr>
+        <tr>
+          <td>Config vanished after image rebuild</td>
+          <td>Config should be in <code>~/.dicommunication</code> (Windows MSI: <code>%LOCALAPPDATA%\dicommunication</code>). Legacy <code>./data</code> is only used until the home folder exists.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+</div>
+{% endblock %}

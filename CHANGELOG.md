@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Sidebar **About** and **Help** buttons: About shows the running version and this installation; Help is the in-app administrator guide (each screen and tool, including HL7 Advanced troubleshooting).
 - App chrome matches the quiet marketing site: squared corners (no pills), opaque panels instead of glass, slate-grey light mode, near-black dark mode, and bright cyan / amber / teal / rose accents on metrics, nav, and primary actions.
 - HL7 send: MSH-10, ORC-1, OBR-31, and OBR-25 stamps sit behind **Advanced troubleshooting**, with a short note on what each field actually changes (and that an ACK is still not a PACS update).
 - HL7 send: the UI can set ORC-1 to XO (change order) and put OBR-31 into a CE `id^text`. A new MSH-10 alone is not an order update. The Send result also repeats OBR-25 and adds a Hint when an ACK is likely not a PACS update.
