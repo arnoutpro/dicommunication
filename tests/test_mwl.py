@@ -3,11 +3,12 @@ from __future__ import annotations
 import socket
 import time
 
+import pytest
 from pynetdicom import AE, evt
 from pynetdicom.sop_class import ModalityWorklistInformationFind
 
 from app.models import LocalAE, RemoteNode, WorklistEntry, WorklistQuery
-from app.mwl import query_local, query_remote, query_worklist
+from app.mwl import _wildcard_match, query_local, query_remote, query_worklist
 from app.mwl_scp import WorklistSCP
 from app.store import ConfigStore
 
@@ -136,3 +137,54 @@ def test_api_worklist_roundtrip(client) -> None:
     assert queried.status_code == 200
     assert queried.json()["ok"] is True
     assert queried.json()["entries"][0]["patient_id"] == "1001"
+
+
+@pytest.mark.parametrize(
+    ("query", "value", "expected"),
+    [
+        ("", "DOE^JANE", True),
+        ("DOE", "DOE^JANE", True),
+        ("doe", "DOE^JANE", True),
+        ("JANE", "DOE^JANE", True),
+        ("SMITH", "DOE^JANE", False),
+        # '*' is zero or more characters and anchors the whole value.
+        ("D*", "DOE^JANE", True),
+        ("D*", "SMITH^BOB", False),
+        ("*JANE", "DOE^JANE", True),
+        ("DOE*JANE", "DOE^JANE", True),
+        ("*", "ANYTHING", True),
+        # '?' is exactly one character, and used to be ignored unless the query
+        # also contained a '*'.
+        ("D?E*", "DOE^JANE", True),
+        ("D?E*", "DE^JANE", False),
+        ("D??^*", "DOE^JANE", True),
+        ("?", "A", True),
+        ("?", "AB", False),
+        # DICOM defines no other metacharacters, so these are literal.
+        ("[ABD]OE*", "DOE^JANE", False),
+        ("[ABD]OE*", "[ABD]OE^X", True),
+        ("D.E*", "DOE^JANE", False),
+        ("D.E*", "D.E^JANE", True),
+    ],
+)
+def test_wildcard_match_follows_dicom_semantics(query, value, expected) -> None:
+    assert _wildcard_match(query, value) is expected
+
+
+def test_wildcard_match_is_not_quadratic_on_a_hostile_pattern() -> None:
+    # An MWL SCU picks this string. A translated regex backtracks on it for
+    # effectively forever; the scan matcher must not.
+    started = time.perf_counter()
+
+    assert _wildcard_match("*A" * 40 + "B", "A" * 400) is False
+
+    assert (time.perf_counter() - started) < 1.0
+
+
+def test_question_mark_filters_the_local_worklist(store: ConfigStore) -> None:
+    store.add_worklist_entry(WorklistEntry(patient_name="DOE^JANE", patient_id="1"))
+    store.add_worklist_entry(WorklistEntry(patient_name="DE^JANE", patient_id="2"))
+
+    result = query_local(store, WorklistQuery(patient_name="D?E*"))
+
+    assert [entry.patient_id for entry in result.entries] == ["1"]
