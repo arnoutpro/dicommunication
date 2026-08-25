@@ -334,7 +334,7 @@ def test_scan_api_lists_directory(client, tmp_path: Path) -> None:
         headers={"HX-Request": "true"},
     )
     assert htmx.status_code == 200
-    assert b"1 PDF" in htmx.content
+    assert b"<strong>1</strong> PDF" in htmx.content
     assert b"one.pdf" in htmx.content
 
 
