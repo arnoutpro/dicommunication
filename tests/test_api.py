@@ -202,3 +202,60 @@ def test_json_api_config_tools_and_run(client, store) -> None:
 
     missing = client.post("/api/tools/ping/run", json={"remote_id": "nope"})
     assert missing.status_code == 400
+
+
+def test_api_create_assigns_its_own_remote_id(client) -> None:
+    body = {"name": "PACS", "ae_title": "PACS", "host": "10.0.0.1", "port": 104}
+
+    first = client.post("/api/remotes", json={**body, "id": "collide"}).json()
+    second = client.post(
+        "/api/remotes", json={**body, "id": "collide", "name": "PACS 2", "ae_title": "PACS2"}
+    ).json()
+
+    assert first["id"] != "collide"
+    assert second["id"] != first["id"]
+
+    ids = [item["id"] for item in client.get("/api/remotes").json()]
+    assert len(ids) == len(set(ids)) == 2
+
+
+def test_deleting_one_remote_leaves_the_other(client) -> None:
+    body = {"name": "PACS", "ae_title": "PACS", "host": "10.0.0.1", "port": 104}
+    first = client.post("/api/remotes", json={**body, "id": "collide"}).json()
+    client.post("/api/remotes", json={**body, "id": "collide", "ae_title": "PACS2"})
+
+    client.delete(f"/api/remotes/{first['id']}")
+
+    assert len(client.get("/api/remotes").json()) == 1
+
+
+def test_api_create_ignores_a_client_supplied_created_at(client) -> None:
+    created = client.post(
+        "/api/remotes",
+        json={
+            "name": "PACS",
+            "ae_title": "PACS",
+            "host": "10.0.0.1",
+            "port": 104,
+            "created_at": "1999-01-01T00:00:00Z",
+        },
+    ).json()
+
+    assert not created["created_at"].startswith("1999")
+
+
+def test_api_create_assigns_its_own_identity_and_worklist_ids(client) -> None:
+    identity = client.post(
+        "/api/identities", json={"id": "fixed", "name": "CT 1", "ae_title": "CT1"}
+    ).json()
+    assert identity["id"] != "fixed"
+
+    entry = client.post(
+        "/api/worklist", json={"id": "fixed", "patient_name": "DOE^JANE", "patient_id": "1"}
+    ).json()
+    assert entry["id"] != "fixed"
+
+    message = client.post(
+        "/api/hl7/messages", json={"id": "fixed", "name": "ADT", "body": "MSH|^~\\&|A|B"}
+    ).json()
+    assert message["id"] != "fixed"
