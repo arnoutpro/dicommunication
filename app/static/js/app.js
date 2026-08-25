@@ -280,9 +280,11 @@ function navTreeState() {
 }
 
 function setNavBranchOpen(branch, open, persist) {
+  const input = branch.querySelector(":scope > .nav-fold-check");
+  if (input instanceof HTMLInputElement) {
+    input.checked = open;
+  }
   branch.classList.toggle("is-open", open);
-  const twist = branch.querySelector(":scope > .nav-row > .nav-twist");
-  twist?.setAttribute("aria-expanded", open ? "true" : "false");
   if (!persist) {
     return;
   }
@@ -299,6 +301,7 @@ function initNavTree() {
   const stored = navTreeState();
   document.querySelectorAll(".nav-branch[data-nav-id]").forEach((branch) => {
     const id = branch.getAttribute("data-nav-id");
+    const input = branch.querySelector(":scope > .nav-fold-check");
     const hasActive = Boolean(branch.querySelector("a.active"));
     if (hasActive) {
       setNavBranchOpen(branch, true);
@@ -306,30 +309,16 @@ function initNavTree() {
       setNavBranchOpen(branch, true);
     } else if (id && stored[id] === false && !hasActive) {
       setNavBranchOpen(branch, false);
+    } else if (input instanceof HTMLInputElement) {
+      branch.classList.toggle("is-open", input.checked);
     }
-    const twist = branch.querySelector(":scope > .nav-row > .nav-twist");
-    if (!(twist instanceof HTMLButtonElement) || twist.dataset.navReady === "1") {
+    if (!(input instanceof HTMLInputElement) || input.dataset.navReady === "1") {
       return;
     }
-    twist.dataset.navReady = "1";
-    const toggle = (event) => {
-      event.preventDefault();
-      event.stopPropagation();
-      setNavBranchOpen(branch, !branch.classList.contains("is-open"), true);
-    };
-    twist.addEventListener("click", toggle);
-    const parent = branch.querySelector(":scope > .nav-row > .nav-parent");
-    if (parent instanceof HTMLElement && parent.dataset.navReady !== "1") {
-      parent.dataset.navReady = "1";
-      parent.setAttribute("role", "button");
-      parent.tabIndex = 0;
-      parent.addEventListener("click", toggle);
-      parent.addEventListener("keydown", (event) => {
-        if (event.key === "Enter" || event.key === " ") {
-          toggle(event);
-        }
-      });
-    }
+    input.dataset.navReady = "1";
+    input.addEventListener("change", () => {
+      setNavBranchOpen(branch, input.checked, true);
+    });
   });
 }
 
@@ -477,10 +466,10 @@ function initPdfStoreForm(scope) {
   });
 }
 
+initNavTree();
 initPdfStoreForm(document);
 initThemePreference();
 enhanceSelectMenus();
-initNavTree();
 
 document.addEventListener("submit", (event) => {
   const form = event.target;

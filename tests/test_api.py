@@ -15,7 +15,10 @@ def test_health_and_pages(client) -> None:
     assert b"nav-children" in home.content
     assert b'data-nav-id="test-tools"' in home.content
     assert b'data-nav-id="connectivity"' in home.content
+    assert b'id="nav-fold-test-tools"' in home.content
+    assert b'for="nav-fold-test-tools"' in home.content
     assert b'nav-branch is-open" data-nav-id="test-tools"' not in home.content
+    assert b'id="nav-fold-test-tools" checked' not in home.content
     assert b"sidebar" in home.content
     assert b"aurora-wrapper" in home.content
     assert b'id="theme-toggle"' in home.content
@@ -100,6 +103,7 @@ def test_health_and_pages(client) -> None:
     assert b"Generate Patient Name" in pdf_store.content
     assert b"Unique patient per PDF" in pdf_store.content
     assert b'nav-branch is-open" data-nav-id="test-tools"' in pdf_store.content
+    assert b'id="nav-fold-test-tools" checked' in pdf_store.content
     assert b'data-nav-id="dimse"' in pdf_store.content
 
 
@@ -111,6 +115,8 @@ def test_shared_layout_is_dense() -> None:
     assert ".panel { padding: 0.75rem 0.9rem 0.85rem; margin-bottom: 0.7rem; }" in css
     assert "h1 { margin: 0 0 0.15rem; font-size: var(--text-xl);" in css
     assert "gap: 0.5rem 0.75rem;" in css
+    assert ".nav-fold-check:not(:checked) ~ .nav-children {\n  display: none;\n}" in css
+    assert ".doc-actions {\n  display: flex;\n  flex-direction: row;" in css
 
 
 def test_save_local_ae_and_remote_via_forms(client) -> None:
