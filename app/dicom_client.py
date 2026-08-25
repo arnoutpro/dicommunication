@@ -70,10 +70,16 @@ def rejected_sop_message(
     return message
 
 
-def associate(local: LocalAE, remote: RemoteNode, abstract_syntaxes: list[Any]):
+def associate(
+    local: LocalAE,
+    remote: RemoteNode,
+    abstract_syntaxes: list[Any],
+    transfer_syntaxes: list[Any] | None = None,
+):
     ae = make_ae(local)
+    syntaxes = list(transfer_syntaxes) if transfer_syntaxes else PREFERRED_TS
     for syntax in abstract_syntaxes:
-        ae.add_requested_context(syntax, PREFERRED_TS)
+        ae.add_requested_context(syntax, syntaxes)
     assoc = ae.associate(remote.connect_host, remote.port, ae_title=remote.ae_title)
     return ae, assoc
 

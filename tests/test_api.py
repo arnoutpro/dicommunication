@@ -81,6 +81,13 @@ def test_health_and_pages(client) -> None:
     assert b"Modality Worklist" in help_page.content
     assert b"Advanced troubleshooting" in help_page.content
     assert b"HL7 send" in help_page.content
+    assert b"Encapsulated PDF" in help_page.content
+    pdf_store = client.get("/tools/pdf-store")
+    assert pdf_store.status_code == 200
+    assert b"PDF to DICOM" in pdf_store.content
+    assert b'name="pdfs"' in pdf_store.content
+    assert b'name="zip_file"' in pdf_store.content
+    assert b"webkitdirectory" in pdf_store.content
 
 
 def test_shared_layout_is_dense() -> None:
@@ -158,7 +165,7 @@ def test_reject_oversized_ae_title(client) -> None:
 def test_json_api_config_tools_and_run(client, store) -> None:
     listed = client.get("/api/tools").json()
     ids = {item["id"] for item in listed}
-    assert {"ping", "c-echo", "mwl-find", "c-store", "c-find", "hl7-send"} <= ids
+    assert {"ping", "c-echo", "mwl-find", "c-store", "pdf-store", "c-find", "hl7-send"} <= ids
 
     remote = RemoteNode(name="api node", ae_title="APINODE", host="127.0.0.1", port=9)
     created = client.post("/api/remotes", json=remote.model_dump(mode="json"))
