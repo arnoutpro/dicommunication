@@ -66,7 +66,7 @@
   <header class="panel-head">
     <h2>The user interface</h2>
   </header>
-  <p>The left sidebar stays open. <strong>Dashboard</strong> is the home page. <strong>Configured nodes</strong> holds this workstation AE, virtual calling AEs, and remote DICOM peers. <strong>Logs</strong> is the live application log. <strong>Test tools</strong> groups Testbench, C-ECHO board, Worklist, then plugin tools by category: Connectivity, DIMSE, and HL7.</p>
+  <p>The left sidebar stays open. Nested groups are a two-level tree: <strong>Test tools → Connectivity</strong> (and DIMSE, HL7), <strong>Configured nodes →</strong> Local AE / Virtual AEs / Remote nodes. Groups start folded. Open a chevron to expand; the section that contains the current page stays open. Your open/closed state is remembered in this browser. <strong>Dashboard</strong> is the home page. <strong>Logs</strong> is the live application log.</p>
   <p>At the bottom of the sidebar, <strong>About</strong> and <strong>Help</strong> open these documentation pages. The theme control switches Light, Dark, Follows device setting, or Professional dark. The AE chip is this workstation’s calling AE Title; the line under it is the listen port and how many virtual identities you have saved.</p>
   <p>Most tool pages use HTMX: the form posts without a full page reload, and the result panel updates in place. Long DIMSE operations can take tens of seconds; wait for the result rather than clicking again.</p>
 </section>
@@ -402,8 +402,9 @@
     <li><strong>PDF files</strong> — one or more <code>.pdf</code> uploads. Each file becomes one SOP Instance.</li>
     <li><strong>ZIP of PDFs</strong> — only <code>.pdf</code> entries are used. Path traversal (<code>..</code>), <code>__MACOSX</code>, encrypted entries, and non-PDF files are skipped. Caps: 25&nbsp;MB per PDF, 40 files, 40&nbsp;MB ZIP, 80&nbsp;MB uncompressed.</li>
     <li><strong>Folder of PDFs</strong> — the browser’s directory picker (files are uploaded to this process).</li>
-    <li><strong>Directory on this workstation</strong> — a path this server can read. There is no login; anyone who can open the UI can point it at a folder this process can see. Hidden files and the filesystem root are skipped / refused.</li>
-    <li><strong>Patient Name / Patient ID</strong> — required. Optional accession, study description, and document title (defaults to the file name).</li>
+    <li><strong>Directory on this workstation</strong> — a path this server can read. <strong>…</strong> opens a native folder dialog on this workstation (needs a desktop session). <strong>Scan</strong> lists how many PDFs are in that folder before you send. Hidden files and the filesystem root are skipped / refused. There is no login.</li>
+    <li><strong>Patient Name / Patient ID</strong> — required (marked <span class="req">*</span>) unless you generate them. Optional accession, study description, and document title (defaults to the file name).</li>
+    <li><strong>Generate Patient Name / ID</strong> — fills one shared identity for the batch (useful when you do not have a real patient). <strong>Unique patient per PDF</strong> derives Name and ID from each file name so a folder of reports does not land as one person on the PACS.</li>
     <li><strong>Same study</strong> — on by default. All PDFs in the batch share one Study Instance UID and Series Instance UID.</li>
     <li><strong>Store on PACS</strong> — C-STORE Encapsulated PDF Storage. Uncheck to encapsulate only and see the SOP UIDs. The peer must accept that SOP Class; a green C-ECHO or Secondary Capture C-STORE is not enough.</li>
   </ul>

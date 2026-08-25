@@ -273,6 +273,60 @@ nav a.active {
   gap: 0.12rem;
   margin-top: 0.35rem;
 }
+.nav-branch {
+  display: flex;
+  flex-direction: column;
+  gap: 0.12rem;
+  margin-top: 0.2rem;
+}
+nav > .nav-branch { margin-top: 0.35rem; }
+.nav-row {
+  display: flex;
+  align-items: center;
+  gap: 0.1rem;
+  min-width: 0;
+}
+.nav-row > a,
+.nav-row > .nav-parent {
+  flex: 1;
+  min-width: 0;
+}
+.nav-twist {
+  flex-shrink: 0;
+  width: 1.55rem;
+  height: 1.55rem;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.nav-twist::before {
+  content: "";
+  width: 0.42rem;
+  height: 0.42rem;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  transform: rotate(-45deg);
+  transform-origin: 50% 50%;
+  margin-left: -0.1rem;
+}
+.nav-branch.is-open > .nav-row > .nav-twist::before {
+  transform: rotate(45deg);
+  margin-left: 0;
+  margin-top: -0.12rem;
+}
+.nav-twist:hover {
+  color: var(--accent);
+  background: var(--accent-dim);
+}
+.nav-branch:not(.is-open) > .nav-children {
+  display: none;
+}
 .nav-parent {
   display: block;
   cursor: default;
@@ -736,6 +790,54 @@ input:focus, select:focus, textarea:focus, .choice-toggle:focus-visible, .choice
   align-items: center;
   gap: 0.5rem;
 }
+.label-line {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.25rem;
+}
+.req {
+  color: var(--fail);
+  font-weight: 800;
+  text-decoration: none;
+  font-size: 1.05em;
+  line-height: 1;
+}
+label.required.is-optional .req { display: none; }
+.input-with-action {
+  display: flex;
+  gap: 0.35rem;
+  align-items: stretch;
+  min-width: 0;
+}
+.input-with-action input {
+  flex: 1;
+  min-width: 0;
+}
+.input-with-action .button {
+  flex-shrink: 0;
+  min-width: 2.4rem;
+  padding-left: 0.65rem;
+  padding-right: 0.65rem;
+}
+.directory-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: var(--text-md);
+  color: var(--muted);
+  font-weight: 600;
+}
+.scan-result {
+  margin: 0;
+  padding: 0.55rem 0.65rem;
+  border: 1px solid var(--line);
+  background: var(--glass);
+  font-size: var(--text-sm);
+  font-weight: 500;
+}
+.scan-result.fail { border-color: color-mix(in srgb, var(--fail) 45%, transparent); color: var(--fail); }
+.scan-result .table-wrap { margin-top: 0.4rem; }
+.scan-result p { margin: 0; }
 
 .button {
   display: inline-flex;

@@ -13,6 +13,9 @@ def test_health_and_pages(client) -> None:
     assert b"Arnout.pro Dicommunication Tool" in home.content
     assert f"v{__version__}".encode() in home.content
     assert b"nav-children" in home.content
+    assert b'data-nav-id="test-tools"' in home.content
+    assert b'data-nav-id="connectivity"' in home.content
+    assert b'nav-branch is-open" data-nav-id="test-tools"' not in home.content
     assert b"sidebar" in home.content
     assert b"aurora-wrapper" in home.content
     assert b'id="theme-toggle"' in home.content
@@ -88,6 +91,13 @@ def test_health_and_pages(client) -> None:
     assert b'name="pdfs"' in pdf_store.content
     assert b'name="zip_file"' in pdf_store.content
     assert b"webkitdirectory" in pdf_store.content
+    assert b"data-browse-directory" in pdf_store.content
+    assert b"data-scan-directory" in pdf_store.content
+    assert b'class="req"' in pdf_store.content
+    assert b"Generate Patient Name" in pdf_store.content
+    assert b"Unique patient per PDF" in pdf_store.content
+    assert b'nav-branch is-open" data-nav-id="test-tools"' in pdf_store.content
+    assert b'data-nav-id="dimse"' in pdf_store.content
 
 
 def test_shared_layout_is_dense() -> None:

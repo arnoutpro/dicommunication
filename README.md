@@ -268,7 +268,7 @@ Every virtual calling AE must be allowed on the remote, the same way the worksta
 
 ## Test tools
 
-The left menu keeps **Configured nodes** and **Test tools** open. Under Test tools: Testbench, C-ECHO board, Worklist, then **Connectivity** (PING), **DIMSE** (C-ECHO, C-STORE, PDF to DICOM, C-FIND, MWL C-FIND), and **HL7** (HL7 send). New plugin tools appear under their `category`.
+The left menu is a two-level tree. **Configured nodes** and **Test tools** start folded; open the chevron to expand. Under Test tools: Testbench, C-ECHO board, Worklist, then **Connectivity** (PING), **DIMSE** (C-ECHO, C-STORE, PDF to DICOM, C-FIND, MWL C-FIND), and **HL7** (HL7 send). The branch that contains the current page stays open. New plugin tools appear under their `category`.
 
 ### Testbench (`/testbench`)
 
@@ -293,7 +293,7 @@ Same engines as the Testbench, one page each: `/tools/c-echo`, `/tools/c-store`,
 
 ### PDF to DICOM (`/tools/pdf-store`)
 
-Import PDF files, a ZIP of PDFs, a browser folder, or a directory path on this workstation. Each PDF is wrapped as Encapsulated PDF Storage (modality `DOC`) with the Patient Name / ID you type. **Store on PACS** C-STOREs those instances to the selected remote. Uncheck it to encapsulate only. The peer must accept Encapsulated PDF Storage — C-ECHO or the Secondary Capture test image is a different SOP Class.
+Import PDF files, a ZIP of PDFs, a browser folder, or a directory path on this workstation. **…** opens a native folder dialog on this machine; **Scan** lists how many PDFs are in that folder before you send. Each PDF is wrapped as Encapsulated PDF Storage (modality `DOC`). Patient Name and Patient ID are required (marked *) unless you **Generate** them. **Unique patient per PDF** derives identities from file names so a directory of reports does not stack as one person. **Store on PACS** C-STOREs those instances to the selected remote. Uncheck it to encapsulate only. The peer must accept Encapsulated PDF Storage — C-ECHO or the Secondary Capture test image is a different SOP Class.
 
 Caps: 25 MB per PDF, 40 files, 40 MB ZIP. ZIP entries with `..`, `__MACOSX`, or a non-PDF extension are skipped. The directory path is read by this process; the UI has no login.
 

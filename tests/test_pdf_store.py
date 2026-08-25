@@ -20,6 +20,8 @@ from app.pdf_dicom import (
     collect_pdfs,
     encapsulate_pdf,
     is_pdf,
+    list_directory_pdfs,
+    resolve_patient_identities,
 )
 from app.tools.pdf_store import PdfStoreTool
 
@@ -134,6 +136,70 @@ def test_requires_patient_identifiers() -> None:
     )
     assert result.ok is False
     assert "Patient Name" in result.summary
+
+
+def test_generate_shared_patient_identity() -> None:
+    result = PdfStoreTool().run(
+        LocalAE(),
+        None,
+        {
+            "send": False,
+            "generate_name": True,
+            "generate_id": True,
+            "pdfs": [
+                {"filename": "a.pdf", "content": MINIMAL_PDF},
+                {"filename": "b.pdf", "content": MINIMAL_PDF},
+            ],
+        },
+    )
+    assert result.ok, result.summary
+    assert result.records[0]["patient_name"].startswith("ARNPRO^PDF")
+    assert result.records[0]["patient_id"].startswith("PDF")
+    assert result.records[0]["patient_id"] == result.records[1]["patient_id"]
+
+
+def test_unique_patient_per_pdf() -> None:
+    identities = resolve_patient_identities(
+        [
+            PdfSource(name="discharge.pdf", data=MINIMAL_PDF),
+            PdfSource(name="lab.pdf", data=MINIMAL_PDF),
+        ],
+        patient_name="",
+        patient_id="",
+        unique_patient=True,
+    )
+    assert identities[0][0].startswith("PDF^")
+    assert identities[0][1] != identities[1][1]
+    assert "DISCHARGE" in identities[0][1]
+    result = PdfStoreTool().run(
+        LocalAE(),
+        None,
+        {
+            "send": False,
+            "unique_patient": True,
+            "pdfs": [
+                {"filename": "discharge.pdf", "content": MINIMAL_PDF},
+                {"filename": "lab.pdf", "content": MINIMAL_PDF},
+            ],
+        },
+    )
+    assert result.ok, result.summary
+    assert result.records[0]["patient_id"] != result.records[1]["patient_id"]
+    assert result.records[0]["study_instance_uid"] != result.records[1]["study_instance_uid"]
+
+
+def test_list_directory_pdfs_counts_without_sending(tmp_path: Path) -> None:
+    (tmp_path / "a.pdf").write_bytes(MINIMAL_PDF)
+    nested = tmp_path / "sub"
+    nested.mkdir()
+    (nested / "b.pdf").write_bytes(MINIMAL_PDF)
+    (tmp_path / "skip.txt").write_text("nope", encoding="utf-8")
+    listing = list_directory_pdfs(tmp_path)
+    assert listing["ok"] is True
+    assert listing["pdf_count"] == 2
+    assert listing["sendable"] == 2
+    names = {item["name"] for item in listing["files"]}
+    assert names == {"a.pdf", "b.pdf"}
 
 
 def test_pdf_c_store_against_in_process_scp() -> None:
@@ -251,3 +317,20 @@ def test_collect_pdfs_combines_zip_and_directory(tmp_path: Path) -> None:
     )
     assert sorted(item.name for item in sources) == ["disk.pdf", "zipped.pdf"]
     assert warnings == []
+
+
+def test_scan_api_lists_directory(client, tmp_path: Path) -> None:
+    (tmp_path / "one.pdf").write_bytes(MINIMAL_PDF)
+    listed = client.get("/api/tools/pdf-store/scan", params={"directory": str(tmp_path)})
+    assert listed.status_code == 200
+    body = listed.json()
+    assert body["pdf_count"] == 1
+    assert body["files"][0]["name"] == "one.pdf"
+    missing = client.get("/api/tools/pdf-store/scan", params={"directory": str(tmp_path / "nope")})
+    assert missing.status_code == 400
+
+
+def test_pick_directory_unavailable_without_desktop(client, monkeypatch) -> None:
+    monkeypatch.setenv("DICOMM_NO_DIALOGS", "1")
+    response = client.post("/api/fs/pick-directory")
+    assert response.status_code == 503
