@@ -40,7 +40,14 @@ from app.models import (
 from app.mwl import query_worklist
 from app.mwl_scp import WorklistSCP
 from app.fs_dialog import dialogs_available, pick_directory
-from app.pdf_dicom import CollectError, MAX_PDF_BYTES, MAX_ZIP_BYTES, is_pdf_filename, list_directory_pdfs
+from app.pdf_dicom import (
+    CollectError,
+    MAX_FILES,
+    MAX_PDF_BYTES,
+    MAX_ZIP_BYTES,
+    is_pdf_filename,
+    list_directory_pdfs,
+)
 from app.paths import package_dir
 from app.store import ConfigStore
 from app.tools import get_tool, list_tools, list_tools_by_category
@@ -91,14 +98,22 @@ def _pdf_store_options(
     unique_patient: bool = False,
 ) -> dict[str, Any]:
     items: list[dict[str, Any]] = []
+    accepted = 0
     for upload in list(pdfs or []) + list(folder or []):
         name = _upload_filename(upload) or "document.pdf"
         if not is_pdf_filename(name):
             items.append({"filename": name, "skip": "not-pdf", "origin": "upload"})
             continue
+        if accepted >= MAX_FILES:
+            # collect_pdfs enforces the same cap, but only after every upload has
+            # been read. Stop pulling bytes here so a request with hundreds of
+            # large PDFs cannot pin MAX_PDF_BYTES x N in memory before it fails.
+            items.append({"filename": name, "skip": "too-many", "origin": "upload"})
+            continue
         data = _read_upload(upload, MAX_PDF_BYTES)
         if data is None:
             continue
+        accepted += 1
         items.append(
             {
                 "filename": name,
