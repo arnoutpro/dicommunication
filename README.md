@@ -87,8 +87,18 @@ docker compose up --build -d
 
 Compose publishes:
 
-- `8080` — web UI and JSON API
-- `11112` — optional local MWL SCP (only listens if you enable it in Configuration)
+| Port | What | Published on | Override |
+| --- | --- | --- | --- |
+| `8080` | Web UI and JSON API | `127.0.0.1` — this machine only | `DICOMM_HTTP_BIND` |
+| `11112` | Optional local MWL SCP (only listens if you enable it in Configuration) | every interface, so a modality can C-FIND this workstation | `DICOMM_DICOM_BIND` |
+
+The UI has no login, so it is kept on loopback. To reach it from another machine, put an authenticating reverse proxy in front and publish it deliberately:
+
+```bash
+DICOMM_HTTP_BIND=0.0.0.0 docker compose up -d
+```
+
+`DICOMM_DICOM_BIND` pins the MWL SCP to one address (for example `DICOMM_DICOM_BIND=10.0.0.5`) when the host has several NICs and only one faces the modality VLAN.
 
 It also sets `host.docker.internal` so a PACS on the Docker host (typical on a Mac) is reachable from inside the container.
 
@@ -106,11 +116,13 @@ or without Compose:
 ```bash
 mkdir -p ~/.dicommunication
 docker run --rm \
-  -p 8080:8080 -p 11112:11112 \
+  -p 127.0.0.1:8080:8080 -p 11112:11112 \
   -v "$HOME/.dicommunication:/app/data" \
   -e DICOMM_DATA_DIR=/app/data \
   ghcr.io/arnoutpro/dicommunication:latest
 ```
+
+`-p 127.0.0.1:8080:8080` keeps the login-less UI on this machine. Drop the `127.0.0.1:` only behind an authenticating reverse proxy.
 
 ### Update
 
@@ -461,7 +473,7 @@ C-ECHO, C-STORE, PDF to DICOM, Study Root C-FIND, and MWL tests start in-process
 
 ## Security
 
-This is a trusted-network admin tool. The web UI has no login. Do not publish port 8080 to the internet without an authenticating reverse proxy. Do not point it at production archives unless you intend to send the test C-STORE instance (`ARNPRO^TESTBENCH`) or Encapsulated PDF documents you import. DICOM and HL7 are sent in the clear unless you terminate TLS elsewhere. HL7 send transmits whatever you paste. PDF to DICOM reads uploaded files, ZIP contents, and any workstation path you type.
+This is a trusted-network admin tool. The web UI has no login, so Compose publishes it on `127.0.0.1` only; `DICOMM_HTTP_BIND=0.0.0.0` opens it up and should only be used behind an authenticating reverse proxy. Do not publish port 8080 to the internet without one. Do not point it at production archives unless you intend to send the test C-STORE instance (`ARNPRO^TESTBENCH`) or Encapsulated PDF documents you import. DICOM and HL7 are sent in the clear unless you terminate TLS elsewhere. HL7 send transmits whatever you paste. PDF to DICOM reads uploaded files, ZIP contents, and any workstation path you type.
 
 ## Troubleshooting
 
@@ -487,3 +499,4 @@ This is a trusted-network admin tool. The web UI has no login. Do not publish po
 | Mac Dock icon is live, no window | Quit from the Dock, then install a DMG built after the argv-emulation fix. Check `~/.dicommunication/launch.log`. Rebuild: **Actions → macOS DMG** with `release_tag=v0.2.0`. |
 | UI opens in Safari/Chrome instead of an app window | Frozen builds should use a native window. Pass `--window`, or check WebView2 on Windows. `--browser` forces the system browser. |
 | Modality cannot C-FIND this tool | Enable the MWL SCP, publish/allow `11112` (Windows: inbound TCP for `dicommunication.exe`; macOS: allow incoming for **Dicommunication**), and put this workstation AE on the modality’s worklist node list. |
+| UI loads on the Docker host but not from another machine | Expected. Compose publishes `8080` on `127.0.0.1` because there is no login. Start with `DICOMM_HTTP_BIND=0.0.0.0` and front it with an authenticating reverse proxy. |

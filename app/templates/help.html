@@ -58,7 +58,7 @@
   <header class="panel-head">
     <h2>Security on a trusted network</h2>
   </header>
-  <p>The web UI has <strong>no login</strong>. Do not publish port 8080 to the internet without an authenticating reverse proxy. Do not point it at production archives unless you intend to send the test C-STORE instance (patient <code>ARNPRO^TESTBENCH</code> / ID <code>ARNPRO-TEST</code>) or real Encapsulated PDF documents you import.</p>
+  <p>The web UI has <strong>no login</strong>. Docker Compose therefore publishes port 8080 on <code>127.0.0.1</code> only; start it with <code>DICOMM_HTTP_BIND=0.0.0.0</code> to reach the UI from another machine, and put an authenticating reverse proxy in front of it when you do. Do not publish port 8080 to the internet without one. Do not point it at production archives unless you intend to send the test C-STORE instance (patient <code>ARNPRO^TESTBENCH</code> / ID <code>ARNPRO-TEST</code>) or real Encapsulated PDF documents you import.</p>
   <p>DICOM and HL7 are sent in the clear unless you terminate TLS elsewhere. HL7 send transmits whatever you paste. <strong>PDF to DICOM</strong> reads files you upload, ZIP contents, and any workstation path you type — treat that like a diagnostic console, not a public website.</p>
 </section>
 
