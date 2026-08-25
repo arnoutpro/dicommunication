@@ -64,8 +64,9 @@ def _safe_zip_basename(name: str) -> str | None:
     return parts[-1]
 
 
-def _is_pdf_name(name: str) -> bool:
-    return name.lower().endswith(".pdf")
+def is_pdf_filename(name: str) -> bool:
+    """True when the basename looks like a PDF. Other types are never imported."""
+    return Path(str(name or "")).name.lower().endswith(".pdf")
 
 
 def _decode_b64(value: object) -> bytes:
@@ -107,6 +108,7 @@ def collect_from_zip(payload: bytes) -> tuple[list[PdfSource], list[str]]:
     sources: list[PdfSource] = []
     warnings: list[str] = []
     uncompressed = 0
+    skipped_not_pdf = 0
     with archive:
         for info in archive.infolist():
             if info.is_dir():
@@ -118,7 +120,8 @@ def collect_from_zip(payload: bytes) -> tuple[list[PdfSource], list[str]]:
             if basename is None:
                 warnings.append(f"{info.filename}: skipped (unsafe path).")
                 continue
-            if not _is_pdf_name(basename):
+            if not is_pdf_filename(basename):
+                skipped_not_pdf += 1
                 continue
             size = int(info.file_size or 0)
             if size > MAX_PDF_BYTES:
@@ -132,6 +135,11 @@ def collect_from_zip(payload: bytes) -> tuple[list[PdfSource], list[str]]:
             with archive.open(info, "r") as handle:
                 data = _read_limited(handle, MAX_PDF_BYTES)
             _add_source(sources, warnings, name=basename, data=data, origin=f"zip:{info.filename}")
+    if skipped_not_pdf:
+        warnings.append(
+            f"{skipped_not_pdf} non-PDF ZIP "
+            f"{'entry' if skipped_not_pdf == 1 else 'entries'} skipped."
+        )
     return sources, warnings
 
 
@@ -153,8 +161,8 @@ def _resolve_import_root(path: str | Path) -> Path:
     raise CollectError(f"Not a file or directory: {raw}")
 
 
-def iter_directory_pdfs(path: str | Path) -> tuple[Path, list[tuple[Path, str]]]:
-    """Return (root, [(file, relative path), ...]) for PDF names under path."""
+def iter_directory_pdfs(path: str | Path) -> tuple[Path, list[tuple[Path, str]], int]:
+    """Return (root, PDF hits, count of other visible files ignored)."""
     root = _resolve_import_root(path)
     files: list[Path]
     base = root if root.is_dir() else root.parent
@@ -167,6 +175,7 @@ def iter_directory_pdfs(path: str | Path) -> tuple[Path, list[tuple[Path, str]]]
             if candidate.is_file() and not candidate.is_symlink()
         )
     hits: list[tuple[Path, str]] = []
+    skipped_other = 0
     for file in files:
         try:
             relative = file.relative_to(base)
@@ -176,16 +185,18 @@ def iter_directory_pdfs(path: str | Path) -> tuple[Path, list[tuple[Path, str]]]
             continue
         if len(relative.parts) > MAX_DIR_DEPTH + 1:
             continue
-        if not _is_pdf_name(file.name):
+        if not is_pdf_filename(file.name):
+            skipped_other += 1
             continue
         hits.append((file, relative.as_posix()))
-    return root, hits
+    return root, hits, skipped_other
 
 
 def list_directory_pdfs(path: str | Path) -> dict[str, Any]:
     """Count PDFs in a folder without loading their bytes (for the Scan button)."""
-    root, hits = iter_directory_pdfs(path)
+    root, hits, skipped_other = iter_directory_pdfs(path)
     oversize = 0
+    skipped_not_pdf = 0
     files: list[dict[str, Any]] = []
     for file, relative in hits:
         try:
@@ -193,6 +204,15 @@ def list_directory_pdfs(path: str | Path) -> dict[str, Any]:
         except OSError:
             size = 0
         too_big = size > MAX_PDF_BYTES
+        try:
+            with file.open("rb") as handle:
+                head = handle.read(4)
+        except OSError:
+            skipped_not_pdf += 1
+            continue
+        if head != PDF_MAGIC:
+            skipped_not_pdf += 1
+            continue
         if too_big:
             oversize += 1
         files.append(
@@ -212,6 +232,8 @@ def list_directory_pdfs(path: str | Path) -> dict[str, Any]:
         "sendable": min(sendable, MAX_FILES),
         "capped": sendable > MAX_FILES,
         "oversize": oversize,
+        "skipped_other": skipped_other,
+        "skipped_not_pdf": skipped_not_pdf,
         "max_files": MAX_FILES,
         "files": files[:MAX_FILES],
         "extra": max(0, pdf_count - MAX_FILES),
@@ -221,7 +243,7 @@ def list_directory_pdfs(path: str | Path) -> dict[str, Any]:
 def collect_from_directory(path: str | Path) -> tuple[list[PdfSource], list[str]]:
     if not str(path).strip():
         return [], []
-    root, hits = iter_directory_pdfs(path)
+    root, hits, _skipped_other = iter_directory_pdfs(path)
     sources: list[PdfSource] = []
     warnings: list[str] = []
     for file, relative in hits:
@@ -242,6 +264,9 @@ def collect_from_uploads(items: Iterable[dict[str, Any]]) -> tuple[list[PdfSourc
     warnings: list[str] = []
     for item in items:
         name = str(item.get("filename") or item.get("name") or "document.pdf")
+        if item.get("skip") == "not-pdf" or not is_pdf_filename(name):
+            warnings.append(f"{name}: not a PDF, skipped.")
+            continue
         if "content" in item and item["content"] is not None:
             data = item["content"]
             if not isinstance(data, (bytes, bytearray)):

@@ -285,7 +285,7 @@ Runs Verification against **every** configured remote in one click (up to 8 in p
 
 ### Network PING (`/tools/ping`)
 
-DNS resolve, ICMP echo, then TCP connect to the DICOM port. ICMP is often blocked on clinical networks; the TCP check is the useful layer-4 result.
+DNS resolve, ICMP echo, then TCP connect to the DICOM port (the same kind of check as PowerShell `Test-NetConnection -Port`). ICMP is often blocked on clinical networks; the TCP check is the useful layer-4 result.
 
 ### Individual DIMSE tools
 
@@ -293,9 +293,9 @@ Same engines as the Testbench, one page each: `/tools/c-echo`, `/tools/c-store`,
 
 ### PDF to DICOM (`/tools/pdf-store`)
 
-Import PDF files, a ZIP of PDFs, a browser folder, or a directory path on this workstation. **…** opens a native folder dialog on this machine; **Scan** lists how many PDFs are in that folder before you send. Each PDF is wrapped as Encapsulated PDF Storage (modality `DOC`). Patient Name and Patient ID are required (marked *) unless you **Generate** them. **Unique patient per PDF** derives identities from file names so a directory of reports does not stack as one person. **Store on PACS** C-STOREs those instances to the selected remote. Uncheck it to encapsulate only. The peer must accept Encapsulated PDF Storage — C-ECHO or the Secondary Capture test image is a different SOP Class.
+Import PDF files, a ZIP of PDFs, a browser folder, or a directory path on this workstation. **…** opens a native folder dialog on this machine; **Scan** lists PDF files only. Each PDF is wrapped as Encapsulated PDF Storage (modality `DOC`). Checking **Generate Patient Name / ID** fills those fields. **Unique patient per PDF** derives identities from file names so a directory of reports does not stack as one person. **Store on PACS** C-STOREs those instances to the selected remote. Uncheck it to encapsulate only. The peer must accept Encapsulated PDF Storage — C-ECHO or the Secondary Capture test image is a different SOP Class.
 
-Caps: 25 MB per PDF, 40 files, 40 MB ZIP. ZIP entries with `..`, `__MACOSX`, or a non-PDF extension are skipped. The directory path is read by this process; the UI has no login.
+Caps: 25 MB per PDF, 40 files, 40 MB ZIP. Only `.pdf` files are imported. ZIP entries with `..`, `__MACOSX`, or a non-PDF extension are skipped. The directory path is read by this process; the UI has no login.
 
 ## Worklist
 

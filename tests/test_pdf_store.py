@@ -16,6 +16,7 @@ from app.pdf_dicom import (
     CollectError,
     PdfSource,
     collect_from_directory,
+    collect_from_uploads,
     collect_from_zip,
     collect_pdfs,
     encapsulate_pdf,
@@ -90,6 +91,7 @@ def test_zip_skips_non_pdf_and_path_traversal() -> None:
     assert names == ["report.pdf"]
     assert any("unsafe path" in note or "escape" in note for note in warnings)
     assert any("not a PDF" in note for note in warnings)
+    assert any("non-PDF ZIP" in note for note in warnings)
 
 
 def test_collect_from_directory(tmp_path: Path) -> None:
@@ -194,10 +196,13 @@ def test_list_directory_pdfs_counts_without_sending(tmp_path: Path) -> None:
     nested.mkdir()
     (nested / "b.pdf").write_bytes(MINIMAL_PDF)
     (tmp_path / "skip.txt").write_text("nope", encoding="utf-8")
+    (tmp_path / "fake.pdf").write_bytes(b"this is not a pdf")
     listing = list_directory_pdfs(tmp_path)
     assert listing["ok"] is True
     assert listing["pdf_count"] == 2
     assert listing["sendable"] == 2
+    assert listing["skipped_other"] >= 1
+    assert listing["skipped_not_pdf"] == 1
     names = {item["name"] for item in listing["files"]}
     assert names == {"a.pdf", "b.pdf"}
 
@@ -321,10 +326,12 @@ def test_collect_pdfs_combines_zip_and_directory(tmp_path: Path) -> None:
 
 def test_scan_api_lists_directory(client, tmp_path: Path) -> None:
     (tmp_path / "one.pdf").write_bytes(MINIMAL_PDF)
+    (tmp_path / "notes.txt").write_text("ignore", encoding="utf-8")
     listed = client.get("/api/tools/pdf-store/scan", params={"directory": str(tmp_path)})
     assert listed.status_code == 200
     body = listed.json()
     assert body["pdf_count"] == 1
+    assert body["skipped_other"] >= 1
     assert body["files"][0]["name"] == "one.pdf"
     missing = client.get("/api/tools/pdf-store/scan", params={"directory": str(tmp_path / "nope")})
     assert missing.status_code == 400
@@ -336,6 +343,27 @@ def test_scan_api_lists_directory(client, tmp_path: Path) -> None:
     assert htmx.status_code == 200
     assert b"<strong>1</strong> PDF" in htmx.content
     assert b"one.pdf" in htmx.content
+
+
+def test_uploads_reject_non_pdf_filenames() -> None:
+    sources, warnings = collect_from_uploads(
+        [
+            {"filename": "note.pdf", "content": MINIMAL_PDF},
+            {"filename": "photo.jpg", "content": b"\xff\xd8\xff"},
+        ]
+    )
+    assert [item.name for item in sources] == ["note.pdf"]
+    assert any("photo.jpg" in note and "not a PDF" in note for note in warnings)
+
+
+def test_form_upload_rejects_non_pdf(client) -> None:
+    response = client.post(
+        "/tools/pdf-store/run",
+        data={"patient_name": "DOE^JANE", "patient_id": "1001", "same_study": "on"},
+        files={"pdfs": ("photo.jpg", b"not-a-pdf", "image/jpeg")},
+    )
+    assert response.status_code == 200
+    assert b"not a PDF" in response.content or b"No PDF" in response.content
 
 
 def test_pick_directory_unavailable_without_desktop(client, monkeypatch) -> None:

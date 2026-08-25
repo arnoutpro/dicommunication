@@ -4,6 +4,7 @@
     <strong>{{ scan.pdf_count }}</strong> PDF{% if scan.pdf_count != 1 %}s{% endif %} in <code>{{ scan.path }}</code>
     {% if scan.capped %} · sending the first {{ scan.sendable }} (max {{ scan.max_files }}){% endif %}
     {% if scan.oversize %} · {{ scan.oversize }} over {{ 25 }} MB skipped{% endif %}
+    {% if scan.skipped_other or scan.skipped_not_pdf %} · {{ (scan.skipped_other or 0) + (scan.skipped_not_pdf or 0) }} other file{% if (scan.skipped_other or 0) + (scan.skipped_not_pdf or 0) != 1 %}s{% endif %} ignored (not PDF){% endif %}
   </p>
   {% if scan.files %}
   <div class="table-wrap">
