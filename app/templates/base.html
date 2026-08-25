@@ -70,9 +70,12 @@
       <nav>
         <a href="/" class="{% if nav == 'home' %}active{% endif %}">Dashboard</a>
 
-        <div class="nav-group">
-          <a href="/config" class="{% if nav == 'config' %}active{% endif %}">Configured nodes</a>
-          <div class="nav-children">
+        <div class="nav-branch{% if nav.startswith('config') %} is-open{% endif %}" data-nav-id="config">
+          <div class="nav-row">
+            <button type="button" class="nav-twist" aria-expanded="{{ 'true' if nav.startswith('config') else 'false' }}" aria-controls="nav-config-kids" aria-label="Configured nodes"></button>
+            <a href="/config" class="{% if nav == 'config' %}active{% endif %}">Configured nodes</a>
+          </div>
+          <div class="nav-children" id="nav-config-kids">
             <a href="/config/local" class="{% if nav == 'config-local' %}active{% endif %}">Local DICOM AE</a>
             <a href="/config/identities" class="{% if nav == 'config-identities' %}active{% endif %}">Virtual AEs</a>
             <a href="/config/remotes" class="{% if nav == 'config-remotes' %}active{% endif %}">Remote nodes</a>
@@ -81,16 +84,24 @@
 
         <a href="/logs" class="{% if nav == 'logs' %}active{% endif %}">Logs</a>
 
-        <div class="nav-group">
-          <span class="nav-parent">Test tools</span>
-          <div class="nav-children">
+        <div class="nav-branch{% if nav in ['testbench', 'echo-board', 'worklist', 'tools'] %} is-open{% endif %}" data-nav-id="test-tools">
+          <div class="nav-row">
+            <button type="button" class="nav-twist" aria-expanded="{{ 'true' if nav in ['testbench', 'echo-board', 'worklist', 'tools'] else 'false' }}" aria-controls="nav-tools-kids" aria-label="Test tools"></button>
+            <span class="nav-parent">Test tools</span>
+          </div>
+          <div class="nav-children" id="nav-tools-kids">
             <a href="/testbench" class="{% if nav == 'testbench' %}active{% endif %}">Testbench</a>
             <a href="/echo-board" class="{% if nav == 'echo-board' %}active{% endif %}">C-ECHO board</a>
             <a href="/worklist" class="{% if nav == 'worklist' %}active{% endif %}">Worklist</a>
             {% for category, items in tool_groups %}
-            <div class="nav-group">
-              <span class="nav-parent">{{ category }}</span>
-              <div class="nav-children">
+            {% set cat_id = category | lower | replace(' ', '-') %}
+            {% set cat_open = tool_id is defined and items | selectattr('id', 'equalto', tool_id) | list | length > 0 %}
+            <div class="nav-branch{% if cat_open %} is-open{% endif %}" data-nav-id="{{ cat_id }}">
+              <div class="nav-row">
+                <button type="button" class="nav-twist" aria-expanded="{{ 'true' if cat_open else 'false' }}" aria-controls="nav-{{ cat_id }}-kids" aria-label="{{ category }}"></button>
+                <span class="nav-parent">{{ category }}</span>
+              </div>
+              <div class="nav-children" id="nav-{{ cat_id }}-kids">
                 {% for item in items %}
                 <a href="/tools/{{ item.id }}" class="{% if tool_id == item.id %}active{% endif %}">{{ item.name }}</a>
                 {% endfor %}

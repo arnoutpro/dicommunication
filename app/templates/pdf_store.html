@@ -23,7 +23,9 @@
     hx-indicator="#busy"
     hx-encoding="multipart/form-data"
     hx-timeout="180000"
+    hx-trigger="submit"
     autocomplete="off"
+    data-pdf-store
   >
     {% if config.remotes %}
     <label>
@@ -42,13 +44,28 @@
     <p class="hint span-2">No remote node configured. You can still encapsulate. <a href="/config/remotes">Add a PACS</a> to C-STORE the DICOM PDFs.</p>
     {% endif %}
     {% include "partials/identity_select.html" %}
-    <label>
-      Patient Name
+    <label class="required" data-patient-field="name">
+      <span class="label-line">Patient Name <abbr class="req" title="Required">*</abbr></span>
       <input name="patient_name" value="{{ patient_name }}" placeholder="DOE^JANE" required>
+      <span class="hint">Required unless you generate it. DICOM PN, e.g. <code>DOE^JANE</code>.</span>
     </label>
-    <label>
-      Patient ID
+    <label class="required" data-patient-field="id">
+      <span class="label-line">Patient ID <abbr class="req" title="Required">*</abbr></span>
       <input name="patient_id" value="{{ patient_id }}" placeholder="1001" required>
+      <span class="hint">Required unless you generate it. Used to find the study on the PACS.</span>
+    </label>
+    <label class="checkbox">
+      <input type="checkbox" name="generate_name" value="on" {% if generate_name %}checked{% endif %} data-generate-name>
+      Generate Patient Name
+    </label>
+    <label class="checkbox">
+      <input type="checkbox" name="generate_id" value="on" {% if generate_id %}checked{% endif %} data-generate-id>
+      Generate Patient ID
+    </label>
+    <label class="checkbox span-2">
+      <input type="checkbox" name="unique_patient" value="on" {% if unique_patient %}checked{% endif %} data-unique-patient>
+      Unique patient per PDF (from file name)
+      <span class="hint">For a folder of reports: each PDF gets its own Patient Name / ID so they do not stack as one person on the PACS.</span>
     </label>
     <label>
       Accession Number
@@ -78,13 +95,21 @@
       <input name="folder" type="file" accept=".pdf,application/pdf" multiple webkitdirectory directory>
       <span class="hint">Browser folder picker. Subfolders are included. Hidden files are skipped.</span>
     </label>
-    <label class="span-2">
-      Directory on this workstation
-      <input name="directory" value="{{ directory }}" placeholder="/data/reports or C:\reports" spellcheck="false">
-      <span class="hint">Server-side path this process can read. Same trust model as the rest of the UI: there is no login.</span>
-    </label>
+    <div class="span-2 directory-field">
+      <span class="label-line">Directory on this workstation</span>
+      <div class="input-with-action">
+        <input name="directory" value="{{ directory }}" placeholder="/data/reports or C:\reports" spellcheck="false" data-directory-input>
+        <button type="button" class="button" data-browse-directory title="Browse for a folder on this workstation" hx-disable>…</button>
+        <button type="button" class="button" data-scan-directory hx-disable>Scan</button>
+      </div>
+      <span class="hint">Path this process can read. <strong>…</strong> opens the local file explorer on this workstation. Scan lists how many PDFs will be sent before you C-STORE.</span>
+    </div>
+    <div id="pdf-browse-status" class="span-2" hidden></div>
+    <div id="pdf-scan" class="span-2">
+      {% include "partials/pdf_scan.html" %}
+    </div>
     <label class="checkbox span-2">
-      <input type="checkbox" name="same_study" value="on" {% if same_study %}checked{% endif %}>
+      <input type="checkbox" name="same_study" value="on" {% if same_study %}checked{% endif %} data-same-study>
       Keep PDFs in the same study (one Study / Series Instance UID)
     </label>
     <label class="checkbox span-2">
