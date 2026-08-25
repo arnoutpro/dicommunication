@@ -328,6 +328,14 @@ def test_scan_api_lists_directory(client, tmp_path: Path) -> None:
     assert body["files"][0]["name"] == "one.pdf"
     missing = client.get("/api/tools/pdf-store/scan", params={"directory": str(tmp_path / "nope")})
     assert missing.status_code == 400
+    htmx = client.post(
+        "/tools/pdf-store/scan",
+        data={"directory": str(tmp_path)},
+        headers={"HX-Request": "true"},
+    )
+    assert htmx.status_code == 200
+    assert b"1 PDF" in htmx.content
+    assert b"one.pdf" in htmx.content
 
 
 def test_pick_directory_unavailable_without_desktop(client, monkeypatch) -> None:
