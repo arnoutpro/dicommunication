@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import os
+from collections.abc import Mapping
 from contextlib import asynccontextmanager
 from time import perf_counter
 from typing import Any
@@ -36,16 +38,54 @@ from app.models import (
     WorklistEntry,
     WorklistQuery,
     VirtualAE,
+    new_record_id,
+    utc_now,
 )
 from app.mwl import query_worklist
 from app.mwl_scp import WorklistSCP
 from app.fs_dialog import dialogs_available, pick_directory
-from app.pdf_dicom import CollectError, MAX_PDF_BYTES, MAX_ZIP_BYTES, is_pdf_filename, list_directory_pdfs
+from app.pdf_dicom import (
+    CollectError,
+    MAX_FILES,
+    MAX_PDF_BYTES,
+    MAX_ZIP_BYTES,
+    is_pdf_filename,
+    list_directory_pdfs,
+)
 from app.paths import package_dir
 from app.store import ConfigStore
 from app.tools import get_tool, list_tools, list_tools_by_category
 
 BASE_DIR = package_dir()
+
+LOOPBACK_BINDS = {"127.0.0.1", "localhost", "::1", "[::1]"}
+
+
+def http_publish_note(environ: Mapping[str, str] | None = None) -> str | None:
+    """Say which host address the UI was published on, for `docker compose logs`.
+
+    A process inside a container cannot see its own host-side port mapping, so
+    if Compose publishes the UI on loopback the app has no way to notice that a
+    browser on another machine is being refused. Compose passes the address it
+    used in DICOMM_HTTP_BIND purely so this line can be logged. Returns None
+    when that is unset, which is every non-Compose run.
+    """
+    environ = os.environ if environ is None else environ
+    bind = (environ.get("DICOMM_HTTP_BIND") or "").strip()
+    if not bind:
+        return None
+    port = (environ.get("PORT") or "8080").strip() or "8080"
+    if bind in LOOPBACK_BINDS:
+        return (
+            f"Web UI published on {bind}:{port} — reachable from the Docker host only. "
+            "The UI has no login, so this is the default. To reach it from another "
+            "machine, restart with DICOMM_HTTP_BIND=0.0.0.0 and put an authenticating "
+            "reverse proxy in front of it."
+        )
+    return (
+        f"Web UI published on {bind}:{port} — reachable from the network. "
+        "The UI has no login; serve it through an authenticating reverse proxy."
+    )
 
 
 def _first_error(exc: ValidationError) -> str:
@@ -91,14 +131,22 @@ def _pdf_store_options(
     unique_patient: bool = False,
 ) -> dict[str, Any]:
     items: list[dict[str, Any]] = []
+    accepted = 0
     for upload in list(pdfs or []) + list(folder or []):
         name = _upload_filename(upload) or "document.pdf"
         if not is_pdf_filename(name):
             items.append({"filename": name, "skip": "not-pdf", "origin": "upload"})
             continue
+        if accepted >= MAX_FILES:
+            # collect_pdfs enforces the same cap, but only after every upload has
+            # been read. Stop pulling bytes here so a request with hundreds of
+            # large PDFs cannot pin MAX_PDF_BYTES x N in memory before it fails.
+            items.append({"filename": name, "skip": "too-many", "origin": "upload"})
+            continue
         data = _read_upload(upload, MAX_PDF_BYTES)
         if data is None:
             continue
+        accepted += 1
         items.append(
             {
                 "filename": name,
@@ -160,6 +208,9 @@ def create_app(store: ConfigStore | None = None) -> FastAPI:
             store.data_dir,
             settings.level,
         )
+        publish_note = http_publish_note()
+        if publish_note:
+            log.info("%s", publish_note)
         scp.start()
         if scp.running:
             log.info("MWL SCP is listening")
@@ -1247,9 +1298,10 @@ def create_app(store: ConfigStore | None = None) -> FastAPI:
 
     @app.post("/api/worklist", status_code=201)
     def api_add_worklist_entry(entry: WorklistEntry):
+        updates: dict[str, Any] = {"id": new_record_id()}
         if not entry.study_instance_uid:
-            entry = entry.model_copy(update={"study_instance_uid": str(generate_uid())})
-        return app.state.store.add_worklist_entry(entry)
+            updates["study_instance_uid"] = str(generate_uid())
+        return app.state.store.add_worklist_entry(entry.model_copy(update=updates))
 
     @app.delete("/api/worklist/{entry_id}")
     def api_delete_worklist_entry(entry_id: str):
@@ -1262,7 +1314,9 @@ def create_app(store: ConfigStore | None = None) -> FastAPI:
 
     @app.post("/api/hl7/messages", status_code=201)
     def api_add_hl7_message(message: Hl7Message):
-        return app.state.store.add_hl7_message(message)
+        return app.state.store.add_hl7_message(
+            message.model_copy(update={"id": new_record_id(), "created_at": utc_now()})
+        )
 
     @app.delete("/api/hl7/messages/{message_id}")
     def api_delete_hl7_message(message_id: str):
@@ -1301,6 +1355,7 @@ def create_app(store: ConfigStore | None = None) -> FastAPI:
 
     @app.post("/api/remotes", status_code=201)
     def api_add_remote(remote: RemoteNode):
+        remote = remote.model_copy(update={"id": new_record_id(), "created_at": utc_now()})
         app.state.store.add_remote(remote)
         return remote
 
@@ -1322,6 +1377,7 @@ def create_app(store: ConfigStore | None = None) -> FastAPI:
 
     @app.post("/api/identities", status_code=201)
     def api_add_identity(identity: VirtualAE):
+        identity = identity.model_copy(update={"id": new_record_id()})
         app.state.store.add_identity(identity)
         return identity
 

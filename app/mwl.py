@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import time
 import uuid
-from fnmatch import fnmatch
 from typing import Any
 
 from pydicom.dataset import Dataset
@@ -147,14 +146,50 @@ def build_identifier(query: WorklistQuery) -> Dataset:
     return ds
 
 
+def _wildcard_fullmatch(pattern: str, value: str) -> bool:
+    """Match ``value`` against a DICOM wildcard ``pattern``, whole value.
+
+    PS3.4 C.2.2.2.4 gives '*' (zero or more characters) and '?' (exactly one)
+    their meaning and leaves every other character literal. fnmatch was close
+    but not the same language: it also honours '[...]' character classes, which
+    DICOM does not define, and a query whose only wildcard was '?' never
+    reached it at all.
+
+    Matching is done with the usual single-backtrack-point scan rather than a
+    translated regular expression. The MWL SCP feeds this whatever a remote SCU
+    sends, and a pattern such as '*A*A*A...B' makes a backtracking engine run
+    for an unbounded time; this loop is O(len(pattern) * len(value)).
+    """
+    p = v = 0
+    star = -1
+    resume = 0
+    while v < len(value):
+        if p < len(pattern) and pattern[p] in ("?", value[v]):
+            p += 1
+            v += 1
+        elif p < len(pattern) and pattern[p] == "*":
+            star = p
+            p += 1
+            resume = v
+        elif star >= 0:
+            p = star + 1
+            resume += 1
+            v = resume
+        else:
+            return False
+    while p < len(pattern) and pattern[p] == "*":
+        p += 1
+    return p == len(pattern)
+
+
 def _wildcard_match(query: str, value: str) -> bool:
     if not query:
         return True
-    pattern = query.replace("*", "").upper() if "*" not in query else query.upper()
     candidate = value.upper()
-    if "*" in query:
-        return fnmatch(candidate, query.upper())
-    return pattern in candidate
+    if "*" in query or "?" in query:
+        return _wildcard_fullmatch(query.upper(), candidate)
+    # No wildcard: keep the substring search the UI search box relies on.
+    return query.upper() in candidate
 
 
 def matches_entry(entry: WorklistEntry, query: WorklistQuery) -> bool:
