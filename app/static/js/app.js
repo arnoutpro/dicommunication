@@ -323,9 +323,21 @@ function initNavTree() {
 }
 
 function randomPatientToken() {
-  const bytes = new Uint8Array(4);
-  crypto.getRandomValues(bytes);
-  return Array.from(bytes, (value) => value.toString(16).padStart(2, "0")).join("").toUpperCase();
+  try {
+    const bytes = new Uint8Array(4);
+    crypto.getRandomValues(bytes);
+    return Array.from(bytes, (value) => value.toString(16).padStart(2, "0")).join("").toUpperCase();
+  } catch {
+    return Date.now().toString(16).toUpperCase().slice(-8).padStart(8, "0");
+  }
+}
+
+function generatedPatientName() {
+  return `ARNPRO^PDF${randomPatientToken().slice(0, 4)}`;
+}
+
+function generatedPatientId() {
+  return `PDF${randomPatientToken()}`;
 }
 
 function initPdfStoreForm(scope) {
@@ -346,7 +358,10 @@ function initPdfStoreForm(scope) {
   const scanBtn = form.querySelector("[data-scan-directory]");
   const scanTarget = document.getElementById("pdf-scan");
   const browseStatus = document.getElementById("pdf-browse-status");
+  const fileStatus = document.getElementById("pdf-file-status");
   let wasUnique = uniquePatient instanceof HTMLInputElement && uniquePatient.checked;
+  let wasGenName = generateName instanceof HTMLInputElement && generateName.checked;
+  let wasGenId = generateId instanceof HTMLInputElement && generateId.checked;
 
   function setBrowseStatus(message) {
     if (!(browseStatus instanceof HTMLElement)) {
@@ -361,10 +376,25 @@ function initPdfStoreForm(scope) {
     browseStatus.innerHTML = `<p class="scan-result fail">${message}</p>`;
   }
 
+  function setFileStatus(message) {
+    if (!(fileStatus instanceof HTMLElement)) {
+      return;
+    }
+    if (!message) {
+      fileStatus.hidden = true;
+      fileStatus.innerHTML = "";
+      return;
+    }
+    fileStatus.hidden = false;
+    fileStatus.innerHTML = `<p class="scan-result fail">${message}</p>`;
+  }
+
   function applyPatientMode() {
     const unique = uniquePatient instanceof HTMLInputElement && uniquePatient.checked;
-    const genName = unique || (generateName instanceof HTMLInputElement && generateName.checked);
-    const genId = unique || (generateId instanceof HTMLInputElement && generateId.checked);
+    const wantName = generateName instanceof HTMLInputElement && generateName.checked;
+    const wantId = generateId instanceof HTMLInputElement && generateId.checked;
+    const genName = unique || wantName;
+    const genId = unique || wantId;
     if (unique && generateName instanceof HTMLInputElement) {
       generateName.checked = true;
     }
@@ -382,7 +412,6 @@ function initPdfStoreForm(scope) {
         idInput.value = "";
       }
     }
-    wasUnique = unique;
     const nameLabel = form.querySelector('[data-patient-field="name"]');
     const idLabel = form.querySelector('[data-patient-field="id"]');
     nameLabel?.classList.toggle("is-optional", genName);
@@ -395,12 +424,47 @@ function initPdfStoreForm(scope) {
       idInput.required = !genId;
       idInput.placeholder = unique ? "From each file name" : genId ? "PDFxxxxxxxx" : "1001";
     }
-    if (genName && !unique && nameInput instanceof HTMLInputElement && !nameInput.value.trim()) {
-      nameInput.value = `ARNPRO^PDF${randomPatientToken().slice(0, 4)}`;
+    if (!unique && nameInput instanceof HTMLInputElement && wantName && (!wasGenName || !nameInput.value.trim())) {
+      nameInput.value = generatedPatientName();
     }
-    if (genId && !unique && idInput instanceof HTMLInputElement && !idInput.value.trim()) {
-      idInput.value = `PDF${randomPatientToken()}`;
+    if (!unique && idInput instanceof HTMLInputElement && wantId && (!wasGenId || !idInput.value.trim())) {
+      idInput.value = generatedPatientId();
     }
+    wasUnique = unique;
+    wasGenName = wantName && !unique;
+    wasGenId = wantId && !unique;
+  }
+
+  function keepPdfFiles(input) {
+    if (!(input instanceof HTMLInputElement) || !input.files || input.files.length === 0) {
+      return;
+    }
+    const kept = [];
+    let dropped = 0;
+    for (const file of input.files) {
+      if ((file.name || "").toLowerCase().endsWith(".pdf")) {
+        kept.push(file);
+      } else {
+        dropped += 1;
+      }
+    }
+    if (!dropped) {
+      return;
+    }
+    try {
+      const transfer = new DataTransfer();
+      kept.forEach((file) => transfer.items.add(file));
+      input.files = transfer.files;
+    } catch {
+      input.value = "";
+      setFileStatus("Only .pdf files are allowed. Choose PDFs again.");
+      return;
+    }
+    setFileStatus(
+      dropped === 1
+        ? "1 file was not a PDF and was removed. Only .pdf is allowed."
+        : `${dropped} files were not PDFs and were removed. Only .pdf is allowed.`
+    );
   }
 
   async function scanDirectory() {
@@ -431,8 +495,26 @@ function initPdfStoreForm(scope) {
 
   [generateName, generateId, uniquePatient].forEach((node) => {
     node?.addEventListener("change", applyPatientMode);
+    node?.addEventListener("click", () => {
+      window.setTimeout(applyPatientMode, 0);
+    });
   });
   applyPatientMode();
+
+  form.querySelectorAll('input[type="file"][name="pdfs"], input[type="file"][name="folder"]').forEach((input) => {
+    input.addEventListener("change", () => keepPdfFiles(input));
+  });
+  const zipInput = form.querySelector('input[type="file"][name="zip_file"]');
+  zipInput?.addEventListener("change", () => {
+    const file = zipInput.files?.[0];
+    if (!file) {
+      return;
+    }
+    if (!(file.name || "").toLowerCase().endsWith(".zip")) {
+      zipInput.value = "";
+      setFileStatus("Only a .zip of PDF files is allowed here.");
+    }
+  });
 
   browseBtn?.addEventListener("click", async () => {
     browseBtn.disabled = true;

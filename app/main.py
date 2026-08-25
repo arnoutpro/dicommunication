@@ -40,7 +40,7 @@ from app.models import (
 from app.mwl import query_worklist
 from app.mwl_scp import WorklistSCP
 from app.fs_dialog import dialogs_available, pick_directory
-from app.pdf_dicom import CollectError, MAX_PDF_BYTES, MAX_ZIP_BYTES, list_directory_pdfs
+from app.pdf_dicom import CollectError, MAX_PDF_BYTES, MAX_ZIP_BYTES, is_pdf_filename, list_directory_pdfs
 from app.paths import package_dir
 from app.store import ConfigStore
 from app.tools import get_tool, list_tools, list_tools_by_category
@@ -92,12 +92,16 @@ def _pdf_store_options(
 ) -> dict[str, Any]:
     items: list[dict[str, Any]] = []
     for upload in list(pdfs or []) + list(folder or []):
+        name = _upload_filename(upload) or "document.pdf"
+        if not is_pdf_filename(name):
+            items.append({"filename": name, "skip": "not-pdf", "origin": "upload"})
+            continue
         data = _read_upload(upload, MAX_PDF_BYTES)
         if data is None:
             continue
         items.append(
             {
-                "filename": _upload_filename(upload) or "document.pdf",
+                "filename": name,
                 "content": data,
                 "origin": "upload",
             }
