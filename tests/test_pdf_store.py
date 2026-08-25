@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import io
 import socket
+import struct
 import time
 import zipfile
 from pathlib import Path
@@ -13,6 +14,7 @@ from pynetdicom.sop_class import EncapsulatedPDFStorage, SecondaryCaptureImageSt
 
 from app.models import LocalAE, RemoteNode
 from app.pdf_dicom import (
+    MAX_FILES,
     CollectError,
     PdfSource,
     collect_from_directory,
@@ -21,6 +23,7 @@ from app.pdf_dicom import (
     collect_pdfs,
     encapsulate_pdf,
     is_pdf,
+    iter_directory_pdfs,
     list_directory_pdfs,
     resolve_patient_identities,
 )
@@ -370,3 +373,111 @@ def test_pick_directory_unavailable_without_desktop(client, monkeypatch) -> None
     monkeypatch.setenv("DICOMM_NO_DIALOGS", "1")
     response = client.post("/api/fs/pick-directory")
     assert response.status_code == 503
+
+
+def _zip_with_compression_method(method: int) -> bytes:
+    """A structurally valid ZIP whose entry claims a codec zipfile cannot decode."""
+    buffer = io.BytesIO()
+    with zipfile.ZipFile(buffer, "w") as archive:
+        archive.writestr("report.pdf", MINIMAL_PDF)
+    raw = bytearray(buffer.getvalue())
+    for signature, offset in ((b"PK\x03\x04", 8), (b"PK\x01\x02", 10)):
+        index = raw.find(signature)
+        while index >= 0:
+            struct.pack_into("<H", raw, index + offset, method)
+            index = raw.find(signature, index + 4)
+    return bytes(raw)
+
+
+def test_undecodable_zip_entry_is_skipped_not_raised() -> None:
+    sources, warnings = collect_from_zip(_zip_with_compression_method(99))
+
+    assert sources == []
+    assert any("unreadable ZIP entry" in note for note in warnings)
+
+
+def test_undecodable_zip_entry_does_not_500(client) -> None:
+    response = client.post(
+        "/tools/pdf-store/run",
+        data={"patient_name": "DOE^JANE", "patient_id": "1001", "send": ""},
+        files={"zip_file": ("reports.zip", _zip_with_compression_method(99), "application/zip")},
+    )
+
+    assert response.status_code == 200
+
+
+def test_truncated_zip_reports_a_readable_error() -> None:
+    buffer = io.BytesIO()
+    with zipfile.ZipFile(buffer, "w") as archive:
+        archive.writestr("report.pdf", MINIMAL_PDF)
+    with pytest.raises(CollectError, match="Not a valid ZIP archive"):
+        collect_from_zip(buffer.getvalue()[:20])
+
+
+def test_directory_scan_stops_at_the_entry_budget(tmp_path, monkeypatch) -> None:
+    for index in range(200):
+        (tmp_path / f"report{index:04d}.pdf").write_bytes(MINIMAL_PDF)
+
+    _root, all_hits, _skipped = iter_directory_pdfs(tmp_path)
+    assert len(all_hits) == 200
+
+    monkeypatch.setattr("app.pdf_dicom.MAX_SCAN_ENTRIES", 25)
+    _root, capped_hits, _skipped = iter_directory_pdfs(tmp_path)
+
+    assert len(capped_hits) == 25
+
+
+def test_directory_scan_does_not_descend_past_max_depth(tmp_path) -> None:
+    (tmp_path / "top.pdf").write_bytes(MINIMAL_PDF)
+    deep = tmp_path / "a" / "b" / "c"
+    deep.mkdir(parents=True)
+    (deep / "allowed.pdf").write_bytes(MINIMAL_PDF)
+    too_deep = deep / "d"
+    too_deep.mkdir()
+    (too_deep / "ignored.pdf").write_bytes(MINIMAL_PDF)
+
+    _root, hits, _skipped = iter_directory_pdfs(tmp_path)
+
+    assert sorted(relative for _path, relative in hits) == ["a/b/c/allowed.pdf", "top.pdf"]
+
+
+def test_directory_scan_skips_symlinks(tmp_path) -> None:
+    real = tmp_path / "real"
+    real.mkdir()
+    (real / "keep.pdf").write_bytes(MINIMAL_PDF)
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    (outside / "secret.pdf").write_bytes(MINIMAL_PDF)
+    (real / "link").symlink_to(outside, target_is_directory=True)
+    (real / "loop").symlink_to(real, target_is_directory=True)
+
+    _root, hits, _skipped = iter_directory_pdfs(real)
+
+    assert [relative for _path, relative in hits] == ["keep.pdf"]
+
+
+def test_upload_batch_over_the_cap_is_rejected_without_buffering_everything(client) -> None:
+    big = MINIMAL_PDF + b"\0" * (256 * 1024)
+    files = [("pdfs", (f"r{i:03d}.pdf", big, "application/pdf")) for i in range(MAX_FILES * 4)]
+
+    response = client.post(
+        "/tools/pdf-store/run",
+        data={"patient_name": "DOE^JANE", "patient_id": "1001", "send": ""},
+        files=files,
+    )
+
+    assert response.status_code == 200
+    assert b"Too many PDFs" in response.content
+
+
+def test_upload_batch_at_the_cap_still_works(client) -> None:
+    files = [("pdfs", (f"r{i:03d}.pdf", MINIMAL_PDF, "application/pdf")) for i in range(MAX_FILES)]
+
+    response = client.post(
+        "/tools/pdf-store/run",
+        data={"patient_name": "DOE^JANE", "patient_id": "1001", "send": ""},
+        files=files,
+    )
+
+    assert response.status_code == 200
+    assert b"Too many PDFs" not in response.content
