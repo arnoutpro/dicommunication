@@ -312,11 +312,24 @@ function initNavTree() {
       return;
     }
     twist.dataset.navReady = "1";
-    twist.addEventListener("click", (event) => {
+    const toggle = (event) => {
       event.preventDefault();
       event.stopPropagation();
       setNavBranchOpen(branch, !branch.classList.contains("is-open"), true);
-    });
+    };
+    twist.addEventListener("click", toggle);
+    const parent = branch.querySelector(":scope > .nav-row > .nav-parent");
+    if (parent instanceof HTMLElement && parent.dataset.navReady !== "1") {
+      parent.dataset.navReady = "1";
+      parent.setAttribute("role", "button");
+      parent.tabIndex = 0;
+      parent.addEventListener("click", toggle);
+      parent.addEventListener("keydown", (event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          toggle(event);
+        }
+      });
+    }
   });
 }
 
@@ -343,6 +356,7 @@ function initPdfStoreForm(scope) {
   const browseBtn = form.querySelector("[data-browse-directory]");
   const scanBtn = form.querySelector("[data-scan-directory]");
   const scanTarget = document.getElementById("pdf-scan");
+  let wasUnique = uniquePatient instanceof HTMLInputElement && uniquePatient.checked;
 
   function applyPatientMode() {
     const unique = uniquePatient instanceof HTMLInputElement && uniquePatient.checked;
@@ -357,12 +371,15 @@ function initPdfStoreForm(scope) {
     if (unique && sameStudy instanceof HTMLInputElement) {
       sameStudy.checked = false;
     }
-    if (unique && nameInput instanceof HTMLInputElement) {
-      nameInput.value = "";
+    if (unique && !wasUnique) {
+      if (nameInput instanceof HTMLInputElement) {
+        nameInput.value = "";
+      }
+      if (idInput instanceof HTMLInputElement) {
+        idInput.value = "";
+      }
     }
-    if (unique && idInput instanceof HTMLInputElement) {
-      idInput.value = "";
-    }
+    wasUnique = unique;
     const nameLabel = form.querySelector('[data-patient-field="name"]');
     const idLabel = form.querySelector('[data-patient-field="id"]');
     nameLabel?.classList.toggle("is-optional", genName);

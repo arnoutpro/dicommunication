@@ -329,8 +329,11 @@ nav > .nav-branch { margin-top: 0.35rem; }
 }
 .nav-parent {
   display: block;
-  cursor: default;
+  cursor: pointer;
   color: var(--nav-parent);
+}
+.nav-parent:hover {
+  color: var(--nav-active);
 }
 .nav-children {
   display: flex;
