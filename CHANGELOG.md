@@ -4,6 +4,8 @@
 
 ### Security and robustness
 
+- Added [`SECURITY.md`](SECURITY.md): threat model, the list of things that have no protection by design (so they stop being re-reported), which patient data ends up on disk and where, and how to reproduce the dependency and static-analysis checks. Added a Dependabot config for pip, GitHub Actions, and the Docker base images.
+
 - A `config.json` that cannot be read (truncated write, bad hand-edit, schema change) no longer stops the app from starting. The unreadable file is kept as `config.corrupt-<timestamp>.json` so remotes can be recovered by hand, and the app carries on with defaults. Individual unreadable worklist / result / HL7 records are skipped instead of hiding the whole list.
 - **PDF to DICOM**: a ZIP the tool cannot decode now reports a readable error instead of failing the request outright, scanning a folder no longer walks the whole subtree before applying the depth limit, and a batch over the 40-file cap is rejected without first reading every upload into memory.
 - **Docker**: Compose published the login-less web UI on every interface, which contradicted the README's own advice not to expose port 8080 without an authenticating reverse proxy. It now publishes `8080` on `127.0.0.1`; set `DICOMM_HTTP_BIND=0.0.0.0` to open it up deliberately. The MWL SCP port `11112` stays on every interface so a modality can still C-FIND this workstation, and `DICOMM_DICOM_BIND` pins it to one address on a multi-NIC host. Startup logs which address the UI was published on and how to change it, so `docker compose logs` explains a UI that will not load from another machine.
