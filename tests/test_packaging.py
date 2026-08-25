@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import importlib.util
 import os
+import re
 import sys
 from pathlib import Path
 
@@ -562,3 +563,23 @@ def test_windows_spec_and_wix_use_app_icon() -> None:
     assert 'SourceFile="packaging\\icons\\app.ico"' in wxs
     assert 'Icon="AppIcon"' in wxs
     assert "ARPPRODUCTICON" in wxs
+
+
+def test_htmx_is_served_from_this_app_not_a_cdn() -> None:
+    base = (ROOT / "app" / "templates" / "base.html").read_text(encoding="utf-8")
+    scripts = re.findall(r'<script[^>]*\ssrc="([^"]+)"', base)
+
+    assert scripts, "base.html should still load htmx"
+    for src in scripts:
+        assert src.startswith("/static/"), f"{src} is loaded from a third party"
+
+    vendored = ROOT / "app" / "static" / "vendor" / "htmx-2.0.4.min.js"
+    assert vendored.is_file()
+    assert "/static/vendor/htmx-2.0.4.min.js" in base
+
+
+def test_vendored_htmx_is_served(client) -> None:
+    response = client.get("/static/vendor/htmx-2.0.4.min.js")
+
+    assert response.status_code == 200
+    assert response.text.startswith("var htmx=")
