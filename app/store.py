@@ -13,7 +13,16 @@ from typing import TypeVar
 
 from pydantic import BaseModel, ValidationError
 
-from app.models import AppConfig, Hl7Message, LoggingSettings, RemoteNode, ToolResult, VirtualAE, WorklistEntry
+from app.models import (
+    AppConfig,
+    Hl7Message,
+    LoggingSettings,
+    RemoteNode,
+    ToolResult,
+    VirtualAE,
+    WorklistEntry,
+    new_record_id,
+)
 from app.paths import runtime_os_name
 
 def _windows_data_dir() -> Path:
@@ -37,6 +46,17 @@ def _default_data_dir() -> Path:
 DEFAULT_DATA_DIR = _default_data_dir()
 
 ModelT = TypeVar("ModelT", bound=BaseModel)
+
+
+def _ensure_unique_id(record, existing: list) -> None:
+    """Give ``record`` a fresh id if one already in the store uses it.
+
+    Ids address a single record: two rows sharing one means a delete removes
+    both and an edit rewrites the wrong one.
+    """
+    taken = {item.id for item in existing}
+    while record.id in taken:
+        record.id = new_record_id()
 
 
 def _parse_all(model: type[ModelT], raw: list) -> list[ModelT]:
@@ -99,6 +119,7 @@ class ConfigStore:
     def add_remote(self, remote: RemoteNode) -> AppConfig:
         with self._lock:
             config = self._load_unlocked()
+            _ensure_unique_id(remote, config.remotes)
             config.remotes.append(remote)
             self._write_json(self.config_path, config.model_dump(mode="json"))
             return config
@@ -133,6 +154,7 @@ class ConfigStore:
     def add_identity(self, identity: VirtualAE) -> AppConfig:
         with self._lock:
             config = self._load_unlocked()
+            _ensure_unique_id(identity, config.identities)
             config.identities.append(identity)
             self._write_json(self.config_path, config.model_dump(mode="json"))
             return config
@@ -191,6 +213,7 @@ class ConfigStore:
     def add_worklist_entry(self, entry: WorklistEntry) -> WorklistEntry:
         with self._lock:
             entries = _parse_all(WorklistEntry, self._load_worklist_unlocked())
+            _ensure_unique_id(entry, entries)
             entries.insert(0, entry)
             self._write_json(self.worklist_path, [item.model_dump(mode="json") for item in entries])
             return entry
@@ -218,6 +241,7 @@ class ConfigStore:
     def add_hl7_message(self, message: Hl7Message) -> Hl7Message:
         with self._lock:
             entries = _parse_all(Hl7Message, self._load_hl7_unlocked())
+            _ensure_unique_id(message, entries)
             entries.insert(0, message)
             self._write_json(self.hl7_path, [item.model_dump(mode="json") for item in entries])
             return message

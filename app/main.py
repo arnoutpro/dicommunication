@@ -36,6 +36,8 @@ from app.models import (
     WorklistEntry,
     WorklistQuery,
     VirtualAE,
+    new_record_id,
+    utc_now,
 )
 from app.mwl import query_worklist
 from app.mwl_scp import WorklistSCP
@@ -1262,9 +1264,10 @@ def create_app(store: ConfigStore | None = None) -> FastAPI:
 
     @app.post("/api/worklist", status_code=201)
     def api_add_worklist_entry(entry: WorklistEntry):
+        updates: dict[str, Any] = {"id": new_record_id()}
         if not entry.study_instance_uid:
-            entry = entry.model_copy(update={"study_instance_uid": str(generate_uid())})
-        return app.state.store.add_worklist_entry(entry)
+            updates["study_instance_uid"] = str(generate_uid())
+        return app.state.store.add_worklist_entry(entry.model_copy(update=updates))
 
     @app.delete("/api/worklist/{entry_id}")
     def api_delete_worklist_entry(entry_id: str):
@@ -1277,7 +1280,9 @@ def create_app(store: ConfigStore | None = None) -> FastAPI:
 
     @app.post("/api/hl7/messages", status_code=201)
     def api_add_hl7_message(message: Hl7Message):
-        return app.state.store.add_hl7_message(message)
+        return app.state.store.add_hl7_message(
+            message.model_copy(update={"id": new_record_id(), "created_at": utc_now()})
+        )
 
     @app.delete("/api/hl7/messages/{message_id}")
     def api_delete_hl7_message(message_id: str):
@@ -1316,6 +1321,7 @@ def create_app(store: ConfigStore | None = None) -> FastAPI:
 
     @app.post("/api/remotes", status_code=201)
     def api_add_remote(remote: RemoteNode):
+        remote = remote.model_copy(update={"id": new_record_id(), "created_at": utc_now()})
         app.state.store.add_remote(remote)
         return remote
 
@@ -1337,6 +1343,7 @@ def create_app(store: ConfigStore | None = None) -> FastAPI:
 
     @app.post("/api/identities", status_code=201)
     def api_add_identity(identity: VirtualAE):
+        identity = identity.model_copy(update={"id": new_record_id()})
         app.state.store.add_identity(identity)
         return identity
 
