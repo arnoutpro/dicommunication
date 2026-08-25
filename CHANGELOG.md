@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+### Security and robustness
+
+- A `config.json` that cannot be read (truncated write, bad hand-edit, schema change) no longer stops the app from starting. The unreadable file is kept as `config.corrupt-<timestamp>.json` so remotes can be recovered by hand, and the app carries on with defaults. Individual unreadable worklist / result / HL7 records are skipped instead of hiding the whole list.
+- **PDF to DICOM**: a ZIP the tool cannot decode now reports a readable error instead of failing the request outright, scanning a folder no longer walks the whole subtree before applying the depth limit, and a batch over the 40-file cap is rejected without first reading every upload into memory.
+- htmx is served from the app (`/static/vendor/`) instead of `unpkg.com`. The desktop builds no longer need internet for buttons to work, and a CDN cannot change what runs in the UI.
+- Dependency floors moved off releases with published advisories: `jinja2` 3.1.6, `python-multipart` 0.0.31, `pydicom` 3.0.2, `fastapi` 0.135 (the previous `<0.129` cap held `starlette` on a 0.x line whose `StaticFiles` UNC-path and form-limit fixes only exist in 1.x), `pytest` 9.0.3.
+- `POST /api/remotes`, `/api/identities`, `/api/worklist` and `/api/hl7/messages` assign their own record ids. Supplying an `id` used to be possible and two records could share one, after which a delete removed both.
+- **Worklist**: patient-name search now follows the DICOM wildcard rules. `?` matches exactly one character (it was ignored unless the query also had a `*`), and `[`, `]`, `.` are literal characters rather than pattern syntax.
+
+### Interface
+
 - Sidebar is a two-level tree (Test tools → Connectivity / DIMSE / HL7). Click **Test tools** (or a category) to fold it out; groups start folded. **About** and **Help** sit on one compact row.
 - PDF to DICOM: checking **Generate Patient Name / ID** fills those fields immediately. Scan and every upload path accept **PDF only**.
 - Sidebar **About** and **Help** buttons: About shows the running version and this installation; Help is the in-app administrator guide (each screen and tool, including HL7 Advanced troubleshooting).
