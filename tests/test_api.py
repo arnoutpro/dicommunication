@@ -93,6 +93,7 @@ def test_health_and_pages(client) -> None:
     assert b"webkitdirectory" in pdf_store.content
     assert b"data-browse-directory" in pdf_store.content
     assert b"data-scan-directory" in pdf_store.content
+    assert b'id="pdf-browse-status"' in pdf_store.content
     assert b'hx-trigger="submit"' in pdf_store.content
     assert b"hx-disable" in pdf_store.content
     assert b'class="req"' in pdf_store.content
