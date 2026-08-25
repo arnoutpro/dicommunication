@@ -46,13 +46,13 @@
     {% include "partials/identity_select.html" %}
     <label class="required" data-patient-field="name">
       <span class="label-line">Patient Name <abbr class="req" title="Required">*</abbr></span>
-      <input name="patient_name" value="{{ patient_name }}" placeholder="DOE^JANE" required>
-      <span class="hint">Required unless you generate it. DICOM PN, e.g. <code>DOE^JANE</code>.</span>
+      <input name="patient_name" value="{{ patient_name }}" placeholder="DOE^JANE" data-patient-name>
+      <span class="hint">Required unless you generate it. Checking Generate fills this field.</span>
     </label>
     <label class="required" data-patient-field="id">
       <span class="label-line">Patient ID <abbr class="req" title="Required">*</abbr></span>
-      <input name="patient_id" value="{{ patient_id }}" placeholder="1001" required>
-      <span class="hint">Required unless you generate it. Used to find the study on the PACS.</span>
+      <input name="patient_id" value="{{ patient_id }}" placeholder="1001" data-patient-id>
+      <span class="hint">Required unless you generate it. Checking Generate fills this field.</span>
     </label>
     <label class="checkbox">
       <input type="checkbox" name="generate_name" value="on" {% if generate_name %}checked{% endif %} data-generate-name>
@@ -83,17 +83,17 @@
     <label class="span-2">
       PDF files
       <input name="pdfs" type="file" accept=".pdf,application/pdf" multiple>
-      <span class="hint">One or more <code>.pdf</code> files. Each becomes its own Encapsulated PDF instance.</span>
+      <span class="hint">One or more <code>.pdf</code> files only. Other types are rejected.</span>
     </label>
     <label>
       ZIP of PDFs
       <input name="zip_file" type="file" accept=".zip,application/zip">
-      <span class="hint">Only <code>.pdf</code> entries are used. Other files and <code>..</code> paths are skipped.</span>
+      <span class="hint">Only <code>.pdf</code> entries are used. Other file types are skipped.</span>
     </label>
     <label>
       Folder of PDFs
       <input name="folder" type="file" accept=".pdf,application/pdf" multiple webkitdirectory directory>
-      <span class="hint">Browser folder picker. Subfolders are included. Hidden files are skipped.</span>
+      <span class="hint">Browser folder picker. Only <code>.pdf</code> files are kept; other types are dropped.</span>
     </label>
     <div class="span-2 directory-field">
       <span class="label-line">Directory on this workstation</span>
@@ -102,9 +102,10 @@
         <button type="button" class="button" data-browse-directory title="Browse for a folder on this workstation" hx-disable>…</button>
         <button type="button" class="button" data-scan-directory hx-disable>Scan</button>
       </div>
-      <span class="hint">Path this process can read. <strong>…</strong> opens the local file explorer on this workstation. Scan lists how many PDFs will be sent before you C-STORE.</span>
+      <span class="hint">Path this process can read. <strong>…</strong> opens the local file explorer on this workstation. Scan lists PDF files only — other types are ignored.</span>
     </div>
     <div id="pdf-browse-status" class="span-2" hidden></div>
+    <div id="pdf-file-status" class="span-2" hidden></div>
     <div id="pdf-scan" class="span-2">
       {% include "partials/pdf_scan.html" %}
     </div>
