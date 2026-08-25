@@ -5,8 +5,13 @@ from __future__ import annotations
 import json
 import os
 import tempfile
+from datetime import datetime, timezone
 from pathlib import Path
 from threading import Lock
+
+from typing import TypeVar
+
+from pydantic import BaseModel, ValidationError
 
 from app.models import AppConfig, Hl7Message, LoggingSettings, RemoteNode, ToolResult, VirtualAE, WorklistEntry
 from app.paths import runtime_os_name
@@ -30,6 +35,31 @@ def _default_data_dir() -> Path:
 
 
 DEFAULT_DATA_DIR = _default_data_dir()
+
+ModelT = TypeVar("ModelT", bound=BaseModel)
+
+
+def _parse_all(model: type[ModelT], raw: list) -> list[ModelT]:
+    """Validate stored records, dropping any the current schema rejects.
+
+    One unreadable record from an older build or a hand-edit should cost the
+    operator that record, not the whole worklist / result history / draft list.
+    """
+    parsed: list[ModelT] = []
+    dropped = 0
+    for item in raw:
+        if not isinstance(item, dict):
+            dropped += 1
+            continue
+        try:
+            parsed.append(model.model_validate(item))
+        except ValidationError:
+            dropped += 1
+    if dropped:
+        from app.applog import log
+
+        log.warning("Skipped %s unreadable %s record(s).", dropped, model.__name__)
+    return parsed
 
 
 class ConfigStore:
@@ -147,11 +177,11 @@ class ConfigStore:
     def list_results(self, limit: int = 20) -> list[ToolResult]:
         with self._lock:
             raw = self._load_results_unlocked()
-        return [ToolResult.model_validate(item) for item in raw[:limit]]
+        return _parse_all(ToolResult, raw[:limit])
 
     def list_worklist(self) -> list[WorklistEntry]:
         with self._lock:
-            return [WorklistEntry.model_validate(item) for item in self._load_worklist_unlocked()]
+            return _parse_all(WorklistEntry, self._load_worklist_unlocked())
 
     def save_worklist(self, entries: list[WorklistEntry]) -> list[WorklistEntry]:
         with self._lock:
@@ -160,7 +190,7 @@ class ConfigStore:
 
     def add_worklist_entry(self, entry: WorklistEntry) -> WorklistEntry:
         with self._lock:
-            entries = [WorklistEntry.model_validate(item) for item in self._load_worklist_unlocked()]
+            entries = _parse_all(WorklistEntry, self._load_worklist_unlocked())
             entries.insert(0, entry)
             self._write_json(self.worklist_path, [item.model_dump(mode="json") for item in entries])
             return entry
@@ -168,27 +198,26 @@ class ConfigStore:
     def delete_worklist_entry(self, entry_id: str) -> None:
         with self._lock:
             entries = [
-                WorklistEntry.model_validate(item)
-                for item in self._load_worklist_unlocked()
-                if item.get("id") != entry_id
+                entry
+                for entry in _parse_all(WorklistEntry, self._load_worklist_unlocked())
+                if entry.id != entry_id
             ]
             self._write_json(self.worklist_path, [item.model_dump(mode="json") for item in entries])
 
     def list_hl7_messages(self) -> list[Hl7Message]:
         with self._lock:
-            return [Hl7Message.model_validate(item) for item in self._load_hl7_unlocked()]
+            return _parse_all(Hl7Message, self._load_hl7_unlocked())
 
     def get_hl7_message(self, message_id: str) -> Hl7Message | None:
         with self._lock:
-            for item in self._load_hl7_unlocked():
-                message = Hl7Message.model_validate(item)
+            for message in _parse_all(Hl7Message, self._load_hl7_unlocked()):
                 if message.id == message_id:
                     return message
             return None
 
     def add_hl7_message(self, message: Hl7Message) -> Hl7Message:
         with self._lock:
-            entries = [Hl7Message.model_validate(item) for item in self._load_hl7_unlocked()]
+            entries = _parse_all(Hl7Message, self._load_hl7_unlocked())
             entries.insert(0, message)
             self._write_json(self.hl7_path, [item.model_dump(mode="json") for item in entries])
             return message
@@ -196,9 +225,9 @@ class ConfigStore:
     def delete_hl7_message(self, message_id: str) -> None:
         with self._lock:
             entries = [
-                Hl7Message.model_validate(item)
-                for item in self._load_hl7_unlocked()
-                if item.get("id") != message_id
+                message
+                for message in _parse_all(Hl7Message, self._load_hl7_unlocked())
+                if message.id != message_id
             ]
             self._write_json(self.hl7_path, [item.model_dump(mode="json") for item in entries])
 
@@ -207,35 +236,58 @@ class ConfigStore:
             config = AppConfig()
             self._write_json(self.config_path, config.model_dump(mode="json"))
             return config
-        raw = json.loads(self.config_path.read_text(encoding="utf-8"))
-        return AppConfig.model_validate(raw)
+        try:
+            raw = json.loads(self.config_path.read_text(encoding="utf-8"))
+            return AppConfig.model_validate(raw)
+        except (json.JSONDecodeError, OSError, ValidationError, ValueError) as exc:
+            # A half-written or hand-edited config must not stop the workstation
+            # from starting. Keep the bad file so the operator can recover the
+            # remotes list by hand, and continue on defaults.
+            self._quarantine(self.config_path, exc)
+            config = AppConfig()
+            self._write_json(self.config_path, config.model_dump(mode="json"))
+            return config
+
+    def _quarantine(self, path: Path, exc: Exception) -> Path | None:
+        """Rename an unreadable JSON file out of the way. Best effort."""
+        stamp = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
+        backup = path.with_name(f"{path.stem}.corrupt-{stamp}{path.suffix}")
+        try:
+            os.replace(path, backup)
+        except OSError:
+            backup = None
+        # Imported here because app.applog imports app.models, and importing the
+        # logger at module scope would make store -> applog -> models circular
+        # for callers that import app.store first.
+        from app.applog import log
+
+        log.error(
+            "Could not read %s (%s: %s). Continuing with defaults.%s",
+            path.name,
+            type(exc).__name__,
+            exc,
+            f" Previous file kept as {backup.name}." if backup else "",
+        )
+        return backup
+
+    def _load_list_unlocked(self, path: Path) -> list:
+        if not path.exists():
+            return []
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+        except (json.JSONDecodeError, OSError, ValueError) as exc:
+            self._quarantine(path, exc)
+            return []
+        return data if isinstance(data, list) else []
 
     def _load_results_unlocked(self) -> list:
-        if not self.results_path.exists():
-            return []
-        try:
-            data = json.loads(self.results_path.read_text(encoding="utf-8"))
-        except json.JSONDecodeError:
-            return []
-        return data if isinstance(data, list) else []
+        return self._load_list_unlocked(self.results_path)
 
     def _load_worklist_unlocked(self) -> list:
-        if not self.worklist_path.exists():
-            return []
-        try:
-            data = json.loads(self.worklist_path.read_text(encoding="utf-8"))
-        except json.JSONDecodeError:
-            return []
-        return data if isinstance(data, list) else []
+        return self._load_list_unlocked(self.worklist_path)
 
     def _load_hl7_unlocked(self) -> list:
-        if not self.hl7_path.exists():
-            return []
-        try:
-            data = json.loads(self.hl7_path.read_text(encoding="utf-8"))
-        except json.JSONDecodeError:
-            return []
-        return data if isinstance(data, list) else []
+        return self._load_list_unlocked(self.hl7_path)
 
     def _write_json(self, path: Path, payload: object) -> None:
         fd, tmp_name = tempfile.mkstemp(prefix=".tmp-", suffix=".json", dir=self.data_dir)
