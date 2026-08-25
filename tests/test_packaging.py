@@ -15,6 +15,7 @@ from app.launcher import (
     redirect_frozen_stdio,
     windows_data_dir,
 )
+from app.main import http_publish_note
 from app.paths import package_dir
 from app.store import _default_data_dir
 from app.tools.ping import icmp_argv
@@ -633,3 +634,67 @@ def test_compose_keeps_the_unauthenticated_ui_on_loopback() -> None:
     # The MWL SCP is the opposite case: a modality has to be able to C-FIND
     # this workstation, so locking it to loopback would silently break it.
     assert binds["11112"] == "0.0.0.0"
+
+
+def _compose_environment() -> dict[str, str]:
+    """The compose service's `environment:` mapping, values left unsubstituted."""
+    lines = (ROOT / "docker-compose.yml").read_text(encoding="utf-8").splitlines()
+    env: dict[str, str] = {}
+    inside = False
+    for line in lines:
+        stripped = line.strip()
+        if stripped == "environment:":
+            inside = True
+            continue
+        if not inside or stripped.startswith("#") or not stripped:
+            continue
+        if ":" not in stripped or stripped.endswith(":"):
+            break
+        key, _, value = stripped.partition(":")
+        env[key.strip()] = value.strip().strip('"')
+    return env
+
+
+def test_compose_tells_the_container_which_address_it_published_on() -> None:
+    passthrough = _compose_environment().get("DICOMM_HTTP_BIND", "")
+    match = re.fullmatch(r"\$\{DICOMM_HTTP_BIND:-([^}]*)\}", passthrough)
+    assert match, f"DICOMM_HTTP_BIND passthrough is {passthrough!r}"
+
+    ui_default = next(
+        COMPOSE_BINDING.match(entry).group(2)
+        for entry in _compose_published_ports()
+        if COMPOSE_BINDING.match(entry).group(3) == "8080"
+    )
+    # If these drift apart the startup banner reports an address the port was
+    # not actually published on.
+    assert match.group(1) == ui_default
+
+
+def test_publish_note_says_nothing_outside_compose() -> None:
+    assert http_publish_note({}) is None
+    assert http_publish_note({"DICOMM_HTTP_BIND": "   "}) is None
+
+
+def test_publish_note_explains_a_loopback_publish() -> None:
+    note = http_publish_note({"DICOMM_HTTP_BIND": "127.0.0.1"})
+
+    assert note is not None
+    assert "127.0.0.1:8080" in note
+    assert "Docker host only" in note
+    # The whole point is that it names the way out.
+    assert "DICOMM_HTTP_BIND=0.0.0.0" in note
+
+
+def test_publish_note_warns_when_the_ui_is_open_to_the_network() -> None:
+    note = http_publish_note({"DICOMM_HTTP_BIND": "0.0.0.0"})
+
+    assert note is not None
+    assert "reachable from the network" in note
+    assert "reverse proxy" in note
+
+
+def test_publish_note_uses_the_configured_port() -> None:
+    note = http_publish_note({"DICOMM_HTTP_BIND": "127.0.0.1", "PORT": "9000"})
+
+    assert note is not None
+    assert "127.0.0.1:9000" in note

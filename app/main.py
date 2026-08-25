@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import os
+from collections.abc import Mapping
 from contextlib import asynccontextmanager
 from time import perf_counter
 from typing import Any
@@ -55,6 +57,35 @@ from app.store import ConfigStore
 from app.tools import get_tool, list_tools, list_tools_by_category
 
 BASE_DIR = package_dir()
+
+LOOPBACK_BINDS = {"127.0.0.1", "localhost", "::1", "[::1]"}
+
+
+def http_publish_note(environ: Mapping[str, str] | None = None) -> str | None:
+    """Say which host address the UI was published on, for `docker compose logs`.
+
+    A process inside a container cannot see its own host-side port mapping, so
+    if Compose publishes the UI on loopback the app has no way to notice that a
+    browser on another machine is being refused. Compose passes the address it
+    used in DICOMM_HTTP_BIND purely so this line can be logged. Returns None
+    when that is unset, which is every non-Compose run.
+    """
+    environ = os.environ if environ is None else environ
+    bind = (environ.get("DICOMM_HTTP_BIND") or "").strip()
+    if not bind:
+        return None
+    port = (environ.get("PORT") or "8080").strip() or "8080"
+    if bind in LOOPBACK_BINDS:
+        return (
+            f"Web UI published on {bind}:{port} — reachable from the Docker host only. "
+            "The UI has no login, so this is the default. To reach it from another "
+            "machine, restart with DICOMM_HTTP_BIND=0.0.0.0 and put an authenticating "
+            "reverse proxy in front of it."
+        )
+    return (
+        f"Web UI published on {bind}:{port} — reachable from the network. "
+        "The UI has no login; serve it through an authenticating reverse proxy."
+    )
 
 
 def _first_error(exc: ValidationError) -> str:
@@ -177,6 +208,9 @@ def create_app(store: ConfigStore | None = None) -> FastAPI:
             store.data_dir,
             settings.level,
         )
+        publish_note = http_publish_note()
+        if publish_note:
+            log.info("%s", publish_note)
         scp.start()
         if scp.running:
             log.info("MWL SCP is listening")
