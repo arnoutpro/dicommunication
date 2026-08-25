@@ -16,7 +16,12 @@ from app.dicom_client import (
     rejected_sop_message,
 )
 from app.models import LocalAE, RemoteNode, ToolResult, ToolStep
-from app.pdf_dicom import CollectError, collect_pdfs, encapsulate_sources
+from app.pdf_dicom import (
+    CollectError,
+    collect_pdfs,
+    encapsulate_sources,
+    resolve_patient_identities,
+)
 from app.tools.base import BaseTool
 from app.tools.registry import register
 
@@ -55,14 +60,28 @@ class PdfStoreTool(BaseTool):
         options = options or {}
         started = time.perf_counter()
         steps: list[ToolStep] = []
+        generate_name = _flag(options.get("generate_name"))
+        generate_id = _flag(options.get("generate_id"))
+        unique_patient = _flag(options.get("unique_patient"))
         patient_name = str(options.get("patient_name") or "").strip()
         patient_id = str(options.get("patient_id") or "").strip()
-        if not patient_name or not patient_id:
+        if unique_patient:
+            generate_name = True
+            generate_id = True
+        if not unique_patient and not generate_name and not patient_name:
             return ToolResult(
                 tool_id=self.id,
                 tool_name=self.name,
                 ok=False,
-                summary="Patient Name and Patient ID are required.",
+                summary="Patient Name is required, or enable Generate Patient Name.",
+                duration_ms=_elapsed_ms(started),
+            )
+        if not unique_patient and not generate_id and not patient_id:
+            return ToolResult(
+                tool_id=self.id,
+                tool_name=self.name,
+                ok=False,
+                summary="Patient ID is required, or enable Generate Patient ID.",
                 duration_ms=_elapsed_ms(started),
             )
 
@@ -139,14 +158,33 @@ class PdfStoreTool(BaseTool):
             )
 
         encapsulate_started = time.perf_counter()
+        try:
+            identities = resolve_patient_identities(
+                sources,
+                patient_name=patient_name,
+                patient_id=patient_id,
+                generate_name=generate_name,
+                generate_id=generate_id,
+                unique_patient=unique_patient,
+            )
+        except CollectError as exc:
+            return ToolResult(
+                tool_id=self.id,
+                tool_name=self.name,
+                ok=False,
+                summary=str(exc),
+                duration_ms=_elapsed_ms(started),
+            )
+        same_study = _flag(options.get("same_study"), default=not unique_patient)
         instances = encapsulate_sources(
             sources,
-            patient_name=patient_name,
-            patient_id=patient_id,
+            patient_name=identities[0][0],
+            patient_id=identities[0][1],
             accession_number=str(options.get("accession_number") or ""),
             study_description=str(options.get("study_description") or ""),
             document_title=str(options.get("document_title") or ""),
-            same_study=_flag(options.get("same_study"), default=True),
+            same_study=same_study,
+            identities=identities,
         )
         steps.append(
             ToolStep(

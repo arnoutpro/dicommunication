@@ -267,8 +267,182 @@ document.addEventListener("keydown", (event) => {
   closeSelectMenus();
 });
 
+const NAV_TREE_KEY = "nav-tree";
+
+function navTreeState() {
+  try {
+    const raw = localStorage.getItem(NAV_TREE_KEY);
+    const parsed = raw ? JSON.parse(raw) : {};
+    return parsed && typeof parsed === "object" ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function setNavBranchOpen(branch, open, persist) {
+  branch.classList.toggle("is-open", open);
+  const twist = branch.querySelector(":scope > .nav-row > .nav-twist");
+  twist?.setAttribute("aria-expanded", open ? "true" : "false");
+  if (!persist) {
+    return;
+  }
+  const id = branch.getAttribute("data-nav-id");
+  if (!id) {
+    return;
+  }
+  const stored = navTreeState();
+  stored[id] = open;
+  localStorage.setItem(NAV_TREE_KEY, JSON.stringify(stored));
+}
+
+function initNavTree() {
+  const stored = navTreeState();
+  document.querySelectorAll(".nav-branch[data-nav-id]").forEach((branch) => {
+    const id = branch.getAttribute("data-nav-id");
+    const hasActive = Boolean(branch.querySelector("a.active"));
+    if (hasActive) {
+      setNavBranchOpen(branch, true);
+    } else if (id && stored[id] === true) {
+      setNavBranchOpen(branch, true);
+    } else if (id && stored[id] === false && !hasActive) {
+      setNavBranchOpen(branch, false);
+    }
+    const twist = branch.querySelector(":scope > .nav-row > .nav-twist");
+    if (!(twist instanceof HTMLButtonElement) || twist.dataset.navReady === "1") {
+      return;
+    }
+    twist.dataset.navReady = "1";
+    twist.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      setNavBranchOpen(branch, !branch.classList.contains("is-open"), true);
+    });
+  });
+}
+
+function randomPatientToken() {
+  const bytes = new Uint8Array(4);
+  crypto.getRandomValues(bytes);
+  return Array.from(bytes, (value) => value.toString(16).padStart(2, "0")).join("").toUpperCase();
+}
+
+function initPdfStoreForm(scope) {
+  const root = scope instanceof Element ? scope : document;
+  const form = root.querySelector?.("[data-pdf-store]") || document.querySelector("[data-pdf-store]");
+  if (!(form instanceof HTMLFormElement) || form.dataset.pdfReady === "1") {
+    return;
+  }
+  form.dataset.pdfReady = "1";
+  const nameInput = form.querySelector('[name="patient_name"]');
+  const idInput = form.querySelector('[name="patient_id"]');
+  const generateName = form.querySelector("[data-generate-name]");
+  const generateId = form.querySelector("[data-generate-id]");
+  const uniquePatient = form.querySelector("[data-unique-patient]");
+  const sameStudy = form.querySelector("[data-same-study]");
+  const directoryInput = form.querySelector("[data-directory-input]");
+  const browseBtn = form.querySelector("[data-browse-directory]");
+  const scanBtn = form.querySelector("[data-scan-directory]");
+  const scanTarget = document.getElementById("pdf-scan");
+
+  function applyPatientMode() {
+    const unique = uniquePatient instanceof HTMLInputElement && uniquePatient.checked;
+    const genName = unique || (generateName instanceof HTMLInputElement && generateName.checked);
+    const genId = unique || (generateId instanceof HTMLInputElement && generateId.checked);
+    if (unique && generateName instanceof HTMLInputElement) {
+      generateName.checked = true;
+    }
+    if (unique && generateId instanceof HTMLInputElement) {
+      generateId.checked = true;
+    }
+    if (unique && sameStudy instanceof HTMLInputElement) {
+      sameStudy.checked = false;
+    }
+    const nameLabel = form.querySelector('[data-patient-field="name"]');
+    const idLabel = form.querySelector('[data-patient-field="id"]');
+    nameLabel?.classList.toggle("is-optional", genName);
+    idLabel?.classList.toggle("is-optional", genId);
+    if (nameInput instanceof HTMLInputElement) {
+      nameInput.required = !genName;
+      nameInput.placeholder = unique ? "From each file name" : genName ? "ARNPRO^PDFxxxx" : "DOE^JANE";
+    }
+    if (idInput instanceof HTMLInputElement) {
+      idInput.required = !genId;
+      idInput.placeholder = unique ? "From each file name" : genId ? "PDFxxxxxxxx" : "1001";
+    }
+    if (genName && !unique && nameInput instanceof HTMLInputElement && !nameInput.value.trim()) {
+      nameInput.value = `ARNPRO^PDF${randomPatientToken().slice(0, 4)}`;
+    }
+    if (genId && !unique && idInput instanceof HTMLInputElement && !idInput.value.trim()) {
+      idInput.value = `PDF${randomPatientToken()}`;
+    }
+  }
+
+  async function scanDirectory() {
+    if (!(directoryInput instanceof HTMLInputElement) || !scanTarget) {
+      return;
+    }
+    const directory = directoryInput.value.trim();
+    if (!directory) {
+      scanTarget.innerHTML = '<p class="scan-result fail">Type a directory or use … to browse.</p>';
+      return;
+    }
+    scanTarget.innerHTML = '<p class="scan-result">Scanning…</p>';
+    const body = new FormData();
+    body.set("directory", directory);
+    try {
+      const response = await fetch("/tools/pdf-store/scan", {
+        method: "POST",
+        body,
+        headers: { "HX-Request": "true" },
+      });
+      scanTarget.innerHTML = await response.text();
+    } catch {
+      scanTarget.innerHTML = '<p class="scan-result fail">Scan failed.</p>';
+    }
+  }
+
+  [generateName, generateId, uniquePatient].forEach((node) => {
+    node?.addEventListener("change", applyPatientMode);
+  });
+  applyPatientMode();
+
+  browseBtn?.addEventListener("click", async () => {
+    browseBtn.disabled = true;
+    try {
+      const response = await fetch("/api/fs/pick-directory", { method: "POST" });
+      const payload = await response.json().catch(() => ({}));
+      if (response.ok && payload.path && directoryInput instanceof HTMLInputElement) {
+        directoryInput.value = payload.path;
+        await scanDirectory();
+        return;
+      }
+      scanTarget && (scanTarget.innerHTML =
+        '<p class="scan-result fail">No folder dialog on this session (needs a desktop display). Type the path, or use Folder of PDFs above.</p>');
+    } catch {
+      scanTarget && (scanTarget.innerHTML =
+        '<p class="scan-result fail">Could not open a folder dialog. Type the path instead.</p>');
+    } finally {
+      browseBtn.disabled = false;
+    }
+  });
+
+  scanBtn?.addEventListener("click", (event) => {
+    event.preventDefault();
+    scanDirectory();
+  });
+
+  directoryInput?.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      scanDirectory();
+    }
+  });
+}
+
 initThemePreference();
 enhanceSelectMenus();
+initNavTree();
+initPdfStoreForm(document);
 
 document.addEventListener("submit", (event) => {
   const form = event.target;
@@ -484,6 +658,7 @@ document.body.addEventListener("htmx:afterSwap", (event) => {
   const target = event.detail.target;
   if (target instanceof HTMLElement) {
     initHl7Editors(target);
+    initPdfStoreForm(document);
   }
   if (target && target.id === "log-view-panel") {
     const view = document.getElementById("log-view");

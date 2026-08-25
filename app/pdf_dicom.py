@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import base64
 import io
+import re
+import uuid
 import zipfile
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -133,34 +135,41 @@ def collect_from_zip(payload: bytes) -> tuple[list[PdfSource], list[str]]:
     return sources, warnings
 
 
-def collect_from_directory(path: str | Path) -> tuple[list[PdfSource], list[str]]:
+def _resolve_import_root(path: str | Path) -> Path:
     raw = str(path).strip()
     if not raw:
-        return [], []
+        raise CollectError("Type a directory or use … to browse.")
     root = Path(raw).expanduser()
     try:
         root = root.resolve(strict=True)
     except OSError as exc:
         raise CollectError(f"Path not found: {raw}") from exc
-    files: list[Path]
     if root.is_file():
-        files = [root]
-    elif root.is_dir():
+        return root
+    if root.is_dir():
         if root.parent == root:
             raise CollectError("Refusing to scan the filesystem root. Choose a reports folder.")
+        return root
+    raise CollectError(f"Not a file or directory: {raw}")
+
+
+def iter_directory_pdfs(path: str | Path) -> tuple[Path, list[tuple[Path, str]]]:
+    """Return (root, [(file, relative path), ...]) for PDF names under path."""
+    root = _resolve_import_root(path)
+    files: list[Path]
+    base = root if root.is_dir() else root.parent
+    if root.is_file():
+        files = [root]
+    else:
         files = sorted(
             candidate
             for candidate in root.rglob("*")
             if candidate.is_file() and not candidate.is_symlink()
         )
-    else:
-        raise CollectError(f"Not a file or directory: {raw}")
-
-    sources: list[PdfSource] = []
-    warnings: list[str] = []
+    hits: list[tuple[Path, str]] = []
     for file in files:
         try:
-            relative = file.relative_to(root if root.is_dir() else root.parent)
+            relative = file.relative_to(base)
         except ValueError:
             continue
         if any(part.startswith(".") for part in relative.parts):
@@ -169,6 +178,53 @@ def collect_from_directory(path: str | Path) -> tuple[list[PdfSource], list[str]
             continue
         if not _is_pdf_name(file.name):
             continue
+        hits.append((file, relative.as_posix()))
+    return root, hits
+
+
+def list_directory_pdfs(path: str | Path) -> dict[str, Any]:
+    """Count PDFs in a folder without loading their bytes (for the Scan button)."""
+    root, hits = iter_directory_pdfs(path)
+    oversize = 0
+    files: list[dict[str, Any]] = []
+    for file, relative in hits:
+        try:
+            size = file.stat().st_size
+        except OSError:
+            size = 0
+        too_big = size > MAX_PDF_BYTES
+        if too_big:
+            oversize += 1
+        files.append(
+            {
+                "name": file.name,
+                "relative": relative,
+                "size": size,
+                "too_big": too_big,
+            }
+        )
+    pdf_count = len(files)
+    sendable = sum(1 for item in files if not item["too_big"])
+    return {
+        "ok": True,
+        "path": str(root),
+        "pdf_count": pdf_count,
+        "sendable": min(sendable, MAX_FILES),
+        "capped": sendable > MAX_FILES,
+        "oversize": oversize,
+        "max_files": MAX_FILES,
+        "files": files[:MAX_FILES],
+        "extra": max(0, pdf_count - MAX_FILES),
+    }
+
+
+def collect_from_directory(path: str | Path) -> tuple[list[PdfSource], list[str]]:
+    if not str(path).strip():
+        return [], []
+    root, hits = iter_directory_pdfs(path)
+    sources: list[PdfSource] = []
+    warnings: list[str] = []
+    for file, relative in hits:
         try:
             with file.open("rb") as handle:
                 data = _read_limited(handle, MAX_PDF_BYTES)
@@ -176,6 +232,8 @@ def collect_from_directory(path: str | Path) -> tuple[list[PdfSource], list[str]
             warnings.append(f"{file.name}: {exc}")
             continue
         _add_source(sources, warnings, name=file.name, data=data, origin=f"dir:{file}")
+    if root and not hits and not sources:
+        warnings.append(f"No PDF files under {root}.")
     return sources, warnings
 
 
@@ -307,6 +365,54 @@ def encapsulate_pdf(
     return ds
 
 
+def new_batch_patient() -> tuple[str, str]:
+    token = uuid.uuid4().hex[:8].upper()
+    return f"ARNPRO^PDF{token[:4]}", f"PDF{token}"
+
+
+def _slug_stem(name: str, index: int) -> str:
+    stem = Path(name).stem
+    slug = re.sub(r"[^A-Za-z0-9]", "", stem.upper())[:16]
+    return slug or f"{index:03d}"
+
+
+def unique_patient_for(source: PdfSource, index: int, used_ids: set[str]) -> tuple[str, str]:
+    stem = Path(source.name).stem.strip() or f"PDF{index:03d}"
+    name_token = _dicom_lo(re.sub(r"\s+", " ", stem) or f"PDF{index:03d}", 48)
+    patient_id = f"PDF{_slug_stem(source.name, index)}"
+    if patient_id in used_ids:
+        patient_id = f"{patient_id}{index:03d}"
+    used_ids.add(patient_id)
+    return f"PDF^{name_token}", _dicom_lo(patient_id, 64)
+
+
+def resolve_patient_identities(
+    sources: list[PdfSource],
+    *,
+    patient_name: str,
+    patient_id: str,
+    generate_name: bool = False,
+    generate_id: bool = False,
+    unique_patient: bool = False,
+) -> list[tuple[str, str]]:
+    if unique_patient:
+        generate_name = True
+        generate_id = True
+    batch_name, batch_id = new_batch_patient()
+    name = patient_name.strip() or (batch_name if generate_name else "")
+    pid = patient_id.strip() or (batch_id if generate_id else "")
+    if unique_patient:
+        used: set[str] = set()
+        return [unique_patient_for(source, index, used) for index, source in enumerate(sources, start=1)]
+    if generate_name and not patient_name.strip():
+        name = batch_name
+    if generate_id and not patient_id.strip():
+        pid = batch_id
+    if not name or not pid:
+        raise CollectError("Patient Name and Patient ID are required, or enable Generate.")
+    return [(name, pid) for _ in sources]
+
+
 def encapsulate_sources(
     sources: list[PdfSource],
     *,
@@ -316,6 +422,7 @@ def encapsulate_sources(
     study_description: str = "",
     document_title: str = "",
     same_study: bool = True,
+    identities: list[tuple[str, str]] | None = None,
 ) -> list[Dataset]:
     study_uid = generate_uid() if same_study else None
     series_uid = generate_uid() if same_study else None
@@ -324,11 +431,15 @@ def encapsulate_sources(
         title = document_title
         if title and len(sources) > 1:
             title = f"{title} — {Path(source.name).stem}"
+        if identities:
+            name, pid = identities[index - 1]
+        else:
+            name, pid = patient_name, patient_id
         datasets.append(
             encapsulate_pdf(
                 source,
-                patient_name=patient_name,
-                patient_id=patient_id,
+                patient_name=name,
+                patient_id=pid,
                 accession_number=accession_number,
                 study_description=study_description,
                 document_title=title,

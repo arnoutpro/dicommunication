@@ -39,7 +39,8 @@ from app.models import (
 )
 from app.mwl import query_worklist
 from app.mwl_scp import WorklistSCP
-from app.pdf_dicom import MAX_PDF_BYTES, MAX_ZIP_BYTES
+from app.fs_dialog import dialogs_available, pick_directory
+from app.pdf_dicom import CollectError, MAX_PDF_BYTES, MAX_ZIP_BYTES, list_directory_pdfs
 from app.paths import package_dir
 from app.store import ConfigStore
 from app.tools import get_tool, list_tools, list_tools_by_category
@@ -85,6 +86,9 @@ def _pdf_store_options(
     pdfs: list[UploadFile] | None,
     zip_file: UploadFile | None,
     folder: list[UploadFile] | None,
+    generate_name: bool = False,
+    generate_id: bool = False,
+    unique_patient: bool = False,
 ) -> dict[str, Any]:
     items: list[dict[str, Any]] = []
     for upload in list(pdfs or []) + list(folder or []):
@@ -107,6 +111,9 @@ def _pdf_store_options(
         "directory": directory,
         "same_study": same_study,
         "send": send,
+        "generate_name": generate_name,
+        "generate_id": generate_id,
+        "unique_patient": unique_patient,
         "pdfs": items,
     }
     zip_bytes = _read_upload(zip_file, MAX_ZIP_BYTES)
@@ -975,6 +982,10 @@ def create_app(store: ConfigStore | None = None) -> FastAPI:
         directory: str = "",
         same_study: bool = True,
         send: bool | None = None,
+        generate_name: bool = False,
+        generate_id: bool = False,
+        unique_patient: bool = False,
+        scan: dict | None = None,
         status_code: int = 200,
     ):
         tool = get_tool("pdf-store")
@@ -1000,6 +1011,10 @@ def create_app(store: ConfigStore | None = None) -> FastAPI:
                 directory=directory,
                 same_study=same_study,
                 send=send,
+                generate_name=generate_name,
+                generate_id=generate_id,
+                unique_patient=unique_patient,
+                scan=scan,
             ),
             status_code=status_code,
         )
@@ -1017,6 +1032,9 @@ def create_app(store: ConfigStore | None = None) -> FastAPI:
         directory: str = Form(""),
         same_study: str | None = Form(None),
         send: str | None = Form(None),
+        generate_name: str | None = Form(None),
+        generate_id: str | None = Form(None),
+        unique_patient: str | None = Form(None),
         pdfs: list[UploadFile] = File(default=[]),
         zip_file: UploadFile | None = File(default=None),
         folder: list[UploadFile] = File(default=[]),
@@ -1030,6 +1048,9 @@ def create_app(store: ConfigStore | None = None) -> FastAPI:
             directory=directory,
             same_study=_as_bool(same_study),
             send=_as_bool(send),
+            generate_name=_as_bool(generate_name),
+            generate_id=_as_bool(generate_id),
+            unique_patient=_as_bool(unique_patient),
             pdfs=pdfs,
             zip_file=zip_file,
             folder=folder,
@@ -1063,6 +1084,9 @@ def create_app(store: ConfigStore | None = None) -> FastAPI:
                 directory=directory,
                 same_study=_as_bool(same_study),
                 send=_as_bool(send),
+                generate_name=_as_bool(generate_name),
+                generate_id=_as_bool(generate_id),
+                unique_patient=_as_bool(unique_patient),
                 status_code=exc.status_code,
             )
         if _hx(request):
@@ -1084,7 +1108,43 @@ def create_app(store: ConfigStore | None = None) -> FastAPI:
             directory=directory,
             same_study=_as_bool(same_study),
             send=_as_bool(send),
+            generate_name=_as_bool(generate_name),
+            generate_id=_as_bool(generate_id),
+            unique_patient=_as_bool(unique_patient),
         )
+
+    @app.post("/tools/pdf-store/scan")
+    def pdf_store_scan(request: Request, directory: str = Form("")):
+        try:
+            scan = list_directory_pdfs(directory)
+        except CollectError as exc:
+            scan = {"ok": False, "error": str(exc), "files": [], "pdf_count": 0}
+        if _hx(request) or request.headers.get("HX-Request") == "true":
+            return templates.TemplateResponse(
+                request,
+                "partials/pdf_scan.html",
+                {"request": request, "scan": scan},
+            )
+        return scan
+
+    @app.get("/api/tools/pdf-store/scan")
+    def api_pdf_store_scan(directory: str = ""):
+        try:
+            return list_directory_pdfs(directory)
+        except CollectError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    @app.post("/api/fs/pick-directory")
+    def api_pick_directory():
+        if not dialogs_available():
+            raise HTTPException(
+                status_code=503,
+                detail="No desktop folder dialog in this session. Type the path, or use Folder of PDFs.",
+            )
+        path = pick_directory()
+        if not path:
+            raise HTTPException(status_code=400, detail="No folder selected.")
+        return {"path": path}
 
     @app.get("/tools/{tool_id}", response_class=HTMLResponse)
     def tool_page(
