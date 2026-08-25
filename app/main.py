@@ -6,7 +6,7 @@ from contextlib import asynccontextmanager
 from time import perf_counter
 from typing import Any
 
-from fastapi import FastAPI, Form, HTTPException, Request
+from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -39,6 +39,7 @@ from app.models import (
 )
 from app.mwl import query_worklist
 from app.mwl_scp import WorklistSCP
+from app.pdf_dicom import MAX_PDF_BYTES, MAX_ZIP_BYTES
 from app.paths import package_dir
 from app.store import ConfigStore
 from app.tools import get_tool, list_tools, list_tools_by_category
@@ -58,6 +59,60 @@ def _hx(request: Request) -> bool:
 
 def _as_bool(value: str | None) -> bool:
     return (value or "").lower() in {"on", "true", "1", "yes"}
+
+
+def _upload_filename(upload: UploadFile | None) -> str:
+    raw = (getattr(upload, "filename", None) or "").replace("\\", "/").strip()
+    return raw.rsplit("/", 1)[-1] if raw else ""
+
+
+def _read_upload(upload: UploadFile | None, limit: int) -> bytes | None:
+    if upload is None or not _upload_filename(upload):
+        return None
+    return upload.file.read(limit + 1)
+
+
+def _pdf_store_options(
+    *,
+    patient_name: str,
+    patient_id: str,
+    accession_number: str,
+    study_description: str,
+    document_title: str,
+    directory: str,
+    same_study: bool,
+    send: bool,
+    pdfs: list[UploadFile] | None,
+    zip_file: UploadFile | None,
+    folder: list[UploadFile] | None,
+) -> dict[str, Any]:
+    items: list[dict[str, Any]] = []
+    for upload in list(pdfs or []) + list(folder or []):
+        data = _read_upload(upload, MAX_PDF_BYTES)
+        if data is None:
+            continue
+        items.append(
+            {
+                "filename": _upload_filename(upload) or "document.pdf",
+                "content": data,
+                "origin": "upload",
+            }
+        )
+    options: dict[str, Any] = {
+        "patient_name": patient_name,
+        "patient_id": patient_id,
+        "accession_number": accession_number,
+        "study_description": study_description,
+        "document_title": document_title,
+        "directory": directory,
+        "same_study": same_study,
+        "send": send,
+        "pdfs": items,
+    }
+    zip_bytes = _read_upload(zip_file, MAX_ZIP_BYTES)
+    if zip_bytes is not None:
+        options["zip_bytes"] = zip_bytes
+    return options
 
 
 class RunRequest(BaseModel):
@@ -906,6 +961,131 @@ def create_app(store: ConfigStore | None = None) -> FastAPI:
         log.info("Deleted HL7 draft %s", message_id)
         return RedirectResponse("/tools/hl7-send?saved=deleted", status_code=303)
 
+    def _pdf_store_page(
+        request: Request,
+        *,
+        result: ToolResult | None = None,
+        remote_id: str = "",
+        identity_id: str = "",
+        patient_name: str = "",
+        patient_id: str = "",
+        accession_number: str = "",
+        study_description: str = "",
+        document_title: str = "",
+        directory: str = "",
+        same_study: bool = True,
+        send: bool | None = None,
+        status_code: int = 200,
+    ):
+        tool = get_tool("pdf-store")
+        config = app.state.store.load()
+        if send is None:
+            send = bool(config.remotes)
+        return templates.TemplateResponse(
+            request,
+            tool.template,
+            page(
+                request,
+                nav="tools",
+                tool=tool,
+                tool_id=tool.id,
+                result=result,
+                remote_id=remote_id,
+                identity_id=identity_id,
+                patient_name=patient_name,
+                patient_id=patient_id,
+                accession_number=accession_number,
+                study_description=study_description,
+                document_title=document_title,
+                directory=directory,
+                same_study=same_study,
+                send=send,
+            ),
+            status_code=status_code,
+        )
+
+    @app.post("/tools/pdf-store/run")
+    def pdf_store_run(
+        request: Request,
+        remote_id: str = Form(""),
+        identity_id: str = Form(""),
+        patient_name: str = Form(""),
+        patient_id: str = Form(""),
+        accession_number: str = Form(""),
+        study_description: str = Form(""),
+        document_title: str = Form(""),
+        directory: str = Form(""),
+        same_study: str | None = Form(None),
+        send: str | None = Form(None),
+        pdfs: list[UploadFile] = File(default=[]),
+        zip_file: UploadFile | None = File(default=None),
+        folder: list[UploadFile] = File(default=[]),
+    ):
+        options = _pdf_store_options(
+            patient_name=patient_name,
+            patient_id=patient_id,
+            accession_number=accession_number,
+            study_description=study_description,
+            document_title=document_title,
+            directory=directory,
+            same_study=_as_bool(same_study),
+            send=_as_bool(send),
+            pdfs=pdfs,
+            zip_file=zip_file,
+            folder=folder,
+        )
+        try:
+            result = execute_tool("pdf-store", remote_id or None, options, identity_id or None)
+        except HTTPException as exc:
+            failure = ToolResult(
+                tool_id="pdf-store",
+                tool_name="PDF to DICOM",
+                ok=False,
+                summary=str(exc.detail),
+            )
+            if _hx(request):
+                return templates.TemplateResponse(
+                    request,
+                    "partials/result.html",
+                    {"request": request, "result": failure},
+                    status_code=exc.status_code,
+                )
+            return _pdf_store_page(
+                request,
+                result=failure,
+                remote_id=remote_id,
+                identity_id=identity_id,
+                patient_name=patient_name,
+                patient_id=patient_id,
+                accession_number=accession_number,
+                study_description=study_description,
+                document_title=document_title,
+                directory=directory,
+                same_study=_as_bool(same_study),
+                send=_as_bool(send),
+                status_code=exc.status_code,
+            )
+        if _hx(request):
+            return templates.TemplateResponse(
+                request,
+                "partials/result.html",
+                {"request": request, "result": result},
+            )
+        return _pdf_store_page(
+            request,
+            result=result,
+            remote_id=remote_id,
+            identity_id=identity_id,
+            patient_name=patient_name,
+            patient_id=patient_id,
+            accession_number=accession_number,
+            study_description=study_description,
+            document_title=document_title,
+            directory=directory,
+            same_study=_as_bool(same_study),
+            send=_as_bool(send),
+        )
+
     @app.get("/tools/{tool_id}", response_class=HTMLResponse)
     def tool_page(
         request: Request,
@@ -937,6 +1117,8 @@ def create_app(store: ConfigStore | None = None) -> FastAPI:
                 save_name=save_name,
                 remote_id=request.query_params.get("remote_id", ""),
             )
+        if tool_id == "pdf-store":
+            return _pdf_store_page(request)
         return templates.TemplateResponse(
             request,
             tool.template,
