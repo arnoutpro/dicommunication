@@ -356,7 +356,21 @@ function initPdfStoreForm(scope) {
   const browseBtn = form.querySelector("[data-browse-directory]");
   const scanBtn = form.querySelector("[data-scan-directory]");
   const scanTarget = document.getElementById("pdf-scan");
+  const browseStatus = document.getElementById("pdf-browse-status");
   let wasUnique = uniquePatient instanceof HTMLInputElement && uniquePatient.checked;
+
+  function setBrowseStatus(message) {
+    if (!(browseStatus instanceof HTMLElement)) {
+      return;
+    }
+    if (!message) {
+      browseStatus.hidden = true;
+      browseStatus.innerHTML = "";
+      return;
+    }
+    browseStatus.hidden = false;
+    browseStatus.innerHTML = `<p class="scan-result fail">${message}</p>`;
+  }
 
   function applyPatientMode() {
     const unique = uniquePatient instanceof HTMLInputElement && uniquePatient.checked;
@@ -406,9 +420,11 @@ function initPdfStoreForm(scope) {
     }
     const directory = directoryInput.value.trim();
     if (!directory) {
+      setBrowseStatus("");
       scanTarget.innerHTML = '<p class="scan-result fail">Type a directory or use … to browse.</p>';
       return;
     }
+    setBrowseStatus("");
     scanTarget.innerHTML = '<p class="scan-result">Scanning…</p>';
     const body = new FormData();
     body.set("directory", directory);
@@ -436,14 +452,13 @@ function initPdfStoreForm(scope) {
       const payload = await response.json().catch(() => ({}));
       if (response.ok && payload.path && directoryInput instanceof HTMLInputElement) {
         directoryInput.value = payload.path;
+        setBrowseStatus("");
         await scanDirectory();
         return;
       }
-      scanTarget && (scanTarget.innerHTML =
-        '<p class="scan-result fail">No folder dialog on this session (needs a desktop display). Type the path, or use Folder of PDFs above.</p>');
+      setBrowseStatus("No folder dialog on this session (needs a desktop display). Type the path, or use Folder of PDFs above.");
     } catch {
-      scanTarget && (scanTarget.innerHTML =
-        '<p class="scan-result fail">Could not open a folder dialog. Type the path instead.</p>');
+      setBrowseStatus("Could not open a folder dialog. Type the path instead.");
     } finally {
       browseBtn.disabled = false;
     }
