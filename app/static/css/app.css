@@ -500,6 +500,10 @@ th {
 .run-form label > textarea {
   width: 100%;
 }
+input[type="file"] {
+  padding: 0.38rem 0.55rem;
+  font-size: var(--text-sm);
+}
 .span-2 { grid-column: 1 / -1; }
 textarea.hl7-body {
   min-height: 16rem;

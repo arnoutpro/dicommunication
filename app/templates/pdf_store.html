@@ -1,0 +1,108 @@
+{% extends "base.html" %}
+{% block title %}{{ tool.name }} · Dicommunication{% endblock %}
+{% block content %}
+<header class="page-head">
+  <div>
+    <p class="eyebrow">{{ tool.category }}</p>
+    <h1>{{ tool.name }}</h1>
+    <p class="lede">{{ tool.description }}</p>
+  </div>
+</header>
+
+<section class="panel">
+  <header class="panel-head">
+    <h2>Import and encapsulate</h2>
+    <span class="muted">Calling AE {{ config.local.ae_title }}{% if config.identities %} · {{ config.identities | length }} virtual{% endif %}</span>
+  </header>
+  <form
+    class="form-grid"
+    method="post"
+    action="/tools/pdf-store/run"
+    hx-post="/tools/pdf-store/run"
+    hx-target="#result"
+    hx-indicator="#busy"
+    hx-encoding="multipart/form-data"
+    hx-timeout="180000"
+    autocomplete="off"
+  >
+    {% if config.remotes %}
+    <label>
+      Remote node
+      <select name="remote_id">
+        {% for remote in config.remotes %}
+        <option value="{{ remote.id }}" {% if remote_id == remote.id %}selected{% endif %}>
+          {{ remote.name }} — {{ remote.ae_title }} @ {{ remote.connect_host }}:{{ remote.port }}
+        </option>
+        {% endfor %}
+      </select>
+      <span class="hint">Storage SCP that accepts Encapsulated PDF Storage. A working C-ECHO is not enough.</span>
+    </label>
+    {% else %}
+    <input type="hidden" name="remote_id" value="">
+    <p class="hint span-2">No remote node configured. You can still encapsulate. <a href="/config/remotes">Add a PACS</a> to C-STORE the DICOM PDFs.</p>
+    {% endif %}
+    {% include "partials/identity_select.html" %}
+    <label>
+      Patient Name
+      <input name="patient_name" value="{{ patient_name }}" placeholder="DOE^JANE" required>
+    </label>
+    <label>
+      Patient ID
+      <input name="patient_id" value="{{ patient_id }}" placeholder="1001" required>
+    </label>
+    <label>
+      Accession Number
+      <input name="accession_number" value="{{ accession_number }}" placeholder="ACC1">
+    </label>
+    <label>
+      Study Description
+      <input name="study_description" value="{{ study_description }}" placeholder="External report">
+    </label>
+    <label class="span-2">
+      Document Title
+      <input name="document_title" value="{{ document_title }}" placeholder="Defaults to the PDF file name">
+      <span class="hint">Written to DICOM Document Title. Empty uses each file’s name.</span>
+    </label>
+    <label class="span-2">
+      PDF files
+      <input name="pdfs" type="file" accept=".pdf,application/pdf" multiple>
+      <span class="hint">One or more <code>.pdf</code> files. Each becomes its own Encapsulated PDF instance.</span>
+    </label>
+    <label>
+      ZIP of PDFs
+      <input name="zip_file" type="file" accept=".zip,application/zip">
+      <span class="hint">Only <code>.pdf</code> entries are used. Other files and <code>..</code> paths are skipped.</span>
+    </label>
+    <label>
+      Folder of PDFs
+      <input name="folder" type="file" accept=".pdf,application/pdf" multiple webkitdirectory directory>
+      <span class="hint">Browser folder picker. Subfolders are included. Hidden files are skipped.</span>
+    </label>
+    <label class="span-2">
+      Directory on this workstation
+      <input name="directory" value="{{ directory }}" placeholder="/data/reports or C:\reports" spellcheck="false">
+      <span class="hint">Server-side path this process can read. Same trust model as the rest of the UI: there is no login.</span>
+    </label>
+    <label class="checkbox span-2">
+      <input type="checkbox" name="same_study" value="on" {% if same_study %}checked{% endif %}>
+      Keep PDFs in the same study (one Study / Series Instance UID)
+    </label>
+    <label class="checkbox span-2">
+      <input type="checkbox" name="send" value="on" {% if send %}checked{% endif %}>
+      Store on PACS (C-STORE Encapsulated PDF Storage)
+    </label>
+    <div class="form-actions">
+      <button class="button primary" type="submit">
+        Encapsulate{% if config.remotes %} &amp; send{% endif %}
+      </button>
+      <span id="busy" class="htmx-indicator spinner">Working…</span>
+    </div>
+  </form>
+</section>
+
+<div id="result">
+  {% if result %}
+    {% include "partials/result.html" %}
+  {% endif %}
+</div>
+{% endblock %}

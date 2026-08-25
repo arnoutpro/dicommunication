@@ -32,6 +32,7 @@
     <li><a href="#ping">Network PING</a></li>
     <li><a href="#c-echo">C-ECHO</a></li>
     <li><a href="#c-store">C-STORE</a></li>
+    <li><a href="#pdf-store">PDF to DICOM</a></li>
     <li><a href="#c-find">Study Root C-FIND</a></li>
     <li><a href="#mwl-find">MWL C-FIND</a></li>
     <li><a href="#hl7-send">HL7 send</a></li>
@@ -57,8 +58,8 @@
   <header class="panel-head">
     <h2>Security on a trusted network</h2>
   </header>
-  <p>The web UI has <strong>no login</strong>. Do not publish port 8080 to the internet without an authenticating reverse proxy. Do not point it at production archives unless you intend to send the test C-STORE instance (patient <code>ARNPRO^TESTBENCH</code> / ID <code>ARNPRO-TEST</code>).</p>
-  <p>DICOM and HL7 are sent in the clear unless you terminate TLS elsewhere. HL7 send transmits whatever you paste. Treat this like a diagnostic console, not a public website.</p>
+  <p>The web UI has <strong>no login</strong>. Do not publish port 8080 to the internet without an authenticating reverse proxy. Do not point it at production archives unless you intend to send the test C-STORE instance (patient <code>ARNPRO^TESTBENCH</code> / ID <code>ARNPRO-TEST</code>) or real Encapsulated PDF documents you import.</p>
+  <p>DICOM and HL7 are sent in the clear unless you terminate TLS elsewhere. HL7 send transmits whatever you paste. <strong>PDF to DICOM</strong> reads files you upload, ZIP contents, and any workstation path you type — treat that like a diagnostic console, not a public website.</p>
 </section>
 
 <section class="panel help-section" id="ui">
@@ -97,6 +98,12 @@
           <td>C-STORE</td>
           <td>Secondary Capture Image Storage</td>
           <td>Can the peer <em>receive</em> an instance? Orthanc usually yes; an MWL-only RIS usually no.</td>
+        </tr>
+        <tr>
+          <td><strong>PDF to DICOM</strong></td>
+          <td>C-STORE</td>
+          <td>Encapsulated PDF Storage <code>1.2.840.10008.5.1.4.1.1.104.1</code></td>
+          <td>Wrap a PDF as a DICOM document (modality <code>DOC</code>) and store it. A peer that takes Secondary Capture may still reject Encapsulated PDF.</td>
         </tr>
         <tr>
           <td><strong>C-FIND</strong></td>
@@ -385,6 +392,24 @@
   <p>The instance is identifiable on the PACS: patient <code>ARNPRO^TESTBENCH</code>, ID <code>ARNPRO-TEST</code>, modality <code>OT</code>. Do not send it to a production archive unless that is intentional. If C-ECHO works and C-STORE fails, the peer is not a Storage SCP for Secondary Capture (or that SOP Class is disabled).</p>
 </section>
 
+<section class="panel help-section" id="pdf-store">
+  <header class="panel-head">
+    <h2>PDF to DICOM</h2>
+    <a href="/tools/pdf-store">Open</a>
+  </header>
+  <p>Import PDF bytes, wrap each file as <strong>Encapsulated PDF Storage</strong> (SOP Class <code>1.2.840.10008.5.1.4.1.1.104.1</code>, modality <code>DOC</code>), then optionally C-STORE the instances to a selected PACS. This is not the Testbench Secondary Capture image, and it does not rasterize PDF pages into pixel data.</p>
+  <ul>
+    <li><strong>PDF files</strong> — one or more <code>.pdf</code> uploads. Each file becomes one SOP Instance.</li>
+    <li><strong>ZIP of PDFs</strong> — only <code>.pdf</code> entries are used. Path traversal (<code>..</code>), <code>__MACOSX</code>, encrypted entries, and non-PDF files are skipped. Caps: 25&nbsp;MB per PDF, 40 files, 40&nbsp;MB ZIP, 80&nbsp;MB uncompressed.</li>
+    <li><strong>Folder of PDFs</strong> — the browser’s directory picker (files are uploaded to this process).</li>
+    <li><strong>Directory on this workstation</strong> — a path this server can read. There is no login; anyone who can open the UI can point it at a folder this process can see. Hidden files and the filesystem root are skipped / refused.</li>
+    <li><strong>Patient Name / Patient ID</strong> — required. Optional accession, study description, and document title (defaults to the file name).</li>
+    <li><strong>Same study</strong> — on by default. All PDFs in the batch share one Study Instance UID and Series Instance UID.</li>
+    <li><strong>Store on PACS</strong> — C-STORE Encapsulated PDF Storage. Uncheck to encapsulate only and see the SOP UIDs. The peer must accept that SOP Class; a green C-ECHO or Secondary Capture C-STORE is not enough.</li>
+  </ul>
+  <p>Look the study up on the PACS with the Patient ID you typed. If association opens but Encapsulated PDF is rejected, enable that SOP Class on the archive (Orthanc usually accepts it with Storage).</p>
+</section>
+
 <section class="panel help-section" id="c-find">
   <header class="panel-head">
     <h2>Study Root C-FIND</h2>
@@ -443,7 +468,7 @@
   </header>
   <p>After a DIMSE association, the result lists presentation contexts the peer accepted and those it rejected. Read that list before you trust a green/red summary:</p>
   <ul>
-    <li><strong>Accepted Verification, rejected Storage</strong> — C-ECHO will pass; C-STORE will not. Typical of an MWL-only RIS.</li>
+    <li><strong>Accepted Verification / Secondary Capture, rejected Encapsulated PDF</strong> — C-STORE test image works; PDF to DICOM will not. Enable Encapsulated PDF Storage on the archive.</li>
     <li><strong>Accepted Verification / Storage / Study Root, rejected MWL</strong> — stock Orthanc without the worklist plugin. Query the archive with Study Root C-FIND; query a RIS (or enable the plugin) for MWL.</li>
     <li><strong>All requested SOP Classes rejected, or association aborted</strong> — called AE, host, or port wrong; or the calling AE is not allowed.</li>
     <li><strong>Pass with zero rows</strong> — the FIND SOP Class was accepted and the query succeeded. Empty is a filter / data problem, not a connectivity failure.</li>
@@ -495,7 +520,7 @@
     <h2>JSON API</h2>
   </header>
   <p>The same operations as the UI are available over HTTP. <code>GET /health</code> returns <code>{"status":"ok","version":"{{ app_version }}"}</code>. Interactive docs: <a href="/docs">/docs</a>.</p>
-  <p>Tool ids: <code>ping</code>, <code>c-echo</code>, <code>c-store</code>, <code>c-find</code>, <code>mwl-find</code>, <code>hl7-send</code>. <code>hl7-send</code> does not need a remote id; pass host, port, and message in options. DIMSE tools take <code>remote_id</code> and optional <code>identity_id</code> for a virtual calling AE. Worklist query <code>source</code> is <code>local</code> or a remote id.</p>
+  <p>Tool ids: <code>ping</code>, <code>c-echo</code>, <code>c-store</code>, <code>pdf-store</code>, <code>c-find</code>, <code>mwl-find</code>, <code>hl7-send</code>. <code>hl7-send</code> does not need a remote id; pass host, port, and message in options. <code>pdf-store</code> takes Patient Name / ID in options, plus <code>pdfs</code> (filename + content_b64), <code>zip_b64</code>, or <code>directory</code>, and <code>send</code> (default true). DIMSE tools take <code>remote_id</code> and optional <code>identity_id</code> for a virtual calling AE. Worklist query <code>source</code> is <code>local</code> or a remote id.</p>
   <p>This API has no authentication. Restrict it the same way you restrict the UI.</p>
 </section>
 
@@ -533,6 +558,10 @@
         <tr>
           <td>C-ECHO works, C-STORE fails</td>
           <td>Peer is not a Storage SCP for Secondary Capture (or that SOP Class is disabled)</td>
+        </tr>
+        <tr>
+          <td>C-ECHO / C-STORE work, PDF to DICOM fails</td>
+          <td>Peer does not accept Encapsulated PDF Storage. Enable that SOP Class; Secondary Capture is a different test.</td>
         </tr>
         <tr>
           <td>C-ECHO works, Study Root C-FIND fails</td>

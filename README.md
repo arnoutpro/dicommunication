@@ -2,7 +2,7 @@
 
 A low-code DICOM communication validator and PACS admin toolkit.
 
-Configure this workstation as a DICOM Application Entity, register remote nodes (PACS, Orthanc, RIS/MWL, modalities), impersonate extra calling AE Titles, and run the checks a connectivity ticket actually needs: network PING, C-ECHO, simulated C-STORE, Study Root C-FIND, Modality Worklist C-FIND, and HL7 v2 send over MLLP.
+Configure this workstation as a DICOM Application Entity, register remote nodes (PACS, Orthanc, RIS/MWL, modalities), impersonate extra calling AE Titles, and run the checks a connectivity ticket actually needs: network PING, C-ECHO, simulated C-STORE, PDF to Encapsulated PDF Storage, Study Root C-FIND, Modality Worklist C-FIND, and HL7 v2 send over MLLP.
 
 The web UI is FastAPI + HTMX. DICOM uses pynetdicom/pydicom. New test tools are Python plugins: drop a file in `app/tools/` and it appears in the sidebar. The sidebar **About** button shows the running version; **Help** is the in-app administrator guide.
 
@@ -37,7 +37,7 @@ It **does**:
 
 - Present a calling AE Title (the workstation, or a virtual identity such as `CT1`)
 - Associate with a remote AE and show which SOP Classes were accepted or rejected
-- Send Verification (C-ECHO), a tiny Secondary Capture (C-STORE), Study Root Query/Retrieve C-FIND, and Modality Worklist C-FIND
+- Send Verification (C-ECHO), a tiny Secondary Capture (C-STORE), Encapsulated PDF Storage (PDF to DICOM), Study Root Query/Retrieve C-FIND, and Modality Worklist C-FIND
 - Optionally serve a local web worklist as an MWL SCP on the listen port
 - Send an HL7 v2 message over TCP (MLLP by default) to a host:port
 
@@ -56,6 +56,7 @@ A successful C-ECHO only proves Verification. Orthanc (or any PACS) can accept C
 | --- | --- | --- | --- |
 | C-ECHO | C-ECHO | Verification `1.2.840.10008.1.1` | Association plus a DICOM ping. Connectivity only. |
 | C-STORE | C-STORE | Secondary Capture Image Storage | Can the peer *receive* an instance? |
+| PDF to DICOM | C-STORE | Encapsulated PDF Storage `1.2.840.10008.5.1.4.1.1.104.1` | Wrap a PDF as a DICOM document and store it. A peer that takes Secondary Capture may still reject Encapsulated PDF. |
 | C-FIND | C-FIND | Study Root Query/Retrieve FIND | Search *stored studies* in a PACS archive. Zero matches can still be a successful Q/R C-FIND. |
 | MWL C-FIND / Worklist | C-FIND | Modality Worklist `1.2.840.10008.5.1.4.31` | Search *scheduled procedures*, not the archive. |
 
@@ -267,7 +268,7 @@ Every virtual calling AE must be allowed on the remote, the same way the worksta
 
 ## Test tools
 
-The left menu keeps **Configured nodes** and **Test tools** open. Under Test tools: Testbench, C-ECHO board, Worklist, then **Connectivity** (PING), **DIMSE** (C-ECHO, C-STORE, C-FIND, MWL C-FIND), and **HL7** (HL7 send). New plugin tools appear under their `category`.
+The left menu keeps **Configured nodes** and **Test tools** open. Under Test tools: Testbench, C-ECHO board, Worklist, then **Connectivity** (PING), **DIMSE** (C-ECHO, C-STORE, PDF to DICOM, C-FIND, MWL C-FIND), and **HL7** (HL7 send). New plugin tools appear under their `category`.
 
 ### Testbench (`/testbench`)
 
@@ -289,6 +290,12 @@ DNS resolve, ICMP echo, then TCP connect to the DICOM port. ICMP is often blocke
 ### Individual DIMSE tools
 
 Same engines as the Testbench, one page each: `/tools/c-echo`, `/tools/c-store`, `/tools/c-find`, `/tools/mwl-find`. Each has **Present as**.
+
+### PDF to DICOM (`/tools/pdf-store`)
+
+Import PDF files, a ZIP of PDFs, a browser folder, or a directory path on this workstation. Each PDF is wrapped as Encapsulated PDF Storage (modality `DOC`) with the Patient Name / ID you type. **Store on PACS** C-STOREs those instances to the selected remote. Uncheck it to encapsulate only. The peer must accept Encapsulated PDF Storage — C-ECHO or the Secondary Capture test image is a different SOP Class.
+
+Caps: 25 MB per PDF, 40 files, 40 MB ZIP. ZIP entries with `..`, `__MACOSX`, or a non-PDF extension are skipped. The directory path is read by this process; the UI has no login.
 
 ## Worklist
 
@@ -379,7 +386,7 @@ Same operations as the UI. `GET /health` returns `{"status":"ok","version":"..."
 | POST | `/api/worklist/query` | MWL query (local or remote) |
 | GET/POST/DELETE | `/api/hl7/messages`, `/api/hl7/messages/{id}` | Saved HL7 v2 drafts |
 
-Tool ids: `ping`, `c-echo`, `c-store`, `c-find`, `mwl-find`, `hl7-send`. `hl7-send` does not need `remote_id`; pass `options.host`, `options.port`, and `options.message`.
+Tool ids: `ping`, `c-echo`, `c-store`, `pdf-store`, `c-find`, `mwl-find`, `hl7-send`. `hl7-send` does not need `remote_id`; pass `options.host`, `options.port`, and `options.message`. `pdf-store` takes `options.patient_name`, `options.patient_id`, plus `options.pdfs` (`filename` + `content_b64`), `options.zip_b64`, or `options.directory`, and `options.send` (default true).
 
 Run a tool as a virtual AE:
 
@@ -395,6 +402,14 @@ Study Root C-FIND with filters:
 curl -s -X POST http://127.0.0.1:8080/api/tools/c-find/run \
   -H 'Content-Type: application/json' \
   -d '{"remote_id":"REPLACE","options":{"patient_id":"1001","modality":"CT"}}'
+```
+
+Encapsulate a PDF from a directory without sending:
+
+```bash
+curl -s -X POST http://127.0.0.1:8080/api/tools/pdf-store/run \
+  -H 'Content-Type: application/json' \
+  -d '{"options":{"patient_name":"DOE^JANE","patient_id":"1001","directory":"/data/reports","send":false}}'
 ```
 
 Worklist query as `CT1`:
@@ -442,11 +457,11 @@ pip install -r requirements-dev.txt
 make test
 ```
 
-C-ECHO, C-STORE, Study Root C-FIND, and MWL tests start in-process SCPs. PING uses loopback ICMP and a local TCP listener. HL7 send uses a loopback MLLP listener. Identity tests check that a virtual AE is the calling AE Title and the worklist station filter.
+C-ECHO, C-STORE, PDF to DICOM, Study Root C-FIND, and MWL tests start in-process SCPs. PING uses loopback ICMP and a local TCP listener. HL7 send uses a loopback MLLP listener. Identity tests check that a virtual AE is the calling AE Title and the worklist station filter.
 
 ## Security
 
-This is a trusted-network admin tool. The web UI has no login. Do not publish port 8080 to the internet without an authenticating reverse proxy. Do not point it at production archives unless you intend to send the test C-STORE instance (`ARNPRO^TESTBENCH`). DICOM and HL7 are sent in the clear unless you terminate TLS elsewhere. HL7 send transmits whatever you paste.
+This is a trusted-network admin tool. The web UI has no login. Do not publish port 8080 to the internet without an authenticating reverse proxy. Do not point it at production archives unless you intend to send the test C-STORE instance (`ARNPRO^TESTBENCH`) or Encapsulated PDF documents you import. DICOM and HL7 are sent in the clear unless you terminate TLS elsewhere. HL7 send transmits whatever you paste. PDF to DICOM reads uploaded files, ZIP contents, and any workstation path you type.
 
 ## Troubleshooting
 
@@ -454,6 +469,7 @@ This is a trusted-network admin tool. The web UI has no login. Do not publish po
 | --- | --- |
 | Association rejected / aborted | Called AE, host, or port wrong; calling AE not in the peer’s allow-list |
 | C-ECHO works, C-STORE fails | Peer is not a Storage SCP for Secondary Capture (or that SOP Class is disabled) |
+| C-ECHO / C-STORE work, PDF to DICOM fails | Peer does not accept Encapsulated PDF Storage. Enable that SOP Class; Secondary Capture is a different test. |
 | C-ECHO works, Study Root C-FIND fails | Peer is not a Q/R SCP. This is not MWL. |
 | C-ECHO / C-STORE / Q/R work, MWL fails | Peer does not offer Modality Worklist FIND. Enable the worklist plugin (Orthanc) or query a RIS. |
 | Worklist and MWL C-FIND look the same | They are the same SOP Class. Use Testbench Study Root C-FIND to search stored studies. |
