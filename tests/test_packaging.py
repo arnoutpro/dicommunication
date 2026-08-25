@@ -583,3 +583,53 @@ def test_vendored_htmx_is_served(client) -> None:
 
     assert response.status_code == 200
     assert response.text.startswith("var htmx=")
+
+
+# "${VAR:-default}:published:target" — an overridable host bind address.
+COMPOSE_BINDING = re.compile(r"^\$\{(\w+):-([^}]*)\}:(\d+):(\d+)$")
+
+
+def _compose_published_ports() -> list[str]:
+    """The entries under the compose service's `ports:` key, unquoted."""
+    lines = (ROOT / "docker-compose.yml").read_text(encoding="utf-8").splitlines()
+    entries: list[str] = []
+    inside = False
+    for line in lines:
+        stripped = line.strip()
+        if stripped == "ports:":
+            inside = True
+            continue
+        if not inside or stripped.startswith("#") or not stripped:
+            continue
+        if not stripped.startswith("- "):
+            break
+        entries.append(stripped[2:].strip().strip('"'))
+    return entries
+
+
+def test_compose_publishes_every_port_through_an_overridable_bind_address() -> None:
+    published = _compose_published_ports()
+
+    assert len(published) == 2, published
+    for entry in published:
+        assert COMPOSE_BINDING.match(entry), (
+            f"{entry!r} pins a host interface. Publish it as "
+            '"${VAR:-<default>}:<port>:<port>" so an operator can change it.'
+        )
+
+
+def test_compose_keeps_the_unauthenticated_ui_on_loopback() -> None:
+    binds = {}
+    for entry in _compose_published_ports():
+        match = COMPOSE_BINDING.match(entry)
+        assert match
+        _var, default_bind, host_port, _container_port = match.groups()
+        binds[host_port] = default_bind
+
+    # The web UI and JSON API have no login, so the default must not be
+    # reachable from off the host.
+    assert binds["8080"] == "127.0.0.1"
+
+    # The MWL SCP is the opposite case: a modality has to be able to C-FIND
+    # this workstation, so locking it to loopback would silently break it.
+    assert binds["11112"] == "0.0.0.0"
