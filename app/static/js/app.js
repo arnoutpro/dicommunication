@@ -439,10 +439,10 @@ function initPdfStoreForm(scope) {
   });
 }
 
+initPdfStoreForm(document);
 initThemePreference();
 enhanceSelectMenus();
 initNavTree();
-initPdfStoreForm(document);
 
 document.addEventListener("submit", (event) => {
   const form = event.target;

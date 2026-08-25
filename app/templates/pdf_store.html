@@ -23,6 +23,7 @@
     hx-indicator="#busy"
     hx-encoding="multipart/form-data"
     hx-timeout="180000"
+    hx-trigger="submit"
     autocomplete="off"
     data-pdf-store
   >
@@ -98,8 +99,8 @@
       <span class="label-line">Directory on this workstation</span>
       <div class="input-with-action">
         <input name="directory" value="{{ directory }}" placeholder="/data/reports or C:\reports" spellcheck="false" data-directory-input>
-        <button type="button" class="button" data-browse-directory title="Browse for a folder on this workstation">…</button>
-        <button type="button" class="button" data-scan-directory>Scan</button>
+        <button type="button" class="button" data-browse-directory title="Browse for a folder on this workstation" hx-disable>…</button>
+        <button type="button" class="button" data-scan-directory hx-disable>Scan</button>
       </div>
       <span class="hint">Path this process can read. <strong>…</strong> opens the local file explorer on this workstation. Scan lists how many PDFs will be sent before you C-STORE.</span>
     </div>
