@@ -1,0 +1,34 @@
+{% if scan and scan.ok %}
+<div class="scan-result">
+  <p>
+    <strong>{{ scan.pdf_count }}</strong> PDF{% if scan.pdf_count != 1 %}s{% endif %} in <code>{{ scan.path }}</code>
+    {% if scan.capped %} · sending the first {{ scan.sendable }} (max {{ scan.max_files }}){% endif %}
+    {% if scan.oversize %} · {{ scan.oversize }} over {{ 25 }} MB skipped{% endif %}
+  </p>
+  {% if scan.files %}
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>File</th>
+          <th>Size</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for file in scan.files %}
+        <tr>
+          <td>{{ file.relative }}{% if file.too_big %} <span class="muted">too large</span>{% endif %}</td>
+          <td>{% if file.size >= 1048576 %}{{ (file.size / 1048576) | round(1) }} MB{% elif file.size >= 1024 %}{{ (file.size / 1024) | round(1) }} KB{% else %}{{ file.size }} B{% endif %}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% if scan.extra %}
+  <p class="hint">{{ scan.extra }} more not listed.</p>
+  {% endif %}
+  {% endif %}
+</div>
+{% elif scan and not scan.ok %}
+<p class="scan-result fail">{{ scan.error }}</p>
+{% endif %}
