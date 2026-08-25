@@ -482,7 +482,11 @@ C-ECHO, C-STORE, PDF to DICOM, Study Root C-FIND, and MWL tests start in-process
 
 ## Security
 
+Full threat model, what has no protection by design, and how patient data is stored on disk: [`SECURITY.md`](SECURITY.md).
+
 This is a trusted-network admin tool. The web UI has no login, so Compose publishes it on `127.0.0.1` only; `DICOMM_HTTP_BIND=0.0.0.0` opens it up and should only be used behind an authenticating reverse proxy. Do not publish port 8080 to the internet without one. Do not point it at production archives unless you intend to send the test C-STORE instance (`ARNPRO^TESTBENCH`) or Encapsulated PDF documents you import. DICOM and HL7 are sent in the clear unless you terminate TLS elsewhere. HL7 send transmits whatever you paste. PDF to DICOM reads uploaded files, ZIP contents, and any workstation path you type.
+
+The data directory is not encrypted, and `results.json` keeps the last 200 tool results — including the body of any HL7 message you sent and the worklist rows a C-FIND returned. Against real systems that means patient identifiers on disk in cleartext. See [`SECURITY.md`](SECURITY.md#patient-data-on-disk).
 
 ## Troubleshooting
 

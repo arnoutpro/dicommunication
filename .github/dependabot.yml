@@ -1,0 +1,33 @@
+version: 2
+
+# Version updates only. These are separate from Dependabot *alerts*, which are a
+# repository setting (Settings -> Code security) and are what surfaces a newly
+# published advisory against a pinned floor.
+updates:
+  # requirements.txt, requirements-dev.txt and requirements-desktop.txt.
+  - package-ecosystem: pip
+    directory: "/"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      python:
+        patterns: ["*"]
+
+  # Keeps the checkout/setup-python/docker actions current.
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+    groups:
+      actions:
+        patterns: ["*"]
+
+  # The python base image and the busybox stage the Dockerfile copies ping from.
+  - package-ecosystem: docker
+    directory: "/"
+    schedule:
+      interval: weekly
+    groups:
+      images:
+        patterns: ["*"]
