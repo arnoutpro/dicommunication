@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-- Sidebar is a two-level tree (Test tools → Connectivity / DIMSE / HL7). Nested groups start folded; the current page’s branch stays open.
+- Sidebar is a two-level tree (Test tools → Connectivity / DIMSE / HL7). Click **Test tools** (or a category) to fold it out; groups start folded. **About** and **Help** sit on one compact row.
 - PDF to DICOM: **…** browses a folder on this workstation, **Scan** lists how many PDFs are in it, required Patient Name / ID are marked, and Generate / unique-per-file identities cover bulk directory imports.
 - Sidebar **About** and **Help** buttons: About shows the running version and this installation; Help is the in-app administrator guide (each screen and tool, including HL7 Advanced troubleshooting).
 - **PDF to DICOM** (`pdf-store`): import PDF files, a ZIP of PDFs, or a local directory; wrap each as Encapsulated PDF Storage; optionally C-STORE to a PACS.
