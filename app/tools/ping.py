@@ -32,7 +32,8 @@ class PingTool(BaseTool):
     name = "Network PING"
     description = (
         "Resolve the host, send ICMP echo requests, and open a TCP connection "
-        "to the remote DICOM port. ICMP is often blocked on hospital networks; "
+        "to the remote DICOM port — the same layer-4 check as PowerShell "
+        "Test-NetConnection -Port. ICMP is often blocked on hospital networks; "
         "TCP to the DICOM port is the more reliable check."
     )
     category = "connectivity"

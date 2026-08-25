@@ -371,7 +371,7 @@
     <h2>Network PING</h2>
     <a href="/tools/ping">Open</a>
   </header>
-  <p>DNS resolve, ICMP echo, then TCP connect to the DICOM port of the selected remote. ICMP is often blocked on clinical networks; the TCP check is the useful layer-4 result. A successful TCP connect does not prove DICOM — only that something is listening. Follow with C-ECHO.</p>
+  <p>DNS resolve, ICMP echo, then TCP connect to the DICOM port of the selected remote. That TCP step is the same kind of check as PowerShell <code>Test-NetConnection -Port</code>; a separate Test-NetConnection tool would overlap. ICMP is often blocked on clinical networks; the TCP check is the useful layer-4 result. A successful TCP connect does not prove DICOM — only that something is listening. Follow with C-ECHO.</p>
 </section>
 
 <section class="panel help-section" id="c-echo">
@@ -399,11 +399,11 @@
   </header>
   <p>Import PDF bytes, wrap each file as <strong>Encapsulated PDF Storage</strong> (SOP Class <code>1.2.840.10008.5.1.4.1.1.104.1</code>, modality <code>DOC</code>), then optionally C-STORE the instances to a selected PACS. This is not the Testbench Secondary Capture image, and it does not rasterize PDF pages into pixel data.</p>
   <ul>
-    <li><strong>PDF files</strong> — one or more <code>.pdf</code> uploads. Each file becomes one SOP Instance.</li>
+    <li><strong>PDF files</strong> — one or more <code>.pdf</code> uploads only. Other types are rejected.</li>
     <li><strong>ZIP of PDFs</strong> — only <code>.pdf</code> entries are used. Path traversal (<code>..</code>), <code>__MACOSX</code>, encrypted entries, and non-PDF files are skipped. Caps: 25&nbsp;MB per PDF, 40 files, 40&nbsp;MB ZIP, 80&nbsp;MB uncompressed.</li>
-    <li><strong>Folder of PDFs</strong> — the browser’s directory picker (files are uploaded to this process).</li>
-    <li><strong>Directory on this workstation</strong> — a path this server can read. <strong>…</strong> opens a native folder dialog on this workstation (needs a desktop session). <strong>Scan</strong> lists how many PDFs are in that folder before you send. Hidden files and the filesystem root are skipped / refused. There is no login.</li>
-    <li><strong>Patient Name / Patient ID</strong> — required (marked <span class="req">*</span>) unless you generate them. Optional accession, study description, and document title (defaults to the file name).</li>
+    <li><strong>Folder of PDFs</strong> — the browser’s directory picker. Only <code>.pdf</code> files are kept.</li>
+    <li><strong>Directory on this workstation</strong> — a path this server can read. <strong>…</strong> opens a native folder dialog on this workstation (needs a desktop session). <strong>Scan</strong> lists PDF files only; other types are ignored. Hidden files and the filesystem root are skipped / refused. There is no login.</li>
+    <li><strong>Patient Name / Patient ID</strong> — required (marked <span class="req">*</span>) unless you generate them. Checking <strong>Generate</strong> fills the field with a value such as <code>ARNPRO^PDFxxxx</code> / <code>PDFxxxxxxxx</code>. Optional accession, study description, and document title (defaults to the file name).</li>
     <li><strong>Generate Patient Name / ID</strong> — fills one shared identity for the batch (useful when you do not have a real patient). <strong>Unique patient per PDF</strong> derives Name and ID from each file name so a folder of reports does not land as one person on the PACS.</li>
     <li><strong>Same study</strong> — on by default. All PDFs in the batch share one Study Instance UID and Series Instance UID.</li>
     <li><strong>Store on PACS</strong> — C-STORE Encapsulated PDF Storage. Uncheck to encapsulate only and see the SOP UIDs. The peer must accept that SOP Class; a green C-ECHO or Secondary Capture C-STORE is not enough.</li>
