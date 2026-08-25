@@ -357,6 +357,12 @@ function initPdfStoreForm(scope) {
     if (unique && sameStudy instanceof HTMLInputElement) {
       sameStudy.checked = false;
     }
+    if (unique && nameInput instanceof HTMLInputElement) {
+      nameInput.value = "";
+    }
+    if (unique && idInput instanceof HTMLInputElement) {
+      idInput.value = "";
+    }
     const nameLabel = form.querySelector('[data-patient-field="name"]');
     const idLabel = form.querySelector('[data-patient-field="id"]');
     nameLabel?.classList.toggle("is-optional", genName);
