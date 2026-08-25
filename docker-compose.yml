@@ -5,12 +5,24 @@ services:
       context: .
       dockerfile: Dockerfile
     ports:
-      - "8080:8080"
-      - "11112:11112"
+      # The web UI and JSON API have no login, so they are published to the
+      # loopback interface only. Set DICOMM_HTTP_BIND to 0.0.0.0 to reach the UI
+      # from elsewhere on the network, and put an authenticating reverse proxy
+      # in front of it when you do.
+      - "${DICOMM_HTTP_BIND:-127.0.0.1}:8080:8080"
+      # The MWL SCP has to be reachable for a modality to C-FIND this
+      # workstation, so it stays on every interface. It only listens once
+      # "Serve the web worklist over DICOM" is enabled in Configuration.
+      # Set DICOMM_DICOM_BIND to pin it to one address.
+      - "${DICOMM_DICOM_BIND:-0.0.0.0}:11112:11112"
     volumes:
       - ${HOME}/.dicommunication:/app/data
     environment:
       DICOMM_DATA_DIR: /app/data
+      # The container cannot see its own host-side port mapping, so tell it
+      # which address the UI was published on. Startup logs it, which is where
+      # someone looks when the UI will not load from another machine.
+      DICOMM_HTTP_BIND: ${DICOMM_HTTP_BIND:-127.0.0.1}
     extra_hosts:
       - "host.docker.internal:host-gateway"
     restart: unless-stopped

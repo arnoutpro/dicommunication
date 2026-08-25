@@ -1,6 +1,8 @@
 from __future__ import annotations
 
-from app.models import Hl7Message, LocalAE, RemoteNode, VirtualAE
+import json
+
+from app.models import Hl7Message, LocalAE, RemoteNode, VirtualAE, WorklistEntry
 from app.store import ConfigStore
 
 
@@ -58,3 +60,59 @@ def test_store_roundtrip_hl7_messages(tmp_path) -> None:
     store.delete_hl7_message(stored.id)
     assert store.list_hl7_messages() == []
     assert store.get_hl7_message(stored.id) is None
+
+
+def test_unparsable_config_falls_back_to_defaults(tmp_path) -> None:
+    (tmp_path / "config.json").write_text("{ not json at all", encoding="utf-8")
+    store = ConfigStore(tmp_path)
+
+    config = store.load()
+
+    assert config.local.ae_title == "DICOMM"
+    assert config.remotes == []
+    backups = list(tmp_path.glob("config.corrupt-*.json"))
+    assert len(backups) == 1, "the unreadable file should be kept for recovery"
+    assert backups[0].read_text(encoding="utf-8") == "{ not json at all"
+
+
+def test_schema_invalid_config_falls_back_to_defaults(tmp_path) -> None:
+    (tmp_path / "config.json").write_text(
+        json.dumps({"local": {"ae_title": "X", "port": 999999}}), encoding="utf-8"
+    )
+    store = ConfigStore(tmp_path)
+
+    assert store.load().local.port == 11112
+    assert list(tmp_path.glob("config.corrupt-*.json"))
+
+
+def test_config_is_rewritten_after_a_fallback(tmp_path) -> None:
+    (tmp_path / "config.json").write_text("]]]", encoding="utf-8")
+    store = ConfigStore(tmp_path)
+    store.load()
+
+    store.add_remote(RemoteNode(name="PACS", ae_title="PACS", host="10.0.0.1", port=104))
+
+    assert [r.ae_title for r in ConfigStore(tmp_path).load().remotes] == ["PACS"]
+
+
+def test_one_bad_record_does_not_hide_the_rest(tmp_path) -> None:
+    store = ConfigStore(tmp_path)
+    store.add_worklist_entry(WorklistEntry(patient_name="DOE^JANE", patient_id="1"))
+    raw = json.loads((tmp_path / "worklist.json").read_text(encoding="utf-8"))
+    raw.append({"patient_name": "NO^ID"})  # patient_id is required
+    raw.append("not even an object")
+    (tmp_path / "worklist.json").write_text(json.dumps(raw), encoding="utf-8")
+
+    entries = ConfigStore(tmp_path).list_worklist()
+
+    assert [entry.patient_id for entry in entries] == ["1"]
+
+
+def test_unparsable_worklist_does_not_raise(tmp_path) -> None:
+    (tmp_path / "worklist.json").write_text("<<<not json>>>", encoding="utf-8")
+    store = ConfigStore(tmp_path)
+
+    assert store.list_worklist() == []
+
+    entry = store.add_worklist_entry(WorklistEntry(patient_name="A^B", patient_id="7"))
+    assert [item.id for item in store.list_worklist()] == [entry.id]

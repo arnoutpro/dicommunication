@@ -13,6 +13,15 @@ AE_TITLE_MAX = 16
 AE_TITLE_PATTERN = re.compile(r"^[\x20-\x7e]+$")
 
 
+def new_record_id() -> str:
+    """Identifier for a stored record. Server-assigned, never taken from a request."""
+    return uuid.uuid4().hex[:12]
+
+
+def utc_now() -> datetime:
+    return datetime.now(timezone.utc)
+
+
 def normalize_ae_title(value: str) -> str:
     """Normalize a DICOM Application Entity Title (16-char printable ASCII)."""
     value = value.strip()
@@ -78,7 +87,7 @@ class LocalAE(BaseModel):
 class VirtualAE(BaseModel):
     """A saved calling-AE identity for impersonating a modality without extra listen ports."""
 
-    id: str = Field(default_factory=lambda: uuid.uuid4().hex[:12])
+    id: str = Field(default_factory=new_record_id)
     name: str
     ae_title: str
     station_ae_title: str = ""
@@ -119,7 +128,7 @@ class VirtualAE(BaseModel):
 class RemoteNode(BaseModel):
     """A peer DICOM Application Entity (PACS, modality, VNA, test SCP)."""
 
-    id: str = Field(default_factory=lambda: uuid.uuid4().hex[:12])
+    id: str = Field(default_factory=new_record_id)
     name: str
     ae_title: str
     host: str = ""
@@ -128,7 +137,7 @@ class RemoteNode(BaseModel):
     notes: str = ""
     kind: Literal["pacs", "mwl", "modality", "vna", "other"] = "other"
     provides_mwl: bool = False
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    created_at: datetime = Field(default_factory=utc_now)
 
     @field_validator("name")
     @classmethod
@@ -237,14 +246,14 @@ class ToolStep(BaseModel):
 
 
 class ToolResult(BaseModel):
-    id: str = Field(default_factory=lambda: uuid.uuid4().hex[:12])
+    id: str = Field(default_factory=new_record_id)
     tool_id: str
     tool_name: str
     ok: bool
     summary: str
     remote_id: str | None = None
     remote_name: str | None = None
-    started_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    started_at: datetime = Field(default_factory=utc_now)
     duration_ms: float = 0
     steps: list[ToolStep] = Field(default_factory=list)
     log: str = ""
@@ -291,7 +300,7 @@ class WorklistQuery(BaseModel):
 
 
 class WorklistEntry(BaseModel):
-    id: str = Field(default_factory=lambda: uuid.uuid4().hex[:12])
+    id: str = Field(default_factory=new_record_id)
     patient_name: str
     patient_id: str
     patient_birth_date: str = ""
@@ -351,10 +360,10 @@ class WorklistQueryResult(BaseModel):
 class Hl7Message(BaseModel):
     """A saved HL7 v2 draft. Stored as text; not parsed."""
 
-    id: str = Field(default_factory=lambda: uuid.uuid4().hex[:12])
+    id: str = Field(default_factory=new_record_id)
     name: str
     body: str
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    created_at: datetime = Field(default_factory=utc_now)
 
     @field_validator("name")
     @classmethod

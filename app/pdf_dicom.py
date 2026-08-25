@@ -26,6 +26,9 @@ MAX_ZIP_BYTES = 40 * 1024 * 1024
 MAX_ZIP_UNCOMPRESSED = 80 * 1024 * 1024
 MAX_FILES = 40
 MAX_DIR_DEPTH = 3
+# Upper bound on directory entries visited by one scan. MAX_FILES PDFs is all
+# the tool can import, so there is no reason to keep reading a huge tree.
+MAX_SCAN_ENTRIES = 20_000
 PDF_MAGIC = b"%PDF"
 
 
@@ -98,19 +101,33 @@ def _add_source(
     sources.append(PdfSource(name=label, data=data, origin=origin))
 
 
+# zipfile raises these for entries that are corrupt, truncated, or use a
+# compression method this build cannot decode. A hostile or merely damaged
+# upload must not escape as an unhandled 500.
+ZIP_ENTRY_ERRORS = (
+    zipfile.BadZipFile,
+    NotImplementedError,
+    EOFError,
+    OSError,
+    RuntimeError,
+    ValueError,
+)
+
+
 def collect_from_zip(payload: bytes) -> tuple[list[PdfSource], list[str]]:
     if _too_large(payload, MAX_ZIP_BYTES):
         raise CollectError(f"ZIP is larger than {MAX_ZIP_BYTES // (1024 * 1024)} MB.")
     try:
         archive = zipfile.ZipFile(io.BytesIO(payload))
-    except zipfile.BadZipFile as exc:
+        entries = archive.infolist()
+    except ZIP_ENTRY_ERRORS as exc:
         raise CollectError("Not a valid ZIP archive.") from exc
     sources: list[PdfSource] = []
     warnings: list[str] = []
     uncompressed = 0
     skipped_not_pdf = 0
     with archive:
-        for info in archive.infolist():
+        for info in entries:
             if info.is_dir():
                 continue
             if info.flag_bits & 0x1:
@@ -132,8 +149,12 @@ def collect_from_zip(payload: bytes) -> tuple[list[PdfSource], list[str]]:
                 raise CollectError(
                     f"ZIP uncompressed size exceeds {MAX_ZIP_UNCOMPRESSED // (1024 * 1024)} MB."
                 )
-            with archive.open(info, "r") as handle:
-                data = _read_limited(handle, MAX_PDF_BYTES)
+            try:
+                with archive.open(info, "r") as handle:
+                    data = _read_limited(handle, MAX_PDF_BYTES)
+            except ZIP_ENTRY_ERRORS as exc:
+                warnings.append(f"{basename}: unreadable ZIP entry ({exc}), skipped.")
+                continue
             _add_source(sources, warnings, name=basename, data=data, origin=f"zip:{info.filename}")
     if skipped_not_pdf:
         warnings.append(
@@ -161,19 +182,47 @@ def _resolve_import_root(path: str | Path) -> Path:
     raise CollectError(f"Not a file or directory: {raw}")
 
 
+def _walk_within_depth(root: Path) -> Iterable[Path]:
+    """Yield files under ``root``, pruning by depth and stopping at a budget.
+
+    ``rglob`` would enumerate the whole subtree before the depth and dot-file
+    filters ran, so pointing the scan at a large folder read far more of the
+    disk than it could ever import. Prune while walking instead, skip symlinked
+    directories so a link loop cannot spin forever, and give up after
+    MAX_SCAN_ENTRIES so one mistyped path cannot stall the request.
+    """
+    seen = 0
+    stack: list[tuple[Path, int]] = [(root, 0)]
+    while stack:
+        directory, depth = stack.pop()
+        try:
+            children = sorted(directory.iterdir())
+        except OSError:
+            continue
+        for child in children:
+            if child.name.startswith("."):
+                continue
+            seen += 1
+            if seen > MAX_SCAN_ENTRIES:
+                return
+            try:
+                if child.is_symlink():
+                    continue
+                if child.is_dir():
+                    if depth < MAX_DIR_DEPTH:
+                        stack.append((child, depth + 1))
+                    continue
+                if child.is_file():
+                    yield child
+            except OSError:
+                continue
+
+
 def iter_directory_pdfs(path: str | Path) -> tuple[Path, list[tuple[Path, str]], int]:
     """Return (root, PDF hits, count of other visible files ignored)."""
     root = _resolve_import_root(path)
-    files: list[Path]
     base = root if root.is_dir() else root.parent
-    if root.is_file():
-        files = [root]
-    else:
-        files = sorted(
-            candidate
-            for candidate in root.rglob("*")
-            if candidate.is_file() and not candidate.is_symlink()
-        )
+    files = [root] if root.is_file() else sorted(_walk_within_depth(root))
     hits: list[tuple[Path, str]] = []
     skipped_other = 0
     for file in files:
@@ -264,6 +313,10 @@ def collect_from_uploads(items: Iterable[dict[str, Any]]) -> tuple[list[PdfSourc
     warnings: list[str] = []
     for item in items:
         name = str(item.get("filename") or item.get("name") or "document.pdf")
+        if item.get("skip") == "too-many":
+            # The caller stopped reading at the cap rather than buffering the
+            # rest. Fail the same way an over-long in-memory batch would.
+            raise CollectError(f"Too many PDFs (max {MAX_FILES}).")
         if item.get("skip") == "not-pdf" or not is_pdf_filename(name):
             warnings.append(f"{name}: not a PDF, skipped.")
             continue
