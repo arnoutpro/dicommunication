@@ -100,6 +100,15 @@ DICOMM_HTTP_BIND=0.0.0.0 docker compose up -d
 
 `DICOMM_DICOM_BIND` pins the MWL SCP to one address (for example `DICOMM_DICOM_BIND=10.0.0.5`) when the host has several NICs and only one faces the modality VLAN.
 
+Startup names the address the UI was published on, so `docker compose logs` answers "why can I not reach this from my laptop":
+
+```
+Dicommunication 0.3.0 started (data dir /app/data, log level INFO)
+Web UI published on 127.0.0.1:8080 — reachable from the Docker host only. The UI has
+no login, so this is the default. To reach it from another machine, restart with
+DICOMM_HTTP_BIND=0.0.0.0 and put an authenticating reverse proxy in front of it.
+```
+
 It also sets `host.docker.internal` so a PACS on the Docker host (typical on a Mac) is reachable from inside the container.
 
 ### Published image (GHCR)
@@ -499,4 +508,4 @@ This is a trusted-network admin tool. The web UI has no login, so Compose publis
 | Mac Dock icon is live, no window | Quit from the Dock, then install a DMG built after the argv-emulation fix. Check `~/.dicommunication/launch.log`. Rebuild: **Actions → macOS DMG** with `release_tag=v0.2.0`. |
 | UI opens in Safari/Chrome instead of an app window | Frozen builds should use a native window. Pass `--window`, or check WebView2 on Windows. `--browser` forces the system browser. |
 | Modality cannot C-FIND this tool | Enable the MWL SCP, publish/allow `11112` (Windows: inbound TCP for `dicommunication.exe`; macOS: allow incoming for **Dicommunication**), and put this workstation AE on the modality’s worklist node list. |
-| UI loads on the Docker host but not from another machine | Expected. Compose publishes `8080` on `127.0.0.1` because there is no login. Start with `DICOMM_HTTP_BIND=0.0.0.0` and front it with an authenticating reverse proxy. |
+| UI loads on the Docker host but not from another machine | Expected. Compose publishes `8080` on `127.0.0.1` because there is no login. `docker compose logs` names the address it published on and how to change it. Start with `DICOMM_HTTP_BIND=0.0.0.0` and front it with an authenticating reverse proxy. |
