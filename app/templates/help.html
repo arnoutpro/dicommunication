@@ -34,6 +34,7 @@
     <li><a href="#c-store">C-STORE</a></li>
     <li><a href="#pdf-store">PDF to DICOM</a></li>
     <li><a href="#c-find">Study Root C-FIND</a></li>
+    <li><a href="#c-find-advanced">C-FIND Advanced</a></li>
     <li><a href="#mwl-find">MWL C-FIND</a></li>
     <li><a href="#hl7-send">HL7 send</a></li>
     <li><a href="#reading-results">Reading accepted vs rejected SOP Classes</a></li>
@@ -109,7 +110,13 @@
           <td><strong>C-FIND</strong></td>
           <td>C-FIND</td>
           <td>Study Root Query/Retrieve FIND</td>
-          <td>Search <em>stored studies</em> in a PACS archive. Zero matches can still be a successful Q/R C-FIND.</td>
+          <td>Search <em>stored studies</em> in a PACS archive at STUDY level. Zero matches can still be a successful Q/R C-FIND.</td>
+        </tr>
+        <tr>
+          <td><strong>C-FIND Advanced</strong></td>
+          <td>C-FIND</td>
+          <td>Study Root Query/Retrieve FIND</td>
+          <td>Same SOP Class at Study, Series, or Image. Hierarchical: Series needs Study Instance UID; Image needs Study and Series Instance UID. Copy / CSV / JSON export.</td>
         </tr>
         <tr>
           <td><strong>MWL C-FIND / Worklist</strong></td>
@@ -417,7 +424,23 @@
     <a href="/tools/c-find">Open</a>
   </header>
   <p>Query/Retrieve Study Root FIND — search <em>stored studies</em> in a PACS archive. This is not Modality Worklist. Leave filters empty for a broad STUDY-level query. Optional filters: patient name, patient ID, accession, study date, modality in study.</p>
-  <p>Zero matches with a Pass still means the SOP Class was accepted and the query succeeded. If C-ECHO works and Study Root C-FIND fails, the peer is not a Q/R SCP (or that information model is not offered). Use Worklist / MWL C-FIND for scheduled procedures.</p>
+  <p>Zero matches with a Pass still means the SOP Class was accepted and the query succeeded. If C-ECHO works and Study Root C-FIND fails, the peer is not a Q/R SCP (or that information model is not offered). Use Worklist / MWL C-FIND for scheduled procedures. For Series or Image keys, use <a href="#c-find-advanced">C-FIND Advanced</a>.</p>
+</section>
+
+<section class="panel help-section" id="c-find-advanced">
+  <header class="panel-head">
+    <h2>C-FIND Advanced</h2>
+    <a href="/tools/c-find-advanced">Open</a>
+  </header>
+  <p>The same Study Root Query/Retrieve FIND SOP Class as simple C-FIND, at <strong>Study</strong>, <strong>Series</strong>, or <strong>Image</strong>. Each level lists the searchable keys for that level (DICOM required/unique keys plus common optional keys such as Study Description, Modalities in Study, Body Part Examined, SOP Class UID).</p>
+  <ul>
+    <li>Checked keys are sent as return columns. A typed value is also a matching key. Empty STUDY filters are a broad study query.</li>
+    <li><strong>Hierarchical FIND</strong> — not relational. Series keys unlock after <strong>Study Instance UID</strong> is filled. Image keys unlock after Study Instance UID and <strong>Series Instance UID</strong>. Philips Vue PACS documents this the same way: Unique keys of the parent levels must be present.</li>
+    <li>Some keys stay locked until another field is present. Example: Repetition Time is an MR series key, so it stays unavailable while Modality is <code>CT</code>.</li>
+    <li>Click a result row to copy parent UIDs into the next level (Study → Series → Image).</li>
+    <li>The result table is column-aligned. <strong>Copy table</strong> puts tab-separated rows on the clipboard (Excel). <strong>Download CSV</strong> and <strong>Download JSON</strong> export the same records. You can also select cells and copy.</li>
+    <li>This still searches <em>stored</em> studies, not the modality worklist. Retrieve of matching objects is C-MOVE. This tool does not send C-GET or C-MOVE.</li>
+  </ul>
 </section>
 
 <section class="panel help-section" id="mwl-find">
@@ -521,7 +544,7 @@
     <h2>JSON API</h2>
   </header>
   <p>The same operations as the UI are available over HTTP. <code>GET /health</code> returns <code>{"status":"ok","version":"{{ app_version }}"}</code>. Interactive docs: <a href="/docs">/docs</a>.</p>
-  <p>Tool ids: <code>ping</code>, <code>c-echo</code>, <code>c-store</code>, <code>pdf-store</code>, <code>c-find</code>, <code>mwl-find</code>, <code>hl7-send</code>. <code>hl7-send</code> does not need a remote id; pass host, port, and message in options. <code>pdf-store</code> takes Patient Name / ID in options, plus <code>pdfs</code> (filename + content_b64), <code>zip_b64</code>, or <code>directory</code>, and <code>send</code> (default true). DIMSE tools take <code>remote_id</code> and optional <code>identity_id</code> for a virtual calling AE. Worklist query <code>source</code> is <code>local</code> or a remote id.</p>
+  <p>Tool ids: <code>ping</code>, <code>c-echo</code>, <code>c-store</code>, <code>pdf-store</code>, <code>c-find</code>, <code>c-find-advanced</code>, <code>mwl-find</code>, <code>hl7-send</code>. <code>hl7-send</code> does not need a remote id; pass host, port, and message in options. <code>pdf-store</code> takes Patient Name / ID in options, plus <code>pdfs</code> (filename + content_b64), <code>zip_b64</code>, or <code>directory</code>, and <code>send</code> (default true). <code>c-find-advanced</code> takes <code>level</code> (<code>STUDY</code>, <code>SERIES</code>, <code>IMAGE</code>), <code>values</code> (DICOM keywords), and optional <code>return_keys</code>. DIMSE tools take <code>remote_id</code> and optional <code>identity_id</code> for a virtual calling AE. Worklist query <code>source</code> is <code>local</code> or a remote id.</p>
   <p>This API has no authentication. Restrict it the same way you restrict the UI.</p>
 </section>
 
@@ -567,6 +590,10 @@
         <tr>
           <td>C-ECHO works, Study Root C-FIND fails</td>
           <td>Peer is not a Q/R SCP. This is not MWL.</td>
+        </tr>
+        <tr>
+          <td>C-FIND Advanced Series/Image stays locked or fails</td>
+          <td>Hierarchical FIND. Fill Study Instance UID for Series; Study and Series Instance UID for Image. Empty Study UID cannot search body part archive-wide.</td>
         </tr>
         <tr>
           <td>C-ECHO / C-STORE / Q/R work, MWL fails</td>
