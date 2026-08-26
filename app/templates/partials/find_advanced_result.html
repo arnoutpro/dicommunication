@@ -1,0 +1,77 @@
+<article class="result {% if result.ok %}ok{% else %}fail{% endif %}" data-find-result>
+  <header>
+    <span class="badge {% if result.ok %}ok{% else %}fail{% endif %}">{% if result.ok %}Pass{% else %}Fail{% endif %}</span>
+    <div>
+      <strong>{{ result.tool_name }}</strong>
+      {% if result.remote_name %}<span class="muted">→ {{ result.remote_name }}</span>{% endif %}
+      {% if result.calling_ae %}<span class="muted">as {{ result.calling_ae }}</span>{% endif %}
+      <p>{{ result.summary }}</p>
+    </div>
+    <span class="muted">{{ result.duration_ms }} ms</span>
+  </header>
+  {% if result.steps %}
+  <ol class="steps">
+    {% for step in result.steps %}
+    <li>
+      <span class="dot {% if step.ok %}ok{% else %}fail{% endif %}"></span>
+      <div>
+        <strong>{{ step.name }}</strong>
+        <p>{{ step.message }}</p>
+        {% if step.details.get("output") %}
+        <pre class="log">{{ step.details.output }}</pre>
+        {% endif %}
+      </div>
+      {% if step.duration_ms is not none %}
+      <span class="muted">{{ step.duration_ms }} ms</span>
+      {% endif %}
+    </li>
+    {% endfor %}
+  </ol>
+  {% endif %}
+  {% if result.contexts %}
+  <h3 class="result-subhead">SOP Classes negotiated</h3>
+  {% with contexts=result.contexts %}
+    {% include "partials/contexts.html" %}
+  {% endwith %}
+  {% endif %}
+  {% if result.records %}
+  {% set columns = result.records[0].keys() | list %}
+  {% set labels = find_labels if find_labels is defined else {} %}
+  <h3 class="result-subhead">Returned records</h3>
+  <div class="find-export-bar">
+    <button class="button compact" type="button" data-find-copy>Copy table</button>
+    <button class="button compact" type="button" data-find-csv>Download CSV</button>
+    <button class="button compact" type="button" data-find-json>Download JSON</button>
+    <span class="hint">Copy is tab-separated for Excel. Click a row to reuse Study / Series UIDs at the next level.</span>
+  </div>
+  <div class="table-wrap find-table-wrap">
+    <table class="find-table" data-find-table>
+      <thead>
+        <tr>
+          {% for key in columns %}
+          <th title="{{ key }}">{{ labels.get(key, key.replace("_", " ")) }}</th>
+          {% endfor %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in result.records %}
+        <tr data-find-row>
+          {% for key, value in row.items() %}
+          <td data-key="{{ key }}">{{ value }}</td>
+          {% endfor %}
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <script type="application/json" data-find-export>{{ {"level": find_level|default("STUDY"), "columns": columns, "labels": labels, "records": result.records} | tojson }}</script>
+  {% elif result.ok %}
+  <p class="hint">The FIND SOP Class was accepted and the query succeeded with zero matches. Broaden the filters, or check that this calling AE is allowed to query the archive.</p>
+  {% endif %}
+  {% if result.log %}
+  <details>
+    <summary>{% if result.contexts %}Association log{% else %}Log{% endif %}</summary>
+    <pre class="log">{{ result.log }}</pre>
+  </details>
+  {% endif %}
+</article>

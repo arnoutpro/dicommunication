@@ -783,6 +783,314 @@ if (initialLogView) {
   initialLogView.scrollTop = initialLogView.scrollHeight;
 }
 
+function csvCell(value) {
+  const text = value == null ? "" : String(value);
+  if (/[",\n\r]/.test(text)) {
+    return `"${text.replaceAll('"', '""')}"`;
+  }
+  return text;
+}
+
+function downloadText(filename, text, type) {
+  const blob = new Blob([text], { type });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
+function findAdvancedForm() {
+  return document.querySelector("[data-find-advanced]");
+}
+
+function findValueInput(form, keyword) {
+  return form.querySelector(`[data-find-value="${keyword}"]`);
+}
+
+function selectedFindLevel(form) {
+  const checked = form.querySelector("[data-find-level]:checked");
+  return checked ? checked.value : "STUDY";
+}
+
+function collectFindValues(form) {
+  const values = {};
+  form.querySelectorAll("[data-find-value]").forEach((input) => {
+    values[input.getAttribute("data-find-value")] = input.value.trim();
+  });
+  return values;
+}
+
+function setFindValue(form, keyword, value) {
+  const input = findValueInput(form, keyword);
+  if (input) {
+    input.value = value || "";
+  }
+}
+
+function setFindLevel(form, level) {
+  const radio = form.querySelector(`[data-find-level][value="${level}"]`);
+  if (radio) {
+    radio.checked = true;
+  }
+}
+
+function syncFindAdvanced(form) {
+  if (!form) {
+    return;
+  }
+  const level = selectedFindLevel(form);
+  const values = collectFindValues(form);
+  const hint = form.querySelector("[data-find-level-hint]");
+  const hints = {
+    STUDY:
+      "Study Root FIND at Study level (patient + study keys). Empty checked fields are return columns. This is not Modality Worklist. Vue does not offer relational C-FIND or C-GET.",
+    SERIES:
+      "Series keys unlock after Study Instance UID is filled. Hierarchical FIND cannot search series across the archive without that parent Unique key.",
+    IMAGE:
+      "Image keys unlock after Study Instance UID and Series Instance UID are filled. Retrieve of those instances is C-MOVE, not C-GET.",
+  };
+  if (hint) {
+    hint.textContent = hints[level] || hints.STUDY;
+  }
+  form.querySelectorAll("[data-find-group]").forEach((group) => {
+    const visible = [...group.querySelectorAll("[data-find-key]")].some((node) =>
+      (node.getAttribute("data-levels") || "").split(/\s+/).includes(level)
+    );
+    group.hidden = !visible;
+  });
+  form.querySelectorAll("[data-find-key]").forEach((node) => {
+    const levels = (node.getAttribute("data-levels") || "").split(/\s+/).filter(Boolean);
+    const onLevel = levels.includes(level);
+    node.hidden = !onLevel;
+    const include = node.querySelector("[data-find-include]");
+    const input = node.querySelector("[data-find-value]");
+    const hintNode = node.querySelector("[data-find-hint]");
+    const requires = (node.getAttribute("data-requires") || "").split(/\s+/).filter(Boolean);
+    const modalityIn = (node.getAttribute("data-modality-in") || "")
+      .split(/\s+/)
+      .filter(Boolean)
+      .map((item) => item.toUpperCase());
+    const missing = requires.filter((name) => !values[name]);
+    const modality = (values.Modality || "").toUpperCase();
+    const modalityBlocked = modalityIn.length > 0 && modality && !modalityIn.includes(modality);
+    const locked = !onLevel || missing.length > 0 || modalityBlocked;
+    node.classList.toggle("is-locked", onLevel && locked);
+    if (include) {
+      include.disabled = locked;
+    }
+    if (input) {
+      input.disabled = locked;
+    }
+    if (hintNode) {
+      const original = node.getAttribute("data-hint-original");
+      if (original == null) {
+        node.setAttribute("data-hint-original", hintNode.textContent || "");
+      }
+      if (!onLevel) {
+        hintNode.textContent = node.getAttribute("data-hint-original") || "";
+      } else if (missing.length) {
+        hintNode.textContent = `Enter ${missing.join(", ")} first`;
+      } else if (modalityBlocked) {
+        hintNode.textContent = `Available when Modality is ${modalityIn.join(", ")} (or left empty)`;
+      } else {
+        hintNode.textContent = node.getAttribute("data-hint-original") || "";
+      }
+    }
+  });
+}
+
+function applyFindSelection(form, mode) {
+  form.querySelectorAll("[data-find-key]").forEach((node) => {
+    if (node.hidden) {
+      return;
+    }
+    const include = node.querySelector("[data-find-include]");
+    const input = node.querySelector("[data-find-value]");
+    if (mode === "clear" && input && !input.disabled) {
+      input.value = "";
+    }
+    if (!include || include.disabled) {
+      return;
+    }
+    if (mode === "all") {
+      include.checked = true;
+    } else if (mode === "defaults") {
+      const role = node.getAttribute("data-role");
+      include.checked =
+        node.getAttribute("data-default-return") === "1" || role === "unique" || role === "required";
+    }
+  });
+  syncFindAdvanced(form);
+}
+
+function parseFindExport(root) {
+  const node = root.querySelector("[data-find-export]");
+  if (!node) {
+    return null;
+  }
+  try {
+    return JSON.parse(node.textContent || "null");
+  } catch {
+    return null;
+  }
+}
+
+function findExportFilename(payload, extension) {
+  const level = (payload && payload.level ? payload.level : "STUDY").toLowerCase();
+  const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-");
+  return `c-find-advanced-${level}-${stamp}.${extension}`;
+}
+
+function copyFindTable(root) {
+  const payload = parseFindExport(root);
+  const table = root.querySelector("[data-find-table]");
+  let text = "";
+  if (payload && payload.records && payload.columns) {
+    const labels = payload.columns.map((column) => (payload.labels && payload.labels[column]) || column);
+    const lines = [labels.join("\t")];
+    payload.records.forEach((row) => {
+      lines.push(payload.columns.map((column) => String(row[column] ?? "").replaceAll("\t", " ")).join("\t"));
+    });
+    text = lines.join("\n");
+  } else if (table) {
+    text = [...table.rows]
+      .map((row) => [...row.cells].map((cell) => cell.innerText.replaceAll("\t", " ")).join("\t"))
+      .join("\n");
+  }
+  if (!text) {
+    return;
+  }
+  const flash = () => {
+    const bar = root.querySelector(".find-export-bar .hint");
+    if (!bar) {
+      return;
+    }
+    bar.textContent = "Copied as tab-separated rows.";
+    bar.classList.add("find-copy-flash");
+    window.setTimeout(() => {
+      bar.classList.remove("find-copy-flash");
+      bar.textContent =
+        "Copy is tab-separated for Excel. Click a row to reuse Study / Series UIDs at the next level.";
+    }, 1800);
+  };
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(flash).catch(() => {
+      window.prompt("Copy this table", text);
+    });
+  } else {
+    window.prompt("Copy this table", text);
+  }
+}
+
+function downloadFindCsv(root) {
+  const payload = parseFindExport(root);
+  if (!payload || !payload.records || !payload.columns) {
+    return;
+  }
+  const labels = payload.columns.map((column) => (payload.labels && payload.labels[column]) || column);
+  const lines = [labels.map(csvCell).join(",")];
+  payload.records.forEach((row) => {
+    lines.push(payload.columns.map((column) => csvCell(row[column])).join(","));
+  });
+  downloadText(findExportFilename(payload, "csv"), `${lines.join("\n")}\n`, "text/csv;charset=utf-8");
+}
+
+function downloadFindJson(root) {
+  const payload = parseFindExport(root);
+  if (!payload) {
+    return;
+  }
+  downloadText(
+    findExportFilename(payload, "json"),
+    `${JSON.stringify(payload, null, 2)}\n`,
+    "application/json;charset=utf-8"
+  );
+}
+
+function useFindRow(row) {
+  const form = findAdvancedForm();
+  if (!form || !row) {
+    return;
+  }
+  const values = {};
+  row.querySelectorAll("td[data-key]").forEach((cell) => {
+    values[cell.getAttribute("data-key")] = (cell.textContent || "").trim();
+  });
+  row.closest("tbody")?.querySelectorAll("tr.is-selected").forEach((item) => {
+    item.classList.remove("is-selected");
+  });
+  row.classList.add("is-selected");
+  if (values.StudyInstanceUID) {
+    setFindValue(form, "StudyInstanceUID", values.StudyInstanceUID);
+  }
+  if (values.SeriesInstanceUID) {
+    setFindValue(form, "SeriesInstanceUID", values.SeriesInstanceUID);
+  }
+  const level = selectedFindLevel(form);
+  if (values.SeriesInstanceUID && level !== "IMAGE") {
+    setFindLevel(form, "IMAGE");
+  } else if (values.StudyInstanceUID && !values.SeriesInstanceUID && level === "STUDY") {
+    setFindLevel(form, "SERIES");
+  }
+  syncFindAdvanced(form);
+  form.querySelector("[data-find-value='StudyInstanceUID']")?.scrollIntoView({
+    block: "center",
+    behavior: "smooth",
+  });
+}
+
+function bindFindAdvanced(root) {
+  const scope = root || document;
+  const form = scope.querySelector ? scope.querySelector("[data-find-advanced]") : null;
+  const target = form || findAdvancedForm();
+  if (target && !target.dataset.findBound) {
+    target.dataset.findBound = "1";
+    target.addEventListener("change", (event) => {
+      if (event.target.closest("[data-find-level], [data-find-value], [data-find-include]")) {
+        syncFindAdvanced(target);
+      }
+    });
+    target.addEventListener("input", (event) => {
+      if (event.target.matches("[data-find-value]")) {
+        syncFindAdvanced(target);
+      }
+    });
+    target.addEventListener("click", (event) => {
+      const select = event.target.closest("[data-find-select]");
+      if (select) {
+        applyFindSelection(target, select.getAttribute("data-find-select"));
+      }
+    });
+    syncFindAdvanced(target);
+  }
+}
+
+document.addEventListener("click", (event) => {
+  const copy = event.target.closest("[data-find-copy]");
+  const csv = event.target.closest("[data-find-csv]");
+  const json = event.target.closest("[data-find-json]");
+  const row = event.target.closest("[data-find-row]");
+  const result = event.target.closest("[data-find-result]");
+  if (copy && result) {
+    copyFindTable(result);
+  } else if (csv && result) {
+    downloadFindCsv(result);
+  } else if (json && result) {
+    downloadFindJson(result);
+  } else if (row && result) {
+    useFindRow(row);
+  }
+});
+
+bindFindAdvanced(document);
+document.body.addEventListener("htmx:afterSwap", (event) => {
+  bindFindAdvanced(event.target);
+});
+
 document.body.addEventListener("htmx:responseError", (event) => {
   const target = event.detail.target;
   if (target && target.id === "log-view-panel") {
