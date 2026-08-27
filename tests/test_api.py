@@ -20,14 +20,14 @@ def test_health_and_pages(client) -> None:
     assert b'nav-branch is-open" data-nav-id="test-tools"' not in home.content
     assert b'id="nav-fold-test-tools" checked' not in home.content
     assert b"sidebar" in home.content
-    assert b"aurora-wrapper" in home.content
+    assert b"topbar" in home.content
     assert b'id="theme-toggle"' in home.content
     assert b'data-theme-option="light"' in home.content
     assert b'data-theme-option="dark"' in home.content
     assert b'data-theme-option="system"' in home.content
     assert b'data-theme-option="professional"' in home.content
-    assert b"brand-watermark" in home.content
-    assert b"site-brand-mark-letter" in home.content
+    assert b"site-brand-mark-layer" in home.content
+    assert b"site-brand-mark-svg" in home.content
     assert b"site-brand-copy" in home.content
     assert b'href="/logs"' in home.content
     assert b"DIMSE" in home.content
