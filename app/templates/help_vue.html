@@ -30,7 +30,7 @@
   </header>
   <p>This window is <strong>Vue PACS Database Analytics</strong>. It ships in the same Dicommunication installer. It is not the workstation: there is no PING, C-STORE, PDF, HL7, Testbench, or worklist here.</p>
   <p>Both tools share the calling AE Title and remote nodes in the data directory. Add the Vue Q/R SCP once; Dicommunication C-ECHO and this query page use the same record.</p>
-  <p>This searches <em>stored studies</em> with Study Root Query/Retrieve FIND. It is not Modality Worklist. After a Study query, <strong>List SR reports</strong> runs Series C-FIND with modality SR. <strong>Retrieve report text</strong> is Study Root C-MOVE of those series onto this AE; it is not C-GET.</p>
+  <p>This searches <em>stored studies</em> with Study Root Query/Retrieve FIND. It is not Modality Worklist. After a Study query, <strong>List SR reports</strong> runs Series C-FIND with modality SR for every study in the table. <strong>Retrieve report text</strong> is one Study Root C-MOVE per listed report onto this AE; it is not C-GET, and it is not limited to the first exam.</p>
 </section>
 
 <section class="panel help-section" id="query">
@@ -44,7 +44,7 @@
     <li>Some keys stay locked until another field is present. Example: Repetition Time is an MR series key, so it stays unavailable while Modality is <code>CT</code>.</li>
     <li>Click a result row to copy parent UIDs into the next level (Study → Series → Image).</li>
     <li>The result table is column-aligned. <strong>Copy table</strong> puts tab-separated rows on the clipboard (Excel). <strong>Download CSV</strong> and <strong>Download JSON</strong> export the same records.</li>
-    <li><strong>List SR reports</strong> takes the Study rows and queries Series with modality <code>SR</code> (same Study Instance UID, different Series Instance UID).</li>
+    <li><strong>List SR reports</strong> takes every Study row in the table (not a clicked row) and queries Series with modality <code>SR</code> (same Study Instance UID, different Series Instance UID).</li>
   </ul>
 </section>
 
@@ -55,10 +55,10 @@
   <p>Radiology reports stored as DICOM SR are a series inside the study. They keep the Study Instance UID and get their own Series Instance UID. Typical workflow:</p>
   <ol>
     <li>Study query: today’s date, Modalities in Study <code>CT</code> (or whatever you need).</li>
-    <li><strong>List SR reports</strong> — Series C-FIND, modality SR, for each study (capped at 80 studies).</li>
-    <li><strong>Retrieve report text</strong> — C-MOVE those SR series to this workstation’s AE Title. The Content Sequence is flattened into concept / type / value rows. No language model.</li>
+    <li><strong>List SR reports</strong> — Series C-FIND, modality SR, for every study in the result table (capped at 200 studies). The button shows how many studies will be queried. Clicking a row does not limit this to that exam.</li>
+    <li><strong>Retrieve report text</strong> — C-MOVE every listed SR (the button shows the count) to this workstation’s AE Title. Each report is a separate C-MOVE, so Vue cannot stop after the first exam. The Content Sequence is flattened into concept / type / value rows. No language model.</li>
   </ol>
-  <p>Retrieve needs <strong>Accept C-STORE (Structured Reports)</strong> on Local DICOM AE, and Vue must list that AE Title as a C-MOVE destination at this host:port. Imaging series are not stored. A retrieve asks for up to 200 SR series and keeps going if one series fails. The result shows <strong>Findings</strong> and <strong>Impression</strong> as report text; the DICOM Content Sequence tree is under a fold. <strong>Download JSON</strong> includes those fields, plus <code>sr_text</code> (the full report) and the Content Sequence tree.</p>
+  <p>Retrieve needs <strong>Accept C-STORE (Structured Reports)</strong> on Local DICOM AE, and Vue must list that AE Title as a C-MOVE destination at this host:port. Imaging series are not stored. A retrieve asks for up to 200 SR series. Each report is C-MOVEd on its own association; the summary is <strong>Retrieved N of M</strong>. The result shows <strong>Findings</strong> and <strong>Impression</strong> as report text; the DICOM Content Sequence tree is under a fold. <strong>Download JSON</strong> includes those fields, plus <code>sr_text</code> (the full report) and the Content Sequence tree.</p>
 </section>
 
 <section class="panel help-section" id="vue-keys">
