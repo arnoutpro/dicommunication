@@ -793,14 +793,38 @@ function csvCell(value) {
 
 function downloadText(filename, text, type) {
   const blob = new Blob([text], { type });
+  if (window.navigator && typeof window.navigator.msSaveOrOpenBlob === "function") {
+    window.navigator.msSaveOrOpenBlob(blob, filename);
+    return true;
+  }
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
   link.download = filename;
+  link.rel = "noopener";
   document.body.appendChild(link);
   link.click();
-  link.remove();
-  URL.revokeObjectURL(url);
+  window.setTimeout(() => {
+    link.remove();
+    URL.revokeObjectURL(url);
+  }, 1500);
+  return true;
+}
+
+function copyText(text) {
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    return navigator.clipboard.writeText(text);
+  }
+  const area = document.createElement("textarea");
+  area.value = text;
+  area.setAttribute("readonly", "");
+  area.style.position = "fixed";
+  area.style.left = "-9999px";
+  document.body.appendChild(area);
+  area.select();
+  document.execCommand("copy");
+  area.remove();
+  return Promise.resolve();
 }
 
 function findAdvancedForm() {
@@ -947,11 +971,33 @@ function parseFindExport(root) {
   if (!node) {
     return null;
   }
+  const raw = node.tagName === "TEXTAREA" ? node.value : node.textContent;
   try {
-    return JSON.parse(node.textContent || "null");
+    return JSON.parse(raw || "null");
   } catch {
     return null;
   }
+}
+
+function flashFindExport(root, message, ok) {
+  const bar = root.querySelector("[data-find-export-hint]") || root.querySelector(".find-export-bar .hint");
+  if (!bar) {
+    if (!ok) {
+      window.alert(message);
+    }
+    return;
+  }
+  if (!bar.getAttribute("data-find-hint-original")) {
+    bar.setAttribute("data-find-hint-original", bar.textContent || "");
+  }
+  bar.textContent = message;
+  bar.classList.toggle("find-copy-flash", Boolean(ok));
+  bar.classList.toggle("find-export-error", !ok);
+  window.setTimeout(() => {
+    bar.classList.remove("find-copy-flash");
+    bar.classList.remove("find-export-error");
+    bar.textContent = bar.getAttribute("data-find-hint-original") || "";
+  }, 2200);
 }
 
 function findExportFilename(payload, extension) {
@@ -977,33 +1023,20 @@ function copyFindTable(root) {
       .join("\n");
   }
   if (!text) {
+    flashFindExport(root, "Nothing to copy.", false);
     return;
   }
-  const flash = () => {
-    const bar = root.querySelector(".find-export-bar .hint");
-    if (!bar) {
-      return;
-    }
-    bar.textContent = "Copied as tab-separated rows.";
-    bar.classList.add("find-copy-flash");
-    window.setTimeout(() => {
-      bar.classList.remove("find-copy-flash");
-      bar.textContent =
-        "Copy is tab-separated for Excel. Click a row to reuse Study / Series UIDs at the next level.";
-    }, 1800);
-  };
-  if (navigator.clipboard && navigator.clipboard.writeText) {
-    navigator.clipboard.writeText(text).then(flash).catch(() => {
+  copyText(text)
+    .then(() => flashFindExport(root, "Copied as tab-separated rows.", true))
+    .catch(() => {
       window.prompt("Copy this table", text);
     });
-  } else {
-    window.prompt("Copy this table", text);
-  }
 }
 
 function downloadFindCsv(root) {
   const payload = parseFindExport(root);
   if (!payload || !payload.records || !payload.columns) {
+    flashFindExport(root, "Nothing to download.", false);
     return;
   }
   const labels = payload.columns.map((column) => (payload.labels && payload.labels[column]) || column);
@@ -1012,11 +1045,13 @@ function downloadFindCsv(root) {
     lines.push(payload.columns.map((column) => csvCell(row[column])).join(","));
   });
   downloadText(findExportFilename(payload, "csv"), `${lines.join("\n")}\n`, "text/csv;charset=utf-8");
+  flashFindExport(root, "Downloading CSV…", true);
 }
 
 function downloadFindJson(root) {
   const payload = parseFindExport(root);
   if (!payload) {
+    flashFindExport(root, "Nothing to download.", false);
     return;
   }
   downloadText(
@@ -1024,6 +1059,7 @@ function downloadFindJson(root) {
     `${JSON.stringify(payload, null, 2)}\n`,
     "application/json;charset=utf-8"
   );
+  flashFindExport(root, "Downloading JSON…", true);
 }
 
 function clearFindFollow(form) {
@@ -1041,6 +1077,9 @@ function startFindFollow(kind, resultRoot) {
   const form = findAdvancedForm();
   const payload = parseFindExport(resultRoot);
   if (!form || !payload || !payload.records) {
+    if (resultRoot) {
+      flashFindExport(resultRoot, "No result rows to follow up.", false);
+    }
     return;
   }
   const follow = form.querySelector("[data-find-follow-field]");

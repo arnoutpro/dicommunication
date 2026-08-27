@@ -58,7 +58,7 @@
     <li><strong>List SR reports</strong> — Series C-FIND, modality SR, for each study (capped at 80 studies).</li>
     <li><strong>Retrieve report text</strong> — C-MOVE those SR series to this workstation’s AE Title. The Content Sequence is flattened into concept / type / value rows. No language model.</li>
   </ol>
-  <p>Retrieve needs <strong>Accept C-STORE (Structured Reports)</strong> on Local DICOM AE, and Vue must list that AE Title as a C-MOVE destination at this host:port. Imaging series are not stored. <strong>Download JSON</strong> includes <strong>Findings</strong> and <strong>Impression</strong> as their own fields, plus <code>sr_text</code> (the full report) and the Content Sequence tree.</p>
+  <p>Retrieve needs <strong>Accept C-STORE (Structured Reports)</strong> on Local DICOM AE, and Vue must list that AE Title as a C-MOVE destination at this host:port. Imaging series are not stored. A retrieve asks for up to 200 SR series and keeps going if one series fails. The result shows <strong>Findings</strong> and <strong>Impression</strong> as report text; the DICOM Content Sequence tree is under a fold. <strong>Download JSON</strong> includes those fields, plus <code>sr_text</code> (the full report) and the Content Sequence tree.</p>
 </section>
 
 <section class="panel help-section" id="vue-keys">
