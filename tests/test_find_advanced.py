@@ -309,6 +309,8 @@ def test_c_find_advanced_page_and_api(client, store) -> None:
         assert b"List SR reports" in form.content
         assert b"Download CSV" in form.content
         assert b"Download JSON" in form.content
+        assert b"<textarea hidden data-find-export>" in form.content
+        assert b'<script type="application/json" data-find-export>' not in form.content
         assert b"<summary>Timing</summary>" in form.content
         assert b"<summary>Association</summary>" in form.content
         api = client.post(
@@ -563,4 +565,139 @@ def test_retrieve_sr_parses_content_sequence(store) -> None:
         assert result.steps[1].details.get("kind") == "sr_content"
     finally:
         scp.stop()
+        move_server.shutdown()
+
+
+def test_retrieve_sr_continues_after_a_failed_series(store) -> None:
+    storage_port = _free_port()
+    move_port = _free_port()
+    first = make_radiology_sr(series_uid="1.2.3.99")
+    second = make_radiology_sr(series_uid="1.2.3.100")
+    calls = {"n": 0}
+
+    def handle_move(event):
+        calls["n"] += 1
+        identifier = event.identifier
+        series = str(getattr(identifier, "SeriesInstanceUID", "") or "")
+        if series.endswith(".100"):
+            yield 0xA702
+            return
+        report = first if series.endswith(".99") else second
+        yield "127.0.0.1", storage_port, {"contexts": [build_context(str(report.SOPClassUID))]}
+        yield 1
+        yield 0xFF00, report
+
+    move_ae = AE(ae_title="QR_SCP")
+    move_ae.add_supported_context(StudyRootQueryRetrieveInformationModelMove)
+    move_server = move_ae.start_server(
+        ("127.0.0.1", move_port),
+        block=False,
+        evt_handlers=[(evt.EVT_C_MOVE, handle_move)],
+    )
+    store.save_local(
+        LocalAE(
+            ae_title="DICOMM",
+            host="127.0.0.1",
+            port=storage_port,
+            timeout_seconds=5,
+            storage_scp_enabled=True,
+        )
+    )
+    scp = WorklistSCP(store)
+    scp.start()
+    assert scp.running, scp.last_error
+    try:
+        time.sleep(0.05)
+        remote = RemoteNode(name="pacs", ae_title="QR_SCP", host="127.0.0.1", port=move_port)
+        result = CFindAdvancedTool().run(
+            store.load().local,
+            remote,
+            {
+                "follow": "retrieve_sr",
+                "studies": [
+                    {
+                        "StudyInstanceUID": "1.2.3",
+                        "SeriesInstanceUID": "1.2.3.99",
+                        "Modality": "SR",
+                    },
+                    {
+                        "StudyInstanceUID": "1.2.3",
+                        "SeriesInstanceUID": "1.2.3.100",
+                        "Modality": "SR",
+                    },
+                    {
+                        "StudyInstanceUID": "1.2.3",
+                        "SeriesInstanceUID": "1.2.3.101",
+                        "Modality": "SR",
+                    },
+                ],
+                "_listen_ae": "DICOMM",
+                "_storage_enabled": True,
+                "_storage_running": True,
+            },
+        )
+        assert result.ok, result.summary
+        assert len(result.records) >= 1
+        assert result.records[0]["SeriesInstanceUID"] == "1.2.3.99"
+        assert result.steps[1].details.get("failed_moves") == 1
+        assert "series failed" in result.summary
+    finally:
+        scp.stop()
+        move_server.shutdown()
+
+
+def test_retrieve_sr_html_shows_findings_cards(client, store, app) -> None:
+    storage_port = _free_port()
+    move_port = _free_port()
+    report = make_radiology_sr()
+
+    def handle_move(event):
+        yield "127.0.0.1", storage_port, {"contexts": [build_context(str(report.SOPClassUID))]}
+        yield 1
+        yield 0xFF00, report
+
+    move_ae = AE(ae_title="QR_SCP")
+    move_ae.add_supported_context(StudyRootQueryRetrieveInformationModelMove)
+    move_server = move_ae.start_server(
+        ("127.0.0.1", move_port),
+        block=False,
+        evt_handlers=[(evt.EVT_C_MOVE, handle_move)],
+    )
+    store.save_local(
+        LocalAE(
+            ae_title="DICOMM",
+            host="127.0.0.1",
+            port=storage_port,
+            timeout_seconds=5,
+            storage_scp_enabled=True,
+        )
+    )
+    app.state.mwl_scp.restart()
+    assert app.state.mwl_scp.running, app.state.mwl_scp.last_error
+    try:
+        time.sleep(0.05)
+        remote = RemoteNode(name="pacs", ae_title="QR_SCP", host="127.0.0.1", port=move_port)
+        store.add_remote(remote)
+        html = client.post(
+            "/vue/tools/c-find-advanced/run",
+            data={
+                "remote_id": remote.id,
+                "follow": "retrieve_sr",
+                "studies_json": (
+                    '[{"StudyInstanceUID":"1.2.3","SeriesInstanceUID":"1.2.3.99",'
+                    '"Modality":"SR","PatientName":"DOE^JANE"}]'
+                ),
+            },
+            headers={"HX-Request": "true"},
+        )
+        assert html.status_code == 200
+        assert b"Structured Report contents" in html.content
+        assert b"find-sr-card" in html.content
+        assert b"<h4>Findings</h4>" in html.content
+        assert b"<h4>Impression</h4>" in html.content
+        assert b"No acute osseous abnormality." in html.content
+        assert b"Content Sequence" in html.content
+        assert b"<textarea hidden data-find-export>" in html.content
+        assert b'data-find-export-hint' in html.content
+    finally:
         move_server.shutdown()
