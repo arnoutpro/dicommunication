@@ -20,14 +20,14 @@ def test_health_and_pages(client) -> None:
     assert b'nav-branch is-open" data-nav-id="test-tools"' not in home.content
     assert b'id="nav-fold-test-tools" checked' not in home.content
     assert b"sidebar" in home.content
-    assert b"aurora-wrapper" in home.content
+    assert b"topbar" in home.content
     assert b'id="theme-toggle"' in home.content
     assert b'data-theme-option="light"' in home.content
     assert b'data-theme-option="dark"' in home.content
     assert b'data-theme-option="system"' in home.content
     assert b'data-theme-option="professional"' in home.content
-    assert b"brand-watermark" in home.content
-    assert b"site-brand-mark-letter" in home.content
+    assert b"site-brand-mark-layer" in home.content
+    assert b"site-brand-mark-svg" in home.content
     assert b"site-brand-copy" in home.content
     assert b'href="/logs"' in home.content
     assert b"DIMSE" in home.content
@@ -128,7 +128,7 @@ def test_shared_layout_is_dense() -> None:
     css = (Path(__file__).resolve().parents[1] / "app" / "static" / "css" / "app.css").read_text(
         encoding="utf-8"
     )
-    assert ".main {\n  padding: 1rem 1.25rem 1.15rem;" in css
+    assert ".main {\n  padding: 1.15rem 1.35rem 1.4rem;" in css
     assert ".panel { padding: 0.75rem 0.9rem 0.85rem; margin-bottom: 0.7rem; }" in css
     assert "h1 { margin: 0 0 0.15rem; font-size: var(--text-xl);" in css
     assert "gap: 0.5rem 0.75rem;" in css
