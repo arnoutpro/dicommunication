@@ -58,6 +58,9 @@ def test_catalog_covers_hierarchical_study_root_keys() -> None:
     assert assign.vr == "SH"
     assert "Confirmed matching key" in assign.hint
     assert assign.placeholder == "user@site"
+    study_date = next(key for key in KEYS if key.keyword == "StudyDate")
+    assert study_date.match_required is True
+    assert study_date.levels == ("STUDY",)
 
 
 def test_series_and_image_keys_stay_locked_without_parent_uids() -> None:
@@ -73,7 +76,8 @@ def test_series_and_image_keys_stay_locked_without_parent_uids() -> None:
 
 
 def test_validate_query_requires_parent_unique_keys() -> None:
-    assert validate_query("STUDY", {}) is None
+    assert validate_query("STUDY", {}) == "Study Date is required."
+    assert validate_query("STUDY", {"StudyDate": "20260826"}) is None
     assert missing_parents("SERIES", {}) == ["StudyInstanceUID"]
     assert "Study Instance UID" in (validate_query("SERIES", {}) or "")
     assert validate_query("SERIES", {"StudyInstanceUID": "1.2"}) is None
@@ -193,7 +197,11 @@ def test_c_find_advanced_study_series_and_image_against_scp() -> None:
         local = LocalAE(timeout_seconds=5)
         remote = RemoteNode(name="pacs", ae_title="QR_SCP", host="127.0.0.1", port=port)
         tool = CFindAdvancedTool()
-        study = tool.run(local, remote, {"level": "STUDY", "values": {"PatientID": "1001"}})
+        study = tool.run(
+            local,
+            remote,
+            {"level": "STUDY", "values": {"PatientID": "1001", "StudyDate": "20260826"}},
+        )
         assert study.ok, study.summary
         assert study.records[0]["PatientID"] == "1001"
         assert study.records[0]["StudyInstanceUID"] == "1.2.3"
@@ -258,9 +266,23 @@ def test_c_find_advanced_page_and_api(client, store) -> None:
         assert b"find-tree" in page.content
         assert b"find-workspace" in page.content
         assert b"find-key-grid" not in page.content
+        assert b'data-match-required="1"' in page.content
+        assert b'data-find-stop' in page.content
         assert b"ELSCINT1" in page.content
         assert b"Tamar Study Status" in page.content
         assert b'data-find-copy' not in page.content
+        missing_date = client.post(
+            "/tools/c-find-advanced/run",
+            data={
+                "remote_id": remote.id,
+                "level": "STUDY",
+                "include": ["PatientName", "PatientID"],
+                "key_PatientID": "1001",
+            },
+            headers={"HX-Request": "true"},
+        )
+        assert missing_date.status_code == 200
+        assert b"Study Date is required" in missing_date.content
         form = client.post(
             "/tools/c-find-advanced/run",
             data={
@@ -268,6 +290,7 @@ def test_c_find_advanced_page_and_api(client, store) -> None:
                 "level": "STUDY",
                 "include": ["PatientName", "PatientID", "StudyInstanceUID", "StudyDescription"],
                 "key_PatientID": "1001",
+                "key_StudyDate": "20260826",
             },
             headers={"HX-Request": "true"},
         )
@@ -276,17 +299,26 @@ def test_c_find_advanced_page_and_api(client, store) -> None:
         assert b"data-find-copy" in form.content
         assert b"Download CSV" in form.content
         assert b"Download JSON" in form.content
+        assert b"<summary>Timing</summary>" in form.content
+        assert b"<summary>Association</summary>" in form.content
         api = client.post(
             "/api/tools/c-find-advanced/run",
             json={
                 "remote_id": remote.id,
-                "options": {"level": "STUDY", "values": {"PatientID": "1001"}},
+                "options": {"level": "STUDY", "values": {"PatientID": "1001", "StudyDate": "20260826"}},
             },
         )
         assert api.status_code == 200
         body = api.json()
         assert body["ok"] is True
         assert body["records"][0]["PatientID"] == "1001"
+        missing_api = client.post(
+            "/api/tools/c-find-advanced/run",
+            json={"remote_id": remote.id, "options": {"level": "STUDY", "values": {"PatientID": "1001"}}},
+        )
+        assert missing_api.status_code == 200
+        assert missing_api.json()["ok"] is False
+        assert "Study Date is required" in missing_api.json()["summary"]
         blocked = client.post(
             "/api/tools/c-find-advanced/run",
             json={"remote_id": remote.id, "options": {"level": "SERIES"}},

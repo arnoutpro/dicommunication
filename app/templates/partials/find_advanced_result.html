@@ -7,11 +7,10 @@
       {% if result.calling_ae %}<span class="muted">as {{ result.calling_ae }}</span>{% endif %}
       <p>{{ result.summary }}</p>
     </div>
-    <span class="muted">{{ result.duration_ms }} ms</span>
   </header>
   {% if result.steps %}
   <details class="find-assoc">
-    <summary>Association · {{ result.duration_ms }} ms</summary>
+    <summary>Association</summary>
     <ol class="steps">
       {% for step in result.steps %}
       <li>
@@ -23,9 +22,6 @@
           <pre class="log">{{ step.details.output }}</pre>
           {% endif %}
         </div>
-        {% if step.duration_ms is not none %}
-        <span class="muted">{{ step.duration_ms }} ms</span>
-        {% endif %}
       </li>
       {% endfor %}
     </ol>
@@ -76,8 +72,29 @@
   {% elif result.ok %}
   <p class="hint">The FIND SOP Class was accepted and the query succeeded with zero matches. Broaden the filters, or check that this calling AE is allowed to query the archive.</p>
   {% endif %}
+  {% if result.duration_ms or result.steps %}
+  <details class="find-assoc">
+    <summary>Timing</summary>
+    <p>Query {{ result.duration_ms }} ms</p>
+    {% if result.steps %}
+    <ol class="steps">
+      {% for step in result.steps %}
+      <li>
+        <span class="dot {% if step.ok %}ok{% else %}fail{% endif %}"></span>
+        <div>
+          <strong>{{ step.name }}</strong>
+        </div>
+        {% if step.duration_ms is not none %}
+        <span class="muted">{{ step.duration_ms }} ms</span>
+        {% endif %}
+      </li>
+      {% endfor %}
+    </ol>
+    {% endif %}
+  </details>
+  {% endif %}
   {% if result.log %}
-  <details>
+  <details class="find-assoc">
     <summary>{% if result.contexts %}Association log{% else %}Log{% endif %}</summary>
     <pre class="log">{{ result.log }}</pre>
   </details>

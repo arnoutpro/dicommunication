@@ -74,6 +74,7 @@
         data-modality-in="{{ key.modality_in | join(' ') }}"
         data-role="{{ key.role }}"
         data-default-return="{{ '1' if key.default_return else '0' }}"
+        data-match-required="{{ '1' if key.match_required else '0' }}"
         title="{{ key.tag }}{% if key.hint %} — {{ key.hint }}{% endif %}"
       >
         <span class="find-key-head">
@@ -85,6 +86,7 @@
             data-find-include
           >
           <span class="find-key-title">{{ key.label }}</span>
+          {% if key.match_required %}<abbr class="req" title="Required">*</abbr>{% endif %}
           <code class="find-key-tag">{{ key.tag }}</code>
         </span>
         <input
@@ -121,7 +123,8 @@
       </div>
 
       <div class="form-actions">
-        <button class="button primary" type="submit">Run query</button>
+        <button class="button primary" type="submit" data-find-run>Run query</button>
+        <button class="button" type="button" data-find-stop>Stop</button>
         <span id="busy" class="htmx-indicator spinner">Querying…</span>
       </div>
     </form>

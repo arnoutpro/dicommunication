@@ -67,6 +67,8 @@ def test_vue_query_form_uses_prefixed_action(client, remote) -> None:
     assert b"find-tree" in page.content
     assert b"find-workspace" in page.content
     assert b'hx-post="/vue/tools/c-find-advanced/run"' in page.content
+    assert b'data-find-stop' in page.content
+    assert b'data-match-required="1"' in page.content
 
 
 def test_vue_hides_workstation_tools(client) -> None:
