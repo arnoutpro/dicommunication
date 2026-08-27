@@ -851,7 +851,7 @@ function syncFindAdvanced(form) {
     SERIES:
       "Series keys unlock after Study Instance UID is filled. Hierarchical FIND cannot search series across the archive without that parent Unique key.",
     IMAGE:
-      "Image keys unlock after Study Instance UID and Series Instance UID are filled. Retrieve of those instances is C-MOVE, not C-GET.",
+      "Image keys unlock after Study Instance UID and Series Instance UID are filled. Retrieve of SR text is C-MOVE of the SR series, not C-GET.",
   };
   if (hint) {
     hint.textContent = hints[level] || hints.STUDY;
@@ -905,6 +905,20 @@ function syncFindAdvanced(form) {
 }
 
 function applyFindSelection(form, mode) {
+  if (mode === "sr") {
+    const uid = findValueInput(form, "StudyInstanceUID");
+    if (uid && uid.value.trim()) {
+      setFindLevel(form, "SERIES");
+      syncFindAdvanced(form);
+      setFindValue(form, "Modality", "SR");
+      const include = form.querySelector('[data-find-key="Modality"] [data-find-include]');
+      if (include) {
+        include.checked = true;
+      }
+    }
+    syncFindAdvanced(form);
+    return;
+  }
   form.querySelectorAll("[data-find-key]").forEach((node) => {
     if (node.hidden) {
       return;
@@ -1012,6 +1026,37 @@ function downloadFindJson(root) {
   );
 }
 
+function clearFindFollow(form) {
+  const follow = form.querySelector("[data-find-follow-field]");
+  const studies = form.querySelector("[data-find-studies-field]");
+  if (follow) {
+    follow.value = "";
+  }
+  if (studies) {
+    studies.value = "";
+  }
+}
+
+function startFindFollow(kind, resultRoot) {
+  const form = findAdvancedForm();
+  const payload = parseFindExport(resultRoot);
+  if (!form || !payload || !payload.records) {
+    return;
+  }
+  const follow = form.querySelector("[data-find-follow-field]");
+  const studies = form.querySelector("[data-find-studies-field]");
+  if (!follow || !studies) {
+    return;
+  }
+  follow.value = kind;
+  studies.value = JSON.stringify(payload.records);
+  if (typeof form.requestSubmit === "function") {
+    form.requestSubmit();
+  } else {
+    form.submit();
+  }
+}
+
 function useFindRow(row) {
   const form = findAdvancedForm();
   if (!form || !row) {
@@ -1066,6 +1111,10 @@ function bindFindAdvanced(root) {
       if (select) {
         applyFindSelection(target, select.getAttribute("data-find-select"));
       }
+      const run = event.target.closest("[data-find-run]");
+      if (run) {
+        clearFindFollow(target);
+      }
       const stop = event.target.closest("[data-find-stop]");
       if (stop) {
         stopFindQuery(target);
@@ -1077,6 +1126,7 @@ function bindFindAdvanced(root) {
     });
     target.addEventListener("htmx:afterRequest", () => {
       delete target.dataset.findBusy;
+      clearFindFollow(target);
     });
     syncFindAdvanced(target);
   }
@@ -1115,6 +1165,7 @@ document.addEventListener("click", (event) => {
   const copy = event.target.closest("[data-find-copy]");
   const csv = event.target.closest("[data-find-csv]");
   const json = event.target.closest("[data-find-json]");
+  const follow = event.target.closest("[data-find-follow]");
   const row = event.target.closest("[data-find-row]");
   const result = event.target.closest("[data-find-result]");
   if (copy && result) {
@@ -1123,6 +1174,9 @@ document.addEventListener("click", (event) => {
     downloadFindCsv(result);
   } else if (json && result) {
     downloadFindJson(result);
+  } else if (follow && result) {
+    event.preventDefault();
+    startFindFollow(follow.getAttribute("data-find-follow"), result);
   } else if (row && result) {
     useFindRow(row);
   }

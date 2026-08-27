@@ -6,7 +6,7 @@ A low-code DICOM communication validator and PACS admin toolkit.
 
 Configure this workstation as a DICOM Application Entity, register remote nodes (PACS, Orthanc, RIS/MWL, modalities), impersonate extra calling AE Titles, and run the checks a connectivity ticket actually needs: network PING, C-ECHO, simulated C-STORE, PDF to Encapsulated PDF Storage, Study Root C-FIND (including Study / Series / Image), Modality Worklist C-FIND, and HL7 v2 send over MLLP.
 
-The Windows MSI installs **two Start-menu tools** that share this config: **Dicommunication** (network / DIMSE / HL7 workstation) and **Vue PACS Database Analytics** (Study Root C-FIND only, including Vue ELSCINT1 keys).
+The Windows MSI installs **two Start-menu tools** that share this config: **Dicommunication** (network / DIMSE / HL7 workstation) and **Vue PACS Database Analytics** (Study Root C-FIND, including Vue ELSCINT1 keys, plus listing and retrieving DICOM Structured Reports).
 
 The web UI is FastAPI + HTMX. DICOM uses pynetdicom/pydicom. New test tools are Python plugins: drop a file in `app/tools/` and it appears in the Dicommunication sidebar. The sidebar **About** button shows the running version; **Help** is the in-app administrator guide.
 
@@ -43,11 +43,12 @@ It **does**:
 - Associate with a remote AE and show which SOP Classes were accepted or rejected
 - Send Verification (C-ECHO), a tiny Secondary Capture (C-STORE), Encapsulated PDF Storage (PDF to DICOM), Study Root Query/Retrieve C-FIND at Study, Series, or Image level, and Modality Worklist C-FIND
 - Optionally serve a local web worklist as an MWL SCP on the listen port
+- Optionally accept C-STORE of Structured Reports on that same port, and C-MOVE SR series from Vue PACS Database Analytics so the Content Sequence can be parsed (no language model)
 - Send an HL7 v2 message over TCP (MLLP by default) to a host:port
 
 It **does not**:
 
-- Implement C-MOVE / C-GET (yet; those are plugin slots)
+- Implement C-GET, or C-MOVE of imaging series (only SR series used for report text)
 - Store a real archive of clinical images
 - Speak DICOM TLS, or authenticate the web UI
 - Parse, validate, or map HL7 fields — paste a message and send it
@@ -62,7 +63,7 @@ A successful C-ECHO only proves Verification. Orthanc (or any PACS) can accept C
 | C-STORE | C-STORE | Secondary Capture Image Storage | Can the peer *receive* an instance? |
 | PDF to DICOM | C-STORE | Encapsulated PDF Storage `1.2.840.10008.5.1.4.1.1.104.1` | Wrap a PDF as a DICOM document and store it. A peer that takes Secondary Capture may still reject Encapsulated PDF. |
 | C-FIND | C-FIND | Study Root Query/Retrieve FIND | Search *stored studies* in a PACS archive at STUDY level. Zero matches can still be a successful Q/R C-FIND. |
-| Vue PACS Database Analytics | C-FIND | Study Root Query/Retrieve FIND | Own Start-menu tool (`/vue/`). Same SOP Class at Study, Series, or Image plus optional Vue ELSCINT1 keys. Hierarchical: Series needs Study Instance UID; Image needs Study and Series Instance UID. Results copy / CSV / JSON. |
+| Vue PACS Database Analytics | C-FIND, optional C-MOVE | Study Root Query/Retrieve FIND (and MOVE for SR) | Own Start-menu tool (`/vue/`). Same SOP Class at Study, Series, or Image plus optional Vue ELSCINT1 keys. Hierarchical: Series needs Study Instance UID; Image needs Study and Series Instance UID. **List SR reports** is Series C-FIND with modality `SR`. **Retrieve report text** C-MOVEs those series to this AE and parses the Content Sequence. Results copy / CSV / JSON. |
 | MWL C-FIND / Worklist | C-FIND | Modality Worklist `1.2.840.10008.5.1.4.31` | Search *scheduled procedures*, not the archive. |
 
 **MWL C-FIND and the Worklist page are the same SOP Class.** Study Root C-FIND is not. Orthanc without the worklist plugin typically accepts Verification, Storage, and Q/R, then rejects MWL. The Testbench and Worklist results show accepted vs rejected presentation contexts so that is visible.
@@ -321,7 +322,9 @@ Same engines as the Testbench, one page each: `/tools/c-echo`, `/tools/c-store`,
 
 Own product in the Dicommunication installer. Start-menu **Vue PACS Database Analytics**, or `python -m app --profile vue-analytics`. Study Root Query/Retrieve FIND at **Study**, **Series**, or **Image**, with the searchable keys for that level. Checked keys are sent as return columns; a typed value is also a matching key.
 
-Hierarchical FIND (no relational queries): Series keys unlock after **Study Instance UID** is present; Image keys unlock after **Study Instance UID** and **Series Instance UID**. MR-only keys such as Repetition Time stay locked unless Modality is `MR` or empty. Keys are grouped by Study / Series / Image as a list (not a grid). Collapsed **Vue PACS (ELSCINT1)** lists expose Tamar private study and series tags as optional return/match keys. Vue’s DCS does not list them. **Tamar Assign To Doctor** is a confirmed matching key on Vue 12.2.8 (used with Modalities in Study); other Vue tags may still come back empty. Grid Token sequences are not sent. Results are a column-aligned table. **Copy table** is tab-separated for Excel; **Download CSV** and **Download JSON** export the same rows. Click a result row to copy parent UIDs into the next level. Retrieve of those objects is C-MOVE, not C-GET.
+Hierarchical FIND (no relational queries): Series keys unlock after **Study Instance UID** is present; Image keys unlock after **Study Instance UID** and **Series Instance UID**. MR-only keys such as Repetition Time stay locked unless Modality is `MR` or empty. Keys are grouped by Study / Series / Image as a list (not a grid). Collapsed **Vue PACS (ELSCINT1)** lists expose Tamar private study and series tags as optional return/match keys. Vue’s DCS does not list them. **Tamar Assign To Doctor** is a confirmed matching key on Vue 12.2.8 (used with Modalities in Study); other Vue tags may still come back empty. Grid Token sequences are not sent. Results are a column-aligned table. **Copy table** is tab-separated for Excel; **Download CSV** and **Download JSON** export the same rows. Click a result row to copy parent UIDs into the next level.
+
+Radiology reports stored as DICOM SR are a series in the same study (same Study Instance UID, different Series Instance UID, modality `SR`). After a Study query (for example today’s CTs), **List SR reports** runs Series C-FIND with `Modality=SR` for each study (cap 80). **Retrieve report text** C-MOVEs those series to this workstation. Enable **Accept C-STORE (Structured Reports)** on Local DICOM AE, and register that AE Title in Vue as a C-MOVE destination. The Content Sequence is flattened into concept / type / value rows — no language model. Imaging series are not stored. C-GET is not used.
 
 The simple C-FIND tool and Testbench stay STUDY-level with a short filter list. This window has Query, Configured nodes, Logs, About, and Help only.
 
@@ -518,6 +521,8 @@ The data directory is not encrypted, and `results.json` keeps the last 200 tool 
 | C-ECHO / C-STORE work, PDF to DICOM fails | Peer does not accept Encapsulated PDF Storage. Enable that SOP Class; Secondary Capture is a different test. |
 | C-ECHO works, Study Root C-FIND fails | Peer is not a Q/R SCP. This is not MWL. |
 | Vue PACS Database Analytics Series/Image stays locked or fails | Hierarchical FIND. Fill Study Instance UID for Series; Study and Series Instance UID for Image. Empty Study UID cannot search body part archive-wide. |
+| List SR reports returns zero series | Those studies have no series with modality SR, or Vue omitted Modality on Series C-FIND. |
+| Retrieve report text: Move Destination unknown | Vue does not list this Local AE Title as a C-MOVE destination. Enable Accept C-STORE on Local DICOM AE and register that AE at this host:port. |
 | C-ECHO / C-STORE / Q/R work, MWL fails | Peer does not offer Modality Worklist FIND. Enable the worklist plugin (Orthanc) or query a RIS. |
 | Worklist and MWL C-FIND look the same | They are the same SOP Class. Use Testbench Study Root C-FIND to search stored studies. |
 | Empty MWL / C-FIND table but Pass | The SOP Class was accepted and the query succeeded with zero matches. Check station AE, date, and **Present as**. |

@@ -38,9 +38,10 @@ Everything lives unencrypted under the data directory (`~/.dicommunication`,
 `%LOCALAPPDATA%\dicommunication` on Windows, `/app/data` in Docker):
 
 - **`results.json` keeps the last 200 tool results, including the full body of
-  any HL7 message you sent and the worklist rows a C-FIND returned.** If you send
-  a real ADT or query a real worklist, patient identifiers are written to this
-  file in cleartext.
+  any HL7 message you sent, the worklist rows a C-FIND returned, and the parsed
+  text of Structured Reports you retrieved.** If you send a real ADT, query a
+  real worklist, or retrieve real reports, patient identifiers and report text
+  are written to this file in cleartext.
 - `worklist.json` holds whatever you typed into the local worklist.
 - `dicommunication.log` records what you ran, against which AE titles and
   endpoints.

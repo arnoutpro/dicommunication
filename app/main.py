@@ -304,8 +304,9 @@ def create_app(store: ConfigStore | None = None) -> FastAPI:
             "tools": tools_for_shell(shell),
             "tool_groups": tool_groups_for_shell(shell),
             "results": app.state.store.list_results(10),
-            "mwl_scp_running": bool(scp and scp.running),
+            "mwl_scp_running": bool(scp and scp.running and config.local.mwl_scp_enabled),
             "mwl_scp_error": getattr(scp, "last_error", None) if scp else None,
+            "storage_scp_running": bool(scp and scp.running and config.local.storage_scp_enabled),
             "app_version": __version__,
             **extra,
         }
@@ -328,6 +329,16 @@ def create_app(store: ConfigStore | None = None) -> FastAPI:
             local = config.calling_ae(identity_id or None)
         except KeyError as exc:
             raise HTTPException(status_code=400, detail="Virtual local AE not found") from exc
+        if tool_id == "c-find-advanced":
+            options = dict(options or {})
+            scp = getattr(app.state, "mwl_scp", None)
+            options.setdefault("_listen_ae", config.local.ae_title)
+            options.setdefault("_storage_enabled", config.local.storage_scp_enabled)
+            options.setdefault(
+                "_storage_running",
+                bool(scp and scp.running and config.local.storage_scp_enabled),
+            )
+            options.setdefault("_storage_error", getattr(scp, "last_error", None) if scp else None)
         result = tool.run(local, remote, options)
         if tool.id != "hl7-send":
             result.calling_ae = local.ae_title
@@ -604,6 +615,7 @@ def create_app(store: ConfigStore | None = None) -> FastAPI:
         implementation_version: str = Form(""),
         station_ae_title: str = Form(""),
         mwl_scp_enabled: str | None = Form(None),
+        storage_scp_enabled: str | None = Form(None),
     ):
         try:
             local = LocalAE(
@@ -616,16 +628,18 @@ def create_app(store: ConfigStore | None = None) -> FastAPI:
                 implementation_version=implementation_version,
                 station_ae_title=station_ae_title,
                 mwl_scp_enabled=_as_bool(mwl_scp_enabled),
+                storage_scp_enabled=_as_bool(storage_scp_enabled),
             )
         except ValidationError as exc:
             return config_view(request, page_id="local", error=_first_error(exc), status_code=400)
         app.state.store.save_local(local)
         log.info(
-            "Saved local AE %s on %s:%s (MWL SCP %s)",
+            "Saved local AE %s on %s:%s (MWL SCP %s, SR C-STORE %s)",
             local.ae_title,
             local.host,
             local.port,
             "on" if local.mwl_scp_enabled else "off",
+            "on" if local.storage_scp_enabled else "off",
         )
         app.state.mwl_scp.restart()
         return RedirectResponse("/config/local?saved=local", status_code=303)
@@ -1066,18 +1080,33 @@ def create_app(store: ConfigStore | None = None) -> FastAPI:
 
     def _find_advanced_extras(result: ToolResult | None, level: str = "STUDY") -> dict[str, Any]:
         records = result.records if result else []
-        columns = list(records[0].keys()) if records else []
+        columns = [key for key in (list(records[0].keys()) if records else []) if key != "sr_items"]
         resolved = level
+        kind = "table"
         if result:
             for step in result.steps:
                 step_level = step.details.get("level")
                 if step_level:
                     resolved = str(step_level)
-                    break
+                step_kind = step.details.get("kind")
+                if step_kind:
+                    kind = str(step_kind)
+        labels = dict(zip(columns, column_labels(columns)))
+        labels.setdefault("DocumentTitle", "Document Title")
+        labels.setdefault("CompletionFlag", "Completion Flag")
+        labels.setdefault("VerificationFlag", "Verification Flag")
+        labels.setdefault("SOPClass", "SOP Class")
+        labels.setdefault("sr_text", "Report text")
+        config = app.state.store.load()
+        scp = getattr(app.state, "mwl_scp", None)
         return {
             "find_catalog": catalog_payload(),
             "find_level": resolved,
-            "find_labels": dict(zip(columns, column_labels(columns))),
+            "find_kind": kind,
+            "find_labels": labels,
+            "find_columns": columns,
+            "storage_scp_enabled": config.local.storage_scp_enabled,
+            "storage_scp_running": bool(scp and scp.running and config.local.storage_scp_enabled),
         }
 
     def _c_find_advanced_page(
@@ -1492,7 +1521,9 @@ def create_app(store: ConfigStore | None = None) -> FastAPI:
 
     @app.put("/api/config/local")
     def api_put_local(local: LocalAE):
-        return app.state.store.save_local(local)
+        saved = app.state.store.save_local(local)
+        app.state.mwl_scp.restart()
+        return saved
 
     @app.get("/api/logging")
     def api_logging():

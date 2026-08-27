@@ -48,6 +48,7 @@ class LocalAE(BaseModel):
     implementation_version: str = "DICOMM_1"
     station_ae_title: str = ""
     mwl_scp_enabled: bool = False
+    storage_scp_enabled: bool = False
 
     @field_validator("ae_title")
     @classmethod

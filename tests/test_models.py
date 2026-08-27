@@ -23,6 +23,7 @@ def test_local_ae_defaults() -> None:
     assert local.ae_title == "DICOMM"
     assert local.port == 11112
     assert local.timeout_seconds == 10.0
+    assert local.storage_scp_enabled is False
 
 
 def test_local_ae_port_bounds() -> None:
