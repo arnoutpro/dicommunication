@@ -49,6 +49,11 @@ def test_catalog_covers_hierarchical_study_root_keys() -> None:
     assert LEVEL_PARENTS["SERIES"] == ("StudyInstanceUID",)
     assert LEVEL_PARENTS["IMAGE"] == ("StudyInstanceUID", "SeriesInstanceUID")
     assert len({key.keyword for key in KEYS}) == len(KEYS)
+    vue_status = next(key for key in KEYS if key.keyword == "TamarStudyStatus")
+    assert vue_status.private_creator == "ELSCINT1"
+    assert vue_status.default_return is False
+    assert vue_status.group == "vue-study"
+    assert "TamarStudyStatus" not in {key.keyword for key in keys_for_level("STUDY") if key.default_return}
 
 
 def test_series_and_image_keys_stay_locked_without_parent_uids() -> None:
@@ -113,6 +118,31 @@ def test_records_to_csv_quotes_commas() -> None:
     )
     assert csv_text.splitlines()[0] == "Patient Name,Patient ID"
     assert '"DOE, JANE"' in csv_text
+
+
+def test_vue_private_keys_are_off_by_default_and_round_trip() -> None:
+    from app.tools.find_keys import default_return_keys, record_from_dataset
+
+    assert "TamarStudyStatus" not in default_return_keys("STUDY")
+    assert not any("Grid Token" in key.label for key in KEYS)
+    identifier = build_identifier(
+        "STUDY",
+        {"TamarStudyStatus": "UNREAD", "PatientID": "1001"},
+        ["PatientID", "TamarStudyStatus"],
+    )
+    assert str(identifier[0x07A1, 0x0010].value).strip() == "ELSCINT1"
+    block = identifier.private_block(0x07A1, "ELSCINT1")
+    assert str(block[0x2A].value).strip() == "UNREAD"
+    ds = Dataset()
+    apply_key(ds, "TamarStudyStatus", "UNREAD")
+    apply_key(ds, "TamarNumberOfImagesInSeries", "238")
+    apply_key(ds, "TamarStudyRvu", "2")
+    row = record_from_dataset(
+        ds, ["TamarStudyStatus", "TamarNumberOfImagesInSeries", "TamarStudyRvu"]
+    )
+    assert row["TamarStudyStatus"] == "UNREAD"
+    assert row["TamarNumberOfImagesInSeries"] == "238"
+    assert row["TamarStudyRvu"].startswith("2")
 
 
 def test_c_find_advanced_refuses_series_without_study_uid() -> None:
@@ -220,6 +250,10 @@ def test_c_find_advanced_page_and_api(client, store) -> None:
         assert b'value="IMAGE"' in page.content
         assert b"Body Part Examined" in page.content
         assert b"SOP Instance UID" in page.content
+        assert b"find-key-list" in page.content
+        assert b"find-key-grid" not in page.content
+        assert b"ELSCINT1" in page.content
+        assert b"Tamar Study Status" in page.content
         assert b'data-find-copy' not in page.content
         form = client.post(
             "/tools/c-find-advanced/run",

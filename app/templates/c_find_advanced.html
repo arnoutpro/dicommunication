@@ -66,46 +66,62 @@
       <button class="button compact" type="button" data-find-select="defaults">Required and usual columns</button>
       <button class="button compact" type="button" data-find-select="all">All keys</button>
       <button class="button compact" type="button" data-find-select="clear">Clear values</button>
-      <span class="hint">Checked keys are sent as return columns. A typed value is also a matching key.</span>
+      <span class="hint">Checked keys are sent as return columns. A typed value is also a matching key. Vue private tags stay unchecked until you open that list.</span>
     </div>
+
+    {% macro find_key_row(key) %}
+    <label
+      class="find-key"
+      data-find-key="{{ key.keyword }}"
+      data-levels="{{ key.levels | join(' ') }}"
+      data-requires="{{ key.requires | join(' ') }}"
+      data-modality-in="{{ key.modality_in | join(' ') }}"
+      data-role="{{ key.role }}"
+      data-default-return="{{ '1' if key.default_return else '0' }}"
+    >
+      <span class="find-key-head">
+        <input
+          type="checkbox"
+          name="include"
+          value="{{ key.keyword }}"
+          {% if key.default_return %}checked{% endif %}
+          data-find-include
+        >
+        <span class="find-key-title">{{ key.label }}</span>
+        <code class="find-key-tag">{{ key.tag }}</code>
+      </span>
+      <input
+        name="key_{{ key.keyword }}"
+        value=""
+        placeholder="{{ key.placeholder }}"
+        data-find-value="{{ key.keyword }}"
+        spellcheck="false"
+        autocomplete="off"
+      >
+      <span class="hint" data-find-hint>{{ key.hint }}</span>
+    </label>
+    {% endmacro %}
 
     {% for group in find_catalog.groups %}
     <section class="span-2 find-key-group" data-find-group="{{ group.id }}">
+      {% if group.experimental %}
+      <details class="advanced find-vue">
+        <summary>{{ group.label }}</summary>
+        {% if group.hint %}<p class="hint">{{ group.hint }}</p>{% endif %}
+        <div class="find-key-list">
+          {% for key in find_catalog.search_keys if key.group == group.id %}
+          {{ find_key_row(key) }}
+          {% endfor %}
+        </div>
+      </details>
+      {% else %}
       <h3>{{ group.label }}</h3>
-      <div class="find-key-grid">
+      <div class="find-key-list">
         {% for key in find_catalog.search_keys if key.group == group.id %}
-        <label
-          class="find-key"
-          data-find-key="{{ key.keyword }}"
-          data-levels="{{ key.levels | join(' ') }}"
-          data-requires="{{ key.requires | join(' ') }}"
-          data-modality-in="{{ key.modality_in | join(' ') }}"
-          data-role="{{ key.role }}"
-          data-default-return="{{ '1' if key.default_return else '0' }}"
-        >
-          <span class="find-key-head">
-            <input
-              type="checkbox"
-              name="include"
-              value="{{ key.keyword }}"
-              {% if key.default_return %}checked{% endif %}
-              data-find-include
-            >
-            <span class="find-key-title">{{ key.label }}</span>
-            <code class="find-key-tag">{{ key.tag }}</code>
-          </span>
-          <input
-            name="key_{{ key.keyword }}"
-            value=""
-            placeholder="{{ key.placeholder }}"
-            data-find-value="{{ key.keyword }}"
-            spellcheck="false"
-            autocomplete="off"
-          >
-          <span class="hint" data-find-hint>{{ key.hint }}</span>
-        </label>
+        {{ find_key_row(key) }}
         {% endfor %}
       </div>
+      {% endif %}
     </section>
     {% endfor %}
 
