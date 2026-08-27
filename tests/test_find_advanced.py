@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import socket
 import time
 
@@ -450,7 +451,7 @@ def test_list_sr_reports_via_form(client, store) -> None:
         assert listed.status_code == 200
         assert b"Structured Report series" in listed.content
         assert b"1.2.3.99" in listed.content
-        assert b"Retrieve report text" in listed.content
+        assert b"Retrieve report text (1)" in listed.content
         assert b"DOE^JANE" in listed.content
     finally:
         server.shutdown()
@@ -641,6 +642,159 @@ def test_retrieve_sr_continues_after_a_failed_series(store) -> None:
         assert result.records[0]["SeriesInstanceUID"] == "1.2.3.99"
         assert result.steps[1].details.get("failed_moves") == 1
         assert "series failed" in result.summary
+        assert "of" in result.summary
+    finally:
+        scp.stop()
+        move_server.shutdown()
+
+
+def test_follow_form_keeps_every_study_when_uid_field_is_set() -> None:
+    options = options_from_form(
+        {
+            "level": "STUDY",
+            "follow": "sr_series",
+            "key_StudyInstanceUID": "1.2.10",
+            "studies_json": json.dumps(
+                [
+                    {"StudyInstanceUID": "1.2.10", "PatientName": "A^ONE"},
+                    {"StudyInstanceUID": "1.2.11", "PatientName": "B^TWO"},
+                    {"StudyInstanceUID": "1.2.12", "PatientName": "C^THREE"},
+                ]
+            ),
+        }
+    )
+    assert options["values"]["StudyInstanceUID"] == "1.2.10"
+    assert [row["StudyInstanceUID"] for row in options["studies"]] == ["1.2.10", "1.2.11", "1.2.12"]
+
+
+def test_list_sr_queries_every_study_not_the_form_uid() -> None:
+    port = _free_port()
+    seen: list[str] = []
+
+    def handle_find(event):
+        identifier = event.identifier
+        uid = str(getattr(identifier, "StudyInstanceUID", "") or "")
+        seen.append(uid)
+        ds = Dataset()
+        ds.QueryRetrieveLevel = str(getattr(identifier, "QueryRetrieveLevel", "") or "SERIES")
+        ds.StudyInstanceUID = uid or "1.2.10"
+        ds.SeriesInstanceUID = f"{ds.StudyInstanceUID}.99"
+        ds.Modality = "SR"
+        ds.SeriesDescription = "Report"
+        yield 0xFF00, ds
+        yield 0x0000, None
+
+    server = _start_scp("QR_SCP", port, [(evt.EVT_C_FIND, handle_find)])
+    try:
+        time.sleep(0.05)
+        local = LocalAE(timeout_seconds=5)
+        remote = RemoteNode(name="pacs", ae_title="QR_SCP", host="127.0.0.1", port=port)
+        result = CFindAdvancedTool().run(
+            local,
+            remote,
+            {
+                "follow": "sr_series",
+                "values": {"StudyInstanceUID": "1.2.10"},
+                "studies": [
+                    {"StudyInstanceUID": "1.2.10", "PatientName": "A^ONE"},
+                    {"StudyInstanceUID": "1.2.11", "PatientName": "B^TWO"},
+                    {"StudyInstanceUID": "1.2.12", "PatientName": "C^THREE"},
+                ],
+            },
+        )
+        assert result.ok, result.summary
+        assert len(result.records) == 3
+        assert seen.count("1.2.10") >= 1
+        assert seen.count("1.2.11") >= 1
+        assert seen.count("1.2.12") >= 1
+        assert {row["PatientName"] for row in result.records} == {"A^ONE", "B^TWO", "C^THREE"}
+        assert "from 3 studies" in result.summary
+    finally:
+        server.shutdown()
+
+
+def test_retrieve_sr_all_reports_when_scp_allows_one_move_per_association(store) -> None:
+    storage_port = _free_port()
+    move_port = _free_port()
+    reports = []
+    for index, study in enumerate(("1.2.10", "1.2.11", "1.2.12")):
+        report = make_radiology_sr(study_uid=study, series_uid=f"{study}.99")
+        report.PatientName = f"PATIENT^{index}"
+        report.PatientID = f"10{index}"
+        report.AccessionNumber = f"ACC{index}"
+        report.ContentSequence[1].TextValue = f"Impression {index}"
+        reports.append(report)
+    by_series = {str(item.SeriesInstanceUID): item for item in reports}
+    moves_on_assoc: dict[int, int] = {}
+    associations = {"n": 0}
+
+    def handle_move(event):
+        key = id(event.assoc)
+        if key not in moves_on_assoc:
+            associations["n"] += 1
+        count = moves_on_assoc.get(key, 0)
+        moves_on_assoc[key] = count + 1
+        if count >= 1:
+            yield 0xA702
+            return
+        series = str(getattr(event.identifier, "SeriesInstanceUID", "") or "")
+        report = by_series[series]
+        yield "127.0.0.1", storage_port, {"contexts": [build_context(str(report.SOPClassUID))]}
+        yield 1
+        yield 0xFF00, report
+
+    move_ae = AE(ae_title="QR_SCP")
+    move_ae.add_supported_context(StudyRootQueryRetrieveInformationModelMove)
+    move_server = move_ae.start_server(
+        ("127.0.0.1", move_port),
+        block=False,
+        evt_handlers=[(evt.EVT_C_MOVE, handle_move)],
+    )
+    store.save_local(
+        LocalAE(
+            ae_title="DICOMM",
+            host="127.0.0.1",
+            port=storage_port,
+            timeout_seconds=5,
+            storage_scp_enabled=True,
+        )
+    )
+    scp = WorklistSCP(store)
+    scp.start()
+    assert scp.running, scp.last_error
+    try:
+        time.sleep(0.05)
+        remote = RemoteNode(name="pacs", ae_title="QR_SCP", host="127.0.0.1", port=move_port)
+        result = CFindAdvancedTool().run(
+            store.load().local,
+            remote,
+            {
+                "follow": "retrieve_sr",
+                "studies": [
+                    {
+                        "StudyInstanceUID": str(item.StudyInstanceUID),
+                        "SeriesInstanceUID": str(item.SeriesInstanceUID),
+                        "Modality": "SR",
+                        "PatientName": str(item.PatientName),
+                    }
+                    for item in reports
+                ],
+                "_listen_ae": "DICOMM",
+                "_storage_enabled": True,
+                "_storage_running": True,
+            },
+        )
+        assert result.ok, result.summary
+        assert len(result.records) == 3, result.summary
+        assert associations["n"] >= 3
+        assert {row["PatientName"] for row in result.records} == {
+            "PATIENT^0",
+            "PATIENT^1",
+            "PATIENT^2",
+        }
+        assert "Retrieved 3 of 3" in result.summary
+        assert result.steps[1].details.get("count") == 3
+        assert result.steps[1].details.get("requested") == 3
     finally:
         scp.stop()
         move_server.shutdown()

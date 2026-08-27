@@ -26,7 +26,7 @@ from app.dicom_client import (
 )
 from app.models import LocalAE, RemoteNode, ToolResult, ToolStep
 from app.mwl_scp import STORAGE_INBOX
-from app.sr import is_structured_report, parse_sr
+from app.sr import SR_SOP_CLASS_UIDS, is_structured_report, parse_sr
 from app.tools.base import BaseTool
 from app.tools.find_keys import (
     LEVEL_LABELS,
@@ -41,7 +41,7 @@ from app.tools.find_keys import (
 from app.tools.registry import register
 
 PENDING = {0xFF00, 0xFF01}
-MAX_SR_STUDIES = 80
+MAX_SR_STUDIES = 200
 MAX_SR_RETRIEVE = 200
 SR_CONTENT_TABLE_COLUMNS = [
     "PatientName",
@@ -60,6 +60,14 @@ SR_SERIES_RETURN = [
     "SeriesDescription",
     "SeriesDate",
     "NumberOfSeriesRelatedInstances",
+]
+SR_IMAGE_RETURN = [
+    "StudyInstanceUID",
+    "SeriesInstanceUID",
+    "SOPInstanceUID",
+    "SOPClassUID",
+    "InstanceNumber",
+    "Modality",
 ]
 SR_LIST_COLUMNS = [
     "PatientName",
@@ -201,6 +209,189 @@ def _collect_c_find(assoc, identifier: Dataset, columns: list[str], cap: int = M
             failed_status = f"C-FIND status 0x{code:04X}"
             break
     return records, truncated, failed_status
+
+
+def _assoc_up(assoc) -> bool:
+    return bool(assoc is not None and getattr(assoc, "is_established", False))
+
+
+def _release_assoc(assoc) -> None:
+    if not _assoc_up(assoc):
+        return
+    try:
+        assoc.release()
+    except Exception:  # noqa: BLE001
+        try:
+            assoc.abort()
+        except Exception:  # noqa: BLE001
+            pass
+
+
+def _open_assoc(local: LocalAE, remote: RemoteNode, syntax):
+    _ae, assoc = associate(local, remote, [syntax])
+    return assoc, context_rows(assoc)
+
+
+def _sr_series_identifier(study_uid: str) -> Dataset:
+    return build_identifier(
+        "SERIES",
+        {"StudyInstanceUID": study_uid, "Modality": "SR"},
+        SR_SERIES_RETURN,
+    )
+
+
+def _sr_image_identifier(study_uid: str, series_uid: str) -> Dataset:
+    return build_identifier(
+        "IMAGE",
+        {"StudyInstanceUID": study_uid, "SeriesInstanceUID": series_uid},
+        SR_IMAGE_RETURN,
+    )
+
+
+def _c_move_identifier(row: Mapping[str, Any]) -> Dataset:
+    identifier = Dataset()
+    identifier.StudyInstanceUID = _cell(row, "StudyInstanceUID")
+    series_uid = _cell(row, "SeriesInstanceUID")
+    if series_uid:
+        identifier.SeriesInstanceUID = series_uid
+    sop_uid = _cell(row, "SOPInstanceUID")
+    if sop_uid:
+        identifier.QueryRetrieveLevel = "IMAGE"
+        identifier.SOPInstanceUID = sop_uid
+    elif series_uid:
+        identifier.QueryRetrieveLevel = "SERIES"
+    else:
+        identifier.QueryRetrieveLevel = "STUDY"
+    return identifier
+
+
+def _send_c_move(assoc, identifier: Dataset, dest_ae: str) -> tuple[str | None, bool]:
+    """Run one C-MOVE. Returns (error, abort_remaining). Unknown destination aborts the batch."""
+    for status, _remaining in assoc.send_c_move(
+        identifier, dest_ae, StudyRootQueryRetrieveInformationModelMove
+    ):
+        if not status:
+            return "No C-MOVE response (timeout, abort, or invalid PDU).", False
+        code = int(status.Status)
+        if code in PENDING:
+            continue
+        if code == 0x0000:
+            return None, False
+        message = _move_status_message(code)
+        if code == 0xA801:
+            message += (
+                f" Destination AE Title is {dest_ae}. Vue must list it "
+                "as a C-MOVE destination at this workstation’s host:port."
+            )
+            return message, True
+        return message, False
+    return "No C-MOVE response (timeout, abort, or invalid PDU).", False
+
+
+def _merge_sr_series(study: Mapping[str, Any], series: Mapping[str, Any]) -> dict[str, str]:
+    merged = {key: "" for key in SR_LIST_COLUMNS}
+    for key in SR_LIST_COLUMNS:
+        merged[key] = _cell(series, key) or _cell(study, key)
+    return merged
+
+
+def _is_sr_row(row: Mapping[str, Any]) -> bool:
+    modality = _cell(row, "Modality").upper()
+    return (not modality) or modality == "SR"
+
+
+def _looks_like_sr_instance(row: Mapping[str, Any]) -> bool:
+    sop = _cell(row, "SOPClassUID")
+    if sop:
+        return sop in SR_SOP_CLASS_UIDS or sop.startswith("1.2.840.10008.5.1.4.1.1.88")
+    return _is_sr_row(row)
+
+
+def _expand_image_uids(
+    local: LocalAE, remote: RemoteNode, series_rows: list[dict[str, str]]
+) -> list[dict[str, str]]:
+    """C-FIND IMAGE for SR series that have no SOP Instance UID. Fall back to series rows."""
+    if not series_rows or all(_cell(row, "SOPInstanceUID") for row in series_rows):
+        return list(series_rows)
+    assoc, _contexts = _open_assoc(local, remote, StudyRootQueryRetrieveInformationModelFind)
+    if not _assoc_up(assoc) or not assoc.accepted_contexts:
+        _release_assoc(assoc)
+        return list(series_rows)
+    expanded: list[dict[str, str]] = []
+    try:
+        for row in series_rows:
+            if _cell(row, "SOPInstanceUID"):
+                expanded.append(row)
+                continue
+            if not _assoc_up(assoc):
+                _release_assoc(assoc)
+                assoc, _contexts = _open_assoc(
+                    local, remote, StudyRootQueryRetrieveInformationModelFind
+                )
+                if not _assoc_up(assoc) or not assoc.accepted_contexts:
+                    expanded.append(row)
+                    continue
+            images, _trunc, failed = _collect_c_find(
+                assoc,
+                _sr_image_identifier(_cell(row, "StudyInstanceUID"), _cell(row, "SeriesInstanceUID")),
+                SR_IMAGE_RETURN,
+            )
+            usable = [image for image in images if _looks_like_sr_instance(image)] if images else []
+            if failed or not usable:
+                expanded.append(row)
+                continue
+            for image in usable:
+                merged = dict(row)
+                for key in SR_IMAGE_RETURN:
+                    merged[key] = _cell(image, key) or merged.get(key, "")
+                expanded.append(merged)
+    finally:
+        _release_assoc(assoc)
+    return expanded
+
+
+def _records_from_stored(
+    datasets: list, parents: list[Mapping[str, Any]]
+) -> tuple[list[dict[str, Any]], int]:
+    records: list[dict[str, Any]] = []
+    skipped = 0
+    for dataset in datasets:
+        if not is_structured_report(dataset):
+            skipped += 1
+            continue
+        parsed_sr = parse_sr(dataset)
+        parent = next(
+            (
+                row
+                for row in parents
+                if _cell(row, "SOPInstanceUID") == parsed_sr["sop_instance_uid"]
+                or _cell(row, "SeriesInstanceUID") == parsed_sr["series_instance_uid"]
+                or _cell(row, "StudyInstanceUID") == parsed_sr["study_instance_uid"]
+            ),
+            {},
+        )
+        record: dict[str, Any] = {key: "" for key in SR_CONTENT_COLUMNS}
+        for key in (
+            "PatientName",
+            "PatientID",
+            "StudyDate",
+            "AccessionNumber",
+            "StudyDescription",
+        ):
+            record[key] = _stringify_attr(dataset, key) or _cell(parent, key)
+        record["DocumentTitle"] = str(parsed_sr["document_title"])
+        record["Findings"] = str(parsed_sr["findings"])
+        record["Impression"] = str(parsed_sr["impression"])
+        record["CompletionFlag"] = str(parsed_sr["completion_flag"])
+        record["VerificationFlag"] = str(parsed_sr["verification_flag"])
+        record["StudyInstanceUID"] = str(parsed_sr["study_instance_uid"])
+        record["SeriesInstanceUID"] = str(parsed_sr["series_instance_uid"])
+        record["SOPInstanceUID"] = str(parsed_sr["sop_instance_uid"])
+        record["SOPClass"] = uid_name(parsed_sr["sop_class_uid"])
+        record["sr_text"] = str(parsed_sr["text"])
+        record["sr_items"] = parsed_sr["items"]
+        records.append(record)
+    return records, skipped
 
 
 def _move_status_message(code: int) -> str:
@@ -485,22 +676,36 @@ class CFindAdvancedTool(BaseTool):
                     find_started = time.perf_counter()
                     for study in studies:
                         uid = _cell(study, "StudyInstanceUID")
-                        identifier = build_identifier(
-                            "SERIES",
-                            {"StudyInstanceUID": uid, "Modality": "SR"},
-                            SR_SERIES_RETURN,
-                        )
-                        series_rows, _trunc, failed_status = _collect_c_find(
+                        if not _assoc_up(assoc):
+                            _release_assoc(assoc)
+                            assoc, new_contexts = _open_assoc(
+                                local, remote, StudyRootQueryRetrieveInformationModelFind
+                            )
+                            if new_contexts:
+                                contexts = new_contexts
+                            if not _assoc_up(assoc) or not assoc.accepted_contexts:
+                                failed_studies += 1
+                                continue
+                        identifier = _sr_series_identifier(uid)
+                        series_hits, _trunc, failed_status = _collect_c_find(
                             assoc, identifier, SR_SERIES_RETURN
                         )
                         if failed_status:
+                            _release_assoc(assoc)
+                            assoc, new_contexts = _open_assoc(
+                                local, remote, StudyRootQueryRetrieveInformationModelFind
+                            )
+                            if new_contexts:
+                                contexts = new_contexts
+                            if _assoc_up(assoc) and assoc.accepted_contexts:
+                                series_hits, _trunc, failed_status = _collect_c_find(
+                                    assoc, identifier, SR_SERIES_RETURN
+                                )
+                        if failed_status:
                             failed_studies += 1
                             continue
-                        for series in series_rows:
-                            merged = {key: "" for key in SR_LIST_COLUMNS}
-                            for key in SR_LIST_COLUMNS:
-                                merged[key] = _cell(series, key) or _cell(study, key)
-                            records.append(merged)
+                        for series in series_hits:
+                            records.append(_merge_sr_series(study, series))
                     extra = f"; first {MAX_SR_STUDIES} studies" if truncated_studies else ""
                     skipped = f"; {failed_studies} study queries failed" if failed_studies else ""
                     steps.append(
@@ -522,7 +727,8 @@ class CFindAdvancedTool(BaseTool):
                             },
                         )
                     )
-                    assoc.release()
+                    _release_assoc(assoc)
+                    assoc = None
                     steps.append(ToolStep(name="Release", ok=True, message="Association released"))
             except Exception as exc:  # noqa: BLE001
                 steps.append(
@@ -595,15 +801,13 @@ class CFindAdvancedTool(BaseTool):
                 remote_name=remote.name,
             )
 
-        series_rows = [
+        listed = [
             row
             for row in _rows_from_options({**parsed, **options})
-            if _cell(row, "StudyInstanceUID") and _cell(row, "SeriesInstanceUID")
+            if _cell(row, "StudyInstanceUID")
         ]
         series_rows = [
-            row
-            for row in series_rows
-            if (not _cell(row, "Modality")) or _cell(row, "Modality").upper() == "SR"
+            row for row in listed if _cell(row, "SeriesInstanceUID") and _is_sr_row(row)
         ]
         if not series_rows:
             return ToolResult(
@@ -620,33 +824,34 @@ class CFindAdvancedTool(BaseTool):
 
         listed_count = len(series_rows)
         truncated = False
-        failed_moves = 0
         if listed_count > MAX_SR_RETRIEVE:
             series_rows = series_rows[:MAX_SR_RETRIEVE]
             truncated = True
 
         move_local = local.model_copy(
-            update={"timeout_seconds": max(float(local.timeout_seconds), 180.0)}
+            update={"timeout_seconds": max(float(local.timeout_seconds), 45.0)}
         )
         started = time.perf_counter()
         steps: list[ToolStep] = []
         contexts: list[dict[str, Any]] = []
         records: list[dict[str, Any]] = []
         assoc = None
+        requested: list[dict[str, str]] = series_rows
+        failed_moves = 0
         STORAGE_INBOX.begin()
         with capture_pynetdicom_log() as log_stream:
             try:
+                requested = _expand_image_uids(local, remote, series_rows)
                 assoc_started = time.perf_counter()
-                _ae, assoc = associate(
-                    move_local, remote, [StudyRootQueryRetrieveInformationModelMove]
+                assoc, contexts = _open_assoc(
+                    move_local, remote, StudyRootQueryRetrieveInformationModelMove
                 )
-                contexts = context_rows(assoc)
                 rejected = rejected_sop_message(
                     contexts,
                     "Study Root Query/Retrieve MOVE",
                     "Vue must accept C-MOVE (not C-GET) and know this AE as a destination.",
                 )
-                if not assoc.is_established:
+                if not _assoc_up(assoc):
                     steps.append(
                         ToolStep(
                             name="Association",
@@ -665,62 +870,56 @@ class CFindAdvancedTool(BaseTool):
                             duration_ms=_elapsed_ms(assoc_started),
                         )
                     )
-                    assoc.release()
+                    _release_assoc(assoc)
+                    assoc = None
                 else:
                     steps.append(
                         ToolStep(
                             name="Association",
                             ok=True,
                             message=(
-                                f"Study Root MOVE SOP Class accepted · destination {dest_ae}"
+                                f"Study Root MOVE SOP Class accepted · destination {dest_ae} · "
+                                f"{len(requested)} reports, one C-MOVE per association"
                             ),
                             duration_ms=_elapsed_ms(assoc_started),
                         )
                     )
+                    _release_assoc(assoc)
+                    assoc = None
                     move_started = time.perf_counter()
                     failed_status = None
                     abort_remaining = False
                     moved = 0
                     failed_moves = 0
-                    for row in series_rows:
-                        identifier = Dataset()
-                        identifier.QueryRetrieveLevel = "SERIES"
-                        identifier.StudyInstanceUID = _cell(row, "StudyInstanceUID")
-                        identifier.SeriesInstanceUID = _cell(row, "SeriesInstanceUID")
-                        sop_uid = _cell(row, "SOPInstanceUID")
-                        if sop_uid:
-                            identifier.QueryRetrieveLevel = "IMAGE"
-                            identifier.SOPInstanceUID = sop_uid
-                        series_error = None
-                        for status, _remaining in assoc.send_c_move(
-                            identifier, dest_ae, StudyRootQueryRetrieveInformationModelMove
-                        ):
-                            if not status:
-                                series_error = (
-                                    "No C-MOVE response (timeout, abort, or invalid PDU)."
-                                )
-                                abort_remaining = True
-                                break
-                            code = int(status.Status)
-                            if code in PENDING:
-                                continue
-                            if code == 0x0000:
-                                moved += 1
-                                series_error = None
-                                break
-                            series_error = _move_status_message(code)
-                            if code == 0xA801:
-                                series_error += (
-                                    f" Destination AE Title is {dest_ae}. Vue must list it "
-                                    "as a C-MOVE destination at this workstation’s host:port."
-                                )
-                                abort_remaining = True
-                            break
+                    for row in requested:
+                        _release_assoc(assoc)
+                        assoc, new_contexts = _open_assoc(
+                            move_local, remote, StudyRootQueryRetrieveInformationModelMove
+                        )
+                        if new_contexts:
+                            contexts = new_contexts
+                        if not _assoc_up(assoc) or not assoc.accepted_contexts:
+                            failed_moves += 1
+                            failed_status = rejected or (
+                                reject_reason(assoc)
+                                if assoc is not None
+                                else "Study Root Query/Retrieve MOVE was not accepted."
+                            )
+                            assoc = None
+                            continue
+                        series_error, abort_remaining = _send_c_move(
+                            assoc, _c_move_identifier(row), dest_ae
+                        )
+                        _release_assoc(assoc)
+                        assoc = None
                         if series_error:
                             failed_moves += 1
                             failed_status = series_error
                             if abort_remaining:
                                 break
+                            continue
+                        moved += 1
+                    time.sleep(0.05)
                     datasets = STORAGE_INBOX.finish()
                     if failed_status and not datasets:
                         steps.append(
@@ -732,59 +931,23 @@ class CFindAdvancedTool(BaseTool):
                             )
                         )
                     else:
-                        parsed_count = 0
-                        skipped = 0
-                        for dataset in datasets:
-                            if not is_structured_report(dataset):
-                                skipped += 1
-                                continue
-                            parsed_sr = parse_sr(dataset)
-                            parent = next(
-                                (
-                                    row
-                                    for row in series_rows
-                                    if _cell(row, "SeriesInstanceUID")
-                                    == parsed_sr["series_instance_uid"]
-                                ),
-                                {},
-                            )
-                            record: dict[str, Any] = {key: "" for key in SR_CONTENT_COLUMNS}
-                            for key in (
-                                "PatientName",
-                                "PatientID",
-                                "StudyDate",
-                                "AccessionNumber",
-                                "StudyDescription",
-                            ):
-                                record[key] = _stringify_attr(dataset, key) or _cell(parent, key)
-                            record["DocumentTitle"] = str(parsed_sr["document_title"])
-                            record["Findings"] = str(parsed_sr["findings"])
-                            record["Impression"] = str(parsed_sr["impression"])
-                            record["CompletionFlag"] = str(parsed_sr["completion_flag"])
-                            record["VerificationFlag"] = str(parsed_sr["verification_flag"])
-                            record["StudyInstanceUID"] = str(parsed_sr["study_instance_uid"])
-                            record["SeriesInstanceUID"] = str(parsed_sr["series_instance_uid"])
-                            record["SOPInstanceUID"] = str(parsed_sr["sop_instance_uid"])
-                            record["SOPClass"] = uid_name(parsed_sr["sop_class_uid"])
-                            record["sr_text"] = str(parsed_sr["text"])
-                            record["sr_items"] = parsed_sr["items"]
-                            records.append(record)
-                            parsed_count += 1
+                        records, skipped = _records_from_stored(datasets, requested)
+                        parsed_count = len(records)
                         notes: list[str] = []
                         if truncated:
                             notes.append(
                                 f"requested first {MAX_SR_RETRIEVE} of {listed_count} listed series"
                             )
                         if failed_moves:
-                            notes.append(f"{failed_moves} series failed")
+                            notes.append(f"{failed_moves} of {len(requested)} series failed")
                         if skipped:
                             notes.append(f"skipped {skipped} non-SR objects")
                         note = f" ({'; '.join(notes)})" if notes else ""
                         move_ok = parsed_count > 0 or failed_status is None
                         if parsed_count:
                             message = (
-                                f"Retrieved {parsed_count} Structured Reports from "
-                                f"{moved} series moves to {dest_ae}{note}"
+                                f"Retrieved {parsed_count} of {len(requested)} Structured Reports "
+                                f"from {moved} C-MOVE operations to {dest_ae}{note}"
                             )
                             if failed_status:
                                 message += f". Last error: {failed_status}"
@@ -798,7 +961,8 @@ class CFindAdvancedTool(BaseTool):
                                 duration_ms=_elapsed_ms(move_started),
                                 details={
                                     "count": parsed_count,
-                                    "level": "SERIES",
+                                    "requested": len(requested),
+                                    "level": "IMAGE" if any(_cell(row, "SOPInstanceUID") for row in requested) else "SERIES",
                                     "kind": "sr_content",
                                     "truncated": truncated,
                                     "failed_moves": failed_moves,
@@ -806,7 +970,6 @@ class CFindAdvancedTool(BaseTool):
                                 },
                             )
                         )
-                    assoc.release()
                     steps.append(ToolStep(name="Release", ok=True, message="Association released"))
             except Exception as exc:  # noqa: BLE001
                 steps.append(
@@ -819,15 +982,13 @@ class CFindAdvancedTool(BaseTool):
                 )
             finally:
                 STORAGE_INBOX.finish()
-                if assoc is not None and getattr(assoc, "is_established", False):
-                    try:
-                        assoc.abort()
-                    except Exception:  # noqa: BLE001
-                        pass
+                _release_assoc(assoc)
+                assoc = None
             log = log_stream.getvalue().strip()
 
         ok = bool(steps) and all(step.ok for step in steps)
         failed = next((step for step in steps if not step.ok), None)
+        requested_n = len(requested)
         if ok:
             extra = []
             if truncated:
@@ -836,7 +997,8 @@ class CFindAdvancedTool(BaseTool):
                 extra.append(f"{failed_moves} series failed")
             cap = f" ({'; '.join(extra)})" if extra else ""
             summary = (
-                f"Parsed {len(records)} Structured Reports from {remote.ae_title}{cap}. "
+                f"Retrieved {len(records)} of {requested_n} Structured Reports "
+                f"from {remote.ae_title}{cap}. "
                 "Findings and Impression come from the DICOM Content Sequence, not a language model."
             )
         else:
