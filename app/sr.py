@@ -170,6 +170,53 @@ def flatten_sr(dataset: Dataset, *, max_items: int = MAX_SR_ITEMS) -> list[dict[
     return items
 
 
+FINDINGS_NAMES = {"findings", "finding"}
+FINDINGS_CODES = {"121070", "121071"}
+IMPRESSION_NAMES = {"impression", "impressions"}
+IMPRESSION_CODES = {"121073"}
+
+
+def _item_code(item: dict[str, str | int]) -> str:
+    code = str(item.get("code") or "").strip()
+    if ":" in code:
+        return code.split(":", 1)[1].strip()
+    return code
+
+
+def section_text(
+    items: list[dict[str, str | int]],
+    *,
+    names: set[str],
+    codes: set[str],
+) -> str:
+    """Collect TEXT/CODE/NUM values under matching concept names or codes."""
+    wanted_names = {name.lower() for name in names}
+    wanted_codes = {code.lower() for code in codes}
+    chunks: list[str] = []
+    index = 0
+    while index < len(items):
+        item = items[index]
+        name = str(item.get("name") or "").strip().lower()
+        code = _item_code(item).lower()
+        if name not in wanted_names and code not in wanted_codes:
+            index += 1
+            continue
+        depth = int(item.get("depth") or 0)
+        values: list[str] = []
+        own = str(item.get("value") or "").strip()
+        if own:
+            values.append(own)
+        index += 1
+        while index < len(items) and int(items[index].get("depth") or 0) > depth:
+            nested = str(items[index].get("value") or "").strip()
+            if nested:
+                values.append(nested)
+            index += 1
+        if values:
+            chunks.append("\n".join(values))
+    return "\n".join(chunks).strip()
+
+
 def sr_plain_text(items: list[dict[str, str | int]]) -> str:
     lines: list[str] = []
     for item in items:
@@ -200,5 +247,7 @@ def parse_sr(dataset: Dataset) -> dict[str, Any]:
         "series_instance_uid": _stringify(getattr(dataset, "SeriesInstanceUID", None)),
         "items": items,
         "text": sr_plain_text(items),
+        "findings": section_text(items, names=FINDINGS_NAMES, codes=FINDINGS_CODES),
+        "impression": section_text(items, names=IMPRESSION_NAMES, codes=IMPRESSION_CODES),
         "truncated": len(items) >= MAX_SR_ITEMS,
     }

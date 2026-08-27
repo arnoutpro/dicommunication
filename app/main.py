@@ -1093,6 +1093,8 @@ def create_app(store: ConfigStore | None = None) -> FastAPI:
                     kind = str(step_kind)
         labels = dict(zip(columns, column_labels(columns)))
         labels.setdefault("DocumentTitle", "Document Title")
+        labels.setdefault("Findings", "Findings")
+        labels.setdefault("Impression", "Impression")
         labels.setdefault("CompletionFlag", "Completion Flag")
         labels.setdefault("VerificationFlag", "Verification Flag")
         labels.setdefault("SOPClass", "SOP Class")
