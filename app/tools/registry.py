@@ -9,7 +9,17 @@ from pathlib import Path
 from app.tools.base import BaseTool
 
 # Fallback when pkgutil cannot see frozen modules. Keep in sync with app/tools/*.py.
-BUILTIN_TOOL_MODULES = ("echo", "find", "hl7", "mwl", "pdf_store", "ping", "store")
+BUILTIN_TOOL_MODULES = (
+    "echo",
+    "find",
+    "find_advanced",
+    "find_keys",
+    "hl7",
+    "mwl",
+    "pdf_store",
+    "ping",
+    "store",
+)
 
 _REGISTRY: dict[str, BaseTool] = {}
 _DISCOVERED = False
@@ -41,7 +51,16 @@ CATEGORY_LABELS = {
     "general": "General",
 }
 CATEGORY_ORDER = ("connectivity", "dimse", "hl7", "general")
-TOOL_ORDER = ("ping", "c-echo", "c-store", "pdf-store", "c-find", "mwl-find", "hl7-send")
+TOOL_ORDER = (
+    "ping",
+    "c-echo",
+    "c-store",
+    "pdf-store",
+    "c-find",
+    "c-find-advanced",
+    "mwl-find",
+    "hl7-send",
+)
 
 
 def list_tools_by_category() -> list[tuple[str, list[BaseTool]]]:

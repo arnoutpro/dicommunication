@@ -86,6 +86,7 @@ def test_health_and_pages(client) -> None:
     assert b"C-ECHO" in help_page.content
     assert b"Modality Worklist" in help_page.content
     assert b"Advanced troubleshooting" in help_page.content
+    assert b"C-FIND Advanced" in help_page.content
     assert b"HL7 send" in help_page.content
     assert b"Encapsulated PDF" in help_page.content
     pdf_store = client.get("/tools/pdf-store")
@@ -103,6 +104,11 @@ def test_health_and_pages(client) -> None:
     assert b"hx-disable" in pdf_store.content
     assert b'class="req"' in pdf_store.content
     assert b"Generate Patient Name" in pdf_store.content
+    advanced = client.get("/tools/c-find-advanced")
+    assert advanced.status_code == 200
+    assert b"C-FIND Advanced" in advanced.content
+    assert b"hierarchical FIND" in advanced.content
+    assert b"No remote node configured" in advanced.content
     assert b"Unique patient per PDF" in pdf_store.content
     assert b'nav-branch is-open" data-nav-id="test-tools"' in pdf_store.content
     assert b'id="nav-fold-test-tools" checked' in pdf_store.content
@@ -186,7 +192,7 @@ def test_reject_oversized_ae_title(client) -> None:
 def test_json_api_config_tools_and_run(client, store) -> None:
     listed = client.get("/api/tools").json()
     ids = {item["id"] for item in listed}
-    assert {"ping", "c-echo", "mwl-find", "c-store", "pdf-store", "c-find", "hl7-send"} <= ids
+    assert {"ping", "c-echo", "mwl-find", "c-store", "pdf-store", "c-find", "c-find-advanced", "hl7-send"} <= ids
 
     remote = RemoteNode(name="api node", ae_title="APINODE", host="127.0.0.1", port=9)
     created = client.post("/api/remotes", json=remote.model_dump(mode="json"))
