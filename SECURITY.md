@@ -68,13 +68,9 @@ explains a UI that will not load from another machine.
 
 ## Reporting something
 
-Open an issue on this repository. If the repository is public when you read this,
-prefer **Security → Report a vulnerability** so the report stays private until
-there is a fix.
+Do not open a public issue. This repository does not accept bug reports or patches.
 
-Please include the version from **About** (or `GET /health`), what you pointed
-the tool at, and the smallest reproduction you have. There is no bounty and no
-SLA — this is a single-maintainer tool.
+If you found a security problem, use **Security → Report a vulnerability** so the report stays private. Include the version from **About** (or `GET /health`), what you pointed the tool at, and the smallest reproduction you have. There is no bounty and no SLA — this is a single-maintainer tool.
 
 ## Running the checks yourself
 
