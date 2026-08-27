@@ -1222,11 +1222,17 @@ function bindFindAdvanced(root) {
   }
 }
 
+function pageProductName() {
+  return (document.body && document.body.dataset.productName) || "Dicomtag Analytics";
+}
+
 function findStoppedMarkup() {
   return (
     '<article class="result fail" data-find-result>' +
     '<header><span class="badge fail">Fail</span>' +
-    "<div><strong>Vue PACS Database Analytics</strong>" +
+    "<div><strong>" +
+    pageProductName() +
+    "</strong>" +
     "<p>Query stopped.</p></div></header></article>"
   );
 }

@@ -1,15 +1,30 @@
 from __future__ import annotations
 
 from app.shell import (
+    PRODUCT_ANALYTICS,
+    PRODUCT_NAMES,
+    PROFILE_VUE,
+    PROFILE_VUE_LEGACY,
     SHELL_DICOMM,
     SHELL_VUE,
     VUE_PREFIX,
+    is_analytics_profile,
     prefix_redirect_location,
     public_href,
     strip_vue_prefix,
     tools_for_shell,
     vue_path_allowed,
 )
+
+
+def test_analytics_product_name_and_profile() -> None:
+    assert PRODUCT_ANALYTICS == "Dicomtag Analytics"
+    assert PRODUCT_NAMES[SHELL_VUE] == "Dicomtag Analytics"
+    assert PROFILE_VUE == "dicomtag-analytics"
+    assert PROFILE_VUE_LEGACY == "vue-analytics"
+    assert is_analytics_profile(PROFILE_VUE)
+    assert is_analytics_profile(PROFILE_VUE_LEGACY)
+    assert not is_analytics_profile("dicommunication")
 
 
 def test_strip_and_prefix_vue_paths() -> None:
@@ -49,7 +64,8 @@ def test_shell_tool_lists_split_c_find_advanced() -> None:
 def test_vue_home_is_query_page(client) -> None:
     page = client.get("/vue/")
     assert page.status_code == 200
-    assert b"Vue PACS Database Analytics" in page.content
+    assert b"Dicomtag Analytics" in page.content
+    assert b'data-product-name="Dicomtag Analytics"' in page.content
     assert b">Query<" in page.content
     assert b"No remote node configured" in page.content
     assert b"Test tools" not in page.content
@@ -109,4 +125,4 @@ def test_dicommunication_sidebar_omits_analytics(client) -> None:
     assert b'href="/tools/c-find-advanced"' not in home.content
     ping = client.get("/tools/ping")
     assert ping.status_code == 200
-    assert b"Vue PACS Database Analytics" not in ping.content
+    assert b"Dicomtag Analytics" not in ping.content

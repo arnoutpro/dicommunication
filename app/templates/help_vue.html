@@ -6,7 +6,7 @@
   <div>
     <p class="eyebrow">Administrator guide</p>
     <h1>Help</h1>
-    <p class="lede">Vue PACS Database Analytics is Study Root C-FIND for Vue PACS (and other Q/R SCPs). Version <strong>v{{ app_version }}</strong> · <a href="{{ href('/about') }}">About this installation</a>.</p>
+    <p class="lede">{{ product_name }} is Study Root C-FIND for Vue PACS (and other Q/R SCPs). Version <strong>v{{ app_version }}</strong> · <a href="{{ href('/about') }}">About this installation</a>.</p>
   </div>
 </header>
 
@@ -28,7 +28,7 @@
   <header class="panel-head">
     <h2>What this is</h2>
   </header>
-  <p>This window is <strong>Vue PACS Database Analytics</strong>. It ships in the same Dicommunication installer. It is not the workstation: there is no PING, C-STORE, PDF, HL7, Testbench, or worklist here.</p>
+  <p>This window is <strong>{{ product_name }}</strong>. It ships in the same Dicommunication installer. It is not the workstation: there is no PING, C-STORE, PDF, HL7, Testbench, or worklist here.</p>
   <p>Both tools share the calling AE Title and remote nodes in the data directory. Add the Vue Q/R SCP once; Dicommunication C-ECHO and this query page use the same record.</p>
   <p>This searches <em>stored studies</em> with Study Root Query/Retrieve FIND. It is not Modality Worklist. After a Study query, <strong>List SR reports</strong> runs Series C-FIND with modality SR for every study in the table. <strong>Retrieve report text</strong> is one Study Root C-MOVE per listed report onto this AE; it is not C-GET, and it is not limited to the first exam.</p>
 </section>

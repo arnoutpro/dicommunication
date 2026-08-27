@@ -264,7 +264,7 @@ def test_c_find_advanced_page_and_api(client, store) -> None:
         store.add_remote(remote)
         page = client.get("/vue/")
         assert page.status_code == 200
-        assert b"Vue PACS Database Analytics" in page.content
+        assert b"Dicomtag Analytics" in page.content
         assert b'data-find-advanced' in page.content
         assert b'value="STUDY"' in page.content
         assert b'value="SERIES"' in page.content
