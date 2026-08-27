@@ -16,6 +16,7 @@
 
 ### Interface
 
+- **Vue PACS Database Analytics** Query: DICOM keys are a compact tree (checkboxes kept); results sit on the right of the filters so tables can use the remaining width. Query duration is folded under Timing. Stop cancels an in-flight query in the browser. Study Date is required at Study level.
 - Dicommunication and Vue PACS Database Analytics share a white admin-app shell: A mark in the top-left (full-palette aurora clipped to Sansation A), left menu, white panels. Dark and Professional remain in the theme menu.
 - **Vue PACS Database Analytics**: own Start-menu tool from the Dicommunication installer (formerly C-FIND Advanced). Query Vue PACS with Study Root C-FIND at Study / Series / Image, including optional ELSCINT1 keys. **Tamar Assign To Doctor** is a confirmed matching key on Vue 12.2.8 (used with Modalities in Study); other Vue tags stay experimental. Shared config with Dicommunication; no other Test tools in that window.
 - Sidebar is a two-level tree (Test tools → Connectivity / DIMSE / HL7). Click **Test tools** (or a category) to fold it out; groups start folded. **About** and **Help** sit on one compact row.
