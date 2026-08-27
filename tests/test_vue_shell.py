@@ -56,13 +56,20 @@ def test_vue_home_is_query_page(client) -> None:
     assert b"C-ECHO board" not in page.content
     assert b'href="/vue/config/remotes"' in page.content
     assert b"shell-vue" in page.content
+    assert b"topbar" in page.content
+    assert b"site-brand-mark-layer" in page.content
 
 
 def test_vue_query_form_uses_prefixed_action(client, remote) -> None:
     page = client.get("/vue/")
     assert page.status_code == 200
     assert b"find-key-list" in page.content
+    assert b"find-tree" in page.content
+    assert b"find-workspace" in page.content
     assert b'hx-post="/vue/tools/c-find-advanced/run"' in page.content
+    assert b'data-find-stop' in page.content
+    assert b'hx-disabled-elt="[data-find-run]"' in page.content
+    assert b'data-match-required="1"' in page.content
 
 
 def test_vue_hides_workstation_tools(client) -> None:
