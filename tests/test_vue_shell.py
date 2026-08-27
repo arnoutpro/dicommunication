@@ -70,6 +70,9 @@ def test_vue_query_form_uses_prefixed_action(client, remote) -> None:
     assert b'data-find-stop' in page.content
     assert b'hx-disabled-elt="[data-find-run], [data-find-follow]"' in page.content
     assert b'data-match-required="1"' in page.content
+    assert b"SR C-STORE off" in page.content
+    assert b'href="/vue/config/local"' in page.content
+    assert b"Accept C-STORE on Local DICOM AE" in page.content
 
 
 def test_vue_hides_workstation_tools(client) -> None:
@@ -90,6 +93,7 @@ def test_vue_config_and_help_stay_in_shell(client) -> None:
     assert help_page.status_code == 200
     assert b"ELSCINT1" in help_page.content
     assert b"Structured reports" in help_page.content
+    assert b"not a virtual Present as title" in help_page.content
     assert b"HL7 send" not in help_page.content
     about = client.get("/vue/about")
     assert about.status_code == 200
