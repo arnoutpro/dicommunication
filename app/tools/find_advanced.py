@@ -91,6 +91,39 @@ MOVE_HINTS = {
 }
 
 
+def retrieve_storage_gate_message(
+    *,
+    dest_ae: str,
+    port: int,
+    calling_ae: str,
+    enabled: bool,
+    running: bool,
+    storage_error: str = "",
+) -> str | None:
+    """Explain why retrieve cannot C-MOVE yet. None when the local Storage SCP is up."""
+    dest = dest_ae.strip() or "the Local AE Title"
+    if not enabled:
+        text = (
+            f"Accept C-STORE is off. On Local DICOM AE enable Accept C-STORE of "
+            f"Structured Reports and save. Vue must list {dest} as a C-MOVE destination "
+            f"at this host, listen port {port}."
+        )
+        calling = calling_ae.strip()
+        if calling and calling != dest:
+            text += (
+                f" Present as {calling} is only the calling AE for C-FIND; Vue C-STOREs "
+                f"the report to {dest}, not to a viewer that uses that title."
+            )
+        return text
+    if not running:
+        return storage_error or (
+            "The local Storage SCP is not listening. Save Local DICOM AE with "
+            "Accept C-STORE enabled, and allow inbound TCP on the listen port "
+            f"{port} as {dest}."
+        )
+    return None
+
+
 def _elapsed_ms(started: float) -> float:
     return round((time.perf_counter() - started) * 1000, 1)
 
@@ -534,30 +567,21 @@ class CFindAdvancedTool(BaseTool):
         storage_running = bool(options.get("_storage_running", False))
         storage_error = str(options.get("_storage_error") or "").strip()
         dest_ae = str(options.get("_listen_ae") or local.ae_title).strip() or local.ae_title
-        if not storage_enabled:
+        calling_ae = local.ae_title
+        blocked = retrieve_storage_gate_message(
+            dest_ae=dest_ae,
+            port=int(local.port),
+            calling_ae=calling_ae,
+            enabled=storage_enabled,
+            running=storage_running,
+            storage_error=storage_error,
+        )
+        if blocked:
             return ToolResult(
                 tool_id=self.id,
                 tool_name=self.name,
                 ok=False,
-                summary=(
-                    "Enable Accept C-STORE (Structured Reports) on Local DICOM AE, "
-                    "register that AE Title in Vue as a C-MOVE destination, then retrieve again."
-                ),
-                remote_id=remote.id,
-                remote_name=remote.name,
-            )
-        if not storage_running:
-            return ToolResult(
-                tool_id=self.id,
-                tool_name=self.name,
-                ok=False,
-                summary=(
-                    storage_error
-                    or (
-                        "The local Storage SCP is not listening. Save Local DICOM AE with "
-                        "Accept C-STORE enabled, and allow inbound TCP on the listen port."
-                    )
-                ),
+                summary=blocked,
                 remote_id=remote.id,
                 remote_name=remote.name,
             )
