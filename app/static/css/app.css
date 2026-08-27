@@ -1928,6 +1928,11 @@ html:not(.light-mode) .find-key:hover { background: rgba(148, 163, 184, 0.08); }
 .find-table tbody tr.is-selected td {
   background: color-mix(in srgb, var(--accent) 16%, transparent);
 }
+.find-table td[data-key="Findings"],
+.find-table td[data-key="Impression"] {
+  white-space: pre-wrap;
+  max-width: 28rem;
+}
 .find-copy-flash {
   color: var(--ok);
   font-size: var(--text-xs);

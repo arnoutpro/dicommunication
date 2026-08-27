@@ -74,6 +74,8 @@ SR_CONTENT_COLUMNS = [
     "AccessionNumber",
     "StudyDescription",
     "DocumentTitle",
+    "Findings",
+    "Impression",
     "CompletionFlag",
     "VerificationFlag",
     "StudyInstanceUID",
@@ -712,6 +714,8 @@ class CFindAdvancedTool(BaseTool):
                             ):
                                 record[key] = _stringify_attr(dataset, key) or _cell(parent, key)
                             record["DocumentTitle"] = str(parsed_sr["document_title"])
+                            record["Findings"] = str(parsed_sr["findings"])
+                            record["Impression"] = str(parsed_sr["impression"])
                             record["CompletionFlag"] = str(parsed_sr["completion_flag"])
                             record["VerificationFlag"] = str(parsed_sr["verification_flag"])
                             record["StudyInstanceUID"] = str(parsed_sr["study_instance_uid"])

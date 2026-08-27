@@ -520,6 +520,8 @@ def test_retrieve_sr_parses_content_sequence(store) -> None:
         )
         assert result.ok, result.summary
         assert result.records[0]["DocumentTitle"] == "Radiology Report"
+        assert result.records[0]["Findings"] == "No acute osseous abnormality."
+        assert result.records[0]["Impression"] == "Normal CT chest."
         assert "No acute osseous abnormality." in result.records[0]["sr_text"]
         names = [item["name"] for item in result.records[0]["sr_items"]]
         assert "Finding" in names

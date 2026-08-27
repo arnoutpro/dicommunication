@@ -77,3 +77,18 @@ def test_flatten_sr_walks_content_sequence() -> None:
     assert "Finding: No acute osseous abnormality." in text
     assert "Impression: Normal CT chest." in text
     assert flatten_sr(ds)[0]["value_type"] == "CONTAINER"
+    assert parsed["findings"] == "No acute osseous abnormality."
+    assert parsed["impression"] == "Normal CT chest."
+
+
+def test_findings_column_joins_nested_text() -> None:
+    ds = make_radiology_sr()
+    extra = Dataset()
+    extra.RelationshipType = "CONTAINS"
+    extra.ValueType = "TEXT"
+    extra.ConceptNameCodeSequence = [_code("121071", "Finding")]
+    extra.TextValue = "No pleural effusion."
+    ds.ContentSequence[0].ContentSequence.append(extra)
+    parsed = parse_sr(ds)
+    assert parsed["findings"] == "No acute osseous abnormality.\nNo pleural effusion."
+    assert parsed["impression"] == "Normal CT chest."
