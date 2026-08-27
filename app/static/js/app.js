@@ -1037,6 +1037,7 @@ function useFindRow(row) {
     setFindLevel(form, "SERIES");
   }
   syncFindAdvanced(form);
+  form.querySelector("[data-find-value='StudyInstanceUID']")?.closest("details")?.setAttribute("open", "");
   form.querySelector("[data-find-value='StudyInstanceUID']")?.scrollIntoView({
     block: "center",
     behavior: "smooth",

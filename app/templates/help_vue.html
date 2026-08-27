@@ -37,7 +37,7 @@
     <h2>Query</h2>
     <a href="{{ href('/') }}">Open</a>
   </header>
-  <p>Study Root FIND at <strong>Study</strong>, <strong>Series</strong>, or <strong>Image</strong>. Checked keys are return columns. A typed value is also a matching key. Empty STUDY filters are a broad study query.</p>
+  <p>Study Root FIND at <strong>Study</strong>, <strong>Series</strong>, or <strong>Image</strong>. Keys sit in a compact tree on the left (checkbox = return column; typed value = matching key). Results occupy the right pane so wide tables stay readable. Empty STUDY filters are a broad study query.</p>
   <ul>
     <li><strong>Hierarchical FIND</strong> — not relational. Series keys unlock after <strong>Study Instance UID</strong> is filled. Image keys unlock after Study Instance UID and <strong>Series Instance UID</strong>. Vue PACS documents this the same way.</li>
     <li>Some keys stay locked until another field is present. Example: Repetition Time is an MR series key, so it stays unavailable while Modality is <code>CT</code>.</li>
