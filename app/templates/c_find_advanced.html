@@ -1,10 +1,10 @@
 {% extends "base.html" %}
-{% block title %}{{ tool.name }} · Dicommunication{% endblock %}
+{% block title %}{{ product_name }}{% endblock %}
 {% block content %}
 <header class="page-head">
   <div>
-    <p class="eyebrow">{{ tool.category }}</p>
-    <h1>{{ tool.name }}</h1>
+    <p class="eyebrow">{% if shell == 'vue' %}Vue PACS{% else %}{{ tool.category }}{% endif %}</p>
+    <h1>{{ product_name }}</h1>
     <p class="lede">{{ tool.description }}</p>
   </div>
 </header>
@@ -19,8 +19,8 @@
   <form
     class="form-grid find-advanced-form"
     method="post"
-    action="/tools/c-find-advanced/run"
-    hx-post="/tools/c-find-advanced/run"
+    action="{{ href('/tools/c-find-advanced/run') }}"
+    hx-post="{{ href('/tools/c-find-advanced/run') }}"
     hx-target="#result"
     hx-indicator="#busy"
     hx-timeout="120000"
@@ -126,7 +126,7 @@
     {% endfor %}
 
     <div class="form-actions span-2">
-      <button class="button primary" type="submit">Run C-FIND Advanced</button>
+      <button class="button primary" type="submit">Run query</button>
       <span id="busy" class="htmx-indicator spinner">Querying…</span>
       <p class="hint">Empty STUDY filters are a broad study query. Series and Image will not run until the parent UIDs are filled. Click a result row to copy those UIDs into the next level.</p>
     </div>
@@ -135,7 +135,7 @@
   <div class="empty">
     <strong>No remote node configured</strong>
     <p>Add a PACS or Q/R SCP first, then come back to run {{ tool.name }}.</p>
-    <a class="button" href="/config/remotes">Open configuration</a>
+    <a class="button" href="{{ href('/config/remotes') }}">Open configuration</a>
   </div>
   {% endif %}
 </section>

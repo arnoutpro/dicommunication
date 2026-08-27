@@ -16,8 +16,7 @@
 
 ### Interface
 
-- **C-FIND Advanced**: keys are grouped by Study / Series / Image as a list. Optional collapsed **Vue PACS (ELSCINT1)** lists send Tamar private study/series tags (not Grid Token sequences). **Tamar Assign To Doctor** is a confirmed matching key on Vue 12.2.8 (used with Modalities in Study); other Vue tags stay experimental. Off by default.
-- **C-FIND Advanced** (`c-find-advanced`): Study Root C-FIND at Study, Series, or Image with the searchable keys for that level. Series and Image follow hierarchical FIND (parent Unique keys required). Results are a column-aligned table with copy, CSV, and JSON export.
+- **Vue PACS Database Analytics**: own Start-menu tool from the Dicommunication installer (formerly C-FIND Advanced). Query Vue PACS with Study Root C-FIND at Study / Series / Image, including optional ELSCINT1 keys. **Tamar Assign To Doctor** is a confirmed matching key on Vue 12.2.8 (used with Modalities in Study); other Vue tags stay experimental. Shared config with Dicommunication; no other Test tools in that window.
 - Sidebar is a two-level tree (Test tools → Connectivity / DIMSE / HL7). Click **Test tools** (or a category) to fold it out; groups start folded. **About** and **Help** sit on one compact row.
 - PDF to DICOM: checking **Generate Patient Name / ID** fills those fields immediately. Scan and every upload path accept **PDF only**.
 - Sidebar **About** and **Help** buttons: About shows the running version and this installation; Help is the in-app administrator guide (each screen and tool, including HL7 Advanced troubleshooting).

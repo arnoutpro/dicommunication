@@ -18,7 +18,9 @@ README_TEXT = """Dicommunication — Arnout.pro
 2. The first time, right-click the app and choose Open (the build is unsigned;
    Gatekeeper will warn).
 3. Dicommunication opens in its own window (not a browser tab).
-4. Close the window or quit from the Dock to stop the server.
+4. Vue PACS Database Analytics: open -n Dicommunication.app --args --profile vue-analytics
+   (or http://127.0.0.1:8080/vue/ if the workstation is already running).
+5. Close the window or quit from the Dock to stop the server.
 
 Config and logs stay in ~/.dicommunication across upgrades.
 

@@ -21,7 +21,7 @@ def test_builtin_tools_are_registered() -> None:
     assert tools["c-store"].name == "C-STORE"
     assert tools["pdf-store"].name == "PDF to DICOM"
     assert tools["c-find"].name == "C-FIND"
-    assert tools["c-find-advanced"].name == "C-FIND Advanced"
+    assert tools["c-find-advanced"].name == "Vue PACS Database Analytics"
     assert tools["hl7-send"].name == "HL7 send"
     assert tools["hl7-send"].requires_remote is False
     assert tools["pdf-store"].requires_remote is False
