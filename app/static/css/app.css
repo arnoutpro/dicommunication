@@ -210,6 +210,13 @@ h1, h2, h3, h4 {
   letter-spacing: 0.1em;
   text-transform: uppercase;
 }
+.shell-vue .brand small {
+  letter-spacing: 0.02em;
+  text-transform: none;
+  max-width: 11.5rem;
+  line-height: 1.3;
+  font-weight: 600;
+}
 
 .site-brand-lockup {
   position: relative;

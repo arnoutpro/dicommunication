@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="dark">
-  <title>{% block title %}Arnout.pro Dicommunication Tool{% endblock %}</title>
+  <title>{% block title %}{{ product_name }}{% endblock %}</title>
   <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
   <script>
     (function () {
@@ -28,7 +28,7 @@
   <link rel="stylesheet" href="/static/css/app.css">
   <script src="/static/vendor/htmx-2.0.4.min.js" defer></script>
 </head>
-<body class="{% block body_class %}{% endblock %}">
+<body class="{% block body_class %}{% endblock %}{% if shell == 'vue' %} shell-vue{% endif %}">
   <div class="aurora-wrapper" aria-hidden="true">
     <div class="aurora-container">
       <div class="aurora-item aurora-1"></div>
@@ -55,7 +55,7 @@
   </div>
   <div class="shell">
     <aside class="sidebar">
-      <a class="brand" href="/" title="© 2026 arnout.pro">
+      <a class="brand" href="{{ href('/') }}" title="© 2026 arnout.pro">
         <span class="site-brand-lockup">
           <span class="site-brand-mark-slot" aria-hidden="true">
             <span class="site-brand-mark-letter">A</span>
@@ -64,27 +64,46 @@
         </span>
         <span>
           <strong class="logo-font"><span class="logo-wordmark-name">ARNOUT</span><span class="logo-wordmark-tld">.PRO</span></strong>
-          <small>Dicommunication</small>
+          <small>{{ product_name }}</small>
         </span>
       </a>
       <nav>
-        <a href="/" class="{% if nav == 'home' %}active{% endif %}">Dashboard</a>
+        {% if shell == 'vue' %}
+        <a href="{{ href('/') }}" class="{% if nav == 'home' %}active{% endif %}">Query</a>
 
         {% set config_open = nav.startswith('config') %}
         <div class="nav-branch{% if config_open %} is-open{% endif %}" data-nav-id="config">
           <input type="checkbox" class="nav-fold-check" id="nav-fold-config"{% if config_open %} checked{% endif %} aria-controls="nav-config-kids">
           <div class="nav-row">
             <label class="nav-twist" for="nav-fold-config" aria-label="Configured nodes"></label>
-            <a href="/config" class="{% if nav == 'config' %}active{% endif %}">Configured nodes</a>
+            <a href="{{ href('/config') }}" class="{% if nav == 'config' %}active{% endif %}">Configured nodes</a>
           </div>
           <div class="nav-children" id="nav-config-kids">
-            <a href="/config/local" class="{% if nav == 'config-local' %}active{% endif %}">Local DICOM AE</a>
-            <a href="/config/identities" class="{% if nav == 'config-identities' %}active{% endif %}">Virtual AEs</a>
-            <a href="/config/remotes" class="{% if nav == 'config-remotes' %}active{% endif %}">Remote nodes</a>
+            <a href="{{ href('/config/local') }}" class="{% if nav == 'config-local' %}active{% endif %}">Local DICOM AE</a>
+            <a href="{{ href('/config/identities') }}" class="{% if nav == 'config-identities' %}active{% endif %}">Virtual AEs</a>
+            <a href="{{ href('/config/remotes') }}" class="{% if nav == 'config-remotes' %}active{% endif %}">Remote nodes</a>
           </div>
         </div>
 
-        <a href="/logs" class="{% if nav == 'logs' %}active{% endif %}">Logs</a>
+        <a href="{{ href('/logs') }}" class="{% if nav == 'logs' %}active{% endif %}">Logs</a>
+        {% else %}
+        <a href="{{ href('/') }}" class="{% if nav == 'home' %}active{% endif %}">Dashboard</a>
+
+        {% set config_open = nav.startswith('config') %}
+        <div class="nav-branch{% if config_open %} is-open{% endif %}" data-nav-id="config">
+          <input type="checkbox" class="nav-fold-check" id="nav-fold-config"{% if config_open %} checked{% endif %} aria-controls="nav-config-kids">
+          <div class="nav-row">
+            <label class="nav-twist" for="nav-fold-config" aria-label="Configured nodes"></label>
+            <a href="{{ href('/config') }}" class="{% if nav == 'config' %}active{% endif %}">Configured nodes</a>
+          </div>
+          <div class="nav-children" id="nav-config-kids">
+            <a href="{{ href('/config/local') }}" class="{% if nav == 'config-local' %}active{% endif %}">Local DICOM AE</a>
+            <a href="{{ href('/config/identities') }}" class="{% if nav == 'config-identities' %}active{% endif %}">Virtual AEs</a>
+            <a href="{{ href('/config/remotes') }}" class="{% if nav == 'config-remotes' %}active{% endif %}">Remote nodes</a>
+          </div>
+        </div>
+
+        <a href="{{ href('/logs') }}" class="{% if nav == 'logs' %}active{% endif %}">Logs</a>
 
         {% set tools_open = nav in ['testbench', 'echo-board', 'worklist', 'tools'] %}
         <div class="nav-branch{% if tools_open %} is-open{% endif %}" data-nav-id="test-tools">
@@ -94,9 +113,9 @@
             Test tools
           </label>
           <div class="nav-children" id="nav-tools-kids">
-            <a href="/testbench" class="{% if nav == 'testbench' %}active{% endif %}">Testbench</a>
-            <a href="/echo-board" class="{% if nav == 'echo-board' %}active{% endif %}">C-ECHO board</a>
-            <a href="/worklist" class="{% if nav == 'worklist' %}active{% endif %}">Worklist</a>
+            <a href="{{ href('/testbench') }}" class="{% if nav == 'testbench' %}active{% endif %}">Testbench</a>
+            <a href="{{ href('/echo-board') }}" class="{% if nav == 'echo-board' %}active{% endif %}">C-ECHO board</a>
+            <a href="{{ href('/worklist') }}" class="{% if nav == 'worklist' %}active{% endif %}">Worklist</a>
             {% for category, items in tool_groups %}
             {% set cat_id = category | lower | replace(' ', '-') %}
             {% set cat_open = tool_id is defined and items | selectattr('id', 'equalto', tool_id) | list | length > 0 %}
@@ -108,18 +127,19 @@
               </label>
               <div class="nav-children" id="nav-{{ cat_id }}-kids">
                 {% for item in items %}
-                <a href="/tools/{{ item.id }}" class="{% if tool_id == item.id %}active{% endif %}">{{ item.name }}</a>
+                <a href="{{ href('/tools/' ~ item.id) }}" class="{% if tool_id == item.id %}active{% endif %}">{{ item.name }}</a>
                 {% endfor %}
               </div>
             </div>
             {% endfor %}
           </div>
         </div>
+        {% endif %}
       </nav>
       <div class="sidebar-foot">
         <div class="doc-actions">
-          <a href="/about" class="button{% if nav == 'about' %} is-active{% endif %}">About</a>
-          <a href="/help" class="button{% if nav == 'help' %} is-active{% endif %}">Help</a>
+          <a href="{{ href('/about') }}" class="button{% if nav == 'about' %} is-active{% endif %}">About</a>
+          <a href="{{ href('/help') }}" class="button{% if nav == 'help' %} is-active{% endif %}">Help</a>
         </div>
         <div class="theme-menu-root" id="theme-menu">
           <button

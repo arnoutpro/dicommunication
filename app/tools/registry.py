@@ -40,8 +40,11 @@ def get_tool(tool_id: str) -> BaseTool:
         raise KeyError(f"Unknown tool: {tool_id}") from exc
 
 
-def list_tools() -> list[BaseTool]:
-    return list(_REGISTRY.values())
+def list_tools(*, exclude: frozenset[str] | set[str] | None = None) -> list[BaseTool]:
+    tools = list(_REGISTRY.values())
+    if exclude:
+        return [tool for tool in tools if tool.id not in exclude]
+    return tools
 
 
 CATEGORY_LABELS = {
@@ -63,9 +66,11 @@ TOOL_ORDER = (
 )
 
 
-def list_tools_by_category() -> list[tuple[str, list[BaseTool]]]:
+def list_tools_by_category(
+    *, exclude: frozenset[str] | set[str] | None = None
+) -> list[tuple[str, list[BaseTool]]]:
     buckets: dict[str, list[BaseTool]] = {}
-    for tool in list_tools():
+    for tool in list_tools(exclude=exclude):
         buckets.setdefault(tool.category, []).append(tool)
 
     def _tool_sort(tool: BaseTool) -> tuple[int, str]:

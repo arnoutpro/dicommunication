@@ -4,9 +4,11 @@ A low-code DICOM communication validator and PACS admin toolkit.
 
 Configure this workstation as a DICOM Application Entity, register remote nodes (PACS, Orthanc, RIS/MWL, modalities), impersonate extra calling AE Titles, and run the checks a connectivity ticket actually needs: network PING, C-ECHO, simulated C-STORE, PDF to Encapsulated PDF Storage, Study Root C-FIND (including Study / Series / Image), Modality Worklist C-FIND, and HL7 v2 send over MLLP.
 
-The web UI is FastAPI + HTMX. DICOM uses pynetdicom/pydicom. New test tools are Python plugins: drop a file in `app/tools/` and it appears in the sidebar. The sidebar **About** button shows the running version; **Help** is the in-app administrator guide.
+The Windows MSI installs **two Start-menu tools** that share this config: **Dicommunication** (network / DIMSE / HL7 workstation) and **Vue PACS Database Analytics** (Study Root C-FIND only, including Vue ELSCINT1 keys).
 
-Open [http://127.0.0.1:8080](http://127.0.0.1:8080) after starting the stack.
+The web UI is FastAPI + HTMX. DICOM uses pynetdicom/pydicom. New test tools are Python plugins: drop a file in `app/tools/` and it appears in the Dicommunication sidebar. The sidebar **About** button shows the running version; **Help** is the in-app administrator guide.
+
+Open [http://127.0.0.1:8080](http://127.0.0.1:8080) for Dicommunication, or [http://127.0.0.1:8080/vue/](http://127.0.0.1:8080/vue/) for Vue PACS Database Analytics.
 
 ## Contents
 
@@ -58,7 +60,7 @@ A successful C-ECHO only proves Verification. Orthanc (or any PACS) can accept C
 | C-STORE | C-STORE | Secondary Capture Image Storage | Can the peer *receive* an instance? |
 | PDF to DICOM | C-STORE | Encapsulated PDF Storage `1.2.840.10008.5.1.4.1.1.104.1` | Wrap a PDF as a DICOM document and store it. A peer that takes Secondary Capture may still reject Encapsulated PDF. |
 | C-FIND | C-FIND | Study Root Query/Retrieve FIND | Search *stored studies* in a PACS archive at STUDY level. Zero matches can still be a successful Q/R C-FIND. |
-| C-FIND Advanced | C-FIND | Study Root Query/Retrieve FIND | Same SOP Class at Study, Series, or Image. Hierarchical: Series needs Study Instance UID; Image needs Study and Series Instance UID. Results copy / CSV / JSON. |
+| Vue PACS Database Analytics | C-FIND | Study Root Query/Retrieve FIND | Own Start-menu tool (`/vue/`). Same SOP Class at Study, Series, or Image plus optional Vue ELSCINT1 keys. Hierarchical: Series needs Study Instance UID; Image needs Study and Series Instance UID. Results copy / CSV / JSON. |
 | MWL C-FIND / Worklist | C-FIND | Modality Worklist `1.2.840.10008.5.1.4.31` | Search *scheduled procedures*, not the archive. |
 
 **MWL C-FIND and the Worklist page are the same SOP Class.** Study Root C-FIND is not. Orthanc without the worklist plugin typically accepts Verification, Storage, and Q/R, then rejects MWL. The Testbench and Worklist results show accepted vs rejected presentation contexts so that is visible.
@@ -171,7 +173,7 @@ dotnet nuget install dicommunication.msi --version 0.3.0 --source github-arnoutp
 
 The already-cut `v0.2.0` MSI can be wrapped without rebuilding: **Actions → Windows MSI → Run workflow** and set `nuget_from_release` to `v0.2.0`.
 
-Install the MSI, start **Dicommunication** from the Start menu. The UI opens in its own window (Edge WebView2 — not a browser tab). Close that window to stop the server. Config lives in `%LOCALAPPDATA%\dicommunication` and survives upgrades. Windows 10/11 already have WebView2; if it is missing the app falls back to the default browser.
+Install the MSI, start **Dicommunication** or **Vue PACS Database Analytics** from the Start menu. Each UI opens in its own window (Edge WebView2 — not a browser tab). Close that window to stop the server if this shortcut started it. Config lives in `%LOCALAPPDATA%\dicommunication` and survives upgrades; both tools share it. Windows 10/11 already have WebView2; if it is missing the app falls back to the default browser.
 
 Unsigned builds trigger SmartScreen until a code-signing certificate is used. If a modality must C-FIND this workstation, allow inbound TCP for `dicommunication.exe` (listen port 11112). Details and a local build script: [`packaging/windows/README.md`](packaging/windows/README.md).
 
@@ -185,7 +187,7 @@ CI builds `dicommunication-<version>-macos-arm64.dmg` on `macos-latest` (workflo
 
 The already-cut `v0.2.0` release can get a DMG without a new version tag: **Actions → macOS DMG → Run workflow** and set `release_tag` to `v0.2.0`.
 
-Open the DMG, drag **Dicommunication** to Applications, then right-click the app and choose **Open** the first time (unsigned builds trip Gatekeeper). The Dock icon is the **Sansation Bold** A from the watermark. The UI opens in its own window (not a Safari tab). Close the window or quit from the Dock to stop the server. Config lives in `~/.dicommunication` and survives upgrades.
+Open the DMG, drag **Dicommunication** to Applications, then right-click the app and choose **Open** the first time (unsigned builds trip Gatekeeper). The Dock icon is the **Sansation Bold** A from the watermark. The UI opens in its own window (not a Safari tab). Close the window or quit from the Dock to stop the server. Config lives in `~/.dicommunication` and survives upgrades. Vue PACS Database Analytics: `open -n /Applications/Dicommunication.app --args --profile vue-analytics` (or open `/vue/` in the running UI).
 
 Apple Silicon only for now. Intel Macs keep using Docker Compose. If a modality must C-FIND this workstation, allow incoming TCP for **Dicommunication** (listen port 11112). Details: [`packaging/macos/README.md`](packaging/macos/README.md).
 
@@ -290,7 +292,7 @@ Every virtual calling AE must be allowed on the remote, the same way the worksta
 
 ## Test tools
 
-The left menu is a two-level tree. **Configured nodes** and **Test tools** start folded; open the chevron to expand. Under Test tools: Testbench, C-ECHO board, Worklist, then **Connectivity** (PING), **DIMSE** (C-ECHO, C-STORE, PDF to DICOM, C-FIND, C-FIND Advanced, MWL C-FIND), and **HL7** (HL7 send). The branch that contains the current page stays open. New plugin tools appear under their `category`.
+The left menu is a two-level tree. **Configured nodes** and **Test tools** start folded; open the chevron to expand. Under Test tools: Testbench, C-ECHO board, Worklist, then **Connectivity** (PING), **DIMSE** (C-ECHO, C-STORE, PDF to DICOM, C-FIND, MWL C-FIND), and **HL7** (HL7 send). Study / Series / Image C-FIND with Vue keys is **Vue PACS Database Analytics** (`/vue/`), not this sidebar. The branch that contains the current page stays open. New plugin tools appear under their `category`.
 
 ### Testbench (`/testbench`)
 
@@ -311,15 +313,15 @@ DNS resolve, ICMP echo, then TCP connect to the DICOM port (the same kind of che
 
 ### Individual DIMSE tools
 
-Same engines as the Testbench, one page each: `/tools/c-echo`, `/tools/c-store`, `/tools/c-find`, `/tools/c-find-advanced`, `/tools/mwl-find`. Each has **Present as**.
+Same engines as the Testbench, one page each: `/tools/c-echo`, `/tools/c-store`, `/tools/c-find`, `/tools/mwl-find`. Each has **Present as**.
 
-### C-FIND Advanced (`/tools/c-find-advanced`)
+### Vue PACS Database Analytics (`/vue/`)
 
-Study Root Query/Retrieve FIND at **Study**, **Series**, or **Image**, with the searchable keys for that level. Checked keys are sent as return columns; a typed value is also a matching key.
+Own product in the Dicommunication installer. Start-menu **Vue PACS Database Analytics**, or `python -m app --profile vue-analytics`. Study Root Query/Retrieve FIND at **Study**, **Series**, or **Image**, with the searchable keys for that level. Checked keys are sent as return columns; a typed value is also a matching key.
 
 Hierarchical FIND (no relational queries): Series keys unlock after **Study Instance UID** is present; Image keys unlock after **Study Instance UID** and **Series Instance UID**. MR-only keys such as Repetition Time stay locked unless Modality is `MR` or empty. Keys are grouped by Study / Series / Image as a list (not a grid). Collapsed **Vue PACS (ELSCINT1)** lists expose Tamar private study and series tags as optional return/match keys. Vue’s DCS does not list them. **Tamar Assign To Doctor** is a confirmed matching key on Vue 12.2.8 (used with Modalities in Study); other Vue tags may still come back empty. Grid Token sequences are not sent. Results are a column-aligned table. **Copy table** is tab-separated for Excel; **Download CSV** and **Download JSON** export the same rows. Click a result row to copy parent UIDs into the next level. Retrieve of those objects is C-MOVE, not C-GET.
 
-The simple C-FIND tool and Testbench stay STUDY-level with a short filter list.
+The simple C-FIND tool and Testbench stay STUDY-level with a short filter list. This window has Query, Configured nodes, Logs, About, and Help only.
 
 ### PDF to DICOM (`/tools/pdf-store`)
 
@@ -434,7 +436,7 @@ curl -s -X POST http://127.0.0.1:8080/api/tools/c-find/run \
   -d '{"remote_id":"REPLACE","options":{"patient_id":"1001","modality":"CT"}}'
 ```
 
-C-FIND Advanced at Series (hierarchical — Study Instance UID required):
+Vue PACS Database Analytics at Series (hierarchical — Study Instance UID required):
 
 ```bash
 curl -s -X POST http://127.0.0.1:8080/api/tools/c-find-advanced/run \
@@ -495,7 +497,7 @@ pip install -r requirements-dev.txt
 make test
 ```
 
-C-ECHO, C-STORE, PDF to DICOM, Study Root C-FIND (including C-FIND Advanced at Series/Image), and MWL tests start in-process SCPs. PING uses loopback ICMP and a local TCP listener. HL7 send uses a loopback MLLP listener. Identity tests check that a virtual AE is the calling AE Title and the worklist station filter.
+C-ECHO, C-STORE, PDF to DICOM, Study Root C-FIND (including Vue PACS Database Analytics at Series/Image), and MWL tests start in-process SCPs. PING uses loopback ICMP and a local TCP listener. HL7 send uses a loopback MLLP listener. Identity tests check that a virtual AE is the calling AE Title and the worklist station filter.
 
 ## Security
 
@@ -513,7 +515,7 @@ The data directory is not encrypted, and `results.json` keeps the last 200 tool 
 | C-ECHO works, C-STORE fails | Peer is not a Storage SCP for Secondary Capture (or that SOP Class is disabled) |
 | C-ECHO / C-STORE work, PDF to DICOM fails | Peer does not accept Encapsulated PDF Storage. Enable that SOP Class; Secondary Capture is a different test. |
 | C-ECHO works, Study Root C-FIND fails | Peer is not a Q/R SCP. This is not MWL. |
-| C-FIND Advanced Series/Image stays locked or fails | Hierarchical FIND. Fill Study Instance UID for Series; Study and Series Instance UID for Image. Empty Study UID cannot search body part archive-wide. |
+| Vue PACS Database Analytics Series/Image stays locked or fails | Hierarchical FIND. Fill Study Instance UID for Series; Study and Series Instance UID for Image. Empty Study UID cannot search body part archive-wide. |
 | C-ECHO / C-STORE / Q/R work, MWL fails | Peer does not offer Modality Worklist FIND. Enable the worklist plugin (Orthanc) or query a RIS. |
 | Worklist and MWL C-FIND look the same | They are the same SOP Class. Use Testbench Study Root C-FIND to search stored studies. |
 | Empty MWL / C-FIND table but Pass | The SOP Class was accepted and the query succeeded with zero matches. Check station AE, date, and **Present as**. |

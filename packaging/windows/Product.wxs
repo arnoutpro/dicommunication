@@ -43,6 +43,23 @@
             Value="1"
             KeyPath="yes" />
       </Component>
+      <Component Id="VueAnalyticsShortcut" Guid="7e2a91c4-5b8f-4d3a-9c16-2f4e8a1b0d77">
+        <Shortcut
+            Id="VueAnalyticsShortcut"
+            Name="Vue PACS Database Analytics"
+            Description="Query Vue PACS with Study Root C-FIND"
+            Target="[INSTALLFOLDER]dicommunication.exe"
+            Arguments="--profile vue-analytics"
+            WorkingDirectory="INSTALLFOLDER"
+            Icon="AppIcon" />
+        <RegistryValue
+            Root="HKCU"
+            Key="Software\Arnout.pro\Dicommunication"
+            Name="vue_analytics"
+            Type="integer"
+            Value="1"
+            KeyPath="yes" />
+      </Component>
     </ComponentGroup>
 
     <Feature Id="Main" Title="Dicommunication" Level="1">

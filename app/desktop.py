@@ -128,7 +128,7 @@ def _macos_run_until_windows_close(webview) -> None:
         )
 
 
-def run_native_window(ui: str) -> bool:
+def run_native_window(ui: str, title: str | None = None) -> bool:
     """Open ``ui`` in a native window. Return False if the WebView cannot start."""
     try:
         import webview
@@ -148,10 +148,10 @@ def run_native_window(ui: str) -> bool:
     try:
         try:
             window = webview.create_window(
-                WINDOW_TITLE, ui, zoomable=True, **window_kwargs
+                title or WINDOW_TITLE, ui, zoomable=True, **window_kwargs
             )
         except TypeError:
-            window = webview.create_window(WINDOW_TITLE, ui, **window_kwargs)
+            window = webview.create_window(title or WINDOW_TITLE, ui, **window_kwargs)
         shown = getattr(getattr(window, "events", None), "shown", None)
         if shown is not None:
             try:

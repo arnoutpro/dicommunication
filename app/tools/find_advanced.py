@@ -45,11 +45,12 @@ def _noun(level: str, count: int) -> str:
 
 class CFindAdvancedTool(BaseTool):
     id = "c-find-advanced"
-    name = "C-FIND Advanced"
+    name = "Vue PACS Database Analytics"
     description = (
-        "Query/Retrieve Study Root C-FIND at Study, Series, or Image level with every "
-        "searchable key. Series and Image follow hierarchical FIND: parent Unique keys "
-        "must be present. Results are a column-aligned table with copy, CSV, and JSON export. "
+        "Query Vue PACS (and other Study Root Q/R SCPs) at Study, Series, or Image "
+        "with every searchable key, including optional Tamar / ELSCINT1 tags. "
+        "Series and Image follow hierarchical FIND: parent Unique keys must be present. "
+        "Results are a column-aligned table with copy, CSV, and JSON export. "
         "This searches stored studies, not the modality worklist."
     )
     category = "dimse"

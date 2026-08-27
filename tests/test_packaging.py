@@ -128,6 +128,9 @@ def test_launcher_reuses_running_server(monkeypatch) -> None:
     monkeypatch.setattr("app.launcher.webbrowser.open", lambda url: opened.append(url))
     assert main(["--host", "127.0.0.1", "--port", "8080"]) == 0
     assert opened == ["http://127.0.0.1:8080/"]
+    opened.clear()
+    assert main(["--host", "127.0.0.1", "--port", "8080", "--profile", "vue-analytics"]) == 0
+    assert opened == ["http://127.0.0.1:8080/vue/"]
 
 
 def test_launcher_no_browser_on_existing_server(monkeypatch) -> None:
@@ -219,6 +222,9 @@ def test_keep_alive_hint_native_window() -> None:
     from app.desktop import UI_WINDOW
 
     assert "Close the Dicommunication window" in keep_alive_hint(UI_WINDOW)
+    assert "Close the Vue PACS Database Analytics window" in keep_alive_hint(
+        UI_WINDOW, title="Vue PACS Database Analytics"
+    )
 
 
 def test_macos_spec_is_windowed_app_bundle() -> None:
@@ -349,7 +355,7 @@ def test_frozen_reuses_running_server_in_native_window(monkeypatch) -> None:
     monkeypatch.setattr("app.launcher.resolve_ui_mode", lambda **kwargs: UI_WINDOW)
     monkeypatch.setattr(
         "app.launcher.run_native_window",
-        lambda url: opened.append(url) or True,
+        lambda url, title=None: opened.append(url) or True,
     )
     monkeypatch.setattr(
         "app.launcher.webbrowser.open",
@@ -357,6 +363,9 @@ def test_frozen_reuses_running_server_in_native_window(monkeypatch) -> None:
     )
     assert main(["--host", "127.0.0.1", "--port", "8080"]) == 0
     assert opened == ["http://127.0.0.1:8080/"]
+    opened.clear()
+    assert main(["--host", "127.0.0.1", "--port", "8080", "--profile", "vue-analytics"]) == 0
+    assert opened == ["http://127.0.0.1:8080/vue/"]
 
 
 def test_run_native_window_starts_webview(monkeypatch, tmp_path) -> None:
@@ -391,6 +400,10 @@ def test_run_native_window_starts_webview(monkeypatch, tmp_path) -> None:
     assert run_native_window("http://127.0.0.1:8080/") is True
     assert calls["create"][0] == WINDOW_TITLE
     assert calls["create"][1] == "http://127.0.0.1:8080/"
+    calls.clear()
+    assert run_native_window("http://127.0.0.1:8080/vue/", title="Vue PACS Database Analytics") is True
+    assert calls["create"][0] == "Vue PACS Database Analytics"
+    assert calls["create"][1] == "http://127.0.0.1:8080/vue/"
     assert calls["create"][2]["hidden"] is False
     assert calls["start"]["private_mode"] is False
     assert calls["start"]["gui"] == "cocoa"
@@ -564,6 +577,8 @@ def test_windows_spec_and_wix_use_app_icon() -> None:
     assert 'SourceFile="packaging\\icons\\app.ico"' in wxs
     assert 'Icon="AppIcon"' in wxs
     assert "ARPPRODUCTICON" in wxs
+    assert 'Name="Vue PACS Database Analytics"' in wxs
+    assert 'Arguments="--profile vue-analytics"' in wxs
 
 
 def test_htmx_is_served_from_this_app_not_a_cdn() -> None:
