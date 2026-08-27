@@ -884,6 +884,7 @@ function syncFindAdvanced(form) {
     }
     if (input) {
       input.disabled = locked;
+      input.required = node.getAttribute("data-match-required") === "1" && onLevel && !locked;
     }
     if (hintNode) {
       const original = node.getAttribute("data-hint-original");
@@ -1065,8 +1066,39 @@ function bindFindAdvanced(root) {
       if (select) {
         applyFindSelection(target, select.getAttribute("data-find-select"));
       }
+      const stop = event.target.closest("[data-find-stop]");
+      if (stop) {
+        stopFindQuery(target);
+      }
+    });
+    target.addEventListener("htmx:beforeRequest", () => {
+      delete target.dataset.findAborted;
     });
     syncFindAdvanced(target);
+  }
+}
+
+function findStoppedMarkup() {
+  return (
+    '<article class="result fail" data-find-result>' +
+    '<header><span class="badge fail">Fail</span>' +
+    "<div><strong>Vue PACS Database Analytics</strong>" +
+    "<p>Query stopped.</p></div></header></article>"
+  );
+}
+
+function stopFindQuery(form) {
+  if (!form || !window.htmx) {
+    return;
+  }
+  if (!form.classList.contains("htmx-request")) {
+    return;
+  }
+  form.dataset.findAborted = "1";
+  htmx.trigger(form, "htmx:abort");
+  const result = document.getElementById("result");
+  if (result) {
+    result.innerHTML = findStoppedMarkup();
   }
 }
 
@@ -1090,6 +1122,14 @@ document.addEventListener("click", (event) => {
 bindFindAdvanced(document);
 document.body.addEventListener("htmx:afterSwap", (event) => {
   bindFindAdvanced(event.target);
+});
+
+document.body.addEventListener("htmx:beforeSwap", (event) => {
+  const source = event.detail && event.detail.elt;
+  if (source && source.dataset && source.dataset.findAborted) {
+    event.detail.shouldSwap = false;
+    delete source.dataset.findAborted;
+  }
 });
 
 document.body.addEventListener("htmx:responseError", (event) => {
