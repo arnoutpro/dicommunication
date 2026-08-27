@@ -2,6 +2,8 @@
 
 A low-code DICOM communication validator and PACS admin toolkit.
 
+**Published as-is. All rights reserved.** The source is public so you can read it and download builds. This is not an invitation to use it as a library, fork it, or send patches. Issues and pull requests are not accepted. See [CONTRIBUTING.md](CONTRIBUTING.md).
+
 Configure this workstation as a DICOM Application Entity, register remote nodes (PACS, Orthanc, RIS/MWL, modalities), impersonate extra calling AE Titles, and run the checks a connectivity ticket actually needs: network PING, C-ECHO, simulated C-STORE, PDF to Encapsulated PDF Storage, Study Root C-FIND (including Study / Series / Image), Modality Worklist C-FIND, and HL7 v2 send over MLLP.
 
 The Windows MSI installs **two Start-menu tools** that share this config: **Dicommunication** (network / DIMSE / HL7 workstation) and **Vue PACS Database Analytics** (Study Root C-FIND only, including Vue ELSCINT1 keys).
