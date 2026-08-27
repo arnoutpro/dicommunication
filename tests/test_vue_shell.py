@@ -8,6 +8,7 @@ from app.shell import (
     SHELL_DICOMM,
     SHELL_VUE,
     VUE_PREFIX,
+    display_tool_name,
     is_analytics_profile,
     prefix_redirect_location,
     public_href,
@@ -25,6 +26,12 @@ def test_analytics_product_name_and_profile() -> None:
     assert is_analytics_profile(PROFILE_VUE)
     assert is_analytics_profile(PROFILE_VUE_LEGACY)
     assert not is_analytics_profile("dicommunication")
+
+
+def test_display_tool_name_maps_legacy_analytics_titles() -> None:
+    assert display_tool_name("Vue PACS Database Analytics") == "Dicomtag Analytics"
+    assert display_tool_name("C-FIND Advanced") == "Dicomtag Analytics"
+    assert display_tool_name("C-ECHO") == "C-ECHO"
 
 
 def test_strip_and_prefix_vue_paths() -> None:

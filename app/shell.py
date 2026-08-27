@@ -47,6 +47,21 @@ def is_analytics_profile(profile: str) -> bool:
     return profile in (PROFILE_VUE, PROFILE_VUE_LEGACY)
 
 
+LEGACY_ANALYTICS_NAMES = frozenset(
+    {
+        "Vue PACS Database Analytics",
+        "C-FIND Advanced",
+    }
+)
+
+
+def display_tool_name(name: str) -> str:
+    """Show the current product name for stored results from earlier titles."""
+    if name in LEGACY_ANALYTICS_NAMES:
+        return PRODUCT_ANALYTICS
+    return name
+
+
 def profile_start_path(profile: str) -> str:
     if is_analytics_profile(profile):
         return VUE_PREFIX + "/"
