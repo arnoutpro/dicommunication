@@ -10,25 +10,33 @@
     <span class="muted">{{ result.duration_ms }} ms</span>
   </header>
   {% if result.steps %}
-  <ol class="steps">
-    {% for step in result.steps %}
-    <li>
-      <span class="dot {% if step.ok %}ok{% else %}fail{% endif %}"></span>
-      <div>
-        <strong>{{ step.name }}</strong>
-        <p>{{ step.message }}</p>
-        {% if step.details.get("output") %}
-        <pre class="log">{{ step.details.output }}</pre>
+  <details class="find-assoc">
+    <summary>Association · {{ result.duration_ms }} ms</summary>
+    <ol class="steps">
+      {% for step in result.steps %}
+      <li>
+        <span class="dot {% if step.ok %}ok{% else %}fail{% endif %}"></span>
+        <div>
+          <strong>{{ step.name }}</strong>
+          <p>{{ step.message }}</p>
+          {% if step.details.get("output") %}
+          <pre class="log">{{ step.details.output }}</pre>
+          {% endif %}
+        </div>
+        {% if step.duration_ms is not none %}
+        <span class="muted">{{ step.duration_ms }} ms</span>
         {% endif %}
-      </div>
-      {% if step.duration_ms is not none %}
-      <span class="muted">{{ step.duration_ms }} ms</span>
-      {% endif %}
-    </li>
-    {% endfor %}
-  </ol>
-  {% endif %}
-  {% if result.contexts %}
+      </li>
+      {% endfor %}
+    </ol>
+    {% if result.contexts %}
+    <h3 class="result-subhead">SOP Classes negotiated</h3>
+    {% with contexts=result.contexts %}
+      {% include "partials/contexts.html" %}
+    {% endwith %}
+    {% endif %}
+  </details>
+  {% elif result.contexts %}
   <h3 class="result-subhead">SOP Classes negotiated</h3>
   {% with contexts=result.contexts %}
     {% include "partials/contexts.html" %}
