@@ -14,7 +14,7 @@
   <article class="card">
     <p class="card-label">Local AE</p>
     <h2>{{ config.local.ae_title }}</h2>
-    <p class="muted">{{ config.local.host }}:{{ config.local.port }}{% if config.local.mwl_scp_enabled %} · MWL SCP{% endif %}</p>
+    <p class="muted">{{ config.local.host }}:{{ config.local.port }}{% if config.local.mwl_scp_enabled %} · MWL SCP{% endif %}{% if config.local.storage_scp_enabled %} · SR C-STORE{% endif %}</p>
   </article>
   <article class="card">
     <p class="card-label">Virtual AEs</p>
@@ -41,6 +41,7 @@
           <th>Listen</th>
           <th>Station AE</th>
           <th>MWL SCP</th>
+          <th>SR C-STORE</th>
         </tr>
       </thead>
       <tbody>
@@ -55,6 +56,15 @@
             {% if mwl_scp_running %}
             <span class="badge ok">Listening</span>
             {% elif config.local.mwl_scp_enabled %}
+            <span class="badge fail">{{ mwl_scp_error or "Off" }}</span>
+            {% else %}
+            <span class="muted">Off</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if storage_scp_running %}
+            <span class="badge ok">Listening</span>
+            {% elif config.local.storage_scp_enabled %}
             <span class="badge fail">{{ mwl_scp_error or "Off" }}</span>
             {% else %}
             <span class="muted">Off</span>

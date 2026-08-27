@@ -5,7 +5,7 @@
   <div>
     <p class="eyebrow">Configuration</p>
     <h1>Local DICOM AE</h1>
-    <p class="lede">This workstation’s calling AE Title, listen address, and optional MWL SCP. Virtual titles and remotes live on their own pages. Open Advanced for PDU, timeouts, and worklist options.</p>
+    <p class="lede">This workstation’s calling AE Title, listen address, and optional Structured Report C-STORE. Virtual titles and remotes live on their own pages. Open Advanced for PDU, timeouts, and the MWL SCP.</p>
   </div>
 </header>
 {% include "partials/config_nav.html" %}
@@ -33,7 +33,12 @@
     <label>
       Hostname
       <input name="hostname" value="{{ config.local.hostname }}" placeholder="workstation.hospital.local">
-      <span class="hint">Optional. For documentation; DICOM listen still uses the IP address.</span>
+          <span class="hint">Optional. For documentation; DICOM listen still uses the IP address.</span>
+    </label>
+    <label class="checkbox span-2">
+      <input type="checkbox" name="storage_scp_enabled" value="on" {% if config.local.storage_scp_enabled %}checked{% endif %}>
+      Accept C-STORE of Structured Reports (same listen port)
+      <span class="hint">Required to retrieve SR text. Vue must list this AE Title as a C-MOVE destination at this host:port. Imaging series are not stored.</span>
     </label>
     <details class="advanced">
       <summary>Advanced settings</summary>

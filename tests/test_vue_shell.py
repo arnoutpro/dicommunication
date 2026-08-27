@@ -68,7 +68,7 @@ def test_vue_query_form_uses_prefixed_action(client, remote) -> None:
     assert b"find-workspace" in page.content
     assert b'hx-post="/vue/tools/c-find-advanced/run"' in page.content
     assert b'data-find-stop' in page.content
-    assert b'hx-disabled-elt="[data-find-run]"' in page.content
+    assert b'hx-disabled-elt="[data-find-run], [data-find-follow]"' in page.content
     assert b'data-match-required="1"' in page.content
 
 
@@ -89,6 +89,7 @@ def test_vue_config_and_help_stay_in_shell(client) -> None:
     help_page = client.get("/vue/help")
     assert help_page.status_code == 200
     assert b"ELSCINT1" in help_page.content
+    assert b"Structured reports" in help_page.content
     assert b"HL7 send" not in help_page.content
     about = client.get("/vue/about")
     assert about.status_code == 200

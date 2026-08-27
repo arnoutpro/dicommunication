@@ -39,15 +39,22 @@
   {% endwith %}
   {% endif %}
   {% if result.records %}
-  {% set columns = result.records[0].keys() | list %}
+  {% set columns = find_columns if find_columns is defined and find_columns else (result.records[0].keys() | list) %}
   {% set labels = find_labels if find_labels is defined else {} %}
-  <h3 class="result-subhead">Returned records</h3>
+  {% set kind = find_kind if find_kind is defined else "table" %}
+  <h3 class="result-subhead">{% if kind == "sr_series" %}Structured Report series{% elif kind == "sr_content" %}Structured Report contents{% else %}Returned records{% endif %}</h3>
   <div class="find-export-bar">
     <button class="button compact" type="button" data-find-copy>Copy table</button>
     <button class="button compact" type="button" data-find-csv>Download CSV</button>
     <button class="button compact" type="button" data-find-json>Download JSON</button>
-    <span class="hint">Copy is tab-separated for Excel. Click a row to reuse Study / Series UIDs at the next level.</span>
+    {% if kind == "sr_series" or (find_level|default("STUDY") == "SERIES" and result.records[0].get("Modality") == "SR") %}
+    <button class="button compact primary" type="button" data-find-follow="retrieve_sr">Retrieve report text</button>
+    {% elif find_level|default("STUDY") == "STUDY" and kind != "sr_content" %}
+    <button class="button compact primary" type="button" data-find-follow="sr_series">List SR reports</button>
+    {% endif %}
+    <span class="hint">{% if kind == "sr_content" %}JSON includes Findings, Impression, the full report text, and the Content Sequence tree.{% elif kind == "sr_series" %}Same Study Instance UID, different Series Instance UID, modality SR.{% else %}Copy is tab-separated for Excel. Click a row to reuse Study / Series UIDs at the next level.{% endif %}</span>
   </div>
+  {% if kind != "sr_content" %}
   <div class="table-wrap find-table-wrap">
     <table class="find-table" data-find-table>
       <thead>
@@ -60,17 +67,70 @@
       <tbody>
         {% for row in result.records %}
         <tr data-find-row>
-          {% for key, value in row.items() %}
-          <td data-key="{{ key }}">{{ value }}</td>
+          {% for key in columns %}
+          <td data-key="{{ key }}">{{ row.get(key, "") }}</td>
           {% endfor %}
         </tr>
         {% endfor %}
       </tbody>
     </table>
   </div>
-  <script type="application/json" data-find-export>{{ {"level": find_level|default("STUDY"), "columns": columns, "labels": labels, "records": result.records} | tojson }}</script>
+  {% else %}
+  <div class="table-wrap find-table-wrap">
+    <table class="find-table" data-find-table>
+      <thead>
+        <tr>
+          {% for key in columns if key != "sr_text" %}
+          <th title="{{ key }}">{{ labels.get(key, key.replace("_", " ")) }}</th>
+          {% endfor %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in result.records %}
+        <tr data-find-row>
+          {% for key in columns if key != "sr_text" %}
+          <td data-key="{{ key }}">{{ row.get(key, "") }}</td>
+          {% endfor %}
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% for row in result.records %}
+  <details class="find-sr-report" open>
+    <summary>{{ row.get("PatientName") or "Patient" }} · {{ row.get("StudyDate") }} · {{ row.get("DocumentTitle") or "Structured Report" }}{% if row.get("AccessionNumber") %} · {{ row.get("AccessionNumber") }}{% endif %}</summary>
+    {% if row.get("sr_items") %}
+    <div class="table-wrap">
+      <table class="find-sr-tree">
+        <thead>
+          <tr>
+            <th>Concept</th>
+            <th>Type</th>
+            <th>Value</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in row.sr_items %}
+          <tr>
+            <td style="padding-left: {{ (item.depth|int) * 1.1 + 0.4 }}rem">{{ item.name }}</td>
+            <td>{{ item.value_type }}</td>
+            <td>{{ item.value }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% elif row.get("sr_text") %}
+    <pre class="log">{{ row.sr_text }}</pre>
+    {% else %}
+    <p class="hint">This object had no Content Sequence to parse.</p>
+    {% endif %}
+  </details>
+  {% endfor %}
+  {% endif %}
+  <script type="application/json" data-find-export>{{ {"level": find_level|default("STUDY"), "kind": kind, "columns": columns, "labels": labels, "records": result.records} | tojson }}</script>
   {% elif result.ok %}
-  <p class="hint">The FIND SOP Class was accepted and the query succeeded with zero matches. Broaden the filters, or check that this calling AE is allowed to query the archive.</p>
+  <p class="hint">The FIND SOP Class was accepted and the query succeeded with zero matches. Broaden the filters, or check that this calling AE is allowed to query the archive.{% if find_kind|default("") == "sr_series" %} These studies have no series with modality SR.{% endif %}</p>
   {% endif %}
   {% if result.duration_ms or result.steps %}
   <details class="find-assoc">

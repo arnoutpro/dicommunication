@@ -5,10 +5,16 @@ import time
 
 from pydicom.dataset import Dataset
 from pynetdicom import AE, evt
-from pynetdicom.sop_class import StudyRootQueryRetrieveInformationModelFind
+from pynetdicom.presentation import build_context
+from pynetdicom.sop_class import (
+    StudyRootQueryRetrieveInformationModelFind,
+    StudyRootQueryRetrieveInformationModelMove,
+)
 
 from app.models import LocalAE, RemoteNode
+from app.mwl_scp import WorklistSCP
 from app.tools.find_advanced import CFindAdvancedTool
+from test_sr import make_radiology_sr
 from app.tools.find_keys import (
     KEYS,
     LEVEL_PARENTS,
@@ -61,6 +67,8 @@ def test_catalog_covers_hierarchical_study_root_keys() -> None:
     study_date = next(key for key in KEYS if key.keyword == "StudyDate")
     assert study_date.match_required is True
     assert study_date.levels == ("STUDY",)
+    modality = next(key for key in KEYS if key.keyword == "Modality")
+    assert "Structured Report" in modality.hint
 
 
 def test_series_and_image_keys_stay_locked_without_parent_uids() -> None:
@@ -268,6 +276,7 @@ def test_c_find_advanced_page_and_api(client, store) -> None:
         assert b"find-key-grid" not in page.content
         assert b'data-match-required="1"' in page.content
         assert b'data-find-stop' in page.content
+        assert b'data-find-select="sr"' in page.content
         assert b"ELSCINT1" in page.content
         assert b"Tamar Study Status" in page.content
         assert b'data-find-copy' not in page.content
@@ -297,6 +306,7 @@ def test_c_find_advanced_page_and_api(client, store) -> None:
         assert form.status_code == 200
         assert b"DOE^JANE" in form.content
         assert b"data-find-copy" in form.content
+        assert b"List SR reports" in form.content
         assert b"Download CSV" in form.content
         assert b"Download JSON" in form.content
         assert b"<summary>Timing</summary>" in form.content
@@ -335,3 +345,187 @@ def test_empty_numeric_return_key_is_zero_length() -> None:
     apply_key(ds, "Rows", "")
     assert "Rows" in ds
     assert ds.Rows is None or str(ds.Rows) == ""
+
+
+def test_list_sr_reports_from_study_results() -> None:
+    port = _free_port()
+
+    def handle_find(event):
+        identifier = event.identifier
+        level = str(getattr(identifier, "QueryRetrieveLevel", ""))
+        modality = str(getattr(identifier, "Modality", "") or "").upper()
+        ds = Dataset()
+        ds.QueryRetrieveLevel = level
+        ds.StudyInstanceUID = str(getattr(identifier, "StudyInstanceUID", "") or "1.2.3")
+        if level == "SERIES" and modality == "SR":
+            ds.SeriesInstanceUID = "1.2.3.99"
+            ds.Modality = "SR"
+            ds.SeriesNumber = "999"
+            ds.SeriesDescription = "Report"
+            ds.NumberOfSeriesRelatedInstances = "1"
+        elif level == "SERIES":
+            ds.SeriesInstanceUID = "1.2.3.4"
+            ds.Modality = "CT"
+        else:
+            ds.PatientName = "DOE^JANE"
+            ds.PatientID = "1001"
+            ds.StudyDate = "20260826"
+            ds.AccessionNumber = "ACC1"
+            ds.StudyDescription = "CT CHEST"
+            ds.ModalitiesInStudy = "CT"
+        yield 0xFF00, ds
+        yield 0x0000, None
+
+    server = _start_scp("QR_SCP", port, [(evt.EVT_C_FIND, handle_find)])
+    try:
+        time.sleep(0.05)
+        local = LocalAE(timeout_seconds=5)
+        remote = RemoteNode(name="pacs", ae_title="QR_SCP", host="127.0.0.1", port=port)
+        result = CFindAdvancedTool().run(
+            local,
+            remote,
+            {
+                "follow": "sr_series",
+                "studies": [
+                    {
+                        "StudyInstanceUID": "1.2.3",
+                        "PatientName": "DOE^JANE",
+                        "PatientID": "1001",
+                        "StudyDate": "20260826",
+                        "AccessionNumber": "ACC1",
+                        "StudyDescription": "CT CHEST",
+                        "ModalitiesInStudy": "CT",
+                    }
+                ],
+            },
+        )
+        assert result.ok, result.summary
+        assert result.records[0]["Modality"] == "SR"
+        assert result.records[0]["SeriesInstanceUID"] == "1.2.3.99"
+        assert result.records[0]["PatientName"] == "DOE^JANE"
+        assert result.records[0]["StudyDate"] == "20260826"
+        assert result.steps[1].details.get("kind") == "sr_series"
+    finally:
+        server.shutdown()
+
+
+def test_list_sr_reports_via_form(client, store) -> None:
+    port = _free_port()
+
+    def handle_find(event):
+        identifier = event.identifier
+        level = str(getattr(identifier, "QueryRetrieveLevel", ""))
+        modality = str(getattr(identifier, "Modality", "") or "").upper()
+        ds = Dataset()
+        ds.QueryRetrieveLevel = level
+        ds.StudyInstanceUID = "1.2.3"
+        if level == "SERIES" and modality == "SR":
+            ds.SeriesInstanceUID = "1.2.3.99"
+            ds.Modality = "SR"
+            ds.SeriesDescription = "Report"
+        else:
+            ds.PatientName = "DOE^JANE"
+            ds.PatientID = "1001"
+            ds.StudyDate = "20260826"
+        yield 0xFF00, ds
+        yield 0x0000, None
+
+    server = _start_scp("QR_SCP", port, [(evt.EVT_C_FIND, handle_find)])
+    try:
+        time.sleep(0.05)
+        remote = RemoteNode(name="pacs", ae_title="QR_SCP", host="127.0.0.1", port=port)
+        store.add_remote(remote)
+        listed = client.post(
+            "/tools/c-find-advanced/run",
+            data={
+                "remote_id": remote.id,
+                "level": "STUDY",
+                "follow": "sr_series",
+                "studies_json": '[{"StudyInstanceUID":"1.2.3","PatientName":"DOE^JANE","StudyDate":"20260826"}]',
+            },
+            headers={"HX-Request": "true"},
+        )
+        assert listed.status_code == 200
+        assert b"Structured Report series" in listed.content
+        assert b"1.2.3.99" in listed.content
+        assert b"Retrieve report text" in listed.content
+        assert b"DOE^JANE" in listed.content
+    finally:
+        server.shutdown()
+
+
+def test_retrieve_sr_requires_storage_scp() -> None:
+    remote = RemoteNode(name="pacs", ae_title="QR_SCP", host="127.0.0.1", port=9)
+    result = CFindAdvancedTool().run(
+        LocalAE(timeout_seconds=2),
+        remote,
+        {
+            "follow": "retrieve_sr",
+            "studies": [{"StudyInstanceUID": "1.2.3", "SeriesInstanceUID": "1.2.3.99", "Modality": "SR"}],
+        },
+    )
+    assert result.ok is False
+    assert "Accept C-STORE" in result.summary
+
+
+def test_retrieve_sr_parses_content_sequence(store) -> None:
+    storage_port = _free_port()
+    move_port = _free_port()
+    report = make_radiology_sr()
+
+    def handle_move(event):
+        yield "127.0.0.1", storage_port, {"contexts": [build_context(str(report.SOPClassUID))]}
+        yield 1
+        yield 0xFF00, report
+
+    move_ae = AE(ae_title="QR_SCP")
+    move_ae.add_supported_context(StudyRootQueryRetrieveInformationModelMove)
+    move_server = move_ae.start_server(
+        ("127.0.0.1", move_port),
+        block=False,
+        evt_handlers=[(evt.EVT_C_MOVE, handle_move)],
+    )
+    store.save_local(
+        LocalAE(
+            ae_title="DICOMM",
+            host="127.0.0.1",
+            port=storage_port,
+            timeout_seconds=5,
+            storage_scp_enabled=True,
+        )
+    )
+    scp = WorklistSCP(store)
+    scp.start()
+    assert scp.running, scp.last_error
+    try:
+        time.sleep(0.05)
+        remote = RemoteNode(name="pacs", ae_title="QR_SCP", host="127.0.0.1", port=move_port)
+        result = CFindAdvancedTool().run(
+            store.load().local,
+            remote,
+            {
+                "follow": "retrieve_sr",
+                "studies": [
+                    {
+                        "StudyInstanceUID": "1.2.3",
+                        "SeriesInstanceUID": "1.2.3.99",
+                        "Modality": "SR",
+                        "PatientName": "DOE^JANE",
+                    }
+                ],
+                "_listen_ae": "DICOMM",
+                "_storage_enabled": True,
+                "_storage_running": True,
+            },
+        )
+        assert result.ok, result.summary
+        assert result.records[0]["DocumentTitle"] == "Radiology Report"
+        assert result.records[0]["Findings"] == "No acute osseous abnormality."
+        assert result.records[0]["Impression"] == "Normal CT chest."
+        assert "No acute osseous abnormality." in result.records[0]["sr_text"]
+        names = [item["name"] for item in result.records[0]["sr_items"]]
+        assert "Finding" in names
+        assert result.steps[1].details.get("kind") == "sr_content"
+    finally:
+        scp.stop()
+        move_server.shutdown()
