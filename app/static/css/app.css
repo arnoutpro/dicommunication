@@ -95,6 +95,7 @@ h1, h2, h3, h4 {
   grid-column: 1 / -1;
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 0.75rem;
   min-height: 3.5rem;
   padding: 0.45rem 0.9rem;
@@ -1138,16 +1139,16 @@ label.checkbox input { width: auto; accent-color: var(--accent); }
 
 .hidden { display: none !important; }
 
-/* Theme switcher — PACS header menu, parked in the left sidebar */
-.theme-menu-root { position: relative; margin-bottom: 0.35rem; }
+/* Theme switcher — parked in the top bar, same chrome as PACS Admin */
+.theme-menu-root { position: relative; flex-shrink: 0; }
 .theme-toggle-btn {
   display: inline-flex;
   align-items: center;
   gap: 0.45rem;
-  width: 100%;
+  width: auto;
   max-width: 100%;
-  padding: 0.5rem 0.7rem;
-  border-radius: var(--radius-sm);
+  padding: 0.45rem 0.7rem;
+  border-radius: 0.75rem;
   border: 1px solid var(--line-strong);
   background: var(--glass);
   color: var(--text);
@@ -1184,17 +1185,19 @@ label.checkbox input { width: auto; accent-color: var(--accent); }
 .theme-menu {
   z-index: 70;
   position: absolute;
-  left: 0;
   right: 0;
-  bottom: calc(100% + 0.45rem);
-  transform-origin: bottom left;
+  left: auto;
+  top: calc(100% + 0.45rem);
+  bottom: auto;
+  min-width: 16rem;
+  transform-origin: top right;
   transition: opacity 0.24s cubic-bezier(0.16, 1, 0.3, 1), transform 0.24s cubic-bezier(0.16, 1, 0.3, 1), visibility 0.24s;
 }
 .theme-menu.is-closed {
   opacity: 0;
   visibility: hidden;
   pointer-events: none;
-  transform: translateY(6px) scaleY(0.96);
+  transform: translateY(-6px) scaleY(0.96);
 }
 .theme-menu:not(.is-closed) {
   opacity: 1;
