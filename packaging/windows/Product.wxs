@@ -46,10 +46,10 @@
       <Component Id="VueAnalyticsShortcut" Guid="7e2a91c4-5b8f-4d3a-9c16-2f4e8a1b0d77">
         <Shortcut
             Id="VueAnalyticsShortcut"
-            Name="Vue PACS Database Analytics"
-            Description="Query Vue PACS with Study Root C-FIND"
+            Name="Dicomtag Analytics"
+            Description="Open Dicomtag Analytics (Study Root C-FIND)"
             Target="[INSTALLFOLDER]dicommunication.exe"
-            Arguments="--profile vue-analytics"
+            Arguments="--profile dicomtag-analytics"
             WorkingDirectory="INSTALLFOLDER"
             Icon="AppIcon" />
         <RegistryValue

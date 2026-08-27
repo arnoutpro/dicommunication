@@ -34,7 +34,7 @@
     <li><a href="#c-store">C-STORE</a></li>
     <li><a href="#pdf-store">PDF to DICOM</a></li>
     <li><a href="#c-find">Study Root C-FIND</a></li>
-    <li><a href="#c-find-advanced">Vue PACS Database Analytics</a></li>
+    <li><a href="#c-find-advanced">Dicomtag Analytics</a></li>
     <li><a href="#mwl-find">MWL C-FIND</a></li>
     <li><a href="#hl7-send">HL7 send</a></li>
     <li><a href="#reading-results">Reading accepted vs rejected SOP Classes</a></li>
@@ -68,7 +68,7 @@
     <h2>The user interface</h2>
   </header>
   <p>The left sidebar stays open. Nested groups are a two-level tree: <strong>Test tools → Connectivity</strong> (and DIMSE, HL7), <strong>Configured nodes →</strong> Local AE / Virtual AEs / Remote nodes. Groups start folded. Open a chevron to expand; the section that contains the current page stays open. Your open/closed state is remembered in this browser. <strong>Dashboard</strong> is the home page. <strong>Logs</strong> is the live application log.</p>
-  <p>The top bar holds the arnout.pro A mark, the product name, and the theme control. The left menu is Dashboard (or Query in Vue PACS Database Analytics), configured nodes, logs, and — in Dicommunication — Test tools. At the bottom of the sidebar, <strong>About</strong> and <strong>Help</strong> sit on one row and open these documentation pages. The theme control switches Light, Dark, Follows device setting, or Professional dark. New installs open in Light. The AE chip is this workstation’s calling AE Title; the line under it is the listen port and how many virtual identities you have saved.</p>
+  <p>The top bar holds the arnout.pro A mark, the product name, and the theme control. The left menu is Dashboard (or Query in Dicomtag Analytics), configured nodes, logs, and — in Dicommunication — Test tools. At the bottom of the sidebar, <strong>About</strong> and <strong>Help</strong> sit on one row and open these documentation pages. The theme control switches Light, Dark, Follows device setting, or Professional dark. New installs open in Light. The AE chip is this workstation’s calling AE Title; the line under it is the listen port and how many virtual identities you have saved.</p>
   <p>Most tool pages use HTMX: the form posts without a full page reload, and the result panel updates in place. Long DIMSE operations can take tens of seconds; wait for the result rather than clicking again.</p>
 </section>
 
@@ -113,7 +113,7 @@
           <td>Search <em>stored studies</em> in a PACS archive at STUDY level. Zero matches can still be a successful Q/R C-FIND.</td>
         </tr>
         <tr>
-          <td><strong>Vue PACS Database Analytics</strong></td>
+          <td><strong>Dicomtag Analytics</strong></td>
           <td>C-FIND</td>
           <td>Study Root Query/Retrieve FIND</td>
           <td>Own Start-menu tool from this installer (formerly C-FIND Advanced). Study, Series, or Image plus Vue ELSCINT1 keys. List SR series from Study results; optional C-MOVE of those reports onto this AE. Not in the Dicommunication sidebar.</td>
@@ -228,7 +228,7 @@
         <tr>
           <td>Accept C-STORE of Structured Reports (same listen port)</td>
           <td>off</td>
-          <td>Accept SR Storage SOP Classes on the same port so Vue PACS Database Analytics can C-MOVE report series here. Vue must list this AE Title as a C-MOVE destination. Imaging series are not stored.</td>
+          <td>Accept SR Storage SOP Classes on the same port so Dicomtag Analytics can C-MOVE report series here. Vue must list this AE Title as a C-MOVE destination. Imaging series are not stored.</td>
         </tr>
       </tbody>
     </table>
@@ -429,14 +429,14 @@
     <a href="/tools/c-find">Open</a>
   </header>
   <p>Query/Retrieve Study Root FIND — search <em>stored studies</em> in a PACS archive. This is not Modality Worklist. Leave filters empty for a broad STUDY-level query. Optional filters: patient name, patient ID, accession, study date, modality in study.</p>
-  <p>Zero matches with a Pass still means the SOP Class was accepted and the query succeeded. If C-ECHO works and Study Root C-FIND fails, the peer is not a Q/R SCP (or that information model is not offered). Use Worklist / MWL C-FIND for scheduled procedures. For Series or Image keys, or Vue Tamar tags, open <strong>Vue PACS Database Analytics</strong> from the Start menu (or <code>/vue/</code>).</p>
+  <p>Zero matches with a Pass still means the SOP Class was accepted and the query succeeded. If C-ECHO works and Study Root C-FIND fails, the peer is not a Q/R SCP (or that information model is not offered). Use Worklist / MWL C-FIND for scheduled procedures. For Series or Image keys, or Vue Tamar tags, open <strong>Dicomtag Analytics</strong> from the Start menu (or <code>/vue/</code>).</p>
 </section>
 
 <section class="panel help-section" id="c-find-advanced">
   <header class="panel-head">
-    <h2>Vue PACS Database Analytics</h2>
+    <h2>Dicomtag Analytics</h2>
   </header>
-  <p>This installer ships a second tool, <strong>Vue PACS Database Analytics</strong>, that used to live here as C-FIND Advanced. It is not in the Dicommunication Test tools list. Open it from the Start menu (Windows) or at <code>http://127.0.0.1:8080/vue/</code>. It shares this workstation’s calling AE and remote nodes. The analytics window has Query, Configured nodes, Logs, About, and Help — no PING, C-STORE, HL7, or worklist.</p>
+  <p>This installer ships a second tool, <strong>Dicomtag Analytics</strong>, that used to live here as C-FIND Advanced. It is not in the Dicommunication Test tools list. Open it from the Start menu (Windows) or at <code>http://127.0.0.1:8080/vue/</code>. It shares this workstation’s calling AE and remote nodes. The analytics window has Query, Configured nodes, Logs, About, and Help — no PING, C-STORE, HL7, or worklist.</p>
   <p>Study Root FIND at Study, Series, or Image, including optional Tamar / ELSCINT1 keys. Hierarchical FIND: Series needs Study Instance UID; Image needs Study and Series Instance UID. <strong>Tamar Assign To Doctor</strong> <code>(07a1,1042)</code> is a confirmed matching key on Vue 12.2.8 (used with Modalities in Study, for example <code>CT</code>). Study Date is required at Study level. After a Study query, <strong>List SR reports</strong> runs Series C-FIND with modality SR for every study in the table. <strong>Retrieve report text</strong> C-MOVEs each listed report on its own association onto this AE (when Accept C-STORE is on) and parses the DICOM Content Sequence — no language model, and no C-GET. JSON/CSV export includes Findings and Impression as columns plus the full report text. The Query page is a compact key tree on the left and the result table on the right.</p>
 </section>
 
@@ -589,7 +589,7 @@
           <td>Peer is not a Q/R SCP. This is not MWL.</td>
         </tr>
         <tr>
-          <td>Vue PACS Database Analytics Series/Image stays locked or fails</td>
+          <td>Dicomtag Analytics Series/Image stays locked or fails</td>
           <td>Hierarchical FIND. Fill Study Instance UID for Series; Study and Series Instance UID for Image. Empty Study UID cannot search body part archive-wide.</td>
         </tr>
         <tr>

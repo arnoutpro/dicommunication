@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from app.shell import PRODUCT_ANALYTICS
 from app.tools import get_tool, list_tools, list_tools_by_category
 
 
@@ -21,7 +22,7 @@ def test_builtin_tools_are_registered() -> None:
     assert tools["c-store"].name == "C-STORE"
     assert tools["pdf-store"].name == "PDF to DICOM"
     assert tools["c-find"].name == "C-FIND"
-    assert tools["c-find-advanced"].name == "Vue PACS Database Analytics"
+    assert tools["c-find-advanced"].name == PRODUCT_ANALYTICS
     assert tools["hl7-send"].name == "HL7 send"
     assert tools["hl7-send"].requires_remote is False
     assert tools["pdf-store"].requires_remote is False

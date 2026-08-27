@@ -134,8 +134,9 @@ def main(argv: list[str] | None = None) -> int:
         choices=PROFILES,
         default=os.environ.get("DICOMM_PROFILE", PROFILE_DICOMM),
         help=(
-            "dicommunication is the workstation. vue-analytics opens Vue PACS "
-            "Database Analytics (Study Root C-FIND only)."
+            "dicommunication is the workstation. dicomtag-analytics opens "
+            "Dicomtag Analytics (Study Root C-FIND). vue-analytics is the "
+            "previous name for that profile."
         ),
     )
     parser.add_argument("--host", default=os.environ.get("DICOMM_HOST", DEFAULT_HOST))

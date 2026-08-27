@@ -1,12 +1,13 @@
-"""Two products from one process: Dicommunication and Vue PACS Database Analytics.
+"""Two products from one process: Dicommunication and Dicomtag Analytics.
 
 The MSI / DMG still freeze a single executable. Dicommunication is the
-workstation (PING, DIMSE, HL7, worklist). Vue PACS Database Analytics is the
+workstation (PING, DIMSE, HL7, worklist). Dicomtag Analytics is the
 Study Root C-FIND UI that used to live under Test tools as C-FIND Advanced.
 
 Both share config, logs, and the local server. The analytics UI is mounted at
 ``/vue/`` so both windows can stay open against one uvicorn. The Start-menu
-shortcut passes ``--profile vue-analytics``.
+shortcut passes ``--profile dicomtag-analytics``. ``vue-analytics`` is still
+accepted as the previous profile name.
 """
 
 from __future__ import annotations
@@ -19,26 +20,35 @@ from app.tools.base import BaseTool
 SHELL_DICOMM = "dicommunication"
 SHELL_VUE = "vue"
 
+PRODUCT_DICOMM = "Dicommunication"
+PRODUCT_ANALYTICS = "Dicomtag Analytics"
+
 PROFILE_DICOMM = "dicommunication"
-PROFILE_VUE = "vue-analytics"
-PROFILES = (PROFILE_DICOMM, PROFILE_VUE)
+PROFILE_VUE = "dicomtag-analytics"
+PROFILE_VUE_LEGACY = "vue-analytics"
+PROFILES = (PROFILE_DICOMM, PROFILE_VUE, PROFILE_VUE_LEGACY)
 
 VUE_PREFIX = "/vue"
 VUE_TOOL_ID = "c-find-advanced"
 
 PRODUCT_NAMES = {
-    SHELL_DICOMM: "Dicommunication",
-    SHELL_VUE: "Vue PACS Database Analytics",
+    SHELL_DICOMM: PRODUCT_DICOMM,
+    SHELL_VUE: PRODUCT_ANALYTICS,
 }
 
 WINDOW_TITLES = {
-    PROFILE_DICOMM: "Dicommunication",
-    PROFILE_VUE: "Vue PACS Database Analytics",
+    PROFILE_DICOMM: PRODUCT_DICOMM,
+    PROFILE_VUE: PRODUCT_ANALYTICS,
+    PROFILE_VUE_LEGACY: PRODUCT_ANALYTICS,
 }
 
 
+def is_analytics_profile(profile: str) -> bool:
+    return profile in (PROFILE_VUE, PROFILE_VUE_LEGACY)
+
+
 def profile_start_path(profile: str) -> str:
-    if profile == PROFILE_VUE:
+    if is_analytics_profile(profile):
         return VUE_PREFIX + "/"
     return "/"
 

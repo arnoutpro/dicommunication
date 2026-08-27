@@ -129,6 +129,9 @@ def test_launcher_reuses_running_server(monkeypatch) -> None:
     assert main(["--host", "127.0.0.1", "--port", "8080"]) == 0
     assert opened == ["http://127.0.0.1:8080/"]
     opened.clear()
+    assert main(["--host", "127.0.0.1", "--port", "8080", "--profile", "dicomtag-analytics"]) == 0
+    assert opened == ["http://127.0.0.1:8080/vue/"]
+    opened.clear()
     assert main(["--host", "127.0.0.1", "--port", "8080", "--profile", "vue-analytics"]) == 0
     assert opened == ["http://127.0.0.1:8080/vue/"]
 
@@ -222,8 +225,8 @@ def test_keep_alive_hint_native_window() -> None:
     from app.desktop import UI_WINDOW
 
     assert "Close the Dicommunication window" in keep_alive_hint(UI_WINDOW)
-    assert "Close the Vue PACS Database Analytics window" in keep_alive_hint(
-        UI_WINDOW, title="Vue PACS Database Analytics"
+    assert "Close the Dicomtag Analytics window" in keep_alive_hint(
+        UI_WINDOW, title="Dicomtag Analytics"
     )
 
 
@@ -292,6 +295,8 @@ def test_make_dmg_stages_app_and_applications_link(tmp_path) -> None:
     readme = (staging / "Read Me.txt").read_text(encoding="utf-8")
     assert "Gatekeeper" in readme
     assert "own window" in readme
+    assert "Dicomtag Analytics" in readme
+    assert "--profile dicomtag-analytics" in readme
 
 
 def test_make_dmg_stage_only_cli(tmp_path) -> None:
@@ -364,7 +369,7 @@ def test_frozen_reuses_running_server_in_native_window(monkeypatch) -> None:
     assert main(["--host", "127.0.0.1", "--port", "8080"]) == 0
     assert opened == ["http://127.0.0.1:8080/"]
     opened.clear()
-    assert main(["--host", "127.0.0.1", "--port", "8080", "--profile", "vue-analytics"]) == 0
+    assert main(["--host", "127.0.0.1", "--port", "8080", "--profile", "dicomtag-analytics"]) == 0
     assert opened == ["http://127.0.0.1:8080/vue/"]
 
 
@@ -401,8 +406,8 @@ def test_run_native_window_starts_webview(monkeypatch, tmp_path) -> None:
     assert calls["create"][0] == WINDOW_TITLE
     assert calls["create"][1] == "http://127.0.0.1:8080/"
     calls.clear()
-    assert run_native_window("http://127.0.0.1:8080/vue/", title="Vue PACS Database Analytics") is True
-    assert calls["create"][0] == "Vue PACS Database Analytics"
+    assert run_native_window("http://127.0.0.1:8080/vue/", title="Dicomtag Analytics") is True
+    assert calls["create"][0] == "Dicomtag Analytics"
     assert calls["create"][1] == "http://127.0.0.1:8080/vue/"
     assert calls["create"][2]["hidden"] is False
     assert calls["start"]["private_mode"] is False
@@ -577,8 +582,8 @@ def test_windows_spec_and_wix_use_app_icon() -> None:
     assert 'SourceFile="packaging\\icons\\app.ico"' in wxs
     assert 'Icon="AppIcon"' in wxs
     assert "ARPPRODUCTICON" in wxs
-    assert 'Name="Vue PACS Database Analytics"' in wxs
-    assert 'Arguments="--profile vue-analytics"' in wxs
+    assert 'Name="Dicomtag Analytics"' in wxs
+    assert 'Arguments="--profile dicomtag-analytics"' in wxs
 
 
 def test_htmx_is_served_from_this_app_not_a_cdn() -> None:
