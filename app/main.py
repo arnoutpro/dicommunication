@@ -1113,6 +1113,8 @@ def create_app(store: ConfigStore | None = None) -> FastAPI:
             "find_columns": columns,
             "storage_scp_enabled": config.local.storage_scp_enabled,
             "storage_scp_running": bool(scp and scp.running and config.local.storage_scp_enabled),
+            "listen_ae": config.local.ae_title,
+            "listen_port": config.local.port,
         }
 
     def _c_find_advanced_page(
@@ -1383,7 +1385,7 @@ def create_app(store: ConfigStore | None = None) -> FastAPI:
                 return templates.TemplateResponse(
                     request,
                     "partials/find_advanced_result.html",
-                    {"request": request, "result": failure, **extras},
+                    page(request, result=failure, **extras),
                     status_code=400,
                 )
             return _c_find_advanced_page(
@@ -1412,7 +1414,7 @@ def create_app(store: ConfigStore | None = None) -> FastAPI:
                 return templates.TemplateResponse(
                     request,
                     "partials/find_advanced_result.html",
-                    {"request": request, "result": failure, **extras},
+                    page(request, result=failure, **extras),
                     status_code=exc.status_code,
                 )
             return _c_find_advanced_page(
@@ -1428,7 +1430,7 @@ def create_app(store: ConfigStore | None = None) -> FastAPI:
             return templates.TemplateResponse(
                 request,
                 "partials/find_advanced_result.html",
-                {"request": request, "result": result, **extras},
+                page(request, result=result, **extras),
             )
         return _c_find_advanced_page(
             request,

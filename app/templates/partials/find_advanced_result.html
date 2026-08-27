@@ -6,6 +6,12 @@
       {% if result.remote_name %}<span class="muted">→ {{ result.remote_name }}</span>{% endif %}
       {% if result.calling_ae %}<span class="muted">as {{ result.calling_ae }}</span>{% endif %}
       <p>{{ result.summary }}</p>
+      {% if not result.ok and result.summary and 'Accept C-STORE is off' in result.summary %}
+      <p class="hint">
+        <a class="button compact" href="{{ href('/config/local') }}">Open Local DICOM AE</a>
+        Enable Accept C-STORE, save, then retrieve again.
+      </p>
+      {% endif %}
     </div>
   </header>
   {% if result.steps %}
@@ -52,7 +58,7 @@
     {% elif find_level|default("STUDY") == "STUDY" and kind != "sr_content" %}
     <button class="button compact primary" type="button" data-find-follow="sr_series">List SR reports</button>
     {% endif %}
-    <span class="hint">{% if kind == "sr_content" %}JSON includes Findings, Impression, the full report text, and the Content Sequence tree.{% elif kind == "sr_series" %}Same Study Instance UID, different Series Instance UID, modality SR.{% else %}Copy is tab-separated for Excel. Click a row to reuse Study / Series UIDs at the next level.{% endif %}</span>
+    <span class="hint" data-find-export-hint>{% if kind == "sr_content" %}JSON includes Findings, Impression, the full report text, and the Content Sequence tree.{% elif kind == "sr_series" %}Same Study Instance UID, different Series Instance UID, modality SR.{% else %}Copy is tab-separated for Excel. Click a row to reuse Study / Series UIDs at the next level.{% endif %}</span>
   </div>
   {% if kind != "sr_content" %}
   <div class="table-wrap find-table-wrap">
@@ -76,11 +82,12 @@
     </table>
   </div>
   {% else %}
-  <div class="table-wrap find-table-wrap">
+  {% set table_columns = ["PatientName", "PatientID", "StudyDate", "AccessionNumber", "DocumentTitle", "Findings", "Impression"] %}
+  <div class="table-wrap find-table-wrap find-sr-overview">
     <table class="find-table" data-find-table>
       <thead>
         <tr>
-          {% for key in columns if key != "sr_text" %}
+          {% for key in table_columns %}
           <th title="{{ key }}">{{ labels.get(key, key.replace("_", " ")) }}</th>
           {% endfor %}
         </tr>
@@ -88,7 +95,7 @@
       <tbody>
         {% for row in result.records %}
         <tr data-find-row>
-          {% for key in columns if key != "sr_text" %}
+          {% for key in table_columns %}
           <td data-key="{{ key }}">{{ row.get(key, "") }}</td>
           {% endfor %}
         </tr>
@@ -97,38 +104,54 @@
     </table>
   </div>
   {% for row in result.records %}
-  <details class="find-sr-report" open>
-    <summary>{{ row.get("PatientName") or "Patient" }} · {{ row.get("StudyDate") }} · {{ row.get("DocumentTitle") or "Structured Report" }}{% if row.get("AccessionNumber") %} · {{ row.get("AccessionNumber") }}{% endif %}</summary>
-    {% if row.get("sr_items") %}
-    <div class="table-wrap">
-      <table class="find-sr-tree">
-        <thead>
-          <tr>
-            <th>Concept</th>
-            <th>Type</th>
-            <th>Value</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for item in row.sr_items %}
-          <tr>
-            <td style="padding-left: {{ (item.depth|int) * 1.1 + 0.4 }}rem">{{ item.name }}</td>
-            <td>{{ item.value_type }}</td>
-            <td>{{ item.value }}</td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
+  <article class="find-sr-card">
+    <header>
+      <strong>{{ row.get("PatientName") or "Patient" }}</strong>
+      <span class="muted">{{ row.get("StudyDate") }}{% if row.get("AccessionNumber") %} · {{ row.get("AccessionNumber") }}{% endif %} · {{ row.get("DocumentTitle") or "Structured Report" }}</span>
+    </header>
+    <div class="find-sr-sections">
+      <section>
+        <h4>Findings</h4>
+        {% if row.get("Findings") %}<pre class="find-sr-prose">{{ row.Findings }}</pre>{% else %}<p class="hint">No Findings concept in this Content Sequence.</p>{% endif %}
+      </section>
+      <section>
+        <h4>Impression</h4>
+        {% if row.get("Impression") %}<pre class="find-sr-prose">{{ row.Impression }}</pre>{% else %}<p class="hint">No Impression concept in this Content Sequence.</p>{% endif %}
+      </section>
     </div>
-    {% elif row.get("sr_text") %}
-    <pre class="log">{{ row.sr_text }}</pre>
-    {% else %}
-    <p class="hint">This object had no Content Sequence to parse.</p>
-    {% endif %}
-  </details>
+    <details class="find-sr-report">
+      <summary>Content Sequence</summary>
+      {% if row.get("sr_items") %}
+      <div class="table-wrap">
+        <table class="find-sr-tree">
+          <thead>
+            <tr>
+              <th>Concept</th>
+              <th>Type</th>
+              <th>Value</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for item in row.sr_items %}
+            <tr>
+              <td style="padding-left: {{ (item.depth|int) * 1.1 + 0.4 }}rem">{{ item.name }}</td>
+              <td>{{ item.value_type }}</td>
+              <td>{{ item.value }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% elif row.get("sr_text") %}
+      <pre class="log">{{ row.sr_text }}</pre>
+      {% else %}
+      <p class="hint">This object had no Content Sequence to parse.</p>
+      {% endif %}
+    </details>
+  </article>
   {% endfor %}
   {% endif %}
-  <script type="application/json" data-find-export>{{ {"level": find_level|default("STUDY"), "kind": kind, "columns": columns, "labels": labels, "records": result.records} | tojson }}</script>
+  <textarea hidden data-find-export>{{ {"level": find_level|default("STUDY"), "kind": kind, "columns": columns, "labels": labels, "records": result.records} | tojson }}</textarea>
   {% elif result.ok %}
   <p class="hint">The FIND SOP Class was accepted and the query succeeded with zero matches. Broaden the filters, or check that this calling AE is allowed to query the archive.{% if find_kind|default("") == "sr_series" %} These studies have no series with modality SR.{% endif %}</p>
   {% endif %}

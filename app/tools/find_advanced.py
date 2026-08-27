@@ -42,7 +42,16 @@ from app.tools.registry import register
 
 PENDING = {0xFF00, 0xFF01}
 MAX_SR_STUDIES = 80
-MAX_SR_RETRIEVE = 20
+MAX_SR_RETRIEVE = 200
+SR_CONTENT_TABLE_COLUMNS = [
+    "PatientName",
+    "PatientID",
+    "StudyDate",
+    "AccessionNumber",
+    "DocumentTitle",
+    "Findings",
+    "Impression",
+]
 SR_SERIES_RETURN = [
     "StudyInstanceUID",
     "SeriesInstanceUID",
@@ -89,6 +98,39 @@ MOVE_HINTS = {
     0xA702: "Unable to perform sub-operations (C-STORE to this AE failed).",
     0xC002: "Unable to process the C-MOVE identifier.",
 }
+
+
+def retrieve_storage_gate_message(
+    *,
+    dest_ae: str,
+    port: int,
+    calling_ae: str,
+    enabled: bool,
+    running: bool,
+    storage_error: str = "",
+) -> str | None:
+    """Explain why retrieve cannot C-MOVE yet. None when the local Storage SCP is up."""
+    dest = dest_ae.strip() or "the Local AE Title"
+    if not enabled:
+        text = (
+            f"Accept C-STORE is off. On Local DICOM AE enable Accept C-STORE of "
+            f"Structured Reports and save. Vue must list {dest} as a C-MOVE destination "
+            f"at this host, listen port {port}."
+        )
+        calling = calling_ae.strip()
+        if calling and calling != dest:
+            text += (
+                f" Present as {calling} is only the calling AE for C-FIND; Vue C-STOREs "
+                f"the report to {dest}, not to a viewer that uses that title."
+            )
+        return text
+    if not running:
+        return storage_error or (
+            "The local Storage SCP is not listening. Save Local DICOM AE with "
+            "Accept C-STORE enabled, and allow inbound TCP on the listen port "
+            f"{port} as {dest}."
+        )
+    return None
 
 
 def _elapsed_ms(started: float) -> float:
@@ -534,30 +576,21 @@ class CFindAdvancedTool(BaseTool):
         storage_running = bool(options.get("_storage_running", False))
         storage_error = str(options.get("_storage_error") or "").strip()
         dest_ae = str(options.get("_listen_ae") or local.ae_title).strip() or local.ae_title
-        if not storage_enabled:
+        calling_ae = local.ae_title
+        blocked = retrieve_storage_gate_message(
+            dest_ae=dest_ae,
+            port=int(local.port),
+            calling_ae=calling_ae,
+            enabled=storage_enabled,
+            running=storage_running,
+            storage_error=storage_error,
+        )
+        if blocked:
             return ToolResult(
                 tool_id=self.id,
                 tool_name=self.name,
                 ok=False,
-                summary=(
-                    "Enable Accept C-STORE (Structured Reports) on Local DICOM AE, "
-                    "register that AE Title in Vue as a C-MOVE destination, then retrieve again."
-                ),
-                remote_id=remote.id,
-                remote_name=remote.name,
-            )
-        if not storage_running:
-            return ToolResult(
-                tool_id=self.id,
-                tool_name=self.name,
-                ok=False,
-                summary=(
-                    storage_error
-                    or (
-                        "The local Storage SCP is not listening. Save Local DICOM AE with "
-                        "Accept C-STORE enabled, and allow inbound TCP on the listen port."
-                    )
-                ),
+                summary=blocked,
                 remote_id=remote.id,
                 remote_name=remote.name,
             )
@@ -585,13 +618,15 @@ class CFindAdvancedTool(BaseTool):
                 remote_name=remote.name,
             )
 
+        listed_count = len(series_rows)
         truncated = False
-        if len(series_rows) > MAX_SR_RETRIEVE:
+        failed_moves = 0
+        if listed_count > MAX_SR_RETRIEVE:
             series_rows = series_rows[:MAX_SR_RETRIEVE]
             truncated = True
 
         move_local = local.model_copy(
-            update={"timeout_seconds": max(float(local.timeout_seconds), 60.0)}
+            update={"timeout_seconds": max(float(local.timeout_seconds), 180.0)}
         )
         started = time.perf_counter()
         steps: list[ToolStep] = []
@@ -644,7 +679,9 @@ class CFindAdvancedTool(BaseTool):
                     )
                     move_started = time.perf_counter()
                     failed_status = None
+                    abort_remaining = False
                     moved = 0
+                    failed_moves = 0
                     for row in series_rows:
                         identifier = Dataset()
                         identifier.QueryRetrieveLevel = "SERIES"
@@ -654,29 +691,36 @@ class CFindAdvancedTool(BaseTool):
                         if sop_uid:
                             identifier.QueryRetrieveLevel = "IMAGE"
                             identifier.SOPInstanceUID = sop_uid
+                        series_error = None
                         for status, _remaining in assoc.send_c_move(
                             identifier, dest_ae, StudyRootQueryRetrieveInformationModelMove
                         ):
                             if not status:
-                                failed_status = (
+                                series_error = (
                                     "No C-MOVE response (timeout, abort, or invalid PDU)."
                                 )
+                                abort_remaining = True
                                 break
                             code = int(status.Status)
                             if code in PENDING:
                                 continue
                             if code == 0x0000:
                                 moved += 1
+                                series_error = None
                                 break
-                            failed_status = _move_status_message(code)
+                            series_error = _move_status_message(code)
                             if code == 0xA801:
-                                failed_status += (
+                                series_error += (
                                     f" Destination AE Title is {dest_ae}. Vue must list it "
                                     "as a C-MOVE destination at this workstation’s host:port."
                                 )
+                                abort_remaining = True
                             break
-                        if failed_status:
-                            break
+                        if series_error:
+                            failed_moves += 1
+                            failed_status = series_error
+                            if abort_remaining:
+                                break
                     datasets = STORAGE_INBOX.finish()
                     if failed_status and not datasets:
                         steps.append(
@@ -726,26 +770,38 @@ class CFindAdvancedTool(BaseTool):
                             record["sr_items"] = parsed_sr["items"]
                             records.append(record)
                             parsed_count += 1
-                        extra = f" (first {MAX_SR_RETRIEVE} series)" if truncated else ""
-                        skip_note = f"; skipped {skipped} non-SR objects" if skipped else ""
-                        move_ok = failed_status is None
+                        notes: list[str] = []
+                        if truncated:
+                            notes.append(
+                                f"requested first {MAX_SR_RETRIEVE} of {listed_count} listed series"
+                            )
+                        if failed_moves:
+                            notes.append(f"{failed_moves} series failed")
+                        if skipped:
+                            notes.append(f"skipped {skipped} non-SR objects")
+                        note = f" ({'; '.join(notes)})" if notes else ""
+                        move_ok = parsed_count > 0 or failed_status is None
+                        if parsed_count:
+                            message = (
+                                f"Retrieved {parsed_count} Structured Reports from "
+                                f"{moved} series moves to {dest_ae}{note}"
+                            )
+                            if failed_status:
+                                message += f". Last error: {failed_status}"
+                        else:
+                            message = failed_status or "No Structured Reports were stored on this AE."
                         steps.append(
                             ToolStep(
                                 name="C-MOVE",
-                                ok=move_ok or parsed_count > 0,
-                                message=(
-                                    failed_status
-                                    or (
-                                        f"Retrieved {parsed_count} Structured Reports from "
-                                        f"{moved} series moves to {dest_ae}{extra}{skip_note}"
-                                    )
-                                ),
+                                ok=move_ok,
+                                message=message,
                                 duration_ms=_elapsed_ms(move_started),
                                 details={
                                     "count": parsed_count,
                                     "level": "SERIES",
                                     "kind": "sr_content",
                                     "truncated": truncated,
+                                    "failed_moves": failed_moves,
                                     "destination_ae": dest_ae,
                                 },
                             )
@@ -773,10 +829,15 @@ class CFindAdvancedTool(BaseTool):
         ok = bool(steps) and all(step.ok for step in steps)
         failed = next((step for step in steps if not step.ok), None)
         if ok:
-            extra = f" (first {MAX_SR_RETRIEVE} series)" if truncated else ""
+            extra = []
+            if truncated:
+                extra.append(f"first {MAX_SR_RETRIEVE} of {listed_count} listed series")
+            if failed_moves:
+                extra.append(f"{failed_moves} series failed")
+            cap = f" ({'; '.join(extra)})" if extra else ""
             summary = (
-                f"Parsed {len(records)} Structured Reports from {remote.ae_title}{extra}. "
-                "Values come from the DICOM Content Sequence, not a language model."
+                f"Parsed {len(records)} Structured Reports from {remote.ae_title}{cap}. "
+                "Findings and Impression come from the DICOM Content Sequence, not a language model."
             )
         else:
             summary = failed.message if failed else "Could not retrieve Structured Reports"
