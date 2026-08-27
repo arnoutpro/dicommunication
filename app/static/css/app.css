@@ -1670,25 +1670,32 @@ html.professional-mode .theme-menu-item.is-active {
   text-transform: uppercase;
   color: var(--muted);
 }
-.find-key-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(16.5rem, 1fr));
-  gap: 0.55rem 0.75rem;
-}
-.find-key {
-  margin: 0;
-  padding: 0.45rem 0.55rem 0.5rem;
+.find-key-list {
+  display: flex;
+  flex-direction: column;
   border: 1px solid var(--line);
   background: var(--bg-elev);
+}
+.form-grid label.find-key {
+  display: grid;
+  grid-template-columns: minmax(14rem, 22rem) minmax(0, 1fr);
+  gap: 0.25rem 0.85rem;
+  align-items: center;
+  margin: 0;
+  padding: 0.38rem 0.65rem;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  background: transparent;
   min-width: 0;
 }
+.find-key:last-child { border-bottom: 0; }
 .find-key.is-locked {
   opacity: 0.62;
 }
 .find-key-head {
   display: flex;
   align-items: center;
-  gap: 0.4rem;
+  gap: 0.45rem;
   min-width: 0;
 }
 .find-key-head input {
@@ -1707,10 +1714,25 @@ html.professional-mode .theme-menu-item.is-active {
   font-size: var(--text-2xs);
   color: var(--muted);
   font-weight: 600;
+  white-space: nowrap;
 }
 .find-key input[data-find-value] {
   font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
   font-size: var(--text-sm);
+}
+.find-key .hint {
+  grid-column: 1 / -1;
+}
+.find-vue {
+  margin: 0;
+  padding: 0 0.75rem 0.55rem;
+}
+.find-vue .find-key-list { margin-top: 0.35rem; }
+@media (max-width: 760px) {
+  .form-grid label.find-key {
+    grid-template-columns: 1fr;
+    align-items: start;
+  }
 }
 .find-export-bar {
   display: flex;
