@@ -12,8 +12,23 @@ The web UI is FastAPI + HTMX. DICOM uses pynetdicom/pydicom. New test tools are 
 
 Open [http://127.0.0.1:8080](http://127.0.0.1:8080) for Dicommunication, or [http://127.0.0.1:8080/vue/](http://127.0.0.1:8080/vue/) for Vue PACS Database Analytics.
 
+## Screenshots
+
+Synthetic lab studies (not clinical data). Light theme, v0.3.0.
+
+**Dicommunication** — workstation dashboard, remotes, Test tools.
+
+![Dicommunication dashboard](docs/screenshots/dicommunication-dashboard.webp)
+
+**Vue PACS Database Analytics** — Study Root C-FIND, then retrieve Structured Report text (Findings / Impression, Copy / CSV / JSON).
+
+![Vue PACS Database Analytics query with five studies](docs/screenshots/vue-query.webp)
+
+![Five Structured Reports with Findings, Impression, and export](docs/screenshots/vue-sr-reports.webp)
+
 ## Contents
 
+- [Screenshots](#screenshots)
 - [What this is (and is not)](#what-this-is-and-is-not)
 - [DICOM services this tool distinguishes](#dicom-services-this-tool-distinguishes)
 - [Run it](#run-it)
