@@ -1816,8 +1816,12 @@ html:not(.light-mode) .find-key:hover { background: rgba(148, 163, 184, 0.08); }
   flex-shrink: 0;
 }
 .find-advanced-form [data-find-stop] { display: none; }
-.find-advanced-form.htmx-request [data-find-run] { display: none; }
-.find-advanced-form.htmx-request [data-find-stop] { display: inline-flex; }
+.find-advanced-form.htmx-request [data-find-run],
+.find-advanced-form:has(.htmx-request) [data-find-run],
+.find-advanced-form[data-find-busy] [data-find-run] { display: none; }
+.find-advanced-form.htmx-request [data-find-stop],
+.find-advanced-form:has(.htmx-request) [data-find-stop],
+.find-advanced-form[data-find-busy] [data-find-stop] { display: inline-flex; }
 .find-results .result > header {
   grid-template-columns: auto 1fr;
 }

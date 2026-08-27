@@ -1073,6 +1073,10 @@ function bindFindAdvanced(root) {
     });
     target.addEventListener("htmx:beforeRequest", () => {
       delete target.dataset.findAborted;
+      target.dataset.findBusy = "1";
+    });
+    target.addEventListener("htmx:afterRequest", () => {
+      delete target.dataset.findBusy;
     });
     syncFindAdvanced(target);
   }
@@ -1087,14 +1091,19 @@ function findStoppedMarkup() {
   );
 }
 
+function findQueryInFlight(form) {
+  return form.dataset.findBusy === "1" || Boolean(form.querySelector(".htmx-request"));
+}
+
 function stopFindQuery(form) {
   if (!form || !window.htmx) {
     return;
   }
-  if (!form.classList.contains("htmx-request")) {
+  if (!findQueryInFlight(form)) {
     return;
   }
   form.dataset.findAborted = "1";
+  delete form.dataset.findBusy;
   htmx.trigger(form, "htmx:abort");
   const result = document.getElementById("result");
   if (result) {
