@@ -16,6 +16,7 @@
 
 ### Interface
 
+- README screenshots of the Dicommunication dashboard and Vue PACS Database Analytics (query + Structured Report retrieve). Synthetic lab studies, not clinical data.
 - **Vue PACS Database Analytics**: retrieve C-MOVEs up to 200 SR series and continues after a failed series. The result shows Findings and Impression as report text; the Content Sequence tree is folded. Copy / CSV / JSON read a hidden textarea so the buttons work after HTMX swaps.
 - **Vue PACS Database Analytics**: retrieve error names the listen AE Title and port Vue must use as C-MOVE destination, and says Present as (virtual calling AE) is not that destination. Query shows when SR C-STORE is off, with a link to Local DICOM AE.
 - **Vue PACS Database Analytics**: **List SR reports** after a Study query (Series C-FIND, modality SR, same Study Instance UID). **Retrieve report text** C-MOVEs those series to this AE when Accept C-STORE is on, then flattens the DICOM Content Sequence. JSON/CSV export includes Findings and Impression as columns plus the full report text. No language model.
