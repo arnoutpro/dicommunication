@@ -74,6 +74,7 @@ class FindKey:
     requires: tuple[str, ...] = ()
     modality_in: tuple[str, ...] = ()
     private_creator: str = ""
+    match_required: bool = False
 
 
 def _key(
@@ -90,6 +91,7 @@ def _key(
     requires: tuple[str, ...] = (),
     modality_in: tuple[str, ...] = (),
     private_creator: str = "",
+    match_required: bool = False,
 ) -> FindKey:
     return FindKey(
         keyword=keyword,
@@ -105,6 +107,7 @@ def _key(
         requires=requires,
         modality_in=modality_in,
         private_creator=private_creator,
+        match_required=match_required,
     )
 
 
@@ -225,7 +228,8 @@ KEYS: tuple[FindKey, ...] = (
         "STUDY",
         role="required",
         placeholder="YYYYMMDD or YYYYMMDD-YYYYMMDD",
-        hint="Single day or a DICOM date range.",
+        hint="Required. Single day or a DICOM date range.",
+        match_required=True,
     ),
     _key(
         "StudyTime",
@@ -1164,18 +1168,21 @@ def missing_parents(level: str, values: Mapping[str, str]) -> list[str]:
 
 def validate_query(level: str, values: Mapping[str, str]) -> str | None:
     missing = missing_parents(level, values)
-    if not missing:
-        return None
-    labels = ", ".join(_KEYS_BY_KEYWORD[name].label for name in missing)
-    if level == "SERIES":
+    if missing:
+        labels = ", ".join(_KEYS_BY_KEYWORD[name].label for name in missing)
+        if level == "SERIES":
+            return (
+                f"Series C-FIND needs {labels}. Hierarchical Query/Retrieve does not "
+                "search series across the archive without a Study Instance UID."
+            )
         return (
-            f"Series C-FIND needs {labels}. Hierarchical Query/Retrieve does not "
-            "search series across the archive without a Study Instance UID."
+            f"Image C-FIND needs {labels}. Hierarchical Query/Retrieve does not "
+            "search instances without Study Instance UID and Series Instance UID."
         )
-    return (
-        f"Image C-FIND needs {labels}. Hierarchical Query/Retrieve does not "
-        "search instances without Study Instance UID and Series Instance UID."
-    )
+    for key in keys_for_level(level):
+        if key.match_required and not str(values.get(key.keyword) or "").strip():
+            return f"{key.label} is required."
+    return None
 
 
 def key_unlocked(key: FindKey, values: Mapping[str, str]) -> tuple[bool, str]:
