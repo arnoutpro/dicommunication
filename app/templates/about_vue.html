@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}About · {{ product_name }}{% endblock %}
+{% block content %}
+<header class="page-head">
+  <div>
+    <p class="eyebrow">Application</p>
+    <h1>About Vue PACS Database Analytics</h1>
+    <p class="lede">Study Root C-FIND for Vue PACS. Same installer and config as Dicommunication.</p>
+  </div>
+</header>
+
+<div class="grid-3">
+  <article class="card">
+    <p class="card-label">Version</p>
+    <h2 class="about-version">v{{ app_version }}</h2>
+    <p class="muted">Ships in the Dicommunication installer</p>
+  </article>
+  <article class="card">
+    <p class="card-label">Calling AE</p>
+    <h2>{{ config.local.ae_title }}</h2>
+    <p class="muted">{{ config.local.host }}:{{ config.local.port }}{% if config.local.hostname %} · {{ config.local.hostname }}{% endif %}</p>
+  </article>
+  <article class="card">
+    <p class="card-label">Data directory</p>
+    <h2 class="about-path">{{ data_dir }}</h2>
+    <p class="muted">Shared with Dicommunication</p>
+  </article>
+</div>
+
+<section class="panel">
+  <header class="panel-head">
+    <h2>What this application is</h2>
+  </header>
+  <p>Vue PACS Database Analytics is a <strong>Study Root C-FIND workstation</strong> aimed at Philips Vue PACS. Query stored studies at Study, Series, or Image, including optional Tamar / ELSCINT1 private tags. It is not a PACS, not a viewer, and not Modality Worklist.</p>
+  <p>The Dicommunication MSI installs this tool next to the network workstation. Both use the same <code>config.json</code>. There is <strong>no web login</strong> — treat the UI like a diagnostic console on the PACS VLAN.</p>
+  <p><a class="button" href="{{ href('/help') }}">Open Help</a> for query keys, hierarchical FIND, and Vue private tags.</p>
+</section>
+{% endblock %}

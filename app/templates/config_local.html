@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Local DICOM AE · Dicommunication{% endblock %}
+{% block title %}Local DICOM AE · {{ product_name }}{% endblock %}
 {% block content %}
 <header class="page-head">
   <div>
@@ -15,7 +15,7 @@
     <h2>Workstation identity</h2>
     <span class="muted">Calling AE when you are not impersonating a modality</span>
   </header>
-  <form method="post" action="/config/local" class="form-grid" autocomplete="off">
+  <form method="post" action="{{ href('/config/local') }}" class="form-grid" autocomplete="off">
     <label>
       AE Title
       <input name="ae_title" maxlength="16" required value="{{ config.local.ae_title }}">

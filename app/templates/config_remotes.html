@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Remote nodes · Dicommunication{% endblock %}
+{% block title %}Remote nodes · {{ product_name }}{% endblock %}
 {% block content %}
 <header class="page-head">
   <div>
@@ -13,9 +13,9 @@
 <section class="panel">
   <header class="panel-head">
     <h2>{% if editing %}Edit remote node{% else %}Add remote DICOM node{% endif %}</h2>
-    {% if editing %}<a href="/config/remotes">Cancel</a>{% endif %}
+    {% if editing %}<a href="{{ href('/config/remotes') }}">Cancel</a>{% endif %}
   </header>
-  <form method="post" action="/config/remotes" class="form-grid" autocomplete="off">
+  <form method="post" action="{{ href('/config/remotes') }}" class="form-grid" autocomplete="off">
     {% if editing %}
     <input type="hidden" name="remote_id" value="{{ editing.id }}">
     {% endif %}
@@ -107,8 +107,8 @@
             {% endif %}
           </td>
           <td class="actions">
-            <a href="/config/remotes?edit={{ remote.id }}">Edit</a>
-            <form method="post" action="/config/remotes/{{ remote.id }}/delete" class="inline" data-confirm="Delete remote node {{ remote.name }}?">
+            <a href="{{ href('/config/remotes?edit=' ~ remote.id) }}">Edit</a>
+            <form method="post" action="{{ href('/config/remotes/' ~ remote.id ~ '/delete') }}" class="inline" data-confirm="Delete remote node {{ remote.name }}?">
               <button type="submit" class="link-button danger">Delete</button>
             </form>
           </td>

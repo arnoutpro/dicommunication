@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Virtual AEs · Dicommunication{% endblock %}
+{% block title %}Virtual AEs · {{ product_name }}{% endblock %}
 {% block content %}
 <header class="page-head">
   <div>
@@ -13,12 +13,12 @@
 <section class="panel">
   <header class="panel-head">
     <h2>{% if editing_identity %}Edit virtual local AE{% else %}Add virtual local AE{% endif %}</h2>
-    {% if editing_identity %}<a href="/config/identities">Cancel</a>{% else %}<span class="muted">Impersonate a modality</span>{% endif %}
+    {% if editing_identity %}<a href="{{ href('/config/identities') }}">Cancel</a>{% else %}<span class="muted">Impersonate a modality</span>{% endif %}
   </header>
   <p class="hint">
     Orthanc <code>DicomModalities</code> must allow each calling AE you impersonate, the same way it allows the workstation AE.
   </p>
-  <form method="post" action="/config/identities" class="form-grid" autocomplete="off">
+  <form method="post" action="{{ href('/config/identities') }}" class="form-grid" autocomplete="off">
     {% if editing_identity %}
     <input type="hidden" name="identity_id" value="{{ editing_identity.id }}">
     {% endif %}
@@ -78,8 +78,8 @@
           <td><code>{{ identity.scheduled_station_ae_title }}</code></td>
           <td>{{ identity.modality or "—" }}</td>
           <td class="actions">
-            <a href="/config/identities?edit={{ identity.id }}">Edit</a>
-            <form method="post" action="/config/identities/{{ identity.id }}/delete" class="inline" data-confirm="Delete virtual AE {{ identity.name }}?">
+            <a href="{{ href('/config/identities?edit=' ~ identity.id) }}">Edit</a>
+            <form method="post" action="{{ href('/config/identities/' ~ identity.id ~ '/delete') }}" class="inline" data-confirm="Delete virtual AE {{ identity.name }}?">
               <button type="submit" class="link-button danger">Delete</button>
             </form>
           </td>

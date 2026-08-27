@@ -245,9 +245,9 @@ def test_c_find_advanced_page_and_api(client, store) -> None:
         time.sleep(0.05)
         remote = RemoteNode(name="pacs", ae_title="QR_SCP", host="127.0.0.1", port=port)
         store.add_remote(remote)
-        page = client.get("/tools/c-find-advanced")
+        page = client.get("/vue/")
         assert page.status_code == 200
-        assert b"C-FIND Advanced" in page.content
+        assert b"Vue PACS Database Analytics" in page.content
         assert b'data-find-advanced' in page.content
         assert b'value="STUDY"' in page.content
         assert b'value="SERIES"' in page.content
