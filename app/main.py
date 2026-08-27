@@ -55,6 +55,7 @@ from app.pdf_dicom import (
 from app.paths import package_dir
 from app.store import ConfigStore
 from app.tools import get_tool, list_tools, list_tools_by_category
+from app.tools.find_keys import catalog_payload, column_labels, options_from_form
 
 BASE_DIR = package_dir()
 
@@ -1023,6 +1024,48 @@ def create_app(store: ConfigStore | None = None) -> FastAPI:
         log.info("Deleted HL7 draft %s", message_id)
         return RedirectResponse("/tools/hl7-send?saved=deleted", status_code=303)
 
+    def _find_advanced_extras(result: ToolResult | None, level: str = "STUDY") -> dict[str, Any]:
+        records = result.records if result else []
+        columns = list(records[0].keys()) if records else []
+        resolved = level
+        if result:
+            for step in result.steps:
+                step_level = step.details.get("level")
+                if step_level:
+                    resolved = str(step_level)
+                    break
+        return {
+            "find_catalog": catalog_payload(),
+            "find_level": resolved,
+            "find_labels": dict(zip(columns, column_labels(columns))),
+        }
+
+    def _c_find_advanced_page(
+        request: Request,
+        *,
+        result: ToolResult | None = None,
+        remote_id: str = "",
+        identity_id: str = "",
+        level: str = "STUDY",
+        status_code: int = 200,
+    ):
+        tool = get_tool("c-find-advanced")
+        return templates.TemplateResponse(
+            request,
+            tool.template,
+            page(
+                request,
+                nav="tools",
+                tool=tool,
+                tool_id=tool.id,
+                result=result,
+                remote_id=remote_id,
+                identity_id=identity_id,
+                **_find_advanced_extras(result, level),
+            ),
+            status_code=status_code,
+        )
+
     def _pdf_store_page(
         request: Request,
         *,
@@ -1234,10 +1277,87 @@ def create_app(store: ConfigStore | None = None) -> FastAPI:
             )
         if tool_id == "pdf-store":
             return _pdf_store_page(request)
+        if tool_id == "c-find-advanced":
+            return _c_find_advanced_page(request)
         return templates.TemplateResponse(
             request,
             tool.template,
             page(request, nav="tools", tool=tool, tool_id=tool.id, result=None),
+        )
+
+    @app.post("/tools/c-find-advanced/run")
+    async def c_find_advanced_run(request: Request):
+        form = await request.form()
+        remote_id = str(form.get("remote_id") or "")
+        identity_id = str(form.get("identity_id") or "")
+        try:
+            options = options_from_form(form)
+            level = str(options.get("level") or "STUDY")
+        except ValueError as exc:
+            failure = ToolResult(
+                tool_id="c-find-advanced",
+                tool_name="C-FIND Advanced",
+                ok=False,
+                summary=str(exc),
+            )
+            extras = _find_advanced_extras(failure, "STUDY")
+            if _hx(request):
+                return templates.TemplateResponse(
+                    request,
+                    "partials/find_advanced_result.html",
+                    {"request": request, "result": failure, **extras},
+                    status_code=400,
+                )
+            return _c_find_advanced_page(
+                request,
+                result=failure,
+                remote_id=remote_id,
+                identity_id=identity_id,
+                status_code=400,
+            )
+        try:
+            result = execute_tool(
+                "c-find-advanced",
+                remote_id or None,
+                options,
+                identity_id or None,
+            )
+        except HTTPException as exc:
+            failure = ToolResult(
+                tool_id="c-find-advanced",
+                tool_name="C-FIND Advanced",
+                ok=False,
+                summary=str(exc.detail),
+            )
+            extras = _find_advanced_extras(failure, level)
+            if _hx(request):
+                return templates.TemplateResponse(
+                    request,
+                    "partials/find_advanced_result.html",
+                    {"request": request, "result": failure, **extras},
+                    status_code=exc.status_code,
+                )
+            return _c_find_advanced_page(
+                request,
+                result=failure,
+                remote_id=remote_id,
+                identity_id=identity_id,
+                level=level,
+                status_code=exc.status_code,
+            )
+        extras = _find_advanced_extras(result, level)
+        if _hx(request):
+            return templates.TemplateResponse(
+                request,
+                "partials/find_advanced_result.html",
+                {"request": request, "result": result, **extras},
+            )
+        return _c_find_advanced_page(
+            request,
+            result=result,
+            remote_id=remote_id,
+            identity_id=identity_id,
+            level=level,
         )
 
     @app.post("/tools/{tool_id}/run")

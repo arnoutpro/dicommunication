@@ -5,13 +5,23 @@ from app.tools import get_tool, list_tools, list_tools_by_category
 
 def test_builtin_tools_are_registered() -> None:
     tools = {tool.id: tool for tool in list_tools()}
-    assert set(tools) >= {"ping", "c-echo", "mwl-find", "c-store", "pdf-store", "c-find", "hl7-send"}
+    assert set(tools) >= {
+        "ping",
+        "c-echo",
+        "mwl-find",
+        "c-store",
+        "pdf-store",
+        "c-find",
+        "c-find-advanced",
+        "hl7-send",
+    }
     assert tools["ping"].name == "Network PING"
     assert tools["c-echo"].name == "C-ECHO"
     assert tools["mwl-find"].name == "MWL C-FIND"
     assert tools["c-store"].name == "C-STORE"
     assert tools["pdf-store"].name == "PDF to DICOM"
     assert tools["c-find"].name == "C-FIND"
+    assert tools["c-find-advanced"].name == "C-FIND Advanced"
     assert tools["hl7-send"].name == "HL7 send"
     assert tools["hl7-send"].requires_remote is False
     assert tools["pdf-store"].requires_remote is False
@@ -33,5 +43,12 @@ def test_tools_grouped_by_category() -> None:
     assert "DIMSE" in groups
     assert "HL7" in groups
     assert [tool.id for tool in groups["Connectivity"]] == ["ping"]
-    assert [tool.id for tool in groups["DIMSE"]] == ["c-echo", "c-store", "pdf-store", "c-find", "mwl-find"]
+    assert [tool.id for tool in groups["DIMSE"]] == [
+        "c-echo",
+        "c-store",
+        "pdf-store",
+        "c-find",
+        "c-find-advanced",
+        "mwl-find",
+    ]
     assert [tool.id for tool in groups["HL7"]] == ["hl7-send"]

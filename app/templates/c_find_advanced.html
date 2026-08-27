@@ -1,0 +1,132 @@
+{% extends "base.html" %}
+{% block title %}{{ tool.name }} · Dicommunication{% endblock %}
+{% block content %}
+<header class="page-head">
+  <div>
+    <p class="eyebrow">{{ tool.category }}</p>
+    <h1>{{ tool.name }}</h1>
+    <p class="lede">{{ tool.description }}</p>
+  </div>
+</header>
+
+<section class="panel">
+  <header class="panel-head">
+    <h2>Query a Q/R SCP</h2>
+    <span class="muted">Calling AE {{ config.local.ae_title }}{% if config.identities %} · {{ config.identities | length }} virtual{% endif %}</span>
+  </header>
+
+  {% if config.remotes %}
+  <form
+    class="form-grid find-advanced-form"
+    method="post"
+    action="/tools/c-find-advanced/run"
+    hx-post="/tools/c-find-advanced/run"
+    hx-target="#result"
+    hx-indicator="#busy"
+    hx-timeout="120000"
+    data-find-advanced
+    autocomplete="off"
+  >
+    <label>
+      Remote node
+      <select name="remote_id" required>
+        {% for remote in config.remotes %}
+        <option value="{{ remote.id }}" {% if remote_id == remote.id %}selected{% endif %}>
+          {{ remote.name }} — {{ remote.ae_title }} @ {{ remote.connect_host }}:{{ remote.port }}
+        </option>
+        {% endfor %}
+      </select>
+    </label>
+    {% include "partials/identity_select.html" %}
+
+    <fieldset class="span-2 find-level-field">
+      <legend>Query level</legend>
+      <div class="find-level-tabs" role="radiogroup" aria-label="Query level">
+        {% for level in find_catalog.levels %}
+        <label class="find-level-tab">
+          <input
+            type="radio"
+            name="level"
+            value="{{ level.id }}"
+            {% if (find_level | default('STUDY')) == level.id %}checked{% endif %}
+            data-find-level
+          >
+          <span>{{ level.label }}</span>
+        </label>
+        {% endfor %}
+      </div>
+      <p class="hint" data-find-level-hint>
+        Study Root FIND, not Modality Worklist. Hierarchical search: Series needs Study Instance UID;
+        Image needs Study Instance UID and Series Instance UID. Vue PACS does not offer relational C-FIND
+        or C-GET — retrieve is C-MOVE.
+      </p>
+    </fieldset>
+
+    <div class="span-2 find-toolbar">
+      <button class="button compact" type="button" data-find-select="defaults">Required and usual columns</button>
+      <button class="button compact" type="button" data-find-select="all">All keys</button>
+      <button class="button compact" type="button" data-find-select="clear">Clear values</button>
+      <span class="hint">Checked keys are sent as return columns. A typed value is also a matching key.</span>
+    </div>
+
+    {% for group in find_catalog.groups %}
+    <section class="span-2 find-key-group" data-find-group="{{ group.id }}">
+      <h3>{{ group.label }}</h3>
+      <div class="find-key-grid">
+        {% for key in find_catalog.search_keys if key.group == group.id %}
+        <label
+          class="find-key"
+          data-find-key="{{ key.keyword }}"
+          data-levels="{{ key.levels | join(' ') }}"
+          data-requires="{{ key.requires | join(' ') }}"
+          data-modality-in="{{ key.modality_in | join(' ') }}"
+          data-role="{{ key.role }}"
+          data-default-return="{{ '1' if key.default_return else '0' }}"
+        >
+          <span class="find-key-head">
+            <input
+              type="checkbox"
+              name="include"
+              value="{{ key.keyword }}"
+              {% if key.default_return %}checked{% endif %}
+              data-find-include
+            >
+            <span class="find-key-title">{{ key.label }}</span>
+            <code class="find-key-tag">{{ key.tag }}</code>
+          </span>
+          <input
+            name="key_{{ key.keyword }}"
+            value=""
+            placeholder="{{ key.placeholder }}"
+            data-find-value="{{ key.keyword }}"
+            spellcheck="false"
+            autocomplete="off"
+          >
+          <span class="hint" data-find-hint>{{ key.hint }}</span>
+        </label>
+        {% endfor %}
+      </div>
+    </section>
+    {% endfor %}
+
+    <div class="form-actions span-2">
+      <button class="button primary" type="submit">Run C-FIND Advanced</button>
+      <span id="busy" class="htmx-indicator spinner">Querying…</span>
+      <p class="hint">Empty STUDY filters are a broad study query. Series and Image will not run until the parent UIDs are filled. Click a result row to copy those UIDs into the next level.</p>
+    </div>
+  </form>
+  {% else %}
+  <div class="empty">
+    <strong>No remote node configured</strong>
+    <p>Add a PACS or Q/R SCP first, then come back to run {{ tool.name }}.</p>
+    <a class="button" href="/config/remotes">Open configuration</a>
+  </div>
+  {% endif %}
+</section>
+
+<div id="result">
+  {% if result %}
+    {% include "partials/find_advanced_result.html" %}
+  {% endif %}
+</div>
+{% endblock %}
