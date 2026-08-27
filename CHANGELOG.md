@@ -16,7 +16,7 @@
 
 ### Interface
 
-- **C-FIND Advanced**: keys are grouped by Study / Series / Image as a list. Optional collapsed **Vue PACS (ELSCINT1)** lists send Tamar private study/series tags (not Grid Token sequences). Vue may omit them; they are off by default.
+- **C-FIND Advanced**: keys are grouped by Study / Series / Image as a list. Optional collapsed **Vue PACS (ELSCINT1)** lists send Tamar private study/series tags (not Grid Token sequences). **Tamar Assign To Doctor** is a confirmed matching key on Vue 12.2.8 (used with Modalities in Study); other Vue tags stay experimental. Off by default.
 - **C-FIND Advanced** (`c-find-advanced`): Study Root C-FIND at Study, Series, or Image with the searchable keys for that level. Series and Image follow hierarchical FIND (parent Unique keys required). Results are a column-aligned table with copy, CSV, and JSON export.
 - Sidebar is a two-level tree (Test tools → Connectivity / DIMSE / HL7). Click **Test tools** (or a category) to fold it out; groups start folded. **About** and **Help** sit on one compact row.
 - PDF to DICOM: checking **Generate Patient Name / ID** fills those fields immediately. Scan and every upload path accept **PDF only**.

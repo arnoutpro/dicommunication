@@ -439,7 +439,7 @@
     <li>Some keys stay locked until another field is present. Example: Repetition Time is an MR series key, so it stays unavailable while Modality is <code>CT</code>.</li>
     <li>Click a result row to copy parent UIDs into the next level (Study → Series → Image).</li>
     <li>The result table is column-aligned. <strong>Copy table</strong> puts tab-separated rows on the clipboard (Excel). <strong>Download CSV</strong> and <strong>Download JSON</strong> export the same records. You can also select cells and copy.</li>
-    <li><strong>Vue PACS (ELSCINT1)</strong> — collapsed lists of Tamar private study/series tags (status UNREAD, assign-to-doctor, procedure code, original storing AE, …). They are off by default. Vue’s C-FIND DCS does not list them, so the SCP may omit them. Grid Token sequences are not sent.</li>
+    <li><strong>Vue PACS (ELSCINT1)</strong> — collapsed lists of Tamar private study/series tags. They are off by default and not in Vue’s C-FIND DCS. <strong>Tamar Assign To Doctor</strong> <code>(07a1,1042)</code> is a confirmed matching key on Vue 12.2.8 (used with Modalities in Study, for example <code>CT</code>). Other Vue tags may still be omitted. Grid Token sequences are not sent.</li>
     <li>This still searches <em>stored</em> studies, not the modality worklist. Retrieve of matching objects is C-MOVE. This tool does not send C-GET or C-MOVE.</li>
   </ul>
 </section>
