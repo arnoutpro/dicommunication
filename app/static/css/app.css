@@ -1879,6 +1879,32 @@ html:not(.light-mode) .find-key:hover { background: rgba(148, 163, 184, 0.08); }
   gap: 0.4rem 0.55rem;
   margin: 0 0 0.5rem;
 }
+.find-sr-report {
+  margin: 0.45rem 0 0.7rem;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+.find-sr-report > summary {
+  cursor: pointer;
+  color: var(--text);
+  font-size: var(--text-xs);
+  font-weight: 700;
+}
+.find-sr-tree {
+  width: max-content;
+  min-width: 100%;
+  margin-top: 0.35rem;
+}
+.find-sr-tree th,
+.find-sr-tree td {
+  white-space: normal;
+  max-width: 36rem;
+  vertical-align: top;
+}
+.find-sr-tree tbody tr {
+  cursor: default;
+}
 .find-table-wrap {
   max-height: 28rem;
 }

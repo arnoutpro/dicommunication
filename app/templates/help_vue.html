@@ -17,6 +17,7 @@
   <ul class="help-toc">
     <li><a href="#what-it-is">What this is</a></li>
     <li><a href="#query">Query</a></li>
+    <li><a href="#structured-reports">Structured reports</a></li>
     <li><a href="#vue-keys">Vue PACS (ELSCINT1) keys</a></li>
     <li><a href="#configured-nodes">Configured nodes</a></li>
     <li><a href="#logs">Logs</a></li>
@@ -29,7 +30,7 @@
   </header>
   <p>This window is <strong>Vue PACS Database Analytics</strong>. It ships in the same Dicommunication installer. It is not the workstation: there is no PING, C-STORE, PDF, HL7, Testbench, or worklist here.</p>
   <p>Both tools share the calling AE Title and remote nodes in the data directory. Add the Vue Q/R SCP once; Dicommunication C-ECHO and this query page use the same record.</p>
-  <p>This searches <em>stored studies</em> with Study Root Query/Retrieve FIND. It is not Modality Worklist. Retrieve of matching objects is C-MOVE; this tool does not send C-GET or C-MOVE.</p>
+  <p>This searches <em>stored studies</em> with Study Root Query/Retrieve FIND. It is not Modality Worklist. After a Study query, <strong>List SR reports</strong> runs Series C-FIND with modality SR. <strong>Retrieve report text</strong> is Study Root C-MOVE of those series onto this AE; it is not C-GET.</p>
 </section>
 
 <section class="panel help-section" id="query">
@@ -43,7 +44,21 @@
     <li>Some keys stay locked until another field is present. Example: Repetition Time is an MR series key, so it stays unavailable while Modality is <code>CT</code>.</li>
     <li>Click a result row to copy parent UIDs into the next level (Study → Series → Image).</li>
     <li>The result table is column-aligned. <strong>Copy table</strong> puts tab-separated rows on the clipboard (Excel). <strong>Download CSV</strong> and <strong>Download JSON</strong> export the same records.</li>
+    <li><strong>List SR reports</strong> takes the Study rows and queries Series with modality <code>SR</code> (same Study Instance UID, different Series Instance UID).</li>
   </ul>
+</section>
+
+<section class="panel help-section" id="structured-reports">
+  <header class="panel-head">
+    <h2>Structured reports</h2>
+  </header>
+  <p>Radiology reports stored as DICOM SR are a series inside the study. They keep the Study Instance UID and get their own Series Instance UID. Typical workflow:</p>
+  <ol>
+    <li>Study query: today’s date, Modalities in Study <code>CT</code> (or whatever you need).</li>
+    <li><strong>List SR reports</strong> — Series C-FIND, modality SR, for each study (capped at 80 studies).</li>
+    <li><strong>Retrieve report text</strong> — C-MOVE those SR series to this workstation’s AE Title. The Content Sequence is flattened into concept / type / value rows. No language model.</li>
+  </ol>
+  <p>Retrieve needs <strong>Accept C-STORE (Structured Reports)</strong> on Local DICOM AE, and Vue must list that AE Title as a C-MOVE destination at this host:port. Imaging series are not stored. JSON export includes the parsed tree so another tool can scan it.</p>
 </section>
 
 <section class="panel help-section" id="vue-keys">
@@ -58,7 +73,7 @@
     <h2>Configured nodes</h2>
     <a href="{{ href('/config') }}">Open</a>
   </header>
-  <p><strong>Local DICOM AE</strong> is the calling AE Title this query presents as. <strong>Remote nodes</strong> must include the Vue Q/R SCP (AE Title, host, port). <strong>Virtual AEs</strong> impersonate a modality calling AE when Vue requires it.</p>
+  <p><strong>Local DICOM AE</strong> is the calling AE Title this query presents as. Turn on <strong>Accept C-STORE (Structured Reports)</strong> on that page if you will retrieve SR text; Vue must know this AE as a move destination. <strong>Remote nodes</strong> must include the Vue Q/R SCP (AE Title, host, port). <strong>Virtual AEs</strong> impersonate a modality calling AE when Vue requires it. C-MOVE still uses the listen AE Title as destination, not the virtual calling AE.</p>
 </section>
 
 <section class="panel help-section" id="logs">

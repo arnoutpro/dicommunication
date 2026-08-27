@@ -52,7 +52,7 @@
       <tbody>
         <tr>
           <td>Present a calling AE Title (this workstation, or a virtual identity such as <code>CT1</code>)</td>
-          <td>Implement C-MOVE or C-GET (those remain plugin slots)</td>
+          <td>Optional C-MOVE of Structured Reports onto this AE (when Accept C-STORE is on). C-GET, and C-MOVE of imaging series, stay unimplemented</td>
         </tr>
         <tr>
           <td>Associate with a remote AE and show which SOP Classes were accepted or rejected</td>
@@ -63,7 +63,7 @@
           <td>Speak DICOM TLS, or authenticate the web UI</td>
         </tr>
         <tr>
-          <td>Optionally serve a local web worklist as an MWL SCP on the listen port</td>
+          <td>Optionally serve a local web worklist as an MWL SCP, and optionally accept C-STORE of Structured Reports, on the listen port</td>
           <td>Parse, validate, or map HL7 fields — paste a message and send it</td>
         </tr>
         <tr>

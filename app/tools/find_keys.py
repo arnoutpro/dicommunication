@@ -331,7 +331,7 @@ KEYS: tuple[FindKey, ...] = (
         role="required",
         placeholder="CT",
         requires=SERIES_CHILD,
-        hint="Series modality. Unlocks MR-only series keys when set to MR.",
+        hint="Series modality. SR is Structured Report (same Study UID, different Series UID).",
     ),
     _key(
         "SeriesDate",
@@ -1104,6 +1104,23 @@ def _form_list(form: Mapping[str, Any], name: str) -> list[str]:
     return [str(raw)]
 
 
+def _parse_studies(raw: Any) -> list[dict[str, Any]]:
+    if raw is None or raw == "":
+        return []
+    if isinstance(raw, str):
+        try:
+            raw = json.loads(raw)
+        except json.JSONDecodeError as exc:
+            raise ValueError("Could not read the study / series list.") from exc
+    if not isinstance(raw, list):
+        raise ValueError("The study / series list must be a JSON array.")
+    rows: list[dict[str, Any]] = []
+    for item in raw:
+        if isinstance(item, Mapping):
+            rows.append(dict(item))
+    return rows
+
+
 def options_from_form(form: Mapping[str, Any]) -> dict[str, Any]:
     level = normalize_level(str(form.get("level") or "STUDY"))
     included = {item for item in _form_list(form, "include") if item}
@@ -1115,7 +1132,14 @@ def options_from_form(form: Mapping[str, Any]) -> dict[str, Any]:
             values[key.keyword] = raw
         if key.keyword in included or raw:
             return_keys.append(key.keyword)
-    return {"level": level, "values": values, "return_keys": return_keys}
+    payload: dict[str, Any] = {"level": level, "values": values, "return_keys": return_keys}
+    follow = str(form.get("follow") or "").strip()
+    if follow:
+        payload["follow"] = follow
+    studies = _parse_studies(form.get("studies_json") or form.get("studies"))
+    if studies:
+        payload["studies"] = studies
+    return payload
 
 
 def options_from_payload(options: Mapping[str, Any] | None) -> dict[str, Any]:
@@ -1154,7 +1178,15 @@ def options_from_payload(options: Mapping[str, Any] | None) -> dict[str, Any]:
     for keyword in values:
         if keyword not in return_keys and any(keyword == key.keyword for key in keys_for_level(level)):
             return_keys.append(keyword)
-    return {"level": level, "values": values, "return_keys": return_keys}
+    payload: dict[str, Any] = {"level": level, "values": values, "return_keys": return_keys}
+    follow = str(options.get("follow") or "").strip()
+    if follow:
+        payload["follow"] = follow
+    if "studies" in options:
+        payload["studies"] = _parse_studies(options.get("studies"))
+    elif "records" in options and options.get("follow"):
+        payload["studies"] = _parse_studies(options.get("records"))
+    return payload
 
 
 def missing_parents(level: str, values: Mapping[str, str]) -> list[str]:
