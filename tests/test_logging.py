@@ -63,7 +63,7 @@ def test_logs_page_and_settings_form(client, store) -> None:
     html = (Path(__file__).resolve().parents[1] / "app" / "templates" / "base.html").read_text(
         encoding="utf-8"
     )
-    assert 'name="color-scheme" content="dark"' in html
+    assert 'name="color-scheme" content="light"' in html
     assert b'id="log-view"' in page.content
     assert b'href="/logs"' in client.get("/").content
 
