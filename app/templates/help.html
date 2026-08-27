@@ -116,7 +116,7 @@
           <td><strong>Vue PACS Database Analytics</strong></td>
           <td>C-FIND</td>
           <td>Study Root Query/Retrieve FIND</td>
-          <td>Own Start-menu tool from this installer (formerly C-FIND Advanced). Study, Series, or Image plus Vue ELSCINT1 keys. Not in the Dicommunication sidebar.</td>
+          <td>Own Start-menu tool from this installer (formerly C-FIND Advanced). Study, Series, or Image plus Vue ELSCINT1 keys. List SR series from Study results; optional C-MOVE of those reports onto this AE. Not in the Dicommunication sidebar.</td>
         </tr>
         <tr>
           <td><strong>MWL C-FIND / Worklist</strong></td>
@@ -161,7 +161,7 @@
     <h2>Configured nodes</h2>
     <a href="/config">Open</a>
   </header>
-  <p>This is the station identity: this workstation, virtual calling AEs, and remote DICOM nodes. Settings are saved on disk in the data directory and kept when you rebuild Docker or upgrade the MSI / DMG. The overview lists everything at a glance. Add or edit on the child pages: Local DICOM AE, Virtual AEs, Remote nodes. On Local AE, <strong>Advanced settings</strong> hides PDU, timeouts, and MWL SCP options.</p>
+  <p>This is the station identity: this workstation, virtual calling AEs, and remote DICOM nodes. Settings are saved on disk in the data directory and kept when you rebuild Docker or upgrade the MSI / DMG. The overview lists everything at a glance. Add or edit on the child pages: Local DICOM AE, Virtual AEs, Remote nodes. On Local AE, <strong>Accept C-STORE (Structured Reports)</strong> is on the main form; <strong>Advanced settings</strong> hides PDU, timeouts, and the MWL SCP.</p>
 </section>
 
 <section class="panel help-section" id="local-ae">
@@ -198,7 +198,7 @@
         <tr>
           <td>Port</td>
           <td><code>11112</code></td>
-          <td>Listen port for the optional local MWL SCP. Common DICOM ports elsewhere: <code>104</code>, Orthanc <code>4242</code>.</td>
+          <td>Listen port for the optional local MWL SCP and optional Structured Report C-STORE. Common DICOM ports elsewhere: <code>104</code>, Orthanc <code>4242</code>.</td>
         </tr>
         <tr>
           <td>Timeout</td>
@@ -224,6 +224,11 @@
           <td>Serve the web worklist over DICOM (MWL SCP on the listen port)</td>
           <td>off</td>
           <td>Start an MWL SCP on the listen port, backed by the local web worklist. If a modality must C-FIND this workstation, allow inbound TCP for this process on that port.</td>
+        </tr>
+        <tr>
+          <td>Accept C-STORE of Structured Reports (same listen port)</td>
+          <td>off</td>
+          <td>Accept SR Storage SOP Classes on the same port so Vue PACS Database Analytics can C-MOVE report series here. Vue must list this AE Title as a C-MOVE destination. Imaging series are not stored.</td>
         </tr>
       </tbody>
     </table>
@@ -432,7 +437,7 @@
     <h2>Vue PACS Database Analytics</h2>
   </header>
   <p>This installer ships a second tool, <strong>Vue PACS Database Analytics</strong>, that used to live here as C-FIND Advanced. It is not in the Dicommunication Test tools list. Open it from the Start menu (Windows) or at <code>http://127.0.0.1:8080/vue/</code>. It shares this workstation’s calling AE and remote nodes. The analytics window has Query, Configured nodes, Logs, About, and Help — no PING, C-STORE, HL7, or worklist.</p>
-  <p>Study Root FIND at Study, Series, or Image, including optional Tamar / ELSCINT1 keys. Hierarchical FIND: Series needs Study Instance UID; Image needs Study and Series Instance UID. <strong>Tamar Assign To Doctor</strong> <code>(07a1,1042)</code> is a confirmed matching key on Vue 12.2.8 (used with Modalities in Study, for example <code>CT</code>). Study Date is required at Study level. Retrieve is C-MOVE; this tool does not send C-GET or C-MOVE. The Query page is a compact key tree on the left and the result table on the right.</p>
+  <p>Study Root FIND at Study, Series, or Image, including optional Tamar / ELSCINT1 keys. Hierarchical FIND: Series needs Study Instance UID; Image needs Study and Series Instance UID. <strong>Tamar Assign To Doctor</strong> <code>(07a1,1042)</code> is a confirmed matching key on Vue 12.2.8 (used with Modalities in Study, for example <code>CT</code>). Study Date is required at Study level. After a Study query, <strong>List SR reports</strong> runs Series C-FIND with modality SR. <strong>Retrieve report text</strong> C-MOVEs those series onto this AE (when Accept C-STORE is on) and parses the DICOM Content Sequence — no language model, and no C-GET. JSON/CSV export includes Findings and Impression as columns plus the full report text. The Query page is a compact key tree on the left and the result table on the right.</p>
 </section>
 
 <section class="panel help-section" id="mwl-find">
@@ -536,7 +541,7 @@
     <h2>JSON API</h2>
   </header>
   <p>The same operations as the UI are available over HTTP. <code>GET /health</code> returns <code>{"status":"ok","version":"{{ app_version }}"}</code>. Interactive docs: <a href="/docs">/docs</a>.</p>
-  <p>Tool ids: <code>ping</code>, <code>c-echo</code>, <code>c-store</code>, <code>pdf-store</code>, <code>c-find</code>, <code>c-find-advanced</code>, <code>mwl-find</code>, <code>hl7-send</code>. <code>hl7-send</code> does not need a remote id; pass host, port, and message in options. <code>pdf-store</code> takes Patient Name / ID in options, plus <code>pdfs</code> (filename + content_b64), <code>zip_b64</code>, or <code>directory</code>, and <code>send</code> (default true). <code>c-find-advanced</code> takes <code>level</code> (<code>STUDY</code>, <code>SERIES</code>, <code>IMAGE</code>), <code>values</code> (DICOM keywords), and optional <code>return_keys</code>. At Study level, Study Date is required. DIMSE tools take <code>remote_id</code> and optional <code>identity_id</code> for a virtual calling AE. Worklist query <code>source</code> is <code>local</code> or a remote id.</p>
+  <p>Tool ids: <code>ping</code>, <code>c-echo</code>, <code>c-store</code>, <code>pdf-store</code>, <code>c-find</code>, <code>c-find-advanced</code>, <code>mwl-find</code>, <code>hl7-send</code>. <code>hl7-send</code> does not need a remote id; pass host, port, and message in options. <code>pdf-store</code> takes Patient Name / ID in options, plus <code>pdfs</code> (filename + content_b64), <code>zip_b64</code>, or <code>directory</code>, and <code>send</code> (default true). <code>c-find-advanced</code> takes <code>level</code> (<code>STUDY</code>, <code>SERIES</code>, <code>IMAGE</code>), <code>values</code> (DICOM keywords), and optional <code>return_keys</code>. At Study level, Study Date is required. Follow-ups: <code>follow=sr_series</code> with <code>studies</code> (Study rows) lists SR series; <code>follow=retrieve_sr</code> C-MOVEs those series. DIMSE tools take <code>remote_id</code> and optional <code>identity_id</code> for a virtual calling AE. Worklist query <code>source</code> is <code>local</code> or a remote id.</p>
   <p>This API has no authentication. Restrict it the same way you restrict the UI.</p>
 </section>
 
@@ -586,6 +591,14 @@
         <tr>
           <td>Vue PACS Database Analytics Series/Image stays locked or fails</td>
           <td>Hierarchical FIND. Fill Study Instance UID for Series; Study and Series Instance UID for Image. Empty Study UID cannot search body part archive-wide.</td>
+        </tr>
+        <tr>
+          <td>List SR reports returns zero series</td>
+          <td>Those studies have no series with modality SR, or Vue omitted Modality. Confirm an SR series exists in the study.</td>
+        </tr>
+        <tr>
+          <td>Retrieve report text: Move Destination unknown</td>
+          <td>Vue does not have this workstation AE as a C-MOVE destination. Register the Local AE Title at this host:port. Enable Accept C-STORE on Local DICOM AE.</td>
         </tr>
         <tr>
           <td>C-ECHO / C-STORE / Q/R work, MWL fails</td>
