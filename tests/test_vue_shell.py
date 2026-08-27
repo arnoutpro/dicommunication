@@ -68,7 +68,9 @@ def test_vue_query_form_uses_prefixed_action(client, remote) -> None:
     assert b"find-workspace" in page.content
     assert b'hx-post="/vue/tools/c-find-advanced/run"' in page.content
     assert b'data-find-stop' in page.content
+    assert b'hx-timeout="900000"' in page.content
     assert b'hx-disabled-elt="[data-find-run], [data-find-follow]"' in page.content
+    assert b'data-find-studies-field' in page.content
     assert b'data-match-required="1"' in page.content
     assert b"SR C-STORE off" in page.content
     assert b'href="/vue/config/local"' in page.content

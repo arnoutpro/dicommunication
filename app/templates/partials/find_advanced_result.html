@@ -54,9 +54,9 @@
     <button class="button compact" type="button" data-find-csv>Download CSV</button>
     <button class="button compact" type="button" data-find-json>Download JSON</button>
     {% if kind == "sr_series" or (find_level|default("STUDY") == "SERIES" and result.records[0].get("Modality") == "SR") %}
-    <button class="button compact primary" type="button" data-find-follow="retrieve_sr">Retrieve report text</button>
+    <button class="button compact primary" type="button" data-find-follow="retrieve_sr">Retrieve report text ({{ result.records|length }})</button>
     {% elif find_level|default("STUDY") == "STUDY" and kind != "sr_content" %}
-    <button class="button compact primary" type="button" data-find-follow="sr_series">List SR reports</button>
+    <button class="button compact primary" type="button" data-find-follow="sr_series">List SR reports ({{ result.records|length }})</button>
     {% endif %}
     <span class="hint" data-find-export-hint>{% if kind == "sr_content" %}JSON includes Findings, Impression, the full report text, and the Content Sequence tree.{% elif kind == "sr_series" %}Same Study Instance UID, different Series Instance UID, modality SR.{% else %}Copy is tab-separated for Excel. Click a row to reuse Study / Series UIDs at the next level.{% endif %}</span>
   </div>
