@@ -73,7 +73,7 @@
     <h2>Configured nodes</h2>
     <a href="{{ href('/config') }}">Open</a>
   </header>
-  <p><strong>Local DICOM AE</strong> is the calling AE Title this query presents as. Turn on <strong>Accept C-STORE (Structured Reports)</strong> on that page if you will retrieve SR text; Vue must know this AE as a move destination. <strong>Remote nodes</strong> must include the Vue Q/R SCP (AE Title, host, port). <strong>Virtual AEs</strong> impersonate a modality calling AE when Vue requires it. C-MOVE still uses the listen AE Title as destination, not the virtual calling AE.</p>
+  <p><strong>Local DICOM AE</strong> is this workstation’s listen identity. Turn on <strong>Accept C-STORE (Structured Reports)</strong> on that page to retrieve SR text. Vue must list that AE Title (not a virtual Present as title such as a viewer) as a C-MOVE destination at this host:port. <strong>Remote nodes</strong> must include the Vue Q/R SCP (AE Title, host, port). <strong>Virtual AEs</strong> impersonate a modality calling AE when Vue requires it for C-FIND. C-MOVE still uses the listen AE Title as destination.</p>
 </section>
 
 <section class="panel help-section" id="logs">

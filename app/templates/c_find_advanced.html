@@ -12,7 +12,7 @@
   <section class="panel find-query">
     <header class="panel-head">
       <h2>Query</h2>
-      <span class="muted">{{ config.local.ae_title }}{% if config.identities %} · {{ config.identities | length }} virtual{% endif %}</span>
+      <span class="muted">{{ config.local.ae_title }}{% if config.identities %} · {{ config.identities | length }} virtual{% endif %}{% if storage_scp_running %} · SR C-STORE{% else %} · SR C-STORE off{% endif %}</span>
     </header>
 
     {% if config.remotes %}
@@ -43,6 +43,15 @@
         </label>
         {% include "partials/identity_select.html" %}
       </div>
+      {% if not storage_scp_running %}
+      <p class="find-retrieve-note">
+        Retrieve report text needs
+        <a href="{{ href('/config/local') }}">Accept C-STORE on Local DICOM AE</a>.
+        Vue C-MOVEs reports to <code>{{ listen_ae|default(config.local.ae_title) }}</code>
+        (listen port {{ listen_port|default(config.local.port) }}),
+        not to the Present as calling AE.
+      </p>
+      {% endif %}
 
       <fieldset class="find-level-field">
         <legend>Level</legend>

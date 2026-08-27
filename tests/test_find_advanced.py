@@ -11,9 +11,9 @@ from pynetdicom.sop_class import (
     StudyRootQueryRetrieveInformationModelMove,
 )
 
-from app.models import LocalAE, RemoteNode
+from app.models import LocalAE, RemoteNode, VirtualAE
 from app.mwl_scp import WorklistSCP
-from app.tools.find_advanced import CFindAdvancedTool
+from app.tools.find_advanced import CFindAdvancedTool, retrieve_storage_gate_message
 from test_sr import make_radiology_sr
 from app.tools.find_keys import (
     KEYS,
@@ -457,15 +457,50 @@ def test_list_sr_reports_via_form(client, store) -> None:
 def test_retrieve_sr_requires_storage_scp() -> None:
     remote = RemoteNode(name="pacs", ae_title="QR_SCP", host="127.0.0.1", port=9)
     result = CFindAdvancedTool().run(
-        LocalAE(timeout_seconds=2),
+        LocalAE(ae_title="MICROdicom", timeout_seconds=2),
         remote,
         {
             "follow": "retrieve_sr",
+            "_listen_ae": "DICOMM",
             "studies": [{"StudyInstanceUID": "1.2.3", "SeriesInstanceUID": "1.2.3.99", "Modality": "SR"}],
         },
     )
     assert result.ok is False
-    assert "Accept C-STORE" in result.summary
+    assert "Accept C-STORE is off" in result.summary
+    assert "DICOMM" in result.summary
+    assert "11112" in result.summary
+    assert "MICROdicom" in result.summary
+    assert "calling AE" in result.summary
+    gate = retrieve_storage_gate_message(
+        dest_ae="DICOMM",
+        port=11112,
+        calling_ae="MICROdicom",
+        enabled=False,
+        running=False,
+    )
+    assert gate is not None
+    assert "not to a viewer" in gate
+
+
+def test_retrieve_sr_form_links_local_ae(client, remote, store) -> None:
+    identity = VirtualAE(name="MicroDicom", ae_title="MicroDicom")
+    store.add_identity(identity)
+    html = client.post(
+        "/vue/tools/c-find-advanced/run",
+        data={
+            "remote_id": remote.id,
+            "identity_id": identity.id,
+            "follow": "retrieve_sr",
+            "studies_json": '[{"StudyInstanceUID":"1.2.3","SeriesInstanceUID":"1.2.3.99","Modality":"SR"}]',
+        },
+        headers={"HX-Request": "true"},
+    )
+    assert html.status_code == 200
+    assert b"Accept C-STORE is off" in html.content
+    assert b"DICOMM" in html.content
+    assert b"MicroDicom" in html.content
+    assert b"Open Local DICOM AE" in html.content
+    assert b'href="/vue/config/local"' in html.content
 
 
 def test_retrieve_sr_parses_content_sequence(store) -> None:
