@@ -884,6 +884,7 @@ function syncFindAdvanced(form) {
     }
     if (input) {
       input.disabled = locked;
+      input.required = node.getAttribute("data-match-required") === "1" && onLevel && !locked;
     }
     if (hintNode) {
       const original = node.getAttribute("data-hint-original");
@@ -1037,6 +1038,7 @@ function useFindRow(row) {
     setFindLevel(form, "SERIES");
   }
   syncFindAdvanced(form);
+  form.querySelector("[data-find-value='StudyInstanceUID']")?.closest("details")?.setAttribute("open", "");
   form.querySelector("[data-find-value='StudyInstanceUID']")?.scrollIntoView({
     block: "center",
     behavior: "smooth",
@@ -1064,8 +1066,48 @@ function bindFindAdvanced(root) {
       if (select) {
         applyFindSelection(target, select.getAttribute("data-find-select"));
       }
+      const stop = event.target.closest("[data-find-stop]");
+      if (stop) {
+        stopFindQuery(target);
+      }
+    });
+    target.addEventListener("htmx:beforeRequest", () => {
+      delete target.dataset.findAborted;
+      target.dataset.findBusy = "1";
+    });
+    target.addEventListener("htmx:afterRequest", () => {
+      delete target.dataset.findBusy;
     });
     syncFindAdvanced(target);
+  }
+}
+
+function findStoppedMarkup() {
+  return (
+    '<article class="result fail" data-find-result>' +
+    '<header><span class="badge fail">Fail</span>' +
+    "<div><strong>Vue PACS Database Analytics</strong>" +
+    "<p>Query stopped.</p></div></header></article>"
+  );
+}
+
+function findQueryInFlight(form) {
+  return form.dataset.findBusy === "1" || Boolean(form.querySelector(".htmx-request"));
+}
+
+function stopFindQuery(form) {
+  if (!form || !window.htmx) {
+    return;
+  }
+  if (!findQueryInFlight(form)) {
+    return;
+  }
+  form.dataset.findAborted = "1";
+  delete form.dataset.findBusy;
+  htmx.trigger(form, "htmx:abort");
+  const result = document.getElementById("result");
+  if (result) {
+    result.innerHTML = findStoppedMarkup();
   }
 }
 
@@ -1089,6 +1131,14 @@ document.addEventListener("click", (event) => {
 bindFindAdvanced(document);
 document.body.addEventListener("htmx:afterSwap", (event) => {
   bindFindAdvanced(event.target);
+});
+
+document.body.addEventListener("htmx:beforeSwap", (event) => {
+  const source = event.detail && event.detail.elt;
+  if (source && source.dataset && source.dataset.findAborted) {
+    event.detail.shouldSwap = false;
+    delete source.dataset.findAborted;
+  }
 });
 
 document.body.addEventListener("htmx:responseError", (event) => {
