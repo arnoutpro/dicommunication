@@ -54,6 +54,10 @@ def test_catalog_covers_hierarchical_study_root_keys() -> None:
     assert vue_status.default_return is False
     assert vue_status.group == "vue-study"
     assert "TamarStudyStatus" not in {key.keyword for key in keys_for_level("STUDY") if key.default_return}
+    assign = next(key for key in KEYS if key.keyword == "TamarAssignToDoctor")
+    assert assign.vr == "SH"
+    assert "Confirmed matching key" in assign.hint
+    assert assign.placeholder == "user@site"
 
 
 def test_series_and_image_keys_stay_locked_without_parent_uids() -> None:

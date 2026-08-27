@@ -36,8 +36,9 @@ GROUPS: tuple[dict[str, Any], ...] = (
         "label": "Vue PACS · Study (ELSCINT1)",
         "experimental": True,
         "hint": (
-            "Tamar / ELSCINT1 private study tags. Vue’s C-FIND DCS does not list them; "
-            "unsupported fields are omitted. Grid Token sequences are not sent. Off by default."
+            "Tamar / ELSCINT1 private study tags. Vue’s C-FIND DCS does not list them. "
+            "Assign To Doctor is a confirmed matching key on Vue 12.2.8 (with Modalities in Study); "
+            "other tags may still be omitted. Grid Token sequences are not sent. Off by default."
         ),
     },
     {"id": "series", "label": "Series", "experimental": False, "hint": ""},
@@ -115,6 +116,7 @@ def _vue(
     group: str,
     *levels: str,
     placeholder: str = "",
+    hint: str = "Vue / ELSCINT1 private tag. Not in the DCS C-FIND table; the SCP may omit it.",
     requires: tuple[str, ...] = (),
 ) -> FindKey:
     return _key(
@@ -125,7 +127,7 @@ def _vue(
         group,
         *levels,
         placeholder=placeholder,
-        hint="Vue / ELSCINT1 private tag. Not in the DCS C-FIND table; the SCP may omit it.",
+        hint=hint,
         default_return=False,
         requires=requires,
         private_creator=VUE_CREATOR,
@@ -729,6 +731,11 @@ KEYS: tuple[FindKey, ...] = (
         "SH",
         "vue-study",
         "STUDY",
+        placeholder="user@site",
+        hint=(
+            "Confirmed matching key on Vue PACS 12.2.8 (used with Modalities in Study). "
+            "Vue assign-to-doctor id, often user@site. Not in the DCS C-FIND table."
+        ),
     ),
     _vue(
         "TamarStudyPriority",
