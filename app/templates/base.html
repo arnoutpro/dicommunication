@@ -3,14 +3,14 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="color-scheme" content="dark">
+  <meta name="color-scheme" content="light">
   <title>{% block title %}{{ product_name }}{% endblock %}</title>
   <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
   <script>
     (function () {
-      var pref = localStorage.getItem("theme");
+      var pref = localStorage.getItem("theme") || "light";
       var systemLight = window.matchMedia("(prefers-color-scheme: light)").matches;
-      var light = pref === "light" || ((!pref || pref === "system") && systemLight);
+      var light = pref === "light" || (pref === "system" && systemLight);
       if (pref === "professional") {
         document.documentElement.classList.add("professional-mode");
       } else if (light) {
@@ -29,44 +29,34 @@
   <script src="/static/vendor/htmx-2.0.4.min.js" defer></script>
 </head>
 <body class="{% block body_class %}{% endblock %}{% if shell == 'vue' %} shell-vue{% endif %}">
-  <div class="aurora-wrapper" aria-hidden="true">
-    <div class="aurora-container">
-      <div class="aurora-item aurora-1"></div>
-      <div class="aurora-item aurora-2"></div>
-      <div class="aurora-item aurora-3"></div>
-      <div class="aurora-item aurora-4"></div>
-    </div>
-  </div>
-  <div class="brand-watermark" aria-hidden="true">
-    <span class="brand-watermark-mark">
-      <svg class="brand-watermark-svg" viewBox="0 0 64 64" role="presentation">
-        <defs>
-          <clipPath id="brand-watermark-sansation-a">
-            <text x="32" y="33" text-anchor="middle" dominant-baseline="central" font-family="Sansation, sans-serif" font-weight="700" font-size="58" style="font-family: Sansation, sans-serif; font-weight: 700;">A</text>
-          </clipPath>
-        </defs>
-        <foreignObject width="64" height="64" clip-path="url(#brand-watermark-sansation-a)">
-          <div xmlns="http://www.w3.org/1999/xhtml" class="brand-watermark-sky">
-            <span class="brand-watermark-fill"></span>
-          </div>
-        </foreignObject>
-      </svg>
-    </span>
-  </div>
   <div class="shell">
-    <aside class="sidebar">
+    <header class="topbar">
       <a class="brand" href="{{ href('/') }}" title="© 2026 arnout.pro">
         <span class="site-brand-lockup">
           <span class="site-brand-mark-slot" aria-hidden="true">
-            <span class="site-brand-mark-letter">A</span>
+            <svg class="site-brand-mark-svg" viewBox="0 0 64 64" role="presentation">
+              <defs>
+                <clipPath id="site-brand-sansation-a">
+                  <text x="32" y="33" text-anchor="middle" dominant-baseline="central" font-family="Sansation, sans-serif" font-weight="700" font-size="58" style="font-family: Sansation, sans-serif; font-weight: 700;">A</text>
+                </clipPath>
+              </defs>
+              <foreignObject width="64" height="64" clip-path="url(#site-brand-sansation-a)">
+                <div xmlns="http://www.w3.org/1999/xhtml" class="site-brand-mark-sky">
+                  <span class="site-brand-mark-layer site-brand-mark-layer--a"></span>
+                  <span class="site-brand-mark-layer site-brand-mark-layer--b"></span>
+                </div>
+              </foreignObject>
+            </svg>
           </span>
           <span class="site-brand-copy" aria-hidden="true">©</span>
         </span>
-        <span>
+        <span class="brand-copy">
           <strong class="logo-font"><span class="logo-wordmark-name">ARNOUT</span><span class="logo-wordmark-tld">.PRO</span></strong>
           <small>{{ product_name }}</small>
         </span>
       </a>
+    </header>
+    <aside class="sidebar">
       <nav>
         {% if shell == 'vue' %}
         <a href="{{ href('/') }}" class="{% if nav == 'home' %}active{% endif %}">Query</a>
