@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Configuration · Dicommunication{% endblock %}
+{% block title %}Configuration · {{ product_name }}{% endblock %}
 {% block content %}
 <header class="page-head">
   <div>
@@ -31,7 +31,7 @@
 <section class="panel">
   <header class="panel-head">
     <h2>Local DICOM AE</h2>
-    <a href="/config/local">Edit</a>
+    <a href="{{ href('/config/local') }}">Edit</a>
   </header>
   <div class="table-wrap">
     <table>
@@ -69,7 +69,7 @@
 <section class="panel">
   <header class="panel-head">
     <h2>Virtual local AE titles</h2>
-    <a href="/config/identities">Add / edit</a>
+    <a href="{{ href('/config/identities') }}">Add / edit</a>
   </header>
   {% if config.identities %}
   <div class="table-wrap">
@@ -94,7 +94,7 @@
           <td><code>{{ identity.scheduled_station_ae_title }}</code></td>
           <td>{{ identity.modality or "—" }}</td>
           <td class="actions">
-            <a href="/config/identities?edit={{ identity.id }}">Edit</a>
+            <a href="{{ href('/config/identities?edit=' ~ identity.id) }}">Edit</a>
           </td>
         </tr>
         {% endfor %}
@@ -105,7 +105,7 @@
   <div class="empty">
     <strong>No virtual AE titles yet</strong>
     <p>Add identities such as CT1 or MR1 to impersonate a modality on worklist and Testbench.</p>
-    <a class="button" href="/config/identities">Add a virtual AE</a>
+    <a class="button" href="{{ href('/config/identities') }}">Add a virtual AE</a>
   </div>
   {% endif %}
 </section>
@@ -113,7 +113,7 @@
 <section class="panel">
   <header class="panel-head">
     <h2>Remote DICOM nodes</h2>
-    <a href="/config/remotes">Add / edit</a>
+    <a href="{{ href('/config/remotes') }}">Add / edit</a>
   </header>
   {% if config.remotes %}
   <div class="table-wrap">
@@ -146,7 +146,7 @@
             {% endif %}
           </td>
           <td class="actions">
-            <a href="/config/remotes?edit={{ remote.id }}">Edit</a>
+            <a href="{{ href('/config/remotes?edit=' ~ remote.id) }}">Edit</a>
           </td>
         </tr>
         {% endfor %}
@@ -157,7 +157,7 @@
   <div class="empty">
     <strong>No remote nodes yet</strong>
     <p>Add the AE Title, hostname or IP, and DICOM port of the PACS, Orthanc, or modality.</p>
-    <a class="button" href="/config/remotes">Add a remote node</a>
+    <a class="button" href="{{ href('/config/remotes') }}">Add a remote node</a>
   </div>
   {% endif %}
 </section>

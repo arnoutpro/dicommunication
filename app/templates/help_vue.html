@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% block title %}Help · {{ product_name }}{% endblock %}
+{% block body_class %}page-help{% endblock %}
+{% block content %}
+<header class="page-head">
+  <div>
+    <p class="eyebrow">Administrator guide</p>
+    <h1>Help</h1>
+    <p class="lede">Vue PACS Database Analytics is Study Root C-FIND for Vue PACS (and other Q/R SCPs). Version <strong>v{{ app_version }}</strong> · <a href="{{ href('/about') }}">About this installation</a>.</p>
+  </div>
+</header>
+
+<section class="panel">
+  <header class="panel-head">
+    <h2>On this page</h2>
+  </header>
+  <ul class="help-toc">
+    <li><a href="#what-it-is">What this is</a></li>
+    <li><a href="#query">Query</a></li>
+    <li><a href="#vue-keys">Vue PACS (ELSCINT1) keys</a></li>
+    <li><a href="#configured-nodes">Configured nodes</a></li>
+    <li><a href="#logs">Logs</a></li>
+  </ul>
+</section>
+
+<section class="panel help-section" id="what-it-is">
+  <header class="panel-head">
+    <h2>What this is</h2>
+  </header>
+  <p>This window is <strong>Vue PACS Database Analytics</strong>. It ships in the same Dicommunication installer. It is not the workstation: there is no PING, C-STORE, PDF, HL7, Testbench, or worklist here.</p>
+  <p>Both tools share the calling AE Title and remote nodes in the data directory. Add the Vue Q/R SCP once; Dicommunication C-ECHO and this query page use the same record.</p>
+  <p>This searches <em>stored studies</em> with Study Root Query/Retrieve FIND. It is not Modality Worklist. Retrieve of matching objects is C-MOVE; this tool does not send C-GET or C-MOVE.</p>
+</section>
+
+<section class="panel help-section" id="query">
+  <header class="panel-head">
+    <h2>Query</h2>
+    <a href="{{ href('/') }}">Open</a>
+  </header>
+  <p>Study Root FIND at <strong>Study</strong>, <strong>Series</strong>, or <strong>Image</strong>. Checked keys are return columns. A typed value is also a matching key. Empty STUDY filters are a broad study query.</p>
+  <ul>
+    <li><strong>Hierarchical FIND</strong> — not relational. Series keys unlock after <strong>Study Instance UID</strong> is filled. Image keys unlock after Study Instance UID and <strong>Series Instance UID</strong>. Vue PACS documents this the same way.</li>
+    <li>Some keys stay locked until another field is present. Example: Repetition Time is an MR series key, so it stays unavailable while Modality is <code>CT</code>.</li>
+    <li>Click a result row to copy parent UIDs into the next level (Study → Series → Image).</li>
+    <li>The result table is column-aligned. <strong>Copy table</strong> puts tab-separated rows on the clipboard (Excel). <strong>Download CSV</strong> and <strong>Download JSON</strong> export the same records.</li>
+  </ul>
+</section>
+
+<section class="panel help-section" id="vue-keys">
+  <header class="panel-head">
+    <h2>Vue PACS (ELSCINT1) keys</h2>
+  </header>
+  <p>Collapsed lists of Tamar private study and series tags (status UNREAD, assign-to-doctor, procedure code, original storing AE, …). They are off by default. Vue’s C-FIND DCS does not list them. <strong>Tamar Assign To Doctor</strong> <code>(07a1,1042)</code> is a confirmed matching key on Vue 12.2.8 (used with Modalities in Study, for example <code>CT</code>). Other Vue tags may still be omitted. Grid Token sequences are not sent.</p>
+</section>
+
+<section class="panel help-section" id="configured-nodes">
+  <header class="panel-head">
+    <h2>Configured nodes</h2>
+    <a href="{{ href('/config') }}">Open</a>
+  </header>
+  <p><strong>Local DICOM AE</strong> is the calling AE Title this query presents as. <strong>Remote nodes</strong> must include the Vue Q/R SCP (AE Title, host, port). <strong>Virtual AEs</strong> impersonate a modality calling AE when Vue requires it.</p>
+</section>
+
+<section class="panel help-section" id="logs">
+  <header class="panel-head">
+    <h2>Logs</h2>
+    <a href="{{ href('/logs') }}">Open</a>
+  </header>
+  <p>Association accept/reject and C-FIND status land here. Use this when a query fails or Vue omits a private tag.</p>
+</section>
+{% endblock %}

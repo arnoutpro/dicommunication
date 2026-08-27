@@ -53,8 +53,20 @@ from app.pdf_dicom import (
     list_directory_pdfs,
 )
 from app.paths import package_dir
+from app.shell import (
+    PRODUCT_NAMES,
+    SHELL_DICOMM,
+    SHELL_VUE,
+    is_vue_public_path,
+    prefix_redirect_location,
+    public_href,
+    strip_vue_prefix,
+    tool_groups_for_shell,
+    tools_for_shell,
+    vue_path_allowed,
+)
 from app.store import ConfigStore
-from app.tools import get_tool, list_tools, list_tools_by_category
+from app.tools import get_tool, list_tools
 from app.tools.find_keys import catalog_payload, column_labels, options_from_form
 
 BASE_DIR = package_dir()
@@ -235,6 +247,26 @@ def create_app(store: ConfigStore | None = None) -> FastAPI:
         app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
 
     @app.middleware("http")
+    async def vue_shell_middleware(request: Request, call_next):
+        original = request.scope.get("path") or "/"
+        vue = is_vue_public_path(original)
+        if vue:
+            request.state.shell = SHELL_VUE
+            new_path = strip_vue_prefix(original)
+            request.scope["path"] = new_path
+            request.scope["raw_path"] = new_path.encode("utf-8")
+            if not vue_path_allowed(new_path):
+                response = RedirectResponse("/", status_code=303)
+            else:
+                response = await call_next(request)
+            location = response.headers.get("location")
+            if location:
+                response.headers["location"] = prefix_redirect_location(location)
+            return response
+        request.state.shell = SHELL_DICOMM
+        return await call_next(request)
+
+    @app.middleware("http")
     async def log_requests(request: Request, call_next):
         path = request.url.path
         started = perf_counter()
@@ -262,11 +294,15 @@ def create_app(store: ConfigStore | None = None) -> FastAPI:
     def page(request: Request, **extra: object) -> dict:
         config = app.state.store.load()
         scp = getattr(app.state, "mwl_scp", None)
+        shell = getattr(request.state, "shell", SHELL_DICOMM)
         return {
             "request": request,
             "config": config,
-            "tools": list_tools(),
-            "tool_groups": list_tools_by_category(),
+            "shell": shell,
+            "product_name": PRODUCT_NAMES[shell],
+            "href": lambda path: public_href(path, shell=shell),
+            "tools": tools_for_shell(shell),
+            "tool_groups": tool_groups_for_shell(shell),
             "results": app.state.store.list_results(10),
             "mwl_scp_running": bool(scp and scp.running),
             "mwl_scp_error": getattr(scp, "last_error", None) if scp else None,
@@ -415,7 +451,7 @@ def create_app(store: ConfigStore | None = None) -> FastAPI:
         return templates.TemplateResponse(
             request,
             "partials/log_view.html",
-            {"request": request, **_log_view_payload()},
+            {**page(request, nav="logs"), **_log_view_payload()},
         )
 
     @app.get("/logs/download")
@@ -451,6 +487,8 @@ def create_app(store: ConfigStore | None = None) -> FastAPI:
 
     @app.get("/", response_class=HTMLResponse)
     def dashboard(request: Request) -> HTMLResponse:
+        if getattr(request.state, "shell", SHELL_DICOMM) == SHELL_VUE:
+            return _c_find_advanced_page(request, nav="home")
         return templates.TemplateResponse(
             request,
             "index.html",
@@ -459,17 +497,19 @@ def create_app(store: ConfigStore | None = None) -> FastAPI:
 
     @app.get("/about", response_class=HTMLResponse)
     def about_page(request: Request) -> HTMLResponse:
+        vue = getattr(request.state, "shell", SHELL_DICOMM) == SHELL_VUE
         return templates.TemplateResponse(
             request,
-            "about.html",
+            "about_vue.html" if vue else "about.html",
             page(request, nav="about", data_dir=str(app.state.store.data_dir)),
         )
 
     @app.get("/help", response_class=HTMLResponse)
     def help_page(request: Request) -> HTMLResponse:
+        vue = getattr(request.state, "shell", SHELL_DICOMM) == SHELL_VUE
         return templates.TemplateResponse(
             request,
-            "help.html",
+            "help_vue.html" if vue else "help.html",
             page(request, nav="help", data_dir=str(app.state.store.data_dir)),
         )
 
@@ -1048,6 +1088,7 @@ def create_app(store: ConfigStore | None = None) -> FastAPI:
         identity_id: str = "",
         level: str = "STUDY",
         status_code: int = 200,
+        nav: str = "home",
     ):
         tool = get_tool("c-find-advanced")
         return templates.TemplateResponse(
@@ -1055,7 +1096,7 @@ def create_app(store: ConfigStore | None = None) -> FastAPI:
             tool.template,
             page(
                 request,
-                nav="tools",
+                nav=nav,
                 tool=tool,
                 tool_id=tool.id,
                 result=result,
@@ -1278,6 +1319,8 @@ def create_app(store: ConfigStore | None = None) -> FastAPI:
         if tool_id == "pdf-store":
             return _pdf_store_page(request)
         if tool_id == "c-find-advanced":
+            if getattr(request.state, "shell", SHELL_DICOMM) != SHELL_VUE:
+                return RedirectResponse("/vue/", status_code=303)
             return _c_find_advanced_page(request)
         return templates.TemplateResponse(
             request,
@@ -1296,7 +1339,7 @@ def create_app(store: ConfigStore | None = None) -> FastAPI:
         except ValueError as exc:
             failure = ToolResult(
                 tool_id="c-find-advanced",
-                tool_name="C-FIND Advanced",
+                tool_name=get_tool("c-find-advanced").name,
                 ok=False,
                 summary=str(exc),
             )
@@ -1325,7 +1368,7 @@ def create_app(store: ConfigStore | None = None) -> FastAPI:
         except HTTPException as exc:
             failure = ToolResult(
                 tool_id="c-find-advanced",
-                tool_name="C-FIND Advanced",
+                tool_name=get_tool("c-find-advanced").name,
                 ok=False,
                 summary=str(exc.detail),
             )

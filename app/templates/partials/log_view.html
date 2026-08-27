@@ -1,7 +1,7 @@
 <div
   id="log-view-panel"
   class="log-view-panel"
-  hx-get="/logs/live"
+  hx-get="{{ href('/logs/live') }}"
   hx-trigger="every 2s"
   hx-swap="outerHTML"
 >

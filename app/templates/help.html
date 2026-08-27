@@ -34,7 +34,7 @@
     <li><a href="#c-store">C-STORE</a></li>
     <li><a href="#pdf-store">PDF to DICOM</a></li>
     <li><a href="#c-find">Study Root C-FIND</a></li>
-    <li><a href="#c-find-advanced">C-FIND Advanced</a></li>
+    <li><a href="#c-find-advanced">Vue PACS Database Analytics</a></li>
     <li><a href="#mwl-find">MWL C-FIND</a></li>
     <li><a href="#hl7-send">HL7 send</a></li>
     <li><a href="#reading-results">Reading accepted vs rejected SOP Classes</a></li>
@@ -113,10 +113,10 @@
           <td>Search <em>stored studies</em> in a PACS archive at STUDY level. Zero matches can still be a successful Q/R C-FIND.</td>
         </tr>
         <tr>
-          <td><strong>C-FIND Advanced</strong></td>
+          <td><strong>Vue PACS Database Analytics</strong></td>
           <td>C-FIND</td>
           <td>Study Root Query/Retrieve FIND</td>
-          <td>Same SOP Class at Study, Series, or Image. Hierarchical: Series needs Study Instance UID; Image needs Study and Series Instance UID. Copy / CSV / JSON export.</td>
+          <td>Own Start-menu tool from this installer (formerly C-FIND Advanced). Study, Series, or Image plus Vue ELSCINT1 keys. Not in the Dicommunication sidebar.</td>
         </tr>
         <tr>
           <td><strong>MWL C-FIND / Worklist</strong></td>
@@ -424,24 +424,15 @@
     <a href="/tools/c-find">Open</a>
   </header>
   <p>Query/Retrieve Study Root FIND — search <em>stored studies</em> in a PACS archive. This is not Modality Worklist. Leave filters empty for a broad STUDY-level query. Optional filters: patient name, patient ID, accession, study date, modality in study.</p>
-  <p>Zero matches with a Pass still means the SOP Class was accepted and the query succeeded. If C-ECHO works and Study Root C-FIND fails, the peer is not a Q/R SCP (or that information model is not offered). Use Worklist / MWL C-FIND for scheduled procedures. For Series or Image keys, use <a href="#c-find-advanced">C-FIND Advanced</a>.</p>
+  <p>Zero matches with a Pass still means the SOP Class was accepted and the query succeeded. If C-ECHO works and Study Root C-FIND fails, the peer is not a Q/R SCP (or that information model is not offered). Use Worklist / MWL C-FIND for scheduled procedures. For Series or Image keys, or Vue Tamar tags, open <strong>Vue PACS Database Analytics</strong> from the Start menu (or <code>/vue/</code>).</p>
 </section>
 
 <section class="panel help-section" id="c-find-advanced">
   <header class="panel-head">
-    <h2>C-FIND Advanced</h2>
-    <a href="/tools/c-find-advanced">Open</a>
+    <h2>Vue PACS Database Analytics</h2>
   </header>
-  <p>The same Study Root Query/Retrieve FIND SOP Class as simple C-FIND, at <strong>Study</strong>, <strong>Series</strong>, or <strong>Image</strong>. Each level lists the searchable keys for that level (DICOM required/unique keys plus common optional keys such as Study Description, Modalities in Study, Body Part Examined, SOP Class UID).</p>
-  <ul>
-    <li>Checked keys are sent as return columns. A typed value is also a matching key. Empty STUDY filters are a broad study query.</li>
-    <li><strong>Hierarchical FIND</strong> — not relational. Series keys unlock after <strong>Study Instance UID</strong> is filled. Image keys unlock after Study Instance UID and <strong>Series Instance UID</strong>. Philips Vue PACS documents this the same way: Unique keys of the parent levels must be present.</li>
-    <li>Some keys stay locked until another field is present. Example: Repetition Time is an MR series key, so it stays unavailable while Modality is <code>CT</code>.</li>
-    <li>Click a result row to copy parent UIDs into the next level (Study → Series → Image).</li>
-    <li>The result table is column-aligned. <strong>Copy table</strong> puts tab-separated rows on the clipboard (Excel). <strong>Download CSV</strong> and <strong>Download JSON</strong> export the same records. You can also select cells and copy.</li>
-    <li><strong>Vue PACS (ELSCINT1)</strong> — collapsed lists of Tamar private study/series tags. They are off by default and not in Vue’s C-FIND DCS. <strong>Tamar Assign To Doctor</strong> <code>(07a1,1042)</code> is a confirmed matching key on Vue 12.2.8 (used with Modalities in Study, for example <code>CT</code>). Other Vue tags may still be omitted. Grid Token sequences are not sent.</li>
-    <li>This still searches <em>stored</em> studies, not the modality worklist. Retrieve of matching objects is C-MOVE. This tool does not send C-GET or C-MOVE.</li>
-  </ul>
+  <p>This installer ships a second tool, <strong>Vue PACS Database Analytics</strong>, that used to live here as C-FIND Advanced. It is not in the Dicommunication Test tools list. Open it from the Start menu (Windows) or at <code>http://127.0.0.1:8080/vue/</code>. It shares this workstation’s calling AE and remote nodes. The analytics window has Query, Configured nodes, Logs, About, and Help — no PING, C-STORE, HL7, or worklist.</p>
+  <p>Study Root FIND at Study, Series, or Image, including optional Tamar / ELSCINT1 keys. Hierarchical FIND: Series needs Study Instance UID; Image needs Study and Series Instance UID. <strong>Tamar Assign To Doctor</strong> <code>(07a1,1042)</code> is a confirmed matching key on Vue 12.2.8 (used with Modalities in Study, for example <code>CT</code>). Retrieve is C-MOVE; this tool does not send C-GET or C-MOVE.</p>
 </section>
 
 <section class="panel help-section" id="mwl-find">
@@ -593,7 +584,7 @@
           <td>Peer is not a Q/R SCP. This is not MWL.</td>
         </tr>
         <tr>
-          <td>C-FIND Advanced Series/Image stays locked or fails</td>
+          <td>Vue PACS Database Analytics Series/Image stays locked or fails</td>
           <td>Hierarchical FIND. Fill Study Instance UID for Series; Study and Series Instance UID for Image. Empty Study UID cannot search body part archive-wide.</td>
         </tr>
         <tr>

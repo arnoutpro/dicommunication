@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Logs · Dicommunication{% endblock %}
+{% block title %}Logs · {{ product_name }}{% endblock %}
 {% block body_class %}page-logs{% endblock %}
 {% block content %}
 <div class="logs-page">
@@ -24,7 +24,7 @@
       <h2>Amount and file size</h2>
       <span class="muted">Applies immediately to this process</span>
     </header>
-    <form method="post" action="/logs" class="form-grid logs-settings" autocomplete="off">
+    <form method="post" action="{{ href('/logs') }}" class="form-grid logs-settings" autocomplete="off">
       <label>
         Log level
         <select name="level" title="Debug is verbose. Info is the usual setting on a PACS workstation.">
@@ -53,8 +53,8 @@
           <input type="checkbox" id="log-follow" checked>
           Follow new lines
         </label>
-        <a class="button" href="/logs/download">Download log</a>
-        <form method="post" action="/logs/clear" onsubmit="return confirm('Clear the current log file? Rotated files are kept.');">
+        <a class="button" href="{{ href('/logs/download') }}">Download log</a>
+        <form method="post" action="{{ href('/logs/clear') }}" onsubmit="return confirm('Clear the current log file? Rotated files are kept.');">
           <button class="button" type="submit">Clear log</button>
         </form>
       </div>

@@ -28,6 +28,12 @@ from app.desktop import (
     run_native_window,
 )
 from app.paths import runtime_os_name
+from app.shell import (
+    PROFILE_DICOMM,
+    PROFILES,
+    profile_start_path,
+    profile_window_title,
+)
 
 DEFAULT_HOST = "127.0.0.1"
 DEFAULT_PORT = 8080
@@ -71,12 +77,12 @@ def redirect_frozen_stdio() -> None:
     print(f"--- dicommunication launch {stamp} ---", flush=True)
 
 
-def keep_alive_hint(mode: str | None = None) -> str:
+def keep_alive_hint(mode: str | None = None, *, title: str = "Dicommunication") -> str:
     """How to stop the desktop app once the UI is open."""
     if mode == UI_WINDOW:
-        return "Close the Dicommunication window to stop the server."
+        return f"Close the {title} window to stop the server."
     if sys.platform == "darwin":
-        return "Quit Dicommunication from the Dock to stop the server."
+        return f"Quit {title} from the Dock to stop the server."
     if runtime_os_name() == "nt":
         return "Leave this window open while you use the tool. Close it to stop the server."
     return "Leave this process running while you use the tool. Stop it to shut down the server."
@@ -123,6 +129,15 @@ def main(argv: list[str] | None = None) -> int:
         prog="dicommunication",
         description="Arnout.pro Dicommunication Tool — local DICOM workstation UI.",
     )
+    parser.add_argument(
+        "--profile",
+        choices=PROFILES,
+        default=os.environ.get("DICOMM_PROFILE", PROFILE_DICOMM),
+        help=(
+            "dicommunication is the workstation. vue-analytics opens Vue PACS "
+            "Database Analytics (Study Root C-FIND only)."
+        ),
+    )
     parser.add_argument("--host", default=os.environ.get("DICOMM_HOST", DEFAULT_HOST))
     parser.add_argument(
         "--port",
@@ -155,13 +170,15 @@ def main(argv: list[str] | None = None) -> int:
         window=args.window,
     )
 
-    ui_url = f"http://{args.host}:{args.port}/"
+    profile = args.profile
+    title = profile_window_title(profile)
+    ui_url = f"http://{args.host}:{args.port}{profile_start_path(profile)}"
     health = f"http://{args.host}:{args.port}/health"
     if server_is_up(health):
         print(f"Already running at {ui_url}", flush=True)
         if mode == UI_NONE:
             return 0
-        if mode == UI_WINDOW and run_native_window(ui_url):
+        if mode == UI_WINDOW and run_native_window(ui_url, title=title):
             return 0
         if mode != UI_NONE:
             webbrowser.open(ui_url)
@@ -181,19 +198,19 @@ def main(argv: list[str] | None = None) -> int:
         if not wait_until_up(health):
             print(f"Server did not start at {ui_url}", flush=True)
             return 1
-        print(f"Dicommunication UI: {ui_url}", flush=True)
-        print(keep_alive_hint(UI_WINDOW), flush=True)
-        if run_native_window(ui_url):
+        print(f"{title} UI: {ui_url}", flush=True)
+        print(keep_alive_hint(UI_WINDOW, title=title), flush=True)
+        if run_native_window(ui_url, title=title):
             return 0
         webbrowser.open(ui_url)
-        print(keep_alive_hint(UI_BROWSER), flush=True)
+        print(keep_alive_hint(UI_BROWSER, title=title), flush=True)
         return _hold_server()
 
     if mode == UI_BROWSER:
         threading.Thread(target=open_browser_when_ready, args=(ui_url,), daemon=True).start()
 
-    print(f"Dicommunication UI: {ui_url}", flush=True)
-    print(keep_alive_hint(mode), flush=True)
+    print(f"{title} UI: {ui_url}", flush=True)
+    print(keep_alive_hint(mode, title=title), flush=True)
     uvicorn.run(app, host=args.host, port=args.port, log_level="info")
     return 0
 
