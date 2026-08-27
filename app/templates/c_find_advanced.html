@@ -23,13 +23,13 @@
       hx-post="{{ href('/tools/c-find-advanced/run') }}"
       hx-target="#result"
       hx-indicator="#busy"
-      hx-timeout="180000"
+      hx-timeout="900000"
       hx-disabled-elt="[data-find-run], [data-find-follow]"
       data-find-advanced
       autocomplete="off"
     >
       <input type="hidden" name="follow" value="" data-find-follow-field>
-      <input type="hidden" name="studies_json" value="" data-find-studies-field>
+      <textarea hidden name="studies_json" data-find-studies-field></textarea>
       <div class="find-setup">
         <label>
           Remote

@@ -1073,10 +1073,60 @@ function clearFindFollow(form) {
   }
 }
 
+const FOLLOW_RECORD_KEYS = {
+  sr_series: [
+    "StudyInstanceUID",
+    "PatientName",
+    "PatientID",
+    "StudyDate",
+    "AccessionNumber",
+    "StudyDescription",
+    "ModalitiesInStudy",
+  ],
+  retrieve_sr: [
+    "StudyInstanceUID",
+    "SeriesInstanceUID",
+    "SOPInstanceUID",
+    "Modality",
+    "PatientName",
+    "PatientID",
+    "StudyDate",
+    "AccessionNumber",
+    "StudyDescription",
+  ],
+};
+
+function compactFollowRecords(kind, records) {
+  const keys = FOLLOW_RECORD_KEYS[kind] || FOLLOW_RECORD_KEYS.sr_series;
+  return (records || [])
+    .map((row) => {
+      const out = {};
+      keys.forEach((key) => {
+        const value = row[key];
+        if (value !== undefined && value !== null && String(value).trim() !== "") {
+          out[key] = value;
+        }
+      });
+      return out;
+    })
+    .filter((row) => row.StudyInstanceUID);
+}
+
+function clearFindParentUids(form) {
+  ["StudyInstanceUID", "SeriesInstanceUID", "SOPInstanceUID"].forEach((keyword) => {
+    const input = findValueInput(form, keyword);
+    if (input) {
+      input.value = "";
+    }
+  });
+  syncFindAdvanced(form);
+}
+
 function startFindFollow(kind, resultRoot) {
   const form = findAdvancedForm();
   const payload = parseFindExport(resultRoot);
-  if (!form || !payload || !payload.records) {
+  const records = compactFollowRecords(kind, payload && payload.records);
+  if (!form || !records.length) {
     if (resultRoot) {
       flashFindExport(resultRoot, "No result rows to follow up.", false);
     }
@@ -1087,8 +1137,9 @@ function startFindFollow(kind, resultRoot) {
   if (!follow || !studies) {
     return;
   }
+  clearFindParentUids(form);
   follow.value = kind;
-  studies.value = JSON.stringify(payload.records);
+  studies.value = JSON.stringify(records);
   if (typeof form.requestSubmit === "function") {
     form.requestSubmit();
   } else {
