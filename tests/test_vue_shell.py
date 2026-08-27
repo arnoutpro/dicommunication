@@ -64,6 +64,8 @@ def test_vue_query_form_uses_prefixed_action(client, remote) -> None:
     page = client.get("/vue/")
     assert page.status_code == 200
     assert b"find-key-list" in page.content
+    assert b"find-tree" in page.content
+    assert b"find-workspace" in page.content
     assert b'hx-post="/vue/tools/c-find-advanced/run"' in page.content
 
 

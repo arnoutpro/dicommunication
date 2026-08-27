@@ -255,6 +255,8 @@ def test_c_find_advanced_page_and_api(client, store) -> None:
         assert b"Body Part Examined" in page.content
         assert b"SOP Instance UID" in page.content
         assert b"find-key-list" in page.content
+        assert b"find-tree" in page.content
+        assert b"find-workspace" in page.content
         assert b"find-key-grid" not in page.content
         assert b"ELSCINT1" in page.content
         assert b"Tamar Study Status" in page.content

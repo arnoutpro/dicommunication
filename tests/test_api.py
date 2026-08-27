@@ -113,7 +113,7 @@ def test_health_and_pages(client) -> None:
     vue_home = client.get("/vue/")
     assert vue_home.status_code == 200
     assert b"Vue PACS Database Analytics" in vue_home.content
-    assert b"hierarchical FIND" in vue_home.content
+    assert b"find-workspace" in vue_home.content
     assert b"No remote node configured" in vue_home.content
     assert b"Test tools" not in vue_home.content
     assert b"HL7 send" not in vue_home.content
