@@ -317,7 +317,7 @@ Same engines as the Testbench, one page each: `/tools/c-echo`, `/tools/c-store`,
 
 Study Root Query/Retrieve FIND at **Study**, **Series**, or **Image**, with the searchable keys for that level. Checked keys are sent as return columns; a typed value is also a matching key.
 
-Hierarchical FIND (no relational queries): Series keys unlock after **Study Instance UID** is present; Image keys unlock after **Study Instance UID** and **Series Instance UID**. MR-only keys such as Repetition Time stay locked unless Modality is `MR` or empty. Results are a column-aligned table. **Copy table** is tab-separated for Excel; **Download CSV** and **Download JSON** export the same rows. Click a result row to copy parent UIDs into the next level. Retrieve of those objects is C-MOVE, not C-GET.
+Hierarchical FIND (no relational queries): Series keys unlock after **Study Instance UID** is present; Image keys unlock after **Study Instance UID** and **Series Instance UID**. MR-only keys such as Repetition Time stay locked unless Modality is `MR` or empty. Keys are grouped by Study / Series / Image as a list (not a grid). Collapsed **Vue PACS (ELSCINT1)** lists expose Tamar private study and series tags (unread status, procedure code, original storing AE, …) as optional return/match keys; Vue’s DCS does not list them, so they may come back empty. Grid Token sequences are not sent. Results are a column-aligned table. **Copy table** is tab-separated for Excel; **Download CSV** and **Download JSON** export the same rows. Click a result row to copy parent UIDs into the next level. Retrieve of those objects is C-MOVE, not C-GET.
 
 The simple C-FIND tool and Testbench stay STUDY-level with a short filter list.
 

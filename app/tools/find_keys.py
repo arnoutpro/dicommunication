@@ -18,6 +18,7 @@ from typing import Any, Iterable, Mapping
 from pydicom.datadict import dictionary_VR, tag_for_keyword
 from pydicom.dataset import Dataset
 from pydicom.multival import MultiValue
+from pydicom.tag import Tag
 from pydicom.valuerep import PersonName
 
 LEVELS = ("STUDY", "SERIES", "IMAGE")
@@ -27,13 +28,30 @@ LEVEL_PARENTS: dict[str, tuple[str, ...]] = {
     "SERIES": ("StudyInstanceUID",),
     "IMAGE": ("StudyInstanceUID", "SeriesInstanceUID"),
 }
-GROUP_ORDER = ("patient", "study", "series", "image")
-GROUP_LABELS = {
-    "patient": "Patient",
-    "study": "Study",
-    "series": "Series",
-    "image": "Image",
-}
+GROUPS: tuple[dict[str, Any], ...] = (
+    {"id": "patient", "label": "Patient", "experimental": False, "hint": ""},
+    {"id": "study", "label": "Study", "experimental": False, "hint": ""},
+    {
+        "id": "vue-study",
+        "label": "Vue PACS · Study (ELSCINT1)",
+        "experimental": True,
+        "hint": (
+            "Tamar / ELSCINT1 private study tags. Vue’s C-FIND DCS does not list them; "
+            "unsupported fields are omitted. Grid Token sequences are not sent. Off by default."
+        ),
+    },
+    {"id": "series", "label": "Series", "experimental": False, "hint": ""},
+    {
+        "id": "vue-series",
+        "label": "Vue PACS · Series (ELSCINT1)",
+        "experimental": True,
+        "hint": (
+            "Tamar / ELSCINT1 private series tags. Same rule: Vue may ignore them on C-FIND. Off by default."
+        ),
+    },
+    {"id": "image", "label": "Image", "experimental": False, "hint": ""},
+)
+VUE_CREATOR = "ELSCINT1"
 MAX_RECORDS = 2000
 HTML_DATE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 HTML_DATE_RANGE = re.compile(r"^(\d{4}-\d{2}-\d{2})\s*-\s*(\d{4}-\d{2}-\d{2})$")
@@ -54,6 +72,7 @@ class FindKey:
     default_return: bool = True
     requires: tuple[str, ...] = ()
     modality_in: tuple[str, ...] = ()
+    private_creator: str = ""
 
 
 def _key(
@@ -69,6 +88,7 @@ def _key(
     default_return: bool = True,
     requires: tuple[str, ...] = (),
     modality_in: tuple[str, ...] = (),
+    private_creator: str = "",
 ) -> FindKey:
     return FindKey(
         keyword=keyword,
@@ -83,6 +103,32 @@ def _key(
         default_return=default_return,
         requires=requires,
         modality_in=modality_in,
+        private_creator=private_creator,
+    )
+
+
+def _vue(
+    keyword: str,
+    tag: str,
+    label: str,
+    vr: str,
+    group: str,
+    *levels: str,
+    placeholder: str = "",
+    requires: tuple[str, ...] = (),
+) -> FindKey:
+    return _key(
+        keyword,
+        tag,
+        label,
+        vr,
+        group,
+        *levels,
+        placeholder=placeholder,
+        hint="Vue / ELSCINT1 private tag. Not in the DCS C-FIND table; the SCP may omit it.",
+        default_return=False,
+        requires=requires,
+        private_creator=VUE_CREATOR,
     )
 
 
@@ -658,6 +704,318 @@ KEYS: tuple[FindKey, ...] = (
         default_return=False,
         requires=IMAGE_CHILD,
     ),
+    _vue(
+        "TamarStudyStatus",
+        "(07a1,102a)",
+        "Tamar Study Status",
+        "CS",
+        "vue-study",
+        "STUDY",
+        placeholder="UNREAD",
+    ),
+    _vue(
+        "TamarStudyBodyPart",
+        "(07a1,1040)",
+        "Tamar Study Body Part",
+        "CS",
+        "vue-study",
+        "STUDY",
+        placeholder="PELVIS",
+    ),
+    _vue(
+        "TamarAssignToDoctor",
+        "(07a1,1042)",
+        "Tamar Assign To Doctor",
+        "SH",
+        "vue-study",
+        "STUDY",
+    ),
+    _vue(
+        "TamarStudyPriority",
+        "(07a1,1043)",
+        "Tamar Study Priority",
+        "IS",
+        "vue-study",
+        "STUDY",
+        placeholder="2",
+    ),
+    _vue(
+        "TamarSiteId",
+        "(07a1,1050)",
+        "Tamar Site Id",
+        "US",
+        "vue-study",
+        "STUDY",
+    ),
+    _vue(
+        "TamarStudyPublished",
+        "(07a1,1058)",
+        "Tamar Study Published",
+        "CS",
+        "vue-study",
+        "STUDY",
+        placeholder="A",
+    ),
+    _vue(
+        "TamarStudyCreationDate",
+        "(07a1,105d)",
+        "Tamar Study Creation Date",
+        "DT",
+        "vue-study",
+        "STUDY",
+        placeholder="YYYYMMDDHHMMSS",
+    ),
+    _vue(
+        "TamarStudyHasBookmark",
+        "(07a1,105f)",
+        "Tamar Study Has Bookmark",
+        "CS",
+        "vue-study",
+        "STUDY",
+        placeholder="Y",
+    ),
+    _vue(
+        "TamarStudyReferredBy",
+        "(07a1,10a7)",
+        "Tamar Study Referred By",
+        "LO",
+        "vue-study",
+        "STUDY",
+    ),
+    _vue(
+        "TamarStudyHasStickyNote",
+        "(07a3,1003)",
+        "Tamar Study Has Sticky Note",
+        "CS",
+        "vue-study",
+        "STUDY",
+        placeholder="N",
+    ),
+    _vue(
+        "TamarProcedureCode",
+        "(07a3,1014)",
+        "Tamar Procedure Code",
+        "ST",
+        "vue-study",
+        "STUDY",
+    ),
+    _vue(
+        "TamarPatientLocation",
+        "(07a3,1015)",
+        "Tamar Patient Location",
+        "ST",
+        "vue-study",
+        "STUDY",
+    ),
+    _vue(
+        "TamarOrderStatus",
+        "(07a3,1017)",
+        "Tamar Order Status",
+        "SH",
+        "vue-study",
+        "STUDY",
+        placeholder="CM",
+    ),
+    _vue(
+        "TamarStudyReason",
+        "(07a3,1018)",
+        "Tamar Study Reason",
+        "ST",
+        "vue-study",
+        "STUDY",
+    ),
+    _vue(
+        "TamarReadingPhysicianId",
+        "(07a3,101b)",
+        "Tamar Reading Physician Id",
+        "ST",
+        "vue-study",
+        "STUDY",
+    ),
+    _vue(
+        "TamarMiscString4",
+        "(07a3,1022)",
+        "Tamar Misc String 4",
+        "ST",
+        "vue-study",
+        "STUDY",
+    ),
+    _vue(
+        "TamarMiscString5",
+        "(07a3,1023)",
+        "Tamar Misc String 5",
+        "ST",
+        "vue-study",
+        "STUDY",
+    ),
+    _vue(
+        "TamarStudyHasMammoCad",
+        "(07a3,1055)",
+        "Tamar Study Has Mammo CAD",
+        "SH",
+        "vue-study",
+        "STUDY",
+        placeholder="N",
+    ),
+    _vue(
+        "TamarPracticeSettingsCode",
+        "(07a3,105c)",
+        "Tamar Practice Settings Code",
+        "ST",
+        "vue-study",
+        "STUDY",
+    ),
+    _vue(
+        "TamarReportIsPendingSign",
+        "(07a3,108c)",
+        "Tamar Report Is Pending Sign",
+        "CS",
+        "vue-study",
+        "STUDY",
+        placeholder="N",
+    ),
+    _vue(
+        "TamarStudyHasNondicomData",
+        "(07a3,108f)",
+        "Tamar Study Has Non-DICOM Data",
+        "CS",
+        "vue-study",
+        "STUDY",
+        placeholder="N",
+    ),
+    _vue(
+        "TamarStudyHasKeyImage",
+        "(07a3,109c)",
+        "Tamar Study Has Key Image",
+        "CS",
+        "vue-study",
+        "STUDY",
+        placeholder="Y",
+    ),
+    _vue(
+        "TamarStudyHasKeySeries",
+        "(07a3,10bb)",
+        "Tamar Study Has Key Series",
+        "CS",
+        "vue-study",
+        "STUDY",
+        placeholder="N",
+    ),
+    _vue(
+        "TamarReferringPhysiciansStudyRead",
+        "(07a5,1056)",
+        "Tamar Referring Physicians Study Read",
+        "CS",
+        "vue-study",
+        "STUDY",
+        placeholder="N",
+    ),
+    _vue(
+        "TamarStudyInsertTime",
+        "(07a5,1072)",
+        "Tamar Study Insert Time",
+        "DT",
+        "vue-study",
+        "STUDY",
+        placeholder="YYYYMMDDHHMMSS",
+    ),
+    _vue(
+        "TamarStudyHasDicomData",
+        "(07a5,10c8)",
+        "Tamar Study Has DICOM Data",
+        "CS",
+        "vue-study",
+        "STUDY",
+        placeholder="Y",
+    ),
+    _vue(
+        "TamarStudySla",
+        "(07a5,10dc)",
+        "Tamar Study SLA",
+        "UL",
+        "vue-study",
+        "STUDY",
+    ),
+    _vue(
+        "TamarStudyRvu",
+        "(07a5,10dd)",
+        "Tamar Study RVU",
+        "FL",
+        "vue-study",
+        "STUDY",
+    ),
+    _vue(
+        "TamarStudySubspecialtyId",
+        "(07a5,10de)",
+        "Tamar Study Subspecialty Id",
+        "LO",
+        "vue-study",
+        "STUDY",
+    ),
+    _vue(
+        "TamarAssignmentRuleId",
+        "(07a5,10e7)",
+        "Tamar Assignment Rule Id",
+        "LO",
+        "vue-study",
+        "STUDY",
+        placeholder="manual_assignment",
+    ),
+    _vue(
+        "TamarAssignmentRulePriority",
+        "(07a5,10e8)",
+        "Tamar Assignment Rule Priority",
+        "IS",
+        "vue-study",
+        "STUDY",
+        placeholder="0",
+    ),
+    _vue(
+        "TamarNumberOfImagesInSeries",
+        "(07a1,1002)",
+        "Tamar Number of Images in Series",
+        "UL",
+        "vue-series",
+        "SERIES",
+        requires=SERIES_CHILD,
+    ),
+    _vue(
+        "TamarKeySeriesIndication",
+        "(07a3,10b9)",
+        "Tamar Key Series Indication",
+        "CS",
+        "vue-series",
+        "SERIES",
+        placeholder="N",
+        requires=SERIES_CHILD,
+    ),
+    _vue(
+        "TamarBandwidth",
+        "(07a5,1057)",
+        "Tamar Bandwidth",
+        "IS",
+        "vue-series",
+        "SERIES",
+        requires=SERIES_CHILD,
+    ),
+    _vue(
+        "TamarSeriesArrivalOrder",
+        "(07a5,1059)",
+        "Tamar Series Arrival Order",
+        "IS",
+        "vue-series",
+        "SERIES",
+        requires=SERIES_CHILD,
+    ),
+    _vue(
+        "TamarOriginalStoringAe",
+        "(07a5,1069)",
+        "Tamar Original Storing AE",
+        "AE",
+        "vue-series",
+        "SERIES",
+        requires=SERIES_CHILD,
+    ),
 )
 
 _KEYS_BY_KEYWORD = {key.keyword: key for key in KEYS}
@@ -832,22 +1190,35 @@ def selected_keywords(level: str, values: Mapping[str, str], return_keys: Iterab
     return [keyword for keyword in wanted if keyword in allowed]
 
 
+def _parse_tag(tag: str) -> tuple[int, int]:
+    inner = tag.strip().strip("()")
+    group_hex, element_hex = inner.split(",", 1)
+    return int(group_hex, 16), int(element_hex, 16)
+
+
+def _coerce_vr(vr: str, text: str) -> Any:
+    if text == "":
+        return None
+    if vr in {"US", "SS", "UL", "SL"}:
+        return int(float(text))
+    if vr in {"FL", "FD"}:
+        return float(text)
+    return text
+
+
 def apply_key(dataset: Dataset, keyword: str, value: str) -> None:
+    key = _KEYS_BY_KEYWORD.get(keyword)
+    text = normalize_value(keyword, value)
+    if key and key.private_creator:
+        group, element = _parse_tag(key.tag)
+        block = dataset.private_block(group, key.private_creator, create=True)
+        block.add_new(element & 0xFF, key.vr, _coerce_vr(key.vr, text))
+        return
     tag = tag_for_keyword(keyword)
     if tag is None:
         raise KeyError(keyword)
     vr = dictionary_VR(tag)
-    text = normalize_value(keyword, value)
-    if text == "":
-        dataset.add_new(tag, vr, None)
-        return
-    if vr in {"US", "SS", "UL", "SL"}:
-        dataset.add_new(tag, vr, int(float(text)))
-        return
-    if vr in {"FL", "FD"}:
-        dataset.add_new(tag, vr, float(text))
-        return
-    dataset.add_new(tag, vr, text)
+    dataset.add_new(tag, vr, _coerce_vr(vr, text))
 
 
 def build_identifier(level: str, values: Mapping[str, str], return_keys: Iterable[str]) -> Dataset:
@@ -871,11 +1242,23 @@ def _stringify(value: Any) -> str:
     return str(value).strip()
 
 
+def _read_key(dataset: Dataset, keyword: str) -> str:
+    key = _KEYS_BY_KEYWORD.get(keyword)
+    if key and key.private_creator:
+        group, element = _parse_tag(key.tag)
+        try:
+            block = dataset.private_block(group, key.private_creator)
+            return _stringify(block[element & 0xFF].value)
+        except (KeyError, ValueError, IndexError):
+            tag = Tag(group, element)
+            if tag in dataset:
+                return _stringify(dataset[tag].value)
+            return ""
+    return _stringify(getattr(dataset, keyword, None))
+
+
 def record_from_dataset(dataset: Dataset, columns: list[str]) -> dict[str, str]:
-    row: dict[str, str] = {}
-    for keyword in columns:
-        row[keyword] = _stringify(getattr(dataset, keyword, None))
-    return row
+    return {keyword: _read_key(dataset, keyword) for keyword in columns}
 
 
 def column_labels(columns: Iterable[str]) -> list[str]:
@@ -914,6 +1297,6 @@ def catalog_payload() -> dict[str, Any]:
             }
             for level in LEVELS
         ],
-        "groups": [{"id": group, "label": GROUP_LABELS[group]} for group in GROUP_ORDER],
+        "groups": list(GROUPS),
         "search_keys": [asdict(key) for key in KEYS],
     }
