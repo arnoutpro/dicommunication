@@ -4,7 +4,7 @@
 <header class="page-head">
   <div>
     <p class="eyebrow">Application</p>
-    <h1>About Vue PACS Database Analytics</h1>
+    <h1>About {{ product_name }}</h1>
     <p class="lede">Study Root C-FIND for Vue PACS. Same installer and config as Dicommunication.</p>
   </div>
 </header>
@@ -31,7 +31,7 @@
   <header class="panel-head">
     <h2>What this application is</h2>
   </header>
-  <p>Vue PACS Database Analytics is a <strong>Study Root C-FIND workstation</strong> aimed at Philips Vue PACS. Query stored studies at Study, Series, or Image, including optional Tamar / ELSCINT1 private tags. List Structured Report series (modality SR) from those studies, then C-MOVE the report objects to this AE and read the DICOM Content Sequence. It is not a PACS, not a viewer, not Modality Worklist, and it does not use a language model to read reports.</p>
+  <p>{{ product_name }} is a <strong>Study Root C-FIND workstation</strong> aimed at Philips Vue PACS. Query stored studies at Study, Series, or Image, including optional Tamar / ELSCINT1 private tags. List Structured Report series (modality SR) from those studies, then C-MOVE the report objects to this AE and read the DICOM Content Sequence. It is not a PACS, not a viewer, not Modality Worklist, and it does not use a language model to read reports.</p>
   <p>The Dicommunication MSI installs this tool next to the network workstation. Both use the same <code>config.json</code>. There is <strong>no web login</strong> — treat the UI like a diagnostic console on the PACS VLAN.</p>
   <p><a class="button" href="{{ href('/help') }}">Open Help</a> for query keys, hierarchical FIND, and Vue private tags.</p>
 </section>

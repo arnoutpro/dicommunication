@@ -34,7 +34,7 @@ def test_health_and_pages(client) -> None:
     assert b"Connectivity" in home.content
     assert b"<details" not in home.content
     assert b"C-FIND Advanced" not in home.content
-    assert b"Vue PACS Database Analytics" not in home.content
+    assert b"Dicomtag Analytics" not in home.content
     assert b'href="/tools/c-find-advanced"' not in home.content
     assert b"C-ECHO all nodes" not in home.content
     assert b"Open worklist" not in home.content
@@ -89,7 +89,7 @@ def test_health_and_pages(client) -> None:
     assert b"C-ECHO" in help_page.content
     assert b"Modality Worklist" in help_page.content
     assert b"Advanced troubleshooting" in help_page.content
-    assert b"Vue PACS Database Analytics" in help_page.content
+    assert b"Dicomtag Analytics" in help_page.content
     assert b"HL7 send" in help_page.content
     assert b"Encapsulated PDF" in help_page.content
     pdf_store = client.get("/tools/pdf-store")
@@ -112,7 +112,7 @@ def test_health_and_pages(client) -> None:
     assert advanced.headers["location"] == "/vue/"
     vue_home = client.get("/vue/")
     assert vue_home.status_code == 200
-    assert b"Vue PACS Database Analytics" in vue_home.content
+    assert b"Dicomtag Analytics" in vue_home.content
     assert b"find-workspace" in vue_home.content
     assert b"No remote node configured" in vue_home.content
     assert b"Test tools" not in vue_home.content

@@ -13,7 +13,7 @@ The installer cannot live *inside* this app’s webpage. That page is served by 
 3. The first time, right-click the app and choose **Open** (unsigned builds trip Gatekeeper). The Dock icon is the **Sansation Bold** A from the watermark, not PyInstaller’s floppy disk.
 4. The UI opens in its own window (not a Safari tab). If the Dock icon is live but no window appears, quit from the Dock and check `~/.dicommunication/launch.log`. Rebuild the DMG without PyInstaller argv emulation.
 5. Close the window or quit from the Dock to stop the server.
-6. Vue PACS Database Analytics: `open -n /Applications/Dicommunication.app --args --profile vue-analytics`, or open `http://127.0.0.1:8080/vue/` if Dicommunication is already running.
+6. Dicomtag Analytics: `open -n /Applications/Dicommunication.app --args --profile dicomtag-analytics`, or open `http://127.0.0.1:8080/vue/` if Dicommunication is already running.
 
 Config stays in `~/.dicommunication` across upgrades. Frozen launches also append `launch.log` there (windowed `.app` builds have no Terminal).
 
