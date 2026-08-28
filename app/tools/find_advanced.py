@@ -403,7 +403,7 @@ def _move_status_message(code: int) -> str:
 
 class CFindAdvancedTool(BaseTool):
     id = "c-find-advanced"
-    name = "Vue PACS Database Analytics"
+    name = "Dicomtag Analytics"
     description = (
         "Query Vue PACS (and other Study Root Q/R SCPs) at Study, Series, or Image "
         "with every searchable key, including optional Tamar / ELSCINT1 tags. "
@@ -582,7 +582,7 @@ class CFindAdvancedTool(BaseTool):
             f"Study Root C-FIND ({LEVEL_LABELS[level]}) returned {len(records)} "
             f"{_noun(level, len(records))} from {remote.ae_title}{extra}"
             if ok
-            else (failed.message if failed else "C-FIND Advanced failed")
+            else (failed.message if failed else "Dicomtag Analytics failed")
         )
         return ToolResult(
             tool_id=self.id,

@@ -87,7 +87,7 @@
     <li>
       <span class="dot {% if item.ok %}ok{% else %}fail{% endif %}"></span>
       <div>
-        <strong>{{ item.tool_name }}</strong>
+        <strong>{{ display_tool_name(item.tool_name) }}</strong>
         {% if item.remote_name %}<span class="muted">→ {{ item.remote_name }}</span>{% endif %}
         <p>{{ item.summary }}</p>
       </div>

@@ -28,7 +28,7 @@
   <link rel="stylesheet" href="/static/css/app.css">
   <script src="/static/vendor/htmx-2.0.4.min.js" defer></script>
 </head>
-<body class="{% block body_class %}{% endblock %}{% if shell == 'vue' %} shell-vue{% endif %}">
+<body class="{% block body_class %}{% endblock %}{% if shell == 'vue' %} shell-vue{% endif %}" data-product-name="{{ product_name }}">
   <div class="shell">
     <header class="topbar">
       <a class="brand" href="{{ href('/') }}" title="© 2026 arnout.pro">
