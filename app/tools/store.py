@@ -18,12 +18,8 @@ from app.dicom_client import (
     rejected_sop_message,
 )
 from app.models import LocalAE, RemoteNode, ToolResult, ToolStep
-from app.tools.base import BaseTool
+from app.tools.base import BaseTool, elapsed_ms
 from app.tools.registry import register
-
-
-def _elapsed_ms(started: float) -> float:
-    return round((time.perf_counter() - started) * 1000, 1)
 
 
 def build_test_instance() -> Dataset:
@@ -111,7 +107,7 @@ class CStoreTool(BaseTool):
                             name="Association",
                             ok=False,
                             message=rejected or reject_reason(assoc),
-                            duration_ms=_elapsed_ms(assoc_started),
+                            duration_ms=elapsed_ms(assoc_started),
                         )
                     )
                 elif not assoc.accepted_contexts:
@@ -124,7 +120,7 @@ class CStoreTool(BaseTool):
                                 "Association opened, but Secondary Capture Image Storage "
                                 "was not accepted. This node is not a Storage SCP for that SOP Class."
                             ),
-                            duration_ms=_elapsed_ms(assoc_started),
+                            duration_ms=elapsed_ms(assoc_started),
                         )
                     )
                     assoc.release()
@@ -134,7 +130,7 @@ class CStoreTool(BaseTool):
                             name="Association",
                             ok=True,
                             message="Storage SOP Class accepted",
-                            duration_ms=_elapsed_ms(assoc_started),
+                            duration_ms=elapsed_ms(assoc_started),
                         )
                     )
                     store_started = time.perf_counter()
@@ -151,7 +147,7 @@ class CStoreTool(BaseTool):
                                     if ok
                                     else f"DIMSE status 0x{code:04X}"
                                 ),
-                                duration_ms=_elapsed_ms(store_started),
+                                duration_ms=elapsed_ms(store_started),
                                 details={"status": f"0x{code:04X}"},
                             )
                         )
@@ -171,7 +167,7 @@ class CStoreTool(BaseTool):
                                 name="C-STORE",
                                 ok=False,
                                 message="No C-STORE response (timeout, abort, or invalid PDU).",
-                                duration_ms=_elapsed_ms(store_started),
+                                duration_ms=elapsed_ms(store_started),
                             )
                         )
                     assoc.release()
@@ -182,7 +178,7 @@ class CStoreTool(BaseTool):
                         name="C-STORE",
                         ok=False,
                         message=f"{type(exc).__name__}: {exc}",
-                        duration_ms=_elapsed_ms(started),
+                        duration_ms=elapsed_ms(started),
                     )
                 )
             finally:
@@ -207,7 +203,7 @@ class CStoreTool(BaseTool):
             summary=summary,
             remote_id=remote.id,
             remote_name=remote.name,
-            duration_ms=_elapsed_ms(started),
+            duration_ms=elapsed_ms(started),
             steps=steps,
             log=log,
             contexts=contexts,

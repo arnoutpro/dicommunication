@@ -16,14 +16,10 @@ from app.dicom_client import (
     rejected_sop_message,
 )
 from app.models import LocalAE, RemoteNode, ToolResult, ToolStep
-from app.tools.base import BaseTool
+from app.tools.base import BaseTool, elapsed_ms
 from app.tools.registry import register
 
 PENDING = {0xFF00, 0xFF01}
-
-
-def _elapsed_ms(started: float) -> float:
-    return round((time.perf_counter() - started) * 1000, 1)
 
 
 def _text(dataset: Dataset, name: str) -> str:
@@ -91,7 +87,7 @@ class CFindTool(BaseTool):
                             name="Association",
                             ok=False,
                             message=rejected or reject_reason(assoc),
-                            duration_ms=_elapsed_ms(assoc_started),
+                            duration_ms=elapsed_ms(assoc_started),
                         )
                     )
                 elif not assoc.accepted_contexts:
@@ -104,7 +100,7 @@ class CFindTool(BaseTool):
                                 "Association opened, but Study Root Query/Retrieve FIND "
                                 "was not accepted. This is not a Q/R SCP (and it is not MWL)."
                             ),
-                            duration_ms=_elapsed_ms(assoc_started),
+                            duration_ms=elapsed_ms(assoc_started),
                         )
                     )
                     assoc.release()
@@ -114,7 +110,7 @@ class CFindTool(BaseTool):
                             name="Association",
                             ok=True,
                             message="Study Root FIND SOP Class accepted",
-                            duration_ms=_elapsed_ms(assoc_started),
+                            duration_ms=elapsed_ms(assoc_started),
                         )
                     )
                     identifier = Dataset()
@@ -151,7 +147,7 @@ class CFindTool(BaseTool):
                                 name="C-FIND",
                                 ok=False,
                                 message=failed_status,
-                                duration_ms=_elapsed_ms(find_started),
+                                duration_ms=elapsed_ms(find_started),
                             )
                         )
                     else:
@@ -160,7 +156,7 @@ class CFindTool(BaseTool):
                                 name="C-FIND",
                                 ok=True,
                                 message=f"{len(records)} stud{'y' if len(records) == 1 else 'ies'} at STUDY level",
-                                duration_ms=_elapsed_ms(find_started),
+                                duration_ms=elapsed_ms(find_started),
                                 details={"count": len(records)},
                             )
                         )
@@ -172,7 +168,7 @@ class CFindTool(BaseTool):
                         name="C-FIND",
                         ok=False,
                         message=f"{type(exc).__name__}: {exc}",
-                        duration_ms=_elapsed_ms(started),
+                        duration_ms=elapsed_ms(started),
                     )
                 )
             finally:
@@ -197,7 +193,7 @@ class CFindTool(BaseTool):
             summary=summary,
             remote_id=remote.id,
             remote_name=remote.name,
-            duration_ms=_elapsed_ms(started),
+            duration_ms=elapsed_ms(started),
             steps=steps,
             log=log,
             contexts=contexts,

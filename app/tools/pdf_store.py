@@ -22,14 +22,10 @@ from app.pdf_dicom import (
     encapsulate_sources,
     resolve_patient_identities,
 )
-from app.tools.base import BaseTool
+from app.tools.base import BaseTool, elapsed_ms
 from app.tools.registry import register
 
 PDF_TRANSFER_SYNTAXES = [ExplicitVRLittleEndian, ImplicitVRLittleEndian]
-
-
-def _elapsed_ms(started: float) -> float:
-    return round((time.perf_counter() - started) * 1000, 1)
 
 
 def _flag(value: object, default: bool = False) -> bool:
@@ -74,7 +70,7 @@ class PdfStoreTool(BaseTool):
                 tool_name=self.name,
                 ok=False,
                 summary="Patient Name is required, or enable Generate Patient Name.",
-                duration_ms=_elapsed_ms(started),
+                duration_ms=elapsed_ms(started),
             )
         if not unique_patient and not generate_id and not patient_id:
             return ToolResult(
@@ -82,7 +78,7 @@ class PdfStoreTool(BaseTool):
                 tool_name=self.name,
                 ok=False,
                 summary="Patient ID is required, or enable Generate Patient ID.",
-                duration_ms=_elapsed_ms(started),
+                duration_ms=elapsed_ms(started),
             )
 
         send = _flag(options["send"], default=True) if "send" in options else True
@@ -92,7 +88,7 @@ class PdfStoreTool(BaseTool):
                 tool_name=self.name,
                 ok=False,
                 summary="Select a remote DICOM node to store on PACS, or uncheck Store on PACS.",
-                duration_ms=_elapsed_ms(started),
+                duration_ms=elapsed_ms(started),
             )
 
         try:
@@ -104,13 +100,13 @@ class PdfStoreTool(BaseTool):
                 tool_name=self.name,
                 ok=False,
                 summary=str(exc),
-                duration_ms=_elapsed_ms(started),
+                duration_ms=elapsed_ms(started),
                 steps=[
                     ToolStep(
                         name="Collect",
                         ok=False,
                         message=str(exc),
-                        duration_ms=_elapsed_ms(started),
+                        duration_ms=elapsed_ms(started),
                     )
                 ],
             )
@@ -124,13 +120,13 @@ class PdfStoreTool(BaseTool):
                 tool_name=self.name,
                 ok=False,
                 summary=detail,
-                duration_ms=_elapsed_ms(started),
+                duration_ms=elapsed_ms(started),
                 steps=[
                     ToolStep(
                         name="Collect",
                         ok=False,
                         message="; ".join(warnings) if warnings else detail,
-                        duration_ms=_elapsed_ms(started),
+                        duration_ms=elapsed_ms(started),
                     )
                 ],
             )
@@ -143,7 +139,7 @@ class PdfStoreTool(BaseTool):
                 name="Collect",
                 ok=True,
                 message=collect_message,
-                duration_ms=_elapsed_ms(collect_started),
+                duration_ms=elapsed_ms(collect_started),
                 details={"warnings": warnings} if warnings else {},
             )
         )
@@ -173,7 +169,7 @@ class PdfStoreTool(BaseTool):
                 tool_name=self.name,
                 ok=False,
                 summary=str(exc),
-                duration_ms=_elapsed_ms(started),
+                duration_ms=elapsed_ms(started),
             )
         same_study = _flag(options.get("same_study"), default=not unique_patient)
         instances = encapsulate_sources(
@@ -194,7 +190,7 @@ class PdfStoreTool(BaseTool):
                     f"{len(instances)} Encapsulated PDF Storage instance"
                     f"{'s' if len(instances) != 1 else ''}"
                 ),
-                duration_ms=_elapsed_ms(encapsulate_started),
+                duration_ms=elapsed_ms(encapsulate_started),
             )
         )
 
@@ -222,7 +218,7 @@ class PdfStoreTool(BaseTool):
                     f"Encapsulated {len(instances)} PDF"
                     f"{'s' if len(instances) != 1 else ''} (not sent)"
                 ),
-                duration_ms=_elapsed_ms(started),
+                duration_ms=elapsed_ms(started),
                 steps=steps,
                 records=records,
             )
@@ -250,7 +246,7 @@ class PdfStoreTool(BaseTool):
                             name="Association",
                             ok=False,
                             message=rejected or reject_reason(assoc),
-                            duration_ms=_elapsed_ms(assoc_started),
+                            duration_ms=elapsed_ms(assoc_started),
                         )
                     )
                 elif not assoc.accepted_contexts:
@@ -263,7 +259,7 @@ class PdfStoreTool(BaseTool):
                                 "Association opened, but Encapsulated PDF Storage was not "
                                 "accepted. This node is not a Storage SCP for DICOM PDFs."
                             ),
-                            duration_ms=_elapsed_ms(assoc_started),
+                            duration_ms=elapsed_ms(assoc_started),
                         )
                     )
                     assoc.release()
@@ -273,7 +269,7 @@ class PdfStoreTool(BaseTool):
                             name="Association",
                             ok=True,
                             message="Encapsulated PDF Storage accepted",
-                            duration_ms=_elapsed_ms(assoc_started),
+                            duration_ms=elapsed_ms(assoc_started),
                         )
                     )
                     for record, instance in zip(records, instances):
@@ -292,7 +288,7 @@ class PdfStoreTool(BaseTool):
                                         if ok
                                         else f"DIMSE status 0x{code:04X}"
                                     ),
-                                    duration_ms=_elapsed_ms(store_started),
+                                    duration_ms=elapsed_ms(store_started),
                                     details={"status": f"0x{code:04X}"},
                                 )
                             )
@@ -303,7 +299,7 @@ class PdfStoreTool(BaseTool):
                                     name=f"C-STORE {record['source']}",
                                     ok=False,
                                     message="No C-STORE response (timeout, abort, or invalid PDU).",
-                                    duration_ms=_elapsed_ms(store_started),
+                                    duration_ms=elapsed_ms(store_started),
                                 )
                             )
                     assoc.release()
@@ -314,7 +310,7 @@ class PdfStoreTool(BaseTool):
                         name="C-STORE",
                         ok=False,
                         message=f"{type(exc).__name__}: {exc}",
-                        duration_ms=_elapsed_ms(started),
+                        duration_ms=elapsed_ms(started),
                     )
                 )
             finally:
@@ -339,7 +335,7 @@ class PdfStoreTool(BaseTool):
             summary=summary,
             remote_id=remote.id,
             remote_name=remote.name,
-            duration_ms=_elapsed_ms(started),
+            duration_ms=elapsed_ms(started),
             steps=steps,
             log=log,
             contexts=contexts,
