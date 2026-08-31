@@ -161,7 +161,17 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="Start the server without opening a window or browser.",
     )
+    parser.add_argument(
+        "--uninstall-cleanup",
+        action="store_true",
+        help=argparse.SUPPRESS,  # Windows MSI uninstall hook, not a user-facing flag.
+    )
     args = parser.parse_args(argv)
+
+    if args.uninstall_cleanup:
+        from app.uninstall import run_uninstall_cleanup
+
+        return run_uninstall_cleanup()
 
     apply_runtime_env()
     redirect_frozen_stdio()

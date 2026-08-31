@@ -718,3 +718,83 @@ def test_publish_note_uses_the_configured_port() -> None:
 
     assert note is not None
     assert "127.0.0.1:9000" in note
+
+
+def test_confirm_purge_data_defaults_to_keep_off_windows(monkeypatch) -> None:
+    from app import uninstall
+
+    monkeypatch.setattr("app.uninstall.runtime_os_name", lambda: "posix")
+    assert uninstall.confirm_purge_data() is False
+
+
+def test_confirm_purge_data_defaults_to_keep_when_dialog_unavailable(monkeypatch) -> None:
+    from app import uninstall
+
+    monkeypatch.setattr("app.uninstall.runtime_os_name", lambda: "nt")
+    monkeypatch.setattr("app.uninstall._confirm_via_powershell", lambda: None)
+    assert uninstall.confirm_purge_data() is False
+
+
+def test_purge_data_dir_removes_the_windows_data_dir(monkeypatch, tmp_path) -> None:
+    from app import uninstall
+
+    data_dir = tmp_path / "dicommunication"
+    (data_dir / "sub").mkdir(parents=True)
+    (data_dir / "config.json").write_text("{}", encoding="utf-8")
+    monkeypatch.setattr("app.uninstall.windows_data_dir", lambda: data_dir)
+    uninstall.purge_data_dir()
+    assert not data_dir.exists()
+
+
+def test_purge_data_dir_is_a_noop_when_already_gone(monkeypatch, tmp_path) -> None:
+    from app import uninstall
+
+    missing = tmp_path / "nope"
+    monkeypatch.setattr("app.uninstall.windows_data_dir", lambda: missing)
+    uninstall.purge_data_dir()  # must not raise
+
+
+def test_run_uninstall_cleanup_only_purges_on_confirm(monkeypatch) -> None:
+    from app import uninstall
+
+    calls: list[str] = []
+    monkeypatch.setattr("app.uninstall.confirm_purge_data", lambda: False)
+    monkeypatch.setattr("app.uninstall.purge_data_dir", lambda: calls.append("purged"))
+    assert uninstall.run_uninstall_cleanup() == 0
+    assert calls == []
+
+    monkeypatch.setattr("app.uninstall.confirm_purge_data", lambda: True)
+    assert uninstall.run_uninstall_cleanup() == 0
+    assert calls == ["purged"]
+
+
+def test_uninstall_cleanup_message_has_no_apostrophes() -> None:
+    # Embedded verbatim in a single-quoted PowerShell string literal in
+    # _confirm_via_powershell; an apostrophe there would break the script.
+    from app.uninstall import CONFIRM_MESSAGE, CONFIRM_TITLE
+
+    assert "'" not in CONFIRM_MESSAGE
+    assert "'" not in CONFIRM_TITLE
+
+
+def test_uninstall_cleanup_flag_skips_the_server(monkeypatch) -> None:
+    calls: list[str] = []
+    monkeypatch.setattr("app.uninstall.run_uninstall_cleanup", lambda: calls.append("ran") or 0)
+    monkeypatch.setattr(
+        "app.launcher.apply_runtime_env",
+        lambda: (_ for _ in ()).throw(AssertionError("must not start the server")),
+    )
+    assert main(["--uninstall-cleanup"]) == 0
+    assert calls == ["ran"]
+
+
+def test_windows_wxs_prompts_before_deleting_data_on_uninstall() -> None:
+    wxs = (ROOT / "packaging" / "windows" / "Product.wxs").read_text(encoding="utf-8")
+    assert '--uninstall-cleanup' in wxs
+    assert 'Execute="deferred"' in wxs
+    assert 'Return="ignore"' in wxs
+    assert 'Before="RemoveFiles"' in wxs
+    # Must never fire during the RemoveExistingProducts step of an upgrade,
+    # and never during a silent/unattended uninstall.
+    assert "NOT UPGRADINGPRODUCTCODE" in wxs
+    assert "UILevel" in wxs
