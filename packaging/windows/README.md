@@ -18,13 +18,13 @@ If a modality must C-FIND this workstation (local MWL SCP on port 11112), allow 
 
 ## Build (Windows)
 
+Needs Python 3.12+ and the .NET SDK (for `dotnet tool install`).
+
 ```powershell
-dotnet tool install --global wix
-wix extension add -g WixToolset.UI.wixext
 .\packaging\windows\build.ps1
 ```
 
-CI does the same on `windows-latest` and uploads `dicommunication-*-win64.msi`. Local `build.ps1` also wraps the MSI as `dicommunication.msi.<version>.nupkg`.
+It installs WiX and the UI extension itself if they are not already there. CI does the same on `windows-latest` and uploads `dicommunication-*-win64.msi`. Local `build.ps1` also wraps the MSI as `dicommunication.msi.<version>.nupkg`.
 
 A `v*` tag publishes that nupkg to GitHub Packages (`https://nuget.pkg.github.com/arnoutpro/index.json`, package id `dicommunication.msi`) and attaches it to the GitHub Release. GitHub has no native MSI feed; this is a NuGet package whose `tools/` folder holds the installer. Installing from GitHub Packages requires a PAT even when the repo is public — use the Release asset for anonymous downloads.
 
