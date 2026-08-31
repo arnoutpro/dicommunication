@@ -5,6 +5,7 @@
 ### Security and robustness
 
 - Running any tool (C-ECHO, C-STORE, C-FIND, MWL C-FIND, HL7 send, PDF to DICOM, testbench) from the browser crashed with `display_tool_name is undefined` instead of showing the result. The HTMX partial that renders results needed it and three routes were passing it a minimal template context that didn't include it.
+- **Windows uninstall**: MSI uninstall only removes what it installed under Program Files, never `%LOCALAPPDATA%\dicommunication` — the running app writes there itself, so it survived uninstall silently. Uninstall now asks once whether to also delete it, since it can hold patient data (see `SECURITY.md#patient-data-on-disk`); the default answer keeps it, same as before this prompt existed. Never fires during an upgrade (only a genuine uninstall) or a silent/unattended one.
 
 - Added [`SECURITY.md`](SECURITY.md): threat model, the list of things that have no protection by design (so they stop being re-reported), which patient data ends up on disk and where, and how to reproduce the dependency and static-analysis checks. Added a Dependabot config for pip, GitHub Actions, and the Docker base images.
 

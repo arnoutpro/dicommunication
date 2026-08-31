@@ -49,7 +49,11 @@ Everything lives unencrypted under the data directory (`~/.dicommunication`,
 There is no retention policy and no encryption at rest. On a machine that touches
 production data, treat the data directory as containing PHI: put it on encrypted
 storage, and clear it when you are done. **Logs → Clear** empties the log file;
-deleting `results.json` clears the result history.
+deleting `results.json` clears the result history. Uninstalling the Windows MSI
+asks once whether to also delete the whole data directory; answering No (the
+default) leaves it in place, same as before this prompt existed — MSI uninstall
+only removes what it installed under Program Files, not files the running app
+wrote to `%LOCALAPPDATA%` afterward.
 
 The built-in Testbench C-STORE sends a synthetic patient (`ARNPRO^TESTBENCH` /
 `ARNPRO-TEST`). Everything else sends exactly what you give it.
