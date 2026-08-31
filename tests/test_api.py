@@ -219,6 +219,20 @@ def test_json_api_config_tools_and_run(client, store) -> None:
     assert missing.status_code == 400
 
 
+def test_htmx_tool_run_renders_result_partial(client, store) -> None:
+    remote = RemoteNode(name="htmx node", ae_title="HTMXNODE", host="127.0.0.1", port=9)
+    created = client.post("/api/remotes", json=remote.model_dump(mode="json"))
+    remote_id = created.json()["id"]
+
+    response = client.post(
+        "/tools/ping/run",
+        data={"remote_id": remote_id},
+        headers={"HX-Request": "true"},
+    )
+    assert response.status_code == 200
+    assert b"Network PING" in response.content
+
+
 def test_api_create_assigns_its_own_remote_id(client) -> None:
     body = {"name": "PACS", "ae_title": "PACS", "host": "10.0.0.1", "port": 104}
 
