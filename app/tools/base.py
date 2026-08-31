@@ -2,10 +2,15 @@
 
 from __future__ import annotations
 
+import time
 from abc import ABC, abstractmethod
 from typing import Any, ClassVar
 
 from app.models import LocalAE, RemoteNode, ToolResult
+
+
+def elapsed_ms(started: float) -> float:
+    return round((time.perf_counter() - started) * 1000, 1)
 
 
 class BaseTool(ABC):
