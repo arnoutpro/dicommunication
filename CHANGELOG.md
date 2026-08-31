@@ -13,6 +13,7 @@
 - Dependency floors moved off releases with published advisories: `jinja2` 3.1.6, `python-multipart` 0.0.31, `pydicom` 3.0.2, `fastapi` 0.135 (the previous `<0.129` cap held `starlette` on a 0.x line whose `StaticFiles` UNC-path and form-limit fixes only exist in 1.x), `pytest` 9.0.3.
 - `POST /api/remotes`, `/api/identities`, `/api/worklist` and `/api/hl7/messages` assign their own record ids. Supplying an `id` used to be possible and two records could share one, after which a delete removed both.
 - **Worklist**: patient-name search now follows the DICOM wildcard rules. `?` matches exactly one character (it was ignored unless the query also had a `*`), and `[`, `]`, `.` are literal characters rather than pattern syntax.
+- **Windows installer**: the Dicomtag Analytics Start-menu shortcut kept its old MSI component GUID when it was renamed from Vue PACS Database Analytics, so upgrading left the stale `Vue PACS Database Analytics.lnk` behind alongside the new one instead of replacing it. The component now has a fresh GUID so the next upgrade retires the orphaned shortcut.
 
 ### Interface
 
