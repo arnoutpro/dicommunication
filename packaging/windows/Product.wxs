@@ -67,6 +67,29 @@
       <ComponentGroupRef Id="Shortcuts" />
     </Feature>
 
+    <!--
+      The data directory (config, recent results, worklist) lives under
+      %LOCALAPPDATA%, outside anything this MSI installs, so a plain
+      uninstall never touches it. Ask once, on a genuine uninstall, whether
+      to delete it too — SECURITY.md flags it as containing PHI in
+      cleartext. UPGRADINGPRODUCTCODE excludes the RemoveExistingProducts
+      step of an upgrade, which also sets REMOVE=ALL for the old version;
+      UILevel excludes silent/unattended uninstalls, which must never block
+      on a dialog nobody can answer.
+    -->
+    <CustomAction
+        Id="PromptPurgeData"
+        Directory="INSTALLFOLDER"
+        ExeCommand="&quot;[INSTALLFOLDER]dicommunication.exe&quot; --uninstall-cleanup"
+        Execute="deferred"
+        Return="ignore"
+        Impersonate="yes" />
+    <InstallExecuteSequence>
+      <Custom Action="PromptPurgeData" Before="RemoveFiles">
+        REMOVE="ALL" AND NOT UPGRADINGPRODUCTCODE AND UILevel &gt;= 5
+      </Custom>
+    </InstallExecuteSequence>
+
     <Property Id="WIXUI_INSTALLDIR" Value="INSTALLFOLDER" />
     <ui:WixUI Id="WixUI_InstallDir" />
     <WixVariable Id="WixUILicenseRtf" Value="packaging\windows\License.rtf" />
