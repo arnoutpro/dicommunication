@@ -43,7 +43,7 @@
             Value="1"
             KeyPath="yes" />
       </Component>
-      <Component Id="VueAnalyticsShortcut" Guid="7e2a91c4-5b8f-4d3a-9c16-2f4e8a1b0d77">
+      <Component Id="DicomtagAnalyticsShortcut" Guid="872d86b2-9e7d-4ffa-bc2e-f2c97a7c1e9c">
         <Shortcut
             Id="VueAnalyticsShortcut"
             Name="Dicomtag Analytics"

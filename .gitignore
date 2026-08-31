@@ -15,6 +15,7 @@ data/worklist.json
 data/*.log
 .DS_Store
 .env
+.claude/
 *.msi
 *.dmg
 packaging/windows/harvested.wxs
