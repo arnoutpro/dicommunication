@@ -14,6 +14,7 @@
 - `POST /api/remotes`, `/api/identities`, `/api/worklist` and `/api/hl7/messages` assign their own record ids. Supplying an `id` used to be possible and two records could share one, after which a delete removed both.
 - **Worklist**: patient-name search now follows the DICOM wildcard rules. `?` matches exactly one character (it was ignored unless the query also had a `*`), and `[`, `]`, `.` are literal characters rather than pattern syntax.
 - **Windows installer**: the Dicomtag Analytics Start-menu shortcut kept its old MSI component GUID when it was renamed from Vue PACS Database Analytics, so upgrading left the stale `Vue PACS Database Analytics.lnk` behind alongside the new one instead of replacing it. The component now has a fresh GUID so the next upgrade retires the orphaned shortcut.
+- **Windows MSI** and **Docker image** CI workflows no longer build on every push to `main` or on pull requests — like macOS DMG, they now only run from **Actions → Run workflow**.
 
 ### Interface
 
