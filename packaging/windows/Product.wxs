@@ -85,9 +85,10 @@
         Return="ignore"
         Impersonate="yes" />
     <InstallExecuteSequence>
-      <Custom Action="PromptPurgeData" Before="RemoveFiles">
-        REMOVE="ALL" AND NOT UPGRADINGPRODUCTCODE AND UILevel &gt;= 5
-      </Custom>
+      <Custom
+          Action="PromptPurgeData"
+          Before="RemoveFiles"
+          Condition='REMOVE="ALL" AND NOT UPGRADINGPRODUCTCODE AND UILevel &gt;= 5' />
     </InstallExecuteSequence>
 
     <Property Id="WIXUI_INSTALLDIR" Value="INSTALLFOLDER" />
