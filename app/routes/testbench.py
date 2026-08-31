@@ -9,6 +9,7 @@ from fastapi.responses import HTMLResponse
 
 from app.models import ToolResult
 from app.routes._shared import _hx, execute_tool, page, templates
+from app.shell import display_tool_name
 
 router = APIRouter()
 
@@ -98,7 +99,7 @@ def testbench_run(
             return templates.TemplateResponse(
                 request,
                 "partials/result.html",
-                {"request": request, "result": failure},
+                {"request": request, "result": failure, "display_tool_name": display_tool_name},
                 status_code=exc.status_code,
             )
         raise
@@ -106,7 +107,7 @@ def testbench_run(
         return templates.TemplateResponse(
             request,
             "partials/result.html",
-            {"request": request, "result": result},
+            {"request": request, "result": result, "display_tool_name": display_tool_name},
         )
     return templates.TemplateResponse(
         request,
