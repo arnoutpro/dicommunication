@@ -30,12 +30,8 @@ from app.hl7 import (
     use_mllp,
 )
 from app.models import LocalAE, RemoteNode, ToolResult, ToolStep
-from app.tools.base import BaseTool
+from app.tools.base import BaseTool, elapsed_ms
 from app.tools.registry import register
-
-
-def _elapsed_ms(started: float) -> float:
-    return round((time.perf_counter() - started) * 1000, 1)
 
 
 def _flag(value: object, default: bool = False) -> bool:
@@ -182,7 +178,7 @@ class Hl7SendTool(BaseTool):
                     name="TCP",
                     ok=False,
                     message=f"{host}:{port} — {exc}",
-                    duration_ms=_elapsed_ms(connect_started),
+                    duration_ms=elapsed_ms(connect_started),
                 )
             )
             return ToolResult(
@@ -192,7 +188,7 @@ class Hl7SendTool(BaseTool):
                 summary=f"Could not send to {host}:{port}: {exc}",
                 remote_id=remote.id if remote else None,
                 remote_name=remote.name if remote else endpoint,
-                duration_ms=_elapsed_ms(started),
+                duration_ms=elapsed_ms(started),
                 steps=steps,
             )
 
@@ -211,7 +207,7 @@ class Hl7SendTool(BaseTool):
                 name="Send",
                 ok=True,
                 message=f"Sent {len(normalized)} characters to {host}:{port} ({framing}){notes}",
-                duration_ms=_elapsed_ms(connect_started),
+                duration_ms=elapsed_ms(connect_started),
                 details={"output": display_hl7(normalized)},
             )
         )
@@ -272,7 +268,7 @@ class Hl7SendTool(BaseTool):
             summary=summary,
             remote_id=remote.id if remote else None,
             remote_name=remote.name if remote else endpoint,
-            duration_ms=_elapsed_ms(started),
+            duration_ms=elapsed_ms(started),
             steps=steps,
             log=display_hl7(ack) if ack.strip() else "",
         )
