@@ -9,12 +9,8 @@ from pynetdicom.sop_class import Verification
 
 from app.dicom_client import associate, capture_pynetdicom_log, context_rows, reject_reason
 from app.models import LocalAE, RemoteNode, ToolResult, ToolStep
-from app.tools.base import BaseTool
+from app.tools.base import BaseTool, elapsed_ms
 from app.tools.registry import register
-
-
-def _elapsed_ms(started: float) -> float:
-    return round((time.perf_counter() - started) * 1000, 1)
 
 
 class CEchoTool(BaseTool):
@@ -58,7 +54,7 @@ class CEchoTool(BaseTool):
                             name="Association",
                             ok=False,
                             message=reject_reason(assoc),
-                            duration_ms=_elapsed_ms(assoc_started),
+                            duration_ms=elapsed_ms(assoc_started),
                             details=details,
                         )
                     )
@@ -71,7 +67,7 @@ class CEchoTool(BaseTool):
                                 f"Associated {local.ae_title} → "
                                 f"{remote.ae_title}@{remote.connect_host}:{remote.port}"
                             ),
-                            duration_ms=_elapsed_ms(assoc_started),
+                            duration_ms=elapsed_ms(assoc_started),
                             details=details,
                         )
                     )
@@ -90,7 +86,7 @@ class CEchoTool(BaseTool):
                                     if echo_ok
                                     else f"DIMSE status 0x{code:04X}"
                                 ),
-                                duration_ms=_elapsed_ms(echo_started),
+                                duration_ms=elapsed_ms(echo_started),
                                 details={"status": f"0x{code:04X}"},
                             )
                         )
@@ -100,7 +96,7 @@ class CEchoTool(BaseTool):
                                 name="C-ECHO",
                                 ok=False,
                                 message="No C-ECHO response (timeout, abort, or invalid PDU).",
-                                duration_ms=_elapsed_ms(echo_started),
+                                duration_ms=elapsed_ms(echo_started),
                             )
                         )
 
@@ -111,7 +107,7 @@ class CEchoTool(BaseTool):
                             name="Release",
                             ok=True,
                             message="Association released",
-                            duration_ms=_elapsed_ms(release_started),
+                            duration_ms=elapsed_ms(release_started),
                         )
                     )
             except Exception as exc:  # noqa: BLE001 — surface any association/network failure
@@ -120,7 +116,7 @@ class CEchoTool(BaseTool):
                         name="C-ECHO",
                         ok=False,
                         message=f"{type(exc).__name__}: {exc}",
-                        duration_ms=_elapsed_ms(started),
+                        duration_ms=elapsed_ms(started),
                     )
                 )
             finally:
@@ -149,7 +145,7 @@ class CEchoTool(BaseTool):
             summary=summary,
             remote_id=remote.id,
             remote_name=remote.name,
-            duration_ms=_elapsed_ms(started),
+            duration_ms=elapsed_ms(started),
             steps=steps,
             log=log,
             contexts=contexts,

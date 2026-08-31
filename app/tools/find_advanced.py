@@ -27,7 +27,7 @@ from app.dicom_client import (
 from app.models import LocalAE, RemoteNode, ToolResult, ToolStep
 from app.mwl_scp import STORAGE_INBOX
 from app.sr import SR_SOP_CLASS_UIDS, is_structured_report, parse_sr
-from app.tools.base import BaseTool
+from app.tools.base import BaseTool, elapsed_ms
 from app.tools.find_keys import (
     LEVEL_LABELS,
     MAX_RECORDS,
@@ -139,10 +139,6 @@ def retrieve_storage_gate_message(
             f"{port} as {dest}."
         )
     return None
-
-
-def _elapsed_ms(started: float) -> float:
-    return round((time.perf_counter() - started) * 1000, 1)
 
 
 def _noun(level: str, count: int) -> str:
@@ -501,7 +497,7 @@ class CFindAdvancedTool(BaseTool):
                             name="Association",
                             ok=False,
                             message=rejected or reject_reason(assoc),
-                            duration_ms=_elapsed_ms(assoc_started),
+                            duration_ms=elapsed_ms(assoc_started),
                         )
                     )
                 elif not assoc.accepted_contexts:
@@ -514,7 +510,7 @@ class CFindAdvancedTool(BaseTool):
                                 "Association opened, but Study Root Query/Retrieve FIND "
                                 "was not accepted. This is not a Q/R SCP (and it is not MWL)."
                             ),
-                            duration_ms=_elapsed_ms(assoc_started),
+                            duration_ms=elapsed_ms(assoc_started),
                         )
                     )
                     assoc.release()
@@ -524,7 +520,7 @@ class CFindAdvancedTool(BaseTool):
                             name="Association",
                             ok=True,
                             message=f"Study Root FIND SOP Class accepted · {LEVEL_LABELS[level]} level",
-                            duration_ms=_elapsed_ms(assoc_started),
+                            duration_ms=elapsed_ms(assoc_started),
                         )
                     )
                     find_started = time.perf_counter()
@@ -535,7 +531,7 @@ class CFindAdvancedTool(BaseTool):
                                 name="C-FIND",
                                 ok=False,
                                 message=failed_status,
-                                duration_ms=_elapsed_ms(find_started),
+                                duration_ms=elapsed_ms(find_started),
                             )
                         )
                     else:
@@ -548,7 +544,7 @@ class CFindAdvancedTool(BaseTool):
                                     f"{len(records)} {_noun(level, len(records))} at "
                                     f"{LEVEL_LABELS[level]} level{extra}"
                                 ),
-                                duration_ms=_elapsed_ms(find_started),
+                                duration_ms=elapsed_ms(find_started),
                                 details={
                                     "count": len(records),
                                     "level": level,
@@ -564,7 +560,7 @@ class CFindAdvancedTool(BaseTool):
                         name="C-FIND",
                         ok=False,
                         message=f"{type(exc).__name__}: {exc}",
-                        duration_ms=_elapsed_ms(started),
+                        duration_ms=elapsed_ms(started),
                     )
                 )
             finally:
@@ -591,7 +587,7 @@ class CFindAdvancedTool(BaseTool):
             summary=summary,
             remote_id=remote.id,
             remote_name=remote.name,
-            duration_ms=_elapsed_ms(started),
+            duration_ms=elapsed_ms(started),
             steps=steps,
             log=log,
             contexts=contexts,
@@ -650,7 +646,7 @@ class CFindAdvancedTool(BaseTool):
                             name="Association",
                             ok=False,
                             message=rejected or reject_reason(assoc),
-                            duration_ms=_elapsed_ms(assoc_started),
+                            duration_ms=elapsed_ms(assoc_started),
                         )
                     )
                 elif not assoc.accepted_contexts:
@@ -660,7 +656,7 @@ class CFindAdvancedTool(BaseTool):
                             ok=False,
                             message=rejected
                             or "Study Root Query/Retrieve FIND was not accepted.",
-                            duration_ms=_elapsed_ms(assoc_started),
+                            duration_ms=elapsed_ms(assoc_started),
                         )
                     )
                     assoc.release()
@@ -670,7 +666,7 @@ class CFindAdvancedTool(BaseTool):
                             name="Association",
                             ok=True,
                             message="Study Root FIND SOP Class accepted · Series level, Modality SR",
-                            duration_ms=_elapsed_ms(assoc_started),
+                            duration_ms=elapsed_ms(assoc_started),
                         )
                     )
                     find_started = time.perf_counter()
@@ -716,7 +712,7 @@ class CFindAdvancedTool(BaseTool):
                                 f"{len(records)} Structured Report series across "
                                 f"{len(studies)} studies{extra}{skipped}"
                             ),
-                            duration_ms=_elapsed_ms(find_started),
+                            duration_ms=elapsed_ms(find_started),
                             details={
                                 "count": len(records),
                                 "level": "SERIES",
@@ -736,7 +732,7 @@ class CFindAdvancedTool(BaseTool):
                         name="C-FIND",
                         ok=False,
                         message=f"{type(exc).__name__}: {exc}",
-                        duration_ms=_elapsed_ms(started),
+                        duration_ms=elapsed_ms(started),
                     )
                 )
             finally:
@@ -764,7 +760,7 @@ class CFindAdvancedTool(BaseTool):
             summary=summary,
             remote_id=remote.id,
             remote_name=remote.name,
-            duration_ms=_elapsed_ms(started),
+            duration_ms=elapsed_ms(started),
             steps=steps,
             log=log,
             contexts=contexts,
@@ -857,7 +853,7 @@ class CFindAdvancedTool(BaseTool):
                             name="Association",
                             ok=False,
                             message=rejected or reject_reason(assoc),
-                            duration_ms=_elapsed_ms(assoc_started),
+                            duration_ms=elapsed_ms(assoc_started),
                         )
                     )
                 elif not assoc.accepted_contexts:
@@ -867,7 +863,7 @@ class CFindAdvancedTool(BaseTool):
                             ok=False,
                             message=rejected
                             or "Study Root Query/Retrieve MOVE was not accepted.",
-                            duration_ms=_elapsed_ms(assoc_started),
+                            duration_ms=elapsed_ms(assoc_started),
                         )
                     )
                     _release_assoc(assoc)
@@ -881,7 +877,7 @@ class CFindAdvancedTool(BaseTool):
                                 f"Study Root MOVE SOP Class accepted · destination {dest_ae} · "
                                 f"{len(requested)} reports, one C-MOVE per association"
                             ),
-                            duration_ms=_elapsed_ms(assoc_started),
+                            duration_ms=elapsed_ms(assoc_started),
                         )
                     )
                     _release_assoc(assoc)
@@ -927,7 +923,7 @@ class CFindAdvancedTool(BaseTool):
                                 name="C-MOVE",
                                 ok=False,
                                 message=failed_status,
-                                duration_ms=_elapsed_ms(move_started),
+                                duration_ms=elapsed_ms(move_started),
                             )
                         )
                     else:
@@ -958,7 +954,7 @@ class CFindAdvancedTool(BaseTool):
                                 name="C-MOVE",
                                 ok=move_ok,
                                 message=message,
-                                duration_ms=_elapsed_ms(move_started),
+                                duration_ms=elapsed_ms(move_started),
                                 details={
                                     "count": parsed_count,
                                     "requested": len(requested),
@@ -977,7 +973,7 @@ class CFindAdvancedTool(BaseTool):
                         name="C-MOVE",
                         ok=False,
                         message=f"{type(exc).__name__}: {exc}",
-                        duration_ms=_elapsed_ms(started),
+                        duration_ms=elapsed_ms(started),
                     )
                 )
             finally:
@@ -1010,7 +1006,7 @@ class CFindAdvancedTool(BaseTool):
             summary=summary,
             remote_id=remote.id,
             remote_name=remote.name,
-            duration_ms=_elapsed_ms(started),
+            duration_ms=elapsed_ms(started),
             steps=steps,
             log=log,
             contexts=contexts,
