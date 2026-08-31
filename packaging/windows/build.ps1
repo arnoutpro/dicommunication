@@ -1,5 +1,5 @@
 # Build a per-machine x64 MSI on Windows.
-# Requires: Python 3.12+, WiX 5 (`dotnet tool install --global wix`).
+# Requires: Python 3.12+, .NET SDK 8 (for `dotnet tool install`).
 
 $ErrorActionPreference = "Stop"
 $Root = Resolve-Path (Join-Path $PSScriptRoot "..\..")
@@ -14,6 +14,11 @@ python -m pip install --upgrade pip
 python -m pip install -r requirements.txt -r requirements-desktop.txt pyinstaller
 python -m PyInstaller --noconfirm --clean packaging\windows\dicommunication.spec
 python packaging\windows\harvest.py dist\dicommunication packaging\windows\harvested.wxs
+
+# Same WiX + extension versions as .github/workflows/windows-msi.yml. Both
+# commands are no-ops if already installed at this version.
+dotnet tool install --global wix --version 5.0.2 2>$null
+wix extension add -g WixToolset.UI.wixext/5.0.2 2>$null
 
 $License = Join-Path $Root "packaging\windows\License.rtf"
 wix build `
