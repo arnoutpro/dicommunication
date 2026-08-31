@@ -21,7 +21,7 @@ from app.pdf_dicom import (
     list_directory_pdfs,
 )
 from app.routes._shared import _as_bool, _first_error, _hx, execute_tool, page, templates
-from app.shell import SHELL_DICOMM, SHELL_VUE
+from app.shell import SHELL_DICOMM, SHELL_VUE, display_tool_name
 from app.tools import get_tool
 from app.tools.find_keys import catalog_payload, column_labels, options_from_form
 
@@ -191,7 +191,7 @@ def hl7_send_run(
             return templates.TemplateResponse(
                 request,
                 "partials/result.html",
-                {"request": request, "result": failure},
+                {"request": request, "result": failure, "display_tool_name": display_tool_name},
                 status_code=exc.status_code,
             )
         return _hl7_page(
@@ -214,7 +214,7 @@ def hl7_send_run(
         return templates.TemplateResponse(
             request,
             "partials/result.html",
-            {"request": request, "result": result},
+            {"request": request, "result": result, "display_tool_name": display_tool_name},
         )
     return _hl7_page(
         request,
@@ -440,7 +440,7 @@ def pdf_store_run(
             return templates.TemplateResponse(
                 request,
                 "partials/result.html",
-                {"request": request, "result": failure},
+                {"request": request, "result": failure, "display_tool_name": display_tool_name},
                 status_code=exc.status_code,
             )
         return _pdf_store_page(
@@ -465,7 +465,7 @@ def pdf_store_run(
         return templates.TemplateResponse(
             request,
             "partials/result.html",
-            {"request": request, "result": result},
+            {"request": request, "result": result, "display_tool_name": display_tool_name},
         )
     return _pdf_store_page(
         request,
@@ -663,7 +663,7 @@ def run_tool_form(
             return templates.TemplateResponse(
                 request,
                 "partials/result.html",
-                {"request": request, "result": failure},
+                {"request": request, "result": failure, "display_tool_name": display_tool_name},
                 status_code=exc.status_code,
             )
         raise
@@ -671,7 +671,7 @@ def run_tool_form(
         return templates.TemplateResponse(
             request,
             "partials/result.html",
-            {"request": request, "result": result},
+            {"request": request, "result": result, "display_tool_name": display_tool_name},
         )
     try:
         tool = get_tool(tool_id)

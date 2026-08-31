@@ -4,6 +4,8 @@
 
 ### Security and robustness
 
+- Running any tool (C-ECHO, C-STORE, C-FIND, MWL C-FIND, HL7 send, PDF to DICOM, testbench) from the browser crashed with `display_tool_name is undefined` instead of showing the result. The HTMX partial that renders results needed it and three routes were passing it a minimal template context that didn't include it.
+
 - Added [`SECURITY.md`](SECURITY.md): threat model, the list of things that have no protection by design (so they stop being re-reported), which patient data ends up on disk and where, and how to reproduce the dependency and static-analysis checks. Added a Dependabot config for pip, GitHub Actions, and the Docker base images.
 
 - A `config.json` that cannot be read (truncated write, bad hand-edit, schema change) no longer stops the app from starting. The unreadable file is kept as `config.corrupt-<timestamp>.json` so remotes can be recovered by hand, and the app carries on with defaults. Individual unreadable worklist / result / HL7 records are skipped instead of hiding the whole list.
