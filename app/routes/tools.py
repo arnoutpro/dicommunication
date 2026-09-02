@@ -276,6 +276,7 @@ def _find_advanced_extras(
     columns = [key for key in (list(records[0].keys()) if records else []) if key != "sr_items"]
     resolved = level
     kind = "table"
+    truncated = False
     if result:
         for step in result.steps:
             step_level = step.details.get("level")
@@ -284,6 +285,8 @@ def _find_advanced_extras(
             step_kind = step.details.get("kind")
             if step_kind:
                 kind = str(step_kind)
+            if step.details.get("truncated"):
+                truncated = True
     labels = dict(zip(columns, column_labels(columns)))
     labels.update(
         {
@@ -302,6 +305,7 @@ def _find_advanced_extras(
         "find_catalog": catalog_payload(),
         "find_level": resolved,
         "find_kind": kind,
+        "find_truncated": truncated,
         "find_labels": labels,
         "find_columns": columns,
         "storage_scp_enabled": config.local.storage_scp_enabled,
