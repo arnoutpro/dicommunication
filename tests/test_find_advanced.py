@@ -345,6 +345,75 @@ def test_c_find_advanced_page_and_api(client, store) -> None:
         server.shutdown()
 
 
+def test_max_records_override_lifts_the_display_cap() -> None:
+    """The 'Count patients by name' auto re-query passes options["max_records"]
+    to get every match after the default MAX_RECORDS display cap truncated the
+    first pass — this covers that override end-to-end against a real SCP.
+    """
+    import app.tools.find_advanced as find_advanced_mod
+
+    port = _free_port()
+    original_cap = find_advanced_mod.MAX_RECORDS
+
+    def handle_find(event):
+        for i in range(5):
+            ds = Dataset()
+            ds.QueryRetrieveLevel = "STUDY"
+            ds.PatientName = f"DOE^PERSON{i}"
+            ds.PatientID = str(100 + i)
+            ds.StudyInstanceUID = f"1.2.{i}"
+            yield 0xFF00, ds
+        yield 0x0000, None
+
+    server = _start_scp("QR_SCP", port, [(evt.EVT_C_FIND, handle_find)])
+    find_advanced_mod.MAX_RECORDS = 3
+    try:
+        time.sleep(0.05)
+        local = LocalAE(timeout_seconds=5)
+        remote = RemoteNode(name="pacs", ae_title="QR_SCP", host="127.0.0.1", port=port)
+        tool = CFindAdvancedTool()
+
+        capped = tool.run(
+            local,
+            remote,
+            {"level": "STUDY", "values": {"PatientName": "*", "StudyDate": "20260826"}},
+        )
+        assert capped.ok, capped.summary
+        assert len(capped.records) == 3
+        find_step = next(step for step in capped.steps if step.name == "C-FIND")
+        assert find_step.details["truncated"] is True
+
+        uncapped = tool.run(
+            local,
+            remote,
+            {
+                "level": "STUDY",
+                "values": {"PatientName": "*", "StudyDate": "20260826"},
+                "return_keys": ["PatientName", "PatientID"],
+                "max_records": 50000,
+            },
+        )
+        assert uncapped.ok, uncapped.summary
+        assert len(uncapped.records) == 5
+        find_step = next(step for step in uncapped.steps if step.name == "C-FIND")
+        assert find_step.details["truncated"] is False
+
+        clamped = tool.run(
+            local,
+            remote,
+            {
+                "level": "STUDY",
+                "values": {"PatientName": "*", "StudyDate": "20260826"},
+                "max_records": 10_000_000,
+            },
+        )
+        assert clamped.ok, clamped.summary
+        assert len(clamped.records) == 5
+    finally:
+        find_advanced_mod.MAX_RECORDS = original_cap
+        server.shutdown()
+
+
 def test_empty_numeric_return_key_is_zero_length() -> None:
     ds = Dataset()
     apply_key(ds, "Rows", "")
