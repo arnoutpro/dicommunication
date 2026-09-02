@@ -23,6 +23,7 @@ from typing import Any
 from pydicom.datadict import add_private_dict_entries
 from pydicom.dataset import Dataset
 from pynetdicom.sop_class import (
+    SecondaryCaptureImageStorage,
     StudyRootQueryRetrieveInformationModelFind,
     StudyRootQueryRetrieveInformationModelMove,
 )
@@ -41,6 +42,7 @@ from app.tools.base import BaseTool, elapsed_ms
 from app.tools.find_advanced import retrieve_storage_gate_message
 from app.tools.find_keys import normalize_da, record_from_dataset
 from app.tools.registry import register
+from app.tools.store import build_test_instance
 
 PENDING = {0xFF00, 0xFF01}
 MAX_INSTANCES = 200
@@ -253,6 +255,26 @@ def _instance_row(dataset: Dataset) -> dict[str, Any]:
     return row
 
 
+SEED_VARIANTS = (
+    ("blank", "present, blank value"),
+    ("absent", "not present at all"),
+)
+
+
+def _build_seed_instance(variant: str) -> Dataset:
+    """A synthetic test instance (same ARNPRO^TESTBENCH patient as the C-STORE test
+    tool, fresh UIDs) for checking, without touching real patient data, whether a
+    C-STORE actually applies when these tags start out missing rather than already
+    filled in. 'blank' adds both tags with an empty value; 'absent' adds neither.
+    """
+    ds = build_test_instance()
+    if variant == "blank":
+        for spec in EDITABLE_TAGS.values():
+            block = ds.private_block(spec["tag"][0], spec["creator"], create=True)
+            block.add_new(spec["tag"][1] & 0xFF, spec["vr"], "")
+    return ds
+
+
 class TagEditorTool(BaseTool):
     id = "tag-editor"
     name = "Tag Editor"
@@ -282,6 +304,8 @@ class TagEditorTool(BaseTool):
 
         if action == "lookup":
             return self._lookup(local, remote, options)
+        if action == "seed_test":
+            return self._seed_test(local, remote)
 
         study_uid = str(options.get("study_uid") or "").strip()
         series_uid = str(options.get("series_uid") or "").strip()
@@ -316,6 +340,96 @@ class TagEditorTool(BaseTool):
         if action == "push":
             return self._push(local, remote, study_uid, series_uid, dest_ae, options)
         return self._fetch(local, remote, study_uid, series_uid, dest_ae)
+
+    def _seed_test(self, local: LocalAE, remote: RemoteNode) -> ToolResult:
+        """C-STORE two synthetic test studies (patient ARNPRO^TESTBENCH), one with
+        both tags present-but-blank and one with them entirely absent, so Push can
+        be tested against the actual missing-data case instead of an already-filled
+        study. Plain C-STORE, like the C-STORE test tool — no local Storage SCP
+        needed, unlike Fetch/Push.
+        """
+        started = time.perf_counter()
+        steps: list[ToolStep] = []
+        records: list[dict[str, Any]] = []
+        contexts: list[dict[str, Any]] = []
+        instances = {variant: _build_seed_instance(variant) for variant, _label in SEED_VARIANTS}
+        assoc = None
+        with capture_pynetdicom_log() as log_stream:
+            try:
+                _ae, assoc = associate(local, remote, [SecondaryCaptureImageStorage])
+                contexts = context_rows(assoc)
+                rejected = rejected_sop_message(
+                    contexts,
+                    "Secondary Capture Image Storage",
+                    "This node is not a Storage SCP for that SOP Class.",
+                )
+                if not getattr(assoc, "is_established", False):
+                    steps.append(ToolStep(name="Association", ok=False, message=rejected or reject_reason(assoc)))
+                elif not assoc.accepted_contexts:
+                    steps.append(
+                        ToolStep(
+                            name="Association",
+                            ok=False,
+                            message=rejected
+                            or "Secondary Capture Image Storage was not accepted.",
+                        )
+                    )
+                else:
+                    for variant, label in SEED_VARIANTS:
+                        dataset = instances[variant]
+                        store_started = time.perf_counter()
+                        status = assoc.send_c_store(dataset)
+                        ok = bool(status) and int(status.Status) == 0x0000
+                        code = int(status.Status) if status else None
+                        records.append(
+                            {
+                                "variant": label,
+                                "study_instance_uid": str(dataset.StudyInstanceUID),
+                                "sop_instance_uid": str(dataset.SOPInstanceUID),
+                                "store": "stored" if ok else "failed",
+                            }
+                        )
+                        steps.append(
+                            ToolStep(
+                                name=f"C-STORE ({label})",
+                                ok=ok,
+                                message=(
+                                    f"Study Instance UID {dataset.StudyInstanceUID}"
+                                    if ok
+                                    else (
+                                        f"DIMSE status 0x{code:04X}"
+                                        if code is not None
+                                        else "No C-STORE response."
+                                    )
+                                ),
+                                duration_ms=elapsed_ms(store_started),
+                            )
+                        )
+            finally:
+                if assoc is not None and getattr(assoc, "is_established", False):
+                    try:
+                        assoc.release()
+                    except Exception:  # noqa: BLE001
+                        try:
+                            assoc.abort()
+                        except Exception:  # noqa: BLE001
+                            pass
+            log = log_stream.getvalue().strip()
+
+        ok = bool(steps) and all(step.ok for step in steps)
+        failed = next((step for step in steps if not step.ok), None)
+        summary = (
+            "Seeded 2 synthetic test studies (patient ARNPRO^TESTBENCH) — copy a "
+            "Study Instance UID below into Fetch to test Push against it."
+            if ok
+            else (failed.message if failed else "Seeding the test studies failed.")
+        )
+        return ToolResult(
+            tool_id=self.id, tool_name=self.name, ok=ok, summary=summary,
+            remote_id=remote.id, remote_name=remote.name,
+            duration_ms=elapsed_ms(started), steps=steps, log=log,
+            contexts=contexts, records=records,
+        )
 
     def _lookup(
         self, local: LocalAE, remote: RemoteNode, options: dict[str, Any]
