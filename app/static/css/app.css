@@ -576,6 +576,18 @@ th {
   gap: 0.5rem 0.75rem;
   align-items: start;
 }
+.form-grid .form-row-wide {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.inline-input {
+  display: flex;
+  gap: 0.4rem;
+  align-items: center;
+}
+.inline-input input { flex: 1; min-width: 0; }
 .form-grid label, .run-form label {
   display: flex;
   flex-direction: column;

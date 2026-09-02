@@ -8,8 +8,9 @@ from fastapi.responses import HTMLResponse
 from app import __version__
 from app.echo_board import snapshot as echo_board_snapshot
 from app.routes._shared import page, templates
+from app.routes.anonymize import _anonymize_page
 from app.routes.tools import _c_find_advanced_page
-from app.shell import SHELL_DICOMM, SHELL_VUE
+from app.shell import SHELL_ANONYMIZE, SHELL_DICOMM, SHELL_VUE
 
 router = APIRouter()
 
@@ -21,8 +22,11 @@ def health() -> dict[str, str]:
 
 @router.get("/", response_class=HTMLResponse)
 def dashboard(request: Request) -> HTMLResponse:
-    if getattr(request.state, "shell", SHELL_DICOMM) == SHELL_VUE:
+    shell = getattr(request.state, "shell", SHELL_DICOMM)
+    if shell == SHELL_VUE:
         return _c_find_advanced_page(request, nav="home")
+    if shell == SHELL_ANONYMIZE:
+        return _anonymize_page(request, nav="home")
     return templates.TemplateResponse(
         request,
         "index.html",

@@ -548,8 +548,53 @@ function initPdfStoreForm(scope) {
   });
 }
 
+function initAnonymizeForm(scope) {
+  const root = scope instanceof Element ? scope : document;
+  const form = root.querySelector?.("[data-anon-form]") || document.querySelector("[data-anon-form]");
+  if (!(form instanceof HTMLFormElement) || form.dataset.anonReady === "1") {
+    return;
+  }
+  form.dataset.anonReady = "1";
+
+  const removePatientOptions = form.querySelector("[data-anon-remove-patient-options]");
+  const customTable = form.querySelector("[data-anon-custom-table]");
+
+  function syncModeVisibility() {
+    const checked = form.querySelector('[data-anon-mode-radio]:checked');
+    const mode = checked ? checked.value : "";
+    if (removePatientOptions instanceof HTMLElement) {
+      removePatientOptions.hidden = mode !== "remove_patient";
+    }
+    if (customTable instanceof HTMLElement) {
+      customTable.hidden = mode !== "custom";
+    }
+  }
+  form.querySelectorAll("[data-anon-mode-radio]").forEach((radio) => {
+    radio.addEventListener("change", syncModeVisibility);
+  });
+  syncModeVisibility();
+
+  const browseBtn = form.querySelector("[data-anon-browse]");
+  const directoryInput = form.querySelector("[data-anon-output-dir]");
+  browseBtn?.addEventListener("click", async () => {
+    browseBtn.disabled = true;
+    try {
+      const response = await fetch("/api/fs/pick-directory", { method: "POST" });
+      const payload = await response.json().catch(() => ({}));
+      if (response.ok && payload.path && directoryInput instanceof HTMLInputElement) {
+        directoryInput.value = payload.path;
+      }
+    } catch {
+      // No dialog available in this session — the text field still works.
+    } finally {
+      browseBtn.disabled = false;
+    }
+  });
+}
+
 initNavTree();
 initPdfStoreForm(document);
+initAnonymizeForm(document);
 initThemePreference();
 enhanceSelectMenus();
 
