@@ -41,6 +41,10 @@ from app.tools.find_keys import (
 from app.tools.registry import register
 
 PENDING = {0xFF00, 0xFF01}
+# Ceiling for an explicit `max_records` override (e.g. an exact patient count
+# re-query after the default MAX_RECORDS display cap was hit). Still bounded
+# so a single client request cannot hold an unbounded response in memory.
+COUNT_MAX_RECORDS = 50_000
 MAX_SR_STUDIES = 200
 MAX_SR_RETRIEVE = 200
 SR_CONTENT_TABLE_COLUMNS = [
@@ -461,6 +465,14 @@ class CFindAdvancedTool(BaseTool):
         if not columns:
             columns = [key.keyword for key in keys_for_level(level)]
 
+        cap = MAX_RECORDS
+        requested_cap = (options or {}).get("max_records")
+        if requested_cap is not None:
+            try:
+                cap = max(1, min(int(requested_cap), COUNT_MAX_RECORDS))
+            except (TypeError, ValueError):
+                cap = MAX_RECORDS
+
         started = time.perf_counter()
         steps: list[ToolStep] = []
         contexts: list[dict[str, Any]] = []
@@ -523,7 +535,9 @@ class CFindAdvancedTool(BaseTool):
                         )
                     )
                     find_started = time.perf_counter()
-                    records, truncated, failed_status = _collect_c_find(assoc, identifier, columns)
+                    records, truncated, failed_status = _collect_c_find(
+                        assoc, identifier, columns, cap=cap
+                    )
                     if failed_status:
                         steps.append(
                             ToolStep(
@@ -534,7 +548,7 @@ class CFindAdvancedTool(BaseTool):
                             )
                         )
                     else:
-                        extra = f" (first {MAX_RECORDS})" if truncated else ""
+                        extra = f" (first {cap})" if truncated else ""
                         steps.append(
                             ToolStep(
                                 name="C-FIND",
@@ -572,7 +586,7 @@ class CFindAdvancedTool(BaseTool):
 
         ok = bool(steps) and all(step.ok for step in steps)
         failed = next((step for step in steps if not step.ok), None)
-        extra = f" (stopped at {MAX_RECORDS})" if truncated else ""
+        extra = f" (stopped at {cap})" if truncated else ""
         summary = (
             f"Study Root C-FIND ({LEVEL_LABELS[level]}) returned {len(records)} "
             f"{_noun(level, len(records))} from {remote.ae_title}{extra}"
