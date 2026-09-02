@@ -251,6 +251,20 @@ def test_macos_spec_is_windowed_app_bundle() -> None:
     assert "NSApplicationActivationPolicyRegular" in rthook.read_text(encoding="utf-8")
 
 
+def test_macos_spec_builds_a_second_self_contained_analytics_bundle() -> None:
+    spec = (ROOT / "packaging" / "macos" / "dicommunication.spec").read_text(encoding="utf-8")
+    # Two BUNDLE(...) calls sharing the same `coll`, not a thin wrapper that
+    # execs the other bundle's binary — each must be independently draggable.
+    assert spec.count("BUNDLE(\n    coll,") == 2
+    assert 'name="Dicomtag Analytics.app"' in spec
+    assert "pro.arnout.dicommunication.dicomtag-analytics" in spec
+    # LSEnvironment is how a plain Finder double-click (no CLI args) picks
+    # the profile; launcher.py's --profile already defaults from this env var.
+    assert '"LSEnvironment": {"DICOMM_PROFILE": "dicomtag-analytics"}' in spec
+    launcher = (ROOT / "app" / "launcher.py").read_text(encoding="utf-8")
+    assert 'os.environ.get("DICOMM_PROFILE"' in launcher
+
+
 def test_macos_build_script_exists() -> None:
     script = ROOT / "packaging" / "macos" / "build.sh"
     assert script.is_file()
@@ -258,6 +272,7 @@ def test_macos_build_script_exists() -> None:
     assert "dicommunication.spec" in text
     assert "make_dmg.py" in text
     assert "Dicommunication.app" in text
+    assert "Dicomtag Analytics.app" in text
     assert "requirements-desktop.txt" in text
 
 
@@ -281,34 +296,60 @@ def test_make_dmg_normalizes_arch_and_filename() -> None:
     assert make_dmg.dmg_filename("0.2.0", "arm64") == "dicommunication-0.2.0-macos-arm64.dmg"
 
 
-def test_make_dmg_stages_app_and_applications_link(tmp_path) -> None:
-    app = tmp_path / "Dicommunication.app"
+def _fake_app_bundle(root: Path, name: str) -> Path:
+    app = root / name
     macos_dir = app / "Contents" / "MacOS"
     macos_dir.mkdir(parents=True)
     (macos_dir / "dicommunication").write_text("fake", encoding="utf-8")
+    return app
+
+
+def test_make_dmg_stages_both_apps_and_applications_link(tmp_path) -> None:
+    dicommunication = _fake_app_bundle(tmp_path, "Dicommunication.app")
+    analytics = _fake_app_bundle(tmp_path, "Dicomtag Analytics.app")
     staging = tmp_path / "stage"
     make_dmg = _load_make_dmg()
-    make_dmg.stage_app(app, staging)
+    make_dmg.stage_apps([dicommunication, analytics], staging)
     assert (staging / "Dicommunication.app" / "Contents" / "MacOS" / "dicommunication").is_file()
+    assert (staging / "Dicomtag Analytics.app" / "Contents" / "MacOS" / "dicommunication").is_file()
     assert (staging / "Applications").is_symlink()
     assert (staging / "Applications").readlink() == Path("/Applications")
     readme = (staging / "Read Me.txt").read_text(encoding="utf-8")
     assert "Gatekeeper" in readme
     assert "own window" in readme
     assert "Dicomtag Analytics" in readme
-    assert "--profile dicomtag-analytics" in readme
+    assert "Desktop" in readme
+
+
+def test_make_dmg_stages_a_single_app_when_only_one_is_given(tmp_path) -> None:
+    dicommunication = _fake_app_bundle(tmp_path, "Dicommunication.app")
+    staging = tmp_path / "stage"
+    make_dmg = _load_make_dmg()
+    make_dmg.stage_apps([dicommunication], staging)
+    assert (staging / "Dicommunication.app").is_dir()
+    assert not (staging / "Dicomtag Analytics.app").exists()
+
+
+def test_make_dmg_rejects_an_unknown_bundle_name(tmp_path) -> None:
+    bogus = _fake_app_bundle(tmp_path, "Something Else.app")
+    make_dmg = _load_make_dmg()
+    with pytest.raises(SystemExit):
+        make_dmg.stage_apps([bogus], tmp_path / "stage")
 
 
 def test_make_dmg_stage_only_cli(tmp_path) -> None:
-    app = tmp_path / "Dicommunication.app"
-    (app / "Contents").mkdir(parents=True)
-    (app / "Contents" / "Info.plist").write_text("<plist/>", encoding="utf-8")
+    dicommunication = tmp_path / "Dicommunication.app"
+    analytics = tmp_path / "Dicomtag Analytics.app"
+    for app in (dicommunication, analytics):
+        (app / "Contents").mkdir(parents=True)
+        (app / "Contents" / "Info.plist").write_text("<plist/>", encoding="utf-8")
     make_dmg = _load_make_dmg()
     out = tmp_path / "dist"
     assert (
         make_dmg.main(
             [
-                str(app),
+                str(dicommunication),
+                str(analytics),
                 "--version",
                 "0.2.0",
                 "--arch",
@@ -322,6 +363,7 @@ def test_make_dmg_stage_only_cli(tmp_path) -> None:
     )
     staging = out / "dmg-staging"
     assert (staging / "Dicommunication.app").is_dir()
+    assert (staging / "Dicomtag Analytics.app").is_dir()
     assert not list(out.glob("*.dmg"))
 
 
@@ -595,6 +637,30 @@ def test_windows_wxs_removes_the_stale_vue_analytics_shortcut_name() -> None:
     wxs = (ROOT / "packaging" / "windows" / "Product.wxs").read_text(encoding="utf-8")
     assert '<RemoveFile' in wxs
     assert 'Name="Vue PACS Database Analytics.lnk"' in wxs
+
+
+def test_windows_wxs_offers_separately_selectable_app_features() -> None:
+    wxs = (ROOT / "packaging" / "windows" / "Product.wxs").read_text(encoding="utf-8")
+    assert 'Feature Id="Dicommunication" Title="Dicommunication"' in wxs
+    assert 'Feature Id="DicomtagAnalytics" Title="Dicomtag Analytics"' in wxs
+    assert 'Feature Id="Main"' not in wxs
+    # FeatureTree (not InstallDir) is what actually shows the checkbox tree.
+    assert 'Id="WixUI_FeatureTree"' in wxs
+    # AppFiles is shared between the two app Features, not duplicated —
+    # both profiles run the same frozen dicommunication.exe.
+    assert wxs.count('<ComponentGroupRef Id="AppFiles" />') == 2
+
+
+def test_windows_wxs_offers_optional_desktop_shortcuts() -> None:
+    wxs = (ROOT / "packaging" / "windows" / "Product.wxs").read_text(encoding="utf-8")
+    assert '<StandardDirectory Id="DesktopFolder" />' in wxs
+    assert 'Feature Id="DicommunicationDesktop" Title="Desktop shortcut" Level="1000"' in wxs
+    assert 'Feature Id="DicomtagAnalyticsDesktop" Title="Desktop shortcut" Level="1000"' in wxs
+    assert 'Id="DesktopShortcutDicommunication"' in wxs
+    assert 'Id="DesktopShortcutDicomtagAnalytics"' in wxs
+    # Both top-level app Features default on (Typical install keeps today's
+    # behavior); only the Desktop sub-features are opt-in.
+    assert wxs.count('Level="1"') == 2
 
 
 def test_htmx_is_served_from_this_app_not_a_cdn() -> None:

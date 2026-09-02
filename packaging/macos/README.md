@@ -1,6 +1,8 @@
 # macOS DMG
 
-Hospital Macs often cannot run Docker. This folder freezes the FastAPI app with PyInstaller into `Dicommunication.app` and wraps it in a drag-to-Applications DMG.
+Hospital Macs often cannot run Docker. This folder freezes the FastAPI app with PyInstaller into two self-contained app bundles — `Dicommunication.app` and `Dicomtag Analytics.app`, both built from the same `coll` in `dicommunication.spec` — and wraps them in a drag-to-Applications DMG.
+
+They are not a thin wrapper pair: each is a full independent copy of the frozen runtime, so either can be dragged out, moved, or deleted on its own. Dicomtag Analytics just sets `LSEnvironment: DICOMM_PROFILE=dicomtag-analytics` in its `Info.plist` so a plain Finder double-click opens that profile — `app/launcher.py`'s `--profile` flag already falls back to that env var. Both share one background server once either is running (see `main()`'s "Already running" path), so opening the second while the first is up just adds a window.
 
 The DMG **bundles a private Python runtime**. The UI opens in the app’s own window. They do not install Python from python.org.
 
@@ -9,11 +11,10 @@ The installer cannot live *inside* this app’s webpage. That page is served by 
 ## What the user does
 
 1. Open `dicommunication-<version>-macos-arm64.dmg`.
-2. Drag **Dicommunication** onto **Applications**.
+2. Drag whichever app(s) they want onto **Applications** — or straight onto the Desktop for a quick-launch icon. Each is independent, so dragging only one is fine.
 3. The first time, right-click the app and choose **Open** (unsigned builds trip Gatekeeper). The Dock icon is the **Sansation Bold** A from the watermark, not PyInstaller’s floppy disk.
 4. The UI opens in its own window (not a Safari tab). If the Dock icon is live but no window appears, quit from the Dock and check `~/.dicommunication/launch.log`. Rebuild the DMG without PyInstaller argv emulation.
 5. Close the window or quit from the Dock to stop the server.
-6. Dicomtag Analytics: `open -n /Applications/Dicommunication.app --args --profile dicomtag-analytics`, or open `http://127.0.0.1:8080/vue/` if Dicommunication is already running.
 
 Config stays in `~/.dicommunication` across upgrades. Frozen launches also append `launch.log` there (windowed `.app` builds have no Terminal).
 

@@ -27,13 +27,16 @@ fi
 "$PYTHON" -m PyInstaller --noconfirm --clean packaging/macos/dicommunication.spec
 
 APP="dist/Dicommunication.app"
-if [[ ! -x "$APP/Contents/MacOS/dicommunication" ]]; then
-  echo "frozen launcher missing: $APP/Contents/MacOS/dicommunication" >&2
-  exit 1
-fi
+APP_ANALYTICS="dist/Dicomtag Analytics.app"
+for bundle in "$APP" "$APP_ANALYTICS"; do
+  if [[ ! -x "$bundle/Contents/MacOS/dicommunication" ]]; then
+    echo "frozen launcher missing: $bundle/Contents/MacOS/dicommunication" >&2
+    exit 1
+  fi
+done
 "$APP/Contents/MacOS/dicommunication" --help >/dev/null
 
-"$PYTHON" packaging/macos/make_dmg.py "$APP" \
+"$PYTHON" packaging/macos/make_dmg.py "$APP" "$APP_ANALYTICS" \
   --version "$DICOMM_DMG_VERSION" \
   --arch "$DICOMM_DMG_ARCH" \
   --output dist
