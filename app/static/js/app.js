@@ -1090,6 +1090,107 @@ function buildFindPatientSummary(payload) {
   return { total: seen.size, studyRows: payload.records.length, letters, counts };
 }
 
+function renderFindPatientSummary(box, summary, note) {
+  const rows = summary.letters
+    .map((letter) => `<tr><td>${letter}</td><td>${summary.counts.get(letter)}</td></tr>`)
+    .join("");
+  const dupeNote =
+    summary.total < summary.studyRows
+      ? `${summary.studyRows} matching studies, ${summary.total} distinct patients (deduplicated by Patient ID, or Patient Name where ID was blank).`
+      : `${summary.total} distinct patients.`;
+  box.innerHTML = `
+    <h3 class="result-subhead">Patients by name</h3>
+    <p class="hint">${dupeNote}</p>
+    ${note || ""}
+    <div class="table-wrap find-table-wrap">
+      <table class="find-table">
+        <thead><tr><th>Starts with</th><th>Patients</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>
+  `;
+  box.hidden = false;
+}
+
+function collectFindQueryPayload() {
+  const form = document.querySelector("[data-find-advanced]");
+  if (!form) {
+    return null;
+  }
+  const remoteId = form.querySelector('select[name="remote_id"]')?.value;
+  const level = form.querySelector("[data-find-level]:checked")?.value || "STUDY";
+  const identityId = form.querySelector('select[name="identity_id"]')?.value || "";
+  if (!remoteId) {
+    return null;
+  }
+  const values = {};
+  form.querySelectorAll("[data-find-value]").forEach((input) => {
+    const keyword = input.getAttribute("data-find-value");
+    const value = (input.value || "").trim();
+    if (keyword && value) {
+      values[keyword] = value;
+    }
+  });
+  return { remoteId, level, identityId, values };
+}
+
+async function fetchExactPatientRecords(query) {
+  const response = await fetch("/api/tools/c-find-advanced/run", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      remote_id: query.remoteId,
+      identity_id: query.identityId || null,
+      options: {
+        level: query.level,
+        values: query.values,
+        return_keys: ["PatientName", "PatientID"],
+        max_records: 50000,
+      },
+    }),
+  });
+  if (!response.ok) {
+    throw new Error(`HTTP ${response.status}`);
+  }
+  const body = await response.json();
+  if (!body.ok) {
+    throw new Error(body.summary || "Query failed");
+  }
+  const stillTruncated = (body.steps || []).some(
+    (step) => step.name === "C-FIND" && step.details && step.details.truncated
+  );
+  return { records: body.records || [], truncated: stillTruncated };
+}
+
+async function recountFindPatientsExact(box, capNote) {
+  const query = collectFindQueryPayload();
+  if (!query) {
+    box.insertAdjacentHTML(
+      "beforeend",
+      `<p class="hint find-export-error">Could not find the query form to re-run without the row cap — ${capNote}</p>`
+    );
+    return;
+  }
+  const note = document.createElement("p");
+  note.className = "hint";
+  note.textContent = "Query was capped in the display table — automatically re-querying without the row limit for an exact count…";
+  box.appendChild(note);
+  try {
+    const { records, truncated } = await fetchExactPatientRecords(query);
+    const summary = buildFindPatientSummary({ records });
+    const truncNote = truncated
+      ? `<p class="hint find-export-error">Even the uncapped re-query hit its own safety limit (50000 studies) — narrow Study Date (or another filter) for an exact count.</p>`
+      : `<p class="hint">Recomputed without the display row cap — this count covers every matching study.</p>`;
+    renderFindPatientSummary(box, summary, truncNote);
+  } catch (err) {
+    note.remove();
+    box.insertAdjacentHTML(
+      "beforeend",
+      `<p class="hint find-export-error">Automatic re-query failed (${err.message}) — ${capNote}</p>`
+    );
+  }
+}
+
 function toggleFindPatientSummary(root) {
   const box = root.querySelector("[data-find-patient-summary-result]");
   if (!box) {
@@ -1105,28 +1206,12 @@ function toggleFindPatientSummary(root) {
     return;
   }
   const summary = buildFindPatientSummary(payload);
-  const rows = summary.letters
-    .map((letter) => `<tr><td>${letter}</td><td>${summary.counts.get(letter)}</td></tr>`)
-    .join("");
-  const dupeNote =
-    summary.total < summary.studyRows
-      ? `${summary.studyRows} matching studies, ${summary.total} distinct patients (deduplicated by Patient ID, or Patient Name where ID was blank).`
-      : `${summary.total} distinct patients.`;
-  const truncNote = payload.truncated
-    ? `<p class="hint find-export-error">The query itself was capped — these counts do not cover every matching study. Narrow Study Date (or other filters) and re-run to get a complete count.</p>`
-    : "";
-  box.innerHTML = `
-    <h3 class="result-subhead">Patients by name</h3>
-    <p class="hint">${dupeNote}</p>
-    ${truncNote}
-    <div class="table-wrap find-table-wrap">
-      <table class="find-table">
-        <thead><tr><th>Starts with</th><th>Patients</th></tr></thead>
-        <tbody>${rows}</tbody>
-      </table>
-    </div>
-  `;
-  box.hidden = false;
+  renderFindPatientSummary(box, summary, "");
+  if (payload.truncated) {
+    const capNote =
+      "these counts only cover the studies already in the table. Narrow Study Date (or other filters) and re-run to get a complete count.";
+    recountFindPatientsExact(box, capNote);
+  }
 }
 
 function clearFindFollow(form) {
