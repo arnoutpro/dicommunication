@@ -1,8 +1,8 @@
 # macOS DMG
 
-Hospital Macs often cannot run Docker. This folder freezes the FastAPI app with PyInstaller into two self-contained app bundles — `Dicommunication.app` and `Dicomtag Analytics.app`, both built from the same `coll` in `dicommunication.spec` — and wraps them in a drag-to-Applications DMG.
+Hospital Macs often cannot run Docker. This folder freezes the FastAPI app with PyInstaller into three self-contained app bundles — `Dicommunication.app`, `Dicomtag Analytics.app`, and `Dicom Anonymizer.app`, all built from the same `coll` in `dicommunication.spec` — and wraps them in a drag-to-Applications DMG.
 
-They are not a thin wrapper pair: each is a full independent copy of the frozen runtime, so either can be dragged out, moved, or deleted on its own. Dicomtag Analytics just sets `LSEnvironment: DICOMM_PROFILE=dicomtag-analytics` in its `Info.plist` so a plain Finder double-click opens that profile — `app/launcher.py`'s `--profile` flag already falls back to that env var. Both share one background server once either is running (see `main()`'s "Already running" path), so opening the second while the first is up just adds a window.
+They are not a thin wrapper trio: each is a full independent copy of the frozen runtime, so any of them can be dragged out, moved, or deleted on its own. Dicomtag Analytics and Dicom Anonymizer each set their own `LSEnvironment: DICOMM_PROFILE=...` in their `Info.plist` so a plain Finder double-click opens the right profile — `app/launcher.py`'s `--profile` flag already falls back to that env var. All three share one background server once any is running (see `main()`'s "Already running" path), so opening another while the first is up just adds a window.
 
 The DMG **bundles a private Python runtime**. The UI opens in the app’s own window. They do not install Python from python.org.
 
