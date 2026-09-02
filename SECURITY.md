@@ -31,6 +31,7 @@ vulnerabilities — but do factor them into where you deploy it.
 | **PDF to DICOM** reads any path you type, and `/api/tools/pdf-store/scan` will list any directory | It is a local file picker for the operator's own machine | Do not expose the UI beyond the workstation |
 | `/api/logs` returns absolute host paths | Diagnostic output for the person at the keyboard | Same as above |
 | The MWL SCP listens on all interfaces | A modality has to be able to C-FIND this workstation or the feature is pointless | It only listens once enabled in Configuration. `DICOMM_DICOM_BIND` pins it to one NIC. |
+| **Tag Editor** writes patient study data back to the configured PACS, with no confirmation beyond the browser prompt | It exists specifically to correct stuck report-workflow metadata on a real archive | Only overwrites a tag already present, never invents one. Whether the PACS treats the C-STORE as an update or a duplicate is PACS-specific and unverified — Fetch and check the current values before every Push. |
 
 ## Patient data on disk
 
