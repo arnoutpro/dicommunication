@@ -22,7 +22,10 @@ from typing import Any
 
 from pydicom.datadict import add_private_dict_entries
 from pydicom.dataset import Dataset
-from pynetdicom.sop_class import StudyRootQueryRetrieveInformationModelMove
+from pynetdicom.sop_class import (
+    StudyRootQueryRetrieveInformationModelFind,
+    StudyRootQueryRetrieveInformationModelMove,
+)
 
 from app.dicom_client import (
     associate,
@@ -36,10 +39,21 @@ from app.models import LocalAE, RemoteNode, ToolResult, ToolStep
 from app.mwl_scp import STORAGE_INBOX
 from app.tools.base import BaseTool, elapsed_ms
 from app.tools.find_advanced import retrieve_storage_gate_message
+from app.tools.find_keys import normalize_da, record_from_dataset
 from app.tools.registry import register
 
 PENDING = {0xFF00, 0xFF01}
 MAX_INSTANCES = 200
+MAX_LOOKUP_RESULTS = 50
+
+STUDY_LOOKUP_COLUMNS = [
+    "StudyInstanceUID",
+    "PatientName",
+    "PatientID",
+    "StudyDate",
+    "AccessionNumber",
+    "StudyDescription",
+]
 
 FINAL_SIGN_TIMESTAMP_TAG = (0x07A3, 0x10FB)
 LAST_COMPOSED_BY_TAG = (0x07A5, 0x1040)
@@ -132,6 +146,56 @@ def _move_status_message(code: int) -> str:
     return f"C-MOVE status 0x{code:04X}" + (f" — {hint}" if hint else "")
 
 
+def _lookup_study(
+    local: LocalAE, remote: RemoteNode, accession_number: str, study_date: str
+) -> tuple[list[dict[str, str]], str | None, list[dict[str, Any]]]:
+    """Study-level C-FIND by Accession Number + Study Date. No local Storage SCP needed."""
+    identifier = Dataset()
+    identifier.QueryRetrieveLevel = "STUDY"
+    identifier.AccessionNumber = accession_number
+    identifier.StudyDate = study_date
+    for keyword in STUDY_LOOKUP_COLUMNS:
+        if not hasattr(identifier, keyword):
+            setattr(identifier, keyword, "")
+
+    contexts: list[dict[str, Any]] = []
+    assoc = None
+    try:
+        ae, assoc = associate(local, remote, [StudyRootQueryRetrieveInformationModelFind])
+        contexts = context_rows(assoc)
+        rejected = rejected_sop_message(contexts, "Study Root Query/Retrieve FIND")
+        if not getattr(assoc, "is_established", False):
+            return [], rejected or reject_reason(assoc), contexts
+        if not assoc.accepted_contexts:
+            assoc.release()
+            return [], rejected or "Study Root Query/Retrieve FIND was not accepted.", contexts
+        records: list[dict[str, str]] = []
+        error = None
+        for status, identifier_ds in assoc.send_c_find(
+            identifier, StudyRootQueryRetrieveInformationModelFind
+        ):
+            if not status:
+                error = "No C-FIND response (timeout, abort, or invalid PDU)."
+                break
+            code = int(status.Status)
+            if code in PENDING and identifier_ds is not None:
+                if len(records) < MAX_LOOKUP_RESULTS:
+                    records.append(record_from_dataset(identifier_ds, STUDY_LOOKUP_COLUMNS))
+            elif code == 0x0000:
+                continue
+            else:
+                error = f"C-FIND status 0x{code:04X}"
+                break
+        assoc.release()
+        return records, error, contexts
+    finally:
+        if assoc is not None and getattr(assoc, "is_established", False):
+            try:
+                assoc.abort()
+            except Exception:  # noqa: BLE001
+                pass
+
+
 def _retrieve(
     local: LocalAE, remote: RemoteNode, study_uid: str, series_uid: str, dest_ae: str
 ) -> tuple[list[Dataset], str | None, list[dict[str, Any]]]:
@@ -215,12 +279,17 @@ class TagEditorTool(BaseTool):
             )
         options = options or {}
         action = str(options.get("action") or "fetch").strip()
+
+        if action == "lookup":
+            return self._lookup(local, remote, options)
+
         study_uid = str(options.get("study_uid") or "").strip()
         series_uid = str(options.get("series_uid") or "").strip()
         if not study_uid:
             return ToolResult(
                 tool_id=self.id, tool_name=self.name, ok=False,
-                summary="Study Instance UID is required.",
+                summary="Study Instance UID is required. Find Study can look it up "
+                "from Accession Number and Study Date.",
                 remote_id=remote.id, remote_name=remote.name,
             )
 
@@ -247,6 +316,46 @@ class TagEditorTool(BaseTool):
         if action == "push":
             return self._push(local, remote, study_uid, series_uid, dest_ae, options)
         return self._fetch(local, remote, study_uid, series_uid, dest_ae)
+
+    def _lookup(
+        self, local: LocalAE, remote: RemoteNode, options: dict[str, Any]
+    ) -> ToolResult:
+        accession_number = str(options.get("accession_number") or "").strip()
+        study_date = normalize_da(str(options.get("study_date") or "").strip())
+        if not accession_number or not study_date:
+            return ToolResult(
+                tool_id=self.id, tool_name=self.name, ok=False,
+                summary="Accession Number and Study Date are both required to find a study.",
+                remote_id=remote.id, remote_name=remote.name,
+            )
+
+        started = time.perf_counter()
+        with capture_pynetdicom_log() as log_stream:
+            find_started = time.perf_counter()
+            records, error, contexts = _lookup_study(local, remote, accession_number, study_date)
+            log = log_stream.getvalue().strip()
+
+        ok = bool(records) and not error
+        if ok:
+            message = f"Found {len(records)} study" + ("" if len(records) == 1 else "ies")
+            if len(records) == 1:
+                message += f" — Study Instance UID {records[0]['StudyInstanceUID']}"
+        else:
+            message = error or "No study matched that Accession Number and Study Date."
+        steps = [
+            ToolStep(
+                name="C-FIND",
+                ok=ok,
+                message=message,
+                duration_ms=elapsed_ms(find_started),
+            )
+        ]
+        return ToolResult(
+            tool_id=self.id, tool_name=self.name, ok=ok, summary=message,
+            remote_id=remote.id, remote_name=remote.name,
+            duration_ms=elapsed_ms(started), steps=steps, log=log,
+            contexts=contexts, records=records,
+        )
 
     def _fetch(
         self, local: LocalAE, remote: RemoteNode, study_uid: str, series_uid: str, dest_ae: str

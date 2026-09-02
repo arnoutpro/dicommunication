@@ -651,6 +651,8 @@ def _tag_editor_page(
     identity_id: str = "",
     study_uid: str = "",
     series_uid: str = "",
+    accession_number: str = "",
+    study_date: str = "",
     final_sign_timestamp: str = "",
     last_composed_by: str = "",
     status_code: int = 200,
@@ -669,6 +671,8 @@ def _tag_editor_page(
             identity_id=identity_id,
             study_uid=study_uid,
             series_uid=series_uid,
+            accession_number=accession_number,
+            study_date=study_date,
             final_sign_timestamp=final_sign_timestamp,
             last_composed_by=last_composed_by,
         ),
@@ -683,6 +687,8 @@ async def tag_editor_run(request: Request):
     identity_id = str(form.get("identity_id") or "")
     study_uid = str(form.get("study_uid") or "").strip()
     series_uid = str(form.get("series_uid") or "").strip()
+    accession_number = str(form.get("accession_number") or "").strip()
+    study_date = str(form.get("study_date") or "").strip()
     final_sign_timestamp = str(form.get("final_sign_timestamp") or "").strip()
     last_composed_by = str(form.get("last_composed_by") or "").strip()
     action = str(form.get("action") or "fetch").strip()
@@ -691,6 +697,8 @@ async def tag_editor_run(request: Request):
         "identity_id": identity_id,
         "study_uid": study_uid,
         "series_uid": series_uid,
+        "accession_number": accession_number,
+        "study_date": study_date,
         "final_sign_timestamp": final_sign_timestamp,
         "last_composed_by": last_composed_by,
     }
@@ -703,6 +711,8 @@ async def tag_editor_run(request: Request):
                 "action": action,
                 "study_uid": study_uid,
                 "series_uid": series_uid,
+                "accession_number": accession_number,
+                "study_date": study_date,
                 "final_sign_timestamp": final_sign_timestamp,
                 "last_composed_by": last_composed_by,
             },
@@ -723,6 +733,8 @@ async def tag_editor_run(request: Request):
                 status_code=exc.status_code,
             )
         return _tag_editor_page(request, result=failure, status_code=exc.status_code, **echo)
+    if action == "lookup" and result.ok and len(result.records) == 1:
+        echo["study_uid"] = str(result.records[0].get("StudyInstanceUID") or "")
     if _hx(request):
         return templates.TemplateResponse(
             request,
