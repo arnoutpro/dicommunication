@@ -121,9 +121,8 @@ def retrieve_storage_gate_message(
     dest = dest_ae.strip() or "the Local AE Title"
     if not enabled:
         text = (
-            f"Accept C-STORE is off. On Local DICOM AE enable Accept C-STORE of "
-            f"Structured Reports and save. Vue must list {dest} as a C-MOVE destination "
-            f"at this host, listen port {port}."
+            f"Accept C-STORE is off. On Local DICOM AE enable Accept C-STORE and save. "
+            f"Vue must list {dest} as a C-MOVE destination at this host, listen port {port}."
         )
         calling = calling_ae.strip()
         if calling and calling != dest:
