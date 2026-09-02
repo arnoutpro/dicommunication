@@ -20,6 +20,7 @@ from app.tools.tag_editor import (
     FINAL_SIGN_TIMESTAMP_TAG,
     LAST_COMPOSED_BY_TAG,
     TagEditorTool,
+    _build_seed_instance,
     to_dicom_dt,
 )
 
@@ -366,5 +367,57 @@ def test_lookup_does_not_need_storage_scp(store) -> None:
             {"action": "lookup", "accession_number": "ACC1", "study_date": "2026-09-02"},
         )
         assert result.ok, result.summary
+    finally:
+        server.shutdown()
+
+
+def test_build_seed_instance_blank_variant_has_empty_tags() -> None:
+    ds = _build_seed_instance("blank")
+    assert str(ds.PatientName) == "ARNPRO^TESTBENCH"
+    assert ds[FINAL_SIGN_TIMESTAMP_TAG].value == ""
+    assert ds[LAST_COMPOSED_BY_TAG].value == ""
+
+
+def test_build_seed_instance_absent_variant_has_no_tags() -> None:
+    ds = _build_seed_instance("absent")
+    assert str(ds.PatientName) == "ARNPRO^TESTBENCH"
+    assert FINAL_SIGN_TIMESTAMP_TAG not in ds
+    assert LAST_COMPOSED_BY_TAG not in ds
+
+
+def _start_store_scp(port: int):
+    received: list[Dataset] = []
+
+    def handle_store(event):
+        received.append(event.dataset)
+        return 0x0000
+
+    ae = AE(ae_title="QR_SCP")
+    ae.add_supported_context(SecondaryCaptureImageStorage)
+    server = ae.start_server(
+        ("127.0.0.1", port), block=False, evt_handlers=[(evt.EVT_C_STORE, handle_store)]
+    )
+    return server, received
+
+
+def test_seed_test_stores_both_variants_and_needs_no_storage_scp() -> None:
+    # Seeding is a plain outbound C-STORE, so it must not depend on Accept
+    # C-STORE / the local Storage SCP the way Fetch and Push do.
+    port = _free_port()
+    server, received = _start_store_scp(port)
+    try:
+        time.sleep(0.05)
+        remote = RemoteNode(name="pacs", ae_title="QR_SCP", host="127.0.0.1", port=port)
+        local = LocalAE(ae_title="DICOMM", timeout_seconds=5, storage_scp_enabled=False)
+        result = TagEditorTool().run(local, remote, {"action": "seed_test"})
+        assert result.ok, result.summary
+        assert len(result.records) == 2
+        variants = {record["variant"] for record in result.records}
+        assert variants == {"present, blank value", "not present at all"}
+        assert all(record["store"] == "stored" for record in result.records)
+        study_uids = {record["study_instance_uid"] for record in result.records}
+        assert len(study_uids) == 2  # each variant gets its own study, no collision
+        time.sleep(0.05)
+        assert len(received) == 2
     finally:
         server.shutdown()
