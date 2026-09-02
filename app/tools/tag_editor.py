@@ -244,6 +244,19 @@ def _retrieve(
         STORAGE_INBOX.finish()
 
 
+def _display_tag_value(dataset: Dataset, tag: tuple[int, int]) -> str:
+    """Distinguish 'tag exists but is blank' from 'tag isn't there at all' — both
+    would otherwise show as the same empty cell, which is exactly the distinction
+    that matters for deciding whether Push can do anything.
+    """
+    value = _read_tag(dataset, tag)
+    if value is None:
+        return "(not present)"
+    if value == "":
+        return "(present, empty)"
+    return value
+
+
 def _instance_row(dataset: Dataset) -> dict[str, Any]:
     row = {
         "sop_instance_uid": str(getattr(dataset, "SOPInstanceUID", "")),
@@ -251,7 +264,7 @@ def _instance_row(dataset: Dataset) -> dict[str, Any]:
         "modality": str(getattr(dataset, "Modality", "")),
     }
     for key, spec in EDITABLE_TAGS.items():
-        row[key] = _read_tag(dataset, spec["tag"]) or ""
+        row[key] = _display_tag_value(dataset, spec["tag"])
     return row
 
 
