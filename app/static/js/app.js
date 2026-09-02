@@ -1062,6 +1062,73 @@ function downloadFindJson(root) {
   flashFindExport(root, "Downloading JSON…", true);
 }
 
+function patientNameLetter(name) {
+  const family = String(name || "").split("^")[0].trim();
+  const letter = family.charAt(0).toUpperCase();
+  return /[A-Z]/.test(letter) ? letter : "#";
+}
+
+function buildFindPatientSummary(payload) {
+  const seen = new Map(); // dedupe key -> letter
+  payload.records.forEach((row) => {
+    const id = String(row.PatientID || "").trim();
+    const name = String(row.PatientName || "").trim();
+    const key = id || name;
+    if (!key || seen.has(key)) {
+      return;
+    }
+    seen.set(key, patientNameLetter(name));
+  });
+  const counts = new Map();
+  seen.forEach((letter) => {
+    counts.set(letter, (counts.get(letter) || 0) + 1);
+  });
+  const letters = [...counts.keys()].filter((l) => l !== "#").sort();
+  if (counts.has("#")) {
+    letters.push("#");
+  }
+  return { total: seen.size, studyRows: payload.records.length, letters, counts };
+}
+
+function toggleFindPatientSummary(root) {
+  const box = root.querySelector("[data-find-patient-summary-result]");
+  if (!box) {
+    return;
+  }
+  if (!box.hidden) {
+    box.hidden = true;
+    return;
+  }
+  const payload = parseFindExport(root);
+  if (!payload || !payload.records || !payload.records.length) {
+    flashFindExport(root, "Nothing to count.", false);
+    return;
+  }
+  const summary = buildFindPatientSummary(payload);
+  const rows = summary.letters
+    .map((letter) => `<tr><td>${letter}</td><td>${summary.counts.get(letter)}</td></tr>`)
+    .join("");
+  const dupeNote =
+    summary.total < summary.studyRows
+      ? `${summary.studyRows} matching studies, ${summary.total} distinct patients (deduplicated by Patient ID, or Patient Name where ID was blank).`
+      : `${summary.total} distinct patients.`;
+  const truncNote = payload.truncated
+    ? `<p class="hint find-export-error">The query itself was capped — these counts do not cover every matching study. Narrow Study Date (or other filters) and re-run to get a complete count.</p>`
+    : "";
+  box.innerHTML = `
+    <h3 class="result-subhead">Patients by name</h3>
+    <p class="hint">${dupeNote}</p>
+    ${truncNote}
+    <div class="table-wrap find-table-wrap">
+      <table class="find-table">
+        <thead><tr><th>Starts with</th><th>Patients</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>
+  `;
+  box.hidden = false;
+}
+
 function clearFindFollow(form) {
   const follow = form.querySelector("[data-find-follow-field]");
   const studies = form.querySelector("[data-find-studies-field]");
@@ -1262,6 +1329,7 @@ document.addEventListener("click", (event) => {
   const csv = event.target.closest("[data-find-csv]");
   const json = event.target.closest("[data-find-json]");
   const follow = event.target.closest("[data-find-follow]");
+  const patientSummary = event.target.closest("[data-find-patient-summary]");
   const row = event.target.closest("[data-find-row]");
   const result = event.target.closest("[data-find-result]");
   if (copy && result) {
@@ -1270,6 +1338,8 @@ document.addEventListener("click", (event) => {
     downloadFindCsv(result);
   } else if (json && result) {
     downloadFindJson(result);
+  } else if (patientSummary && result) {
+    toggleFindPatientSummary(result);
   } else if (follow && result) {
     event.preventDefault();
     startFindFollow(follow.getAttribute("data-find-follow"), result);
