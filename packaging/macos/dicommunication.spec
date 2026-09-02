@@ -167,3 +167,26 @@ app_analytics = BUNDLE(
         "LSEnvironment": {"DICOMM_PROFILE": "dicomtag-analytics"},
     },
 )
+
+# A third self-contained bundle, same reasoning as Dicomtag Analytics.app
+# above: shares `coll`, sets its own LSEnvironment profile, independently
+# draggable/movable/deletable.
+app_anonymizer = BUNDLE(
+    coll,
+    name="Dicom Anonymizer.app",
+    icon=ICON,
+    bundle_identifier="pro.arnout.dicommunication.dicom-anonymizer",
+    info_plist={
+        "CFBundleName": "Dicom Anonymizer",
+        "CFBundleDisplayName": "Dicom Anonymizer",
+        "CFBundleGetInfoString": "Arnout.pro Dicom Anonymizer (query, retrieve, anonymize)",
+        "CFBundleIdentifier": "pro.arnout.dicommunication.dicom-anonymizer",
+        "CFBundleShortVersionString": VERSION,
+        "CFBundleVersion": VERSION,
+        "NSHighResolutionCapable": True,
+        "NSPrincipalClass": "NSApplication",
+        "NSSupportsAutomaticGraphicsSwitching": True,
+        "NSAppTransportSecurity": {"NSAllowsLocalNetworking": True},
+        "LSEnvironment": {"DICOMM_PROFILE": "dicom-anonymizer"},
+    },
+)

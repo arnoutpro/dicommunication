@@ -39,13 +39,13 @@
     <StandardDirectory Id="DesktopFolder" />
 
     <!--
-      Both apps run from the same frozen dicommunication.exe (Dicomtag
-      Analytics just passes the dicomtag-analytics profile), so AppFiles is one
-      shared ComponentGroup referenced by both Features below rather than
-      installed twice. Unchecking one app in the feature tree only removes
-      that app's shortcuts; the shared files stay until both are unchecked
-      (Windows Installer reference-counts a component against every Feature
-      that lists it).
+      All three apps run from the same frozen dicommunication.exe (Dicomtag
+      Analytics and Dicom Anonymizer just pass their own profile flag), so
+      AppFiles is one shared ComponentGroup referenced by all three Features
+      below rather than installed three times. Unchecking one app in the
+      feature tree only removes that app's shortcuts; the shared files stay
+      until all three are unchecked (Windows Installer reference-counts a
+      component against every Feature that lists it).
     -->
     <ComponentGroup Id="Shortcuts" Directory="ApplicationProgramsFolder">
       <Component Id="StartMenuShortcut" Guid="c4e91b07-2f6a-4d8e-9b31-7a5c0e12d844">
@@ -101,6 +101,25 @@
             Value="1"
             KeyPath="yes" />
       </Component>
+      <Component Id="AnonymizerShortcut" Guid="976af402-7bfa-4f91-8aae-f14686772159">
+        <Shortcut
+            Id="AnonymizerShortcutFile"
+            Name="Dicom Anonymizer"
+            Description="Open Dicom Anonymizer (query, retrieve, and anonymize studies)"
+            Target="[INSTALLFOLDER]dicommunication.exe"
+            Arguments="--profile dicom-anonymizer"
+            WorkingDirectory="INSTALLFOLDER"
+            Icon="AppIcon" />
+        <!-- Same reasoning as DicomtagAnalyticsShortcut's RemoveFolder above. -->
+        <RemoveFolder Id="RemoveApplicationProgramsFolder3" On="uninstall" />
+        <RegistryValue
+            Root="HKCU"
+            Key="Software\Arnout.pro\Dicommunication"
+            Name="anonymizer"
+            Type="integer"
+            Value="1"
+            KeyPath="yes" />
+      </Component>
     </ComponentGroup>
 
     <!--
@@ -142,6 +161,23 @@
             Value="1"
             KeyPath="yes" />
       </Component>
+      <Component Id="DesktopShortcutAnonymizer" Guid="949654d0-ef89-4118-a1a2-5fa05c3b99c4">
+        <Shortcut
+            Id="DesktopAnonymizerShortcut"
+            Name="Dicom Anonymizer"
+            Description="Open Dicom Anonymizer (query, retrieve, and anonymize studies)"
+            Target="[INSTALLFOLDER]dicommunication.exe"
+            Arguments="--profile dicom-anonymizer"
+            WorkingDirectory="INSTALLFOLDER"
+            Icon="AppIcon" />
+        <RegistryValue
+            Root="HKCU"
+            Key="Software\Arnout.pro\Dicommunication"
+            Name="desktop_shortcut_anonymizer"
+            Type="integer"
+            Value="1"
+            KeyPath="yes" />
+      </Component>
     </ComponentGroup>
 
     <Feature Id="Dicommunication" Title="Dicommunication" Level="1"
@@ -160,6 +196,15 @@
       <Feature Id="DicomtagAnalyticsDesktop" Title="Desktop shortcut" Level="1000"
           Description="Add a Dicomtag Analytics shortcut on the Desktop, in addition to the Start Menu.">
         <ComponentRef Id="DesktopShortcutDicomtagAnalytics" />
+      </Feature>
+    </Feature>
+    <Feature Id="DicomAnonymizer" Title="Dicom Anonymizer" Level="1"
+        Description="Query, retrieve, and anonymize studies, series, or images.">
+      <ComponentGroupRef Id="AppFiles" />
+      <ComponentRef Id="AnonymizerShortcut" />
+      <Feature Id="DicomAnonymizerDesktop" Title="Desktop shortcut" Level="1000"
+          Description="Add a Dicom Anonymizer shortcut on the Desktop, in addition to the Start Menu.">
+        <ComponentRef Id="DesktopShortcutAnonymizer" />
       </Feature>
     </Feature>
 
@@ -188,10 +233,11 @@
     </InstallExecuteSequence>
 
     <!--
-      FeatureTree (not InstallDir): lets the setup wizard show the four
+      FeatureTree (not InstallDir): lets the setup wizard show the six
       features above as a checkbox tree (Dicommunication / Dicomtag
-      Analytics, each with a Desktop shortcut sub-feature) via CustomizeDlg,
-      which also has its own Browse button for INSTALLFOLDER.
+      Analytics / Dicom Anonymizer, each with a Desktop shortcut
+      sub-feature) via CustomizeDlg, which also has its own Browse button
+      for INSTALLFOLDER.
     -->
     <Property Id="WIXUI_INSTALLDIR" Value="INSTALLFOLDER" />
     <ui:WixUI Id="WixUI_FeatureTree" />
