@@ -191,13 +191,15 @@ dotnet nuget install dicommunication.msi --version 0.3.0 --source github-arnoutp
 
 The already-cut `v0.2.0` MSI can be wrapped without rebuilding: **Actions → Windows MSI → Run workflow** and set `nuget_from_release` to `v0.2.0`.
 
-Install the MSI, start **Dicommunication** or **Dicomtag Analytics** from the Start menu. Each UI opens in its own window (Edge WebView2 — not a browser tab). Close that window to stop the server if this shortcut started it. Config lives in `%LOCALAPPDATA%\dicommunication` and survives upgrades; both tools share it. Windows 10/11 already have WebView2; if it is missing the app falls back to the default browser. Uninstalling asks, once, whether to also delete that folder — it can hold patient data from past runs (see [`SECURITY.md`](SECURITY.md#patient-data-on-disk)); answering No (the default) leaves it in place, same as before.
+The setup wizard shows a feature tree: **Dicommunication** and **Dicomtag Analytics** are separately checkable (both on by default), each with an off-by-default **Desktop shortcut** sub-feature alongside the Start Menu one they always get. Unchecking one app only skips its own shortcut — the underlying program files are shared, since both are the same `dicommunication.exe` under a different `--profile`.
+
+Install the MSI, start **Dicommunication** or **Dicomtag Analytics** from the Start menu (or the Desktop, if that shortcut was selected). Each UI opens in its own window (Edge WebView2 — not a browser tab). Close that window to stop the server if this shortcut started it. Config lives in `%LOCALAPPDATA%\dicommunication` and survives upgrades; both tools share it. Windows 10/11 already have WebView2; if it is missing the app falls back to the default browser. Uninstalling asks, once, whether to also delete that folder — it can hold patient data from past runs (see [`SECURITY.md`](SECURITY.md#patient-data-on-disk)); answering No (the default) leaves it in place, same as before.
 
 Unsigned builds trigger SmartScreen until a code-signing certificate is used. If a modality must C-FIND this workstation, allow inbound TCP for `dicommunication.exe` (listen port 11112). Details and a local build script: [`packaging/windows/README.md`](packaging/windows/README.md).
 
 ## macOS DMG
 
-Same idea as the MSI: the browser does **not** need Python. The DMG freezes a private runtime into `Dicommunication.app`. You should not install Python yourself on a locked-down PACS Mac. Docker does the same thing inside the image.
+Same idea as the MSI: the browser does **not** need Python. The DMG freezes a private runtime into two independent, self-contained app bundles — `Dicommunication.app` and `Dicomtag Analytics.app` — so either can be dragged out on its own. You should not install Python yourself on a locked-down PACS Mac. Docker does the same thing inside the image.
 
 **Those components cannot be installed from this app’s webpage.** The UI is served *by* the Python process, so the page only exists after the backend is already running. Ship the DMG through IT (or a USB stick), not through a button on localhost.
 
@@ -205,7 +207,7 @@ CI builds `dicommunication-<version>-macos-arm64.dmg` on `macos-latest` (workflo
 
 The already-cut `v0.2.0` release can get a DMG without a new version tag: **Actions → macOS DMG → Run workflow** and set `release_tag` to `v0.2.0`.
 
-Open the DMG, drag **Dicommunication** to Applications, then right-click the app and choose **Open** the first time (unsigned builds trip Gatekeeper). The Dock icon is the **Sansation Bold** A from the watermark. The UI opens in its own window (not a Safari tab). Close the window or quit from the Dock to stop the server. Config lives in `~/.dicommunication` and survives upgrades. Dicomtag Analytics: `open -n /Applications/Dicommunication.app --args --profile dicomtag-analytics` (or open `/vue/` in the running UI).
+Open the DMG, drag whichever app(s) you want to Applications (or straight to the Desktop for a shortcut) — **Dicommunication**, **Dicomtag Analytics**, or both, independently. Right-click and choose **Open** the first time (unsigned builds trip Gatekeeper). The Dock icon is the **Sansation Bold** A from the watermark. Each UI opens in its own window (not a Safari tab). They share one background server, so opening the second while the first is already running just adds a window. Close a window or quit from the Dock to stop the server. Config lives in `~/.dicommunication` and survives upgrades.
 
 Apple Silicon only for now. Intel Macs keep using Docker Compose. If a modality must C-FIND this workstation, allow incoming TCP for **Dicommunication** (listen port 11112). Details: [`packaging/macos/README.md`](packaging/macos/README.md).
 
