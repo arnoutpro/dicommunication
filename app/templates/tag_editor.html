@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+{% block title %}{{ tool.name }} · Dicommunication{% endblock %}
+{% block content %}
+<header class="page-head">
+  <div>
+    <p class="eyebrow">{{ tool.category }}</p>
+    <h1>{{ tool.name }}</h1>
+    <p class="lede">{{ tool.description }}</p>
+  </div>
+</header>
+
+<section class="panel">
+  <header class="panel-head">
+    <h2>Before you push</h2>
+  </header>
+  <p class="hint">
+    This only overwrites a tag that is already present on an instance — it never
+    creates either tag on an instance that never had it. Vue mirrors both tags onto
+    every instance in the study, so <strong>Push edits every instance retrieved</strong>
+    (the whole study, or one series if you give a Series Instance UID).
+  </p>
+  <p class="hint">
+    Whether Vue treats a C-STORE of an already-known SOP Instance UID as replacing
+    the original or as a duplicate is PACS-specific — this tool cannot verify that
+    for you. Fetch first and check the current values before pushing anything.
+  </p>
+</section>
+
+<section class="panel">
+  <header class="panel-head">
+    <h2>Fetch or push</h2>
+    <span class="muted">
+      Calling AE {{ config.local.ae_title }}
+      · Local Storage SCP {{ "listening" if storage_scp_running else "not listening" }}
+      {% if not config.local.storage_scp_enabled %}(Accept C-STORE is off){% endif %}
+    </span>
+  </header>
+
+  {% if config.remotes %}
+  <form
+    class="form-grid"
+    method="post"
+    action="/tools/tag-editor/run"
+    hx-post="/tools/tag-editor/run"
+    hx-target="#result"
+    hx-indicator="#busy"
+  >
+    <label>
+      Remote node
+      <select name="remote_id" required>
+        {% for remote in config.remotes %}
+        <option value="{{ remote.id }}" {% if remote.id == remote_id %}selected{% endif %}>
+          {{ remote.name }} — {{ remote.ae_title }} @ {{ remote.connect_host }}:{{ remote.port }}
+        </option>
+        {% endfor %}
+      </select>
+    </label>
+    {% include "partials/identity_select.html" %}
+
+    <label>
+      Study Instance UID
+      <input type="text" name="study_uid" value="{{ study_uid|default('') }}" required
+             placeholder="1.2.840...">
+    </label>
+    <label>
+      Series Instance UID <span class="muted">(optional — whole study if empty)</span>
+      <input type="text" name="series_uid" value="{{ series_uid|default('') }}"
+             placeholder="1.2.840...">
+    </label>
+
+    <label>
+      Tamar Report Final Sign Timestamp
+      <input type="datetime-local" name="final_sign_timestamp" step="1"
+             value="{{ final_sign_timestamp|default('') }}">
+    </label>
+    <label>
+      Tamar Report Study Last Composed By
+      <input type="text" name="last_composed_by" maxlength="64"
+             value="{{ last_composed_by|default('') }}" placeholder="e.g. 187890@24">
+    </label>
+
+    <div class="form-actions">
+      <button class="button" type="submit" name="action" value="fetch">
+        Fetch current values
+      </button>
+      <button class="button primary" type="submit" name="action" value="push"
+              onclick="return confirm('Push these values to every retrieved instance on the PACS? This cannot be undone.');">
+        Push update
+      </button>
+      <span id="busy" class="htmx-indicator spinner">Running…</span>
+    </div>
+  </form>
+  {% else %}
+  <div class="empty">
+    <strong>No remote node configured</strong>
+    <p>Add a PACS or modality first, then come back to run {{ tool.name }}.</p>
+    <a class="button" href="/config/remotes">Open configuration</a>
+  </div>
+  {% endif %}
+</section>
+
+<div id="result">
+  {% if result %}
+    {% include "partials/result.html" %}
+  {% endif %}
+</div>
+{% endblock %}

@@ -9,7 +9,7 @@ from pynetdicom.sop_class import ModalityWorklistInformationFind, Verification
 
 from app.applog import log
 from app.mwl import entry_to_dataset, matches_entry, query_from_identifier
-from app.sr import SR_STORAGE_SOP_CLASSES
+from app.storage_sop_classes import ALL_STORAGE_SOP_CLASSES
 from app.store import ConfigStore
 
 
@@ -56,8 +56,8 @@ class WorklistSCP:
         self.stop()
         config = self.store.load()
         mwl = config.local.mwl_scp_enabled
-        store_sr = config.local.storage_scp_enabled
-        if not mwl and not store_sr:
+        storage_enabled = config.local.storage_scp_enabled
+        if not mwl and not storage_enabled:
             return
         bind_host = "0.0.0.0" if config.local.host in {"0.0.0.0", ""} else config.local.host
         try:
@@ -67,8 +67,8 @@ class WorklistSCP:
             if mwl:
                 ae.add_supported_context(ModalityWorklistInformationFind)
                 handlers.append((evt.EVT_C_FIND, self._on_find))
-            if store_sr:
-                for sop in SR_STORAGE_SOP_CLASSES:
+            if storage_enabled:
+                for sop in ALL_STORAGE_SOP_CLASSES:
                     ae.add_supported_context(sop)
                 handlers.append((evt.EVT_C_STORE, self._on_store))
             self.server = ae.start_server(
@@ -78,12 +78,12 @@ class WorklistSCP:
             )
             self.last_error = None
             log.info(
-                "Local DICOM SCP listening on %s:%s as %s (MWL %s, SR C-STORE %s)",
+                "Local DICOM SCP listening on %s:%s as %s (MWL %s, C-STORE %s)",
                 bind_host,
                 config.local.port,
                 config.local.ae_title,
                 "on" if mwl else "off",
-                "on" if store_sr else "off",
+                "on" if storage_enabled else "off",
             )
         except OSError as exc:
             self.server = None
@@ -120,5 +120,5 @@ class WorklistSCP:
             STORAGE_INBOX.add(dataset)
             return 0x0000
         except Exception as exc:  # noqa: BLE001
-            log.warning("SR C-STORE failed: %s", exc)
+            log.warning("C-STORE failed: %s", exc)
             return 0xC211

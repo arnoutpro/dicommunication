@@ -37,6 +37,7 @@
     <li><a href="#c-find-advanced">Dicomtag Analytics</a></li>
     <li><a href="#mwl-find">MWL C-FIND</a></li>
     <li><a href="#hl7-send">HL7 send</a></li>
+    <li><a href="#tag-editor">Tag Editor</a></li>
     <li><a href="#reading-results">Reading accepted vs rejected SOP Classes</a></li>
     <li><a href="#data">Where data is stored</a></li>
     <li><a href="#json-api">JSON API</a></li>
@@ -483,6 +484,20 @@
   </ol>
 </section>
 
+<section class="panel help-section" id="tag-editor">
+  <header class="panel-head">
+    <h2>Tag Editor</h2>
+    <a href="/tools/tag-editor">Open</a>
+  </header>
+  <p>Corrects two private ELSCINT1 tags CS PACS REPORT writes onto every instance in a study — <strong>Tamar Report Final Sign Timestamp</strong> <code>(07a3,10fb)</code> and <strong>Tamar Report Study Last Composed By</strong> <code>(07a5,1040)</code> — when a report workflow gets stuck, then C-STOREs the correction back to the PACS.</p>
+  <ul>
+    <li><strong>Fetch</strong> C-MOVEs the study (or one series, if you give a Series Instance UID) to this AE and shows the current value of both tags per instance, same as Dicomtag Analytics report retrieve — Accept C-STORE must be on and this AE must be a C-MOVE destination Vue knows about.</li>
+    <li><strong>Push</strong> retrieves fresh, overwrites only the field(s) you filled in, and C-STOREs every retrieved instance back — Vue mirrors both tags onto every instance in a study, so a partial fix would leave the study inconsistent.</li>
+    <li>Only overwrites a tag that is already present. An instance that never had one of these tags is left alone for that tag and noted as skipped — this tool never invents a compose/sign event.</li>
+    <li>C-STORE only asks the peer to store an object; whether Vue treats a C-STORE of an already-known SOP Instance UID as replacing the original or as a duplicate is PACS-specific and not verified by this tool. Fetch and read the result before you push anything.</li>
+  </ul>
+</section>
+
 <section class="panel help-section" id="reading-results">
   <header class="panel-head">
     <h2>Reading accepted vs rejected SOP Classes</h2>
@@ -541,7 +556,7 @@
     <h2>JSON API</h2>
   </header>
   <p>The same operations as the UI are available over HTTP. <code>GET /health</code> returns <code>{"status":"ok","version":"{{ app_version }}"}</code>. Interactive docs: <a href="/docs">/docs</a>.</p>
-  <p>Tool ids: <code>ping</code>, <code>c-echo</code>, <code>c-store</code>, <code>pdf-store</code>, <code>c-find</code>, <code>c-find-advanced</code>, <code>mwl-find</code>, <code>hl7-send</code>. <code>hl7-send</code> does not need a remote id; pass host, port, and message in options. <code>pdf-store</code> takes Patient Name / ID in options, plus <code>pdfs</code> (filename + content_b64), <code>zip_b64</code>, or <code>directory</code>, and <code>send</code> (default true). <code>c-find-advanced</code> takes <code>level</code> (<code>STUDY</code>, <code>SERIES</code>, <code>IMAGE</code>), <code>values</code> (DICOM keywords), and optional <code>return_keys</code>. At Study level, Study Date is required. Follow-ups: <code>follow=sr_series</code> with <code>studies</code> (Study rows) lists SR series; <code>follow=retrieve_sr</code> C-MOVEs each listed report on its own association. DIMSE tools take <code>remote_id</code> and optional <code>identity_id</code> for a virtual calling AE. Worklist query <code>source</code> is <code>local</code> or a remote id.</p>
+  <p>Tool ids: <code>ping</code>, <code>c-echo</code>, <code>c-store</code>, <code>pdf-store</code>, <code>c-find</code>, <code>c-find-advanced</code>, <code>mwl-find</code>, <code>hl7-send</code>, <code>tag-editor</code>. <code>hl7-send</code> does not need a remote id; pass host, port, and message in options. <code>pdf-store</code> takes Patient Name / ID in options, plus <code>pdfs</code> (filename + content_b64), <code>zip_b64</code>, or <code>directory</code>, and <code>send</code> (default true). <code>c-find-advanced</code> takes <code>level</code> (<code>STUDY</code>, <code>SERIES</code>, <code>IMAGE</code>), <code>values</code> (DICOM keywords), and optional <code>return_keys</code>. At Study level, Study Date is required. Follow-ups: <code>follow=sr_series</code> with <code>studies</code> (Study rows) lists SR series; <code>follow=retrieve_sr</code> C-MOVEs each listed report on its own association. <code>tag-editor</code> takes <code>action</code> (<code>fetch</code> or <code>push</code>), <code>study_uid</code>, optional <code>series_uid</code>, and for <code>push</code> at least one of <code>final_sign_timestamp</code> (<code>YYYY-MM-DDTHH:MM:SS</code>) or <code>last_composed_by</code>. DIMSE tools take <code>remote_id</code> and optional <code>identity_id</code> for a virtual calling AE. Worklist query <code>source</code> is <code>local</code> or a remote id.</p>
   <p>This API has no authentication. Restrict it the same way you restrict the UI.</p>
 </section>
 
