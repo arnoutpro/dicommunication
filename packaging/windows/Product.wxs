@@ -12,7 +12,18 @@
       Language="1033"
       Scope="perMachine">
     <SummaryInformation Description="DICOM communication validator and PACS admin toolkit" />
-    <MajorUpgrade DowngradeErrorMessage="A newer version of Dicommunication is already installed." />
+    <!--
+      AllowSameVersionUpgrades matters here: this MSI's version only changes
+      when someone remembers to bump app/__init__.py's __version__ (the CI
+      workflow otherwise reuses it for every manual build). Without this, a
+      rebuild at an unchanged version gets a fresh auto-generated ProductCode
+      and installs side by side with whatever's already there instead of
+      replacing it — which is how a stale Start Menu shortcut survives every
+      reinstall.
+    -->
+    <MajorUpgrade
+        DowngradeErrorMessage="A newer version of Dicommunication is already installed."
+        AllowSameVersionUpgrades="yes" />
     <MediaTemplate EmbedCab="yes" />
     <Icon Id="AppIcon" SourceFile="packaging\icons\app.ico" />
     <Property Id="ARPPRODUCTICON" Value="AppIcon" />
@@ -52,6 +63,17 @@
             Arguments="--profile dicomtag-analytics"
             WorkingDirectory="INSTALLFOLDER"
             Icon="AppIcon" />
+        <!--
+          Explicit cleanup, independent of AllowSameVersionUpgrades above:
+          this tool was named "Vue PACS Database Analytics" before it was
+          Dicomtag Analytics. Delete that stale .lnk on every (re)install so
+          side-by-side installs already on a machine get cleaned up too, not
+          just future ones.
+        -->
+        <RemoveFile
+            Id="RemoveStaleVueAnalyticsShortcut"
+            Name="Vue PACS Database Analytics.lnk"
+            On="install" />
         <RegistryValue
             Root="HKCU"
             Key="Software\Arnout.pro\Dicommunication"

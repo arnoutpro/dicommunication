@@ -37,14 +37,7 @@
   </header>
 
   {% if config.remotes %}
-  <form
-    class="form-grid"
-    method="post"
-    action="/tools/tag-editor/run"
-    hx-post="/tools/tag-editor/run"
-    hx-target="#result"
-    hx-indicator="#busy"
-  >
+  <form class="form-grid" method="post" action="/tools/tag-editor/run">
     <label>
       Remote node
       <select name="remote_id" required>
@@ -58,9 +51,25 @@
     {% include "partials/identity_select.html" %}
 
     <label>
+      Accession Number
+      <input type="text" name="accession_number" value="{{ accession_number|default('') }}"
+             placeholder="7205719954">
+    </label>
+    <label>
+      Study Date <span class="muted">(both required to find a study)</span>
+      <input type="date" name="study_date" value="{{ study_date|default('') }}">
+    </label>
+    <div class="form-actions">
+      <button class="button" type="submit" name="action" value="lookup">
+        Find Study Instance UID
+      </button>
+      <span class="hint">Looks up the study by C-FIND — does not need Accept C-STORE.</span>
+    </div>
+
+    <label>
       Study Instance UID
-      <input type="text" name="study_uid" value="{{ study_uid|default('') }}" required
-             placeholder="1.2.840...">
+      <input type="text" name="study_uid" id="tag-editor-study-uid"
+             value="{{ study_uid|default('') }}" placeholder="1.2.840...">
     </label>
     <label>
       Series Instance UID <span class="muted">(optional — whole study if empty)</span>
@@ -80,10 +89,14 @@
     </label>
 
     <div class="form-actions">
-      <button class="button" type="submit" name="action" value="fetch">
+      <button class="button" type="submit" name="action" value="fetch"
+              hx-post="/tools/tag-editor/run" hx-include="closest form"
+              hx-target="#result" hx-indicator="#busy">
         Fetch current values
       </button>
       <button class="button primary" type="submit" name="action" value="push"
+              hx-post="/tools/tag-editor/run" hx-include="closest form"
+              hx-target="#result" hx-indicator="#busy"
               onclick="return confirm('Push these values to every retrieved instance on the PACS? This cannot be undone.');">
         Push update
       </button>

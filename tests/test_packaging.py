@@ -586,6 +586,17 @@ def test_windows_spec_and_wix_use_app_icon() -> None:
     assert 'Arguments="--profile dicomtag-analytics"' in wxs
 
 
+def test_windows_wxs_upgrades_replace_a_same_version_install() -> None:
+    wxs = (ROOT / "packaging" / "windows" / "Product.wxs").read_text(encoding="utf-8")
+    assert 'AllowSameVersionUpgrades="yes"' in wxs
+
+
+def test_windows_wxs_removes_the_stale_vue_analytics_shortcut_name() -> None:
+    wxs = (ROOT / "packaging" / "windows" / "Product.wxs").read_text(encoding="utf-8")
+    assert '<RemoveFile' in wxs
+    assert 'Name="Vue PACS Database Analytics.lnk"' in wxs
+
+
 def test_htmx_is_served_from_this_app_not_a_cdn() -> None:
     base = (ROOT / "app" / "templates" / "base.html").read_text(encoding="utf-8")
     scripts = re.findall(r'<script[^>]*\ssrc="([^"]+)"', base)
