@@ -312,6 +312,8 @@ def test_c_find_advanced_page_and_api(client, store) -> None:
         assert b"Download JSON" in form.content
         assert b"<textarea hidden data-find-export>" in form.content
         assert b'<script type="application/json" data-find-export>' not in form.content
+        assert b"Count patients by name" in form.content
+        assert b'"truncated": false' in form.content
         assert b"<summary>Timing</summary>" in form.content
         assert b"<summary>Association</summary>" in form.content
         api = client.post(
