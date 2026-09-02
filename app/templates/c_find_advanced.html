@@ -112,6 +112,32 @@
           title="{{ key.hint }}"
         >
         <span class="hint" data-find-hint>{{ key.hint }}</span>
+        {% if key.keyword == "ModalitiesInStudy" %}
+        <div class="find-modality-chips" data-find-modality-chips>
+          {% for code in ["CR", "CT", "DX", "MG", "MR", "NM", "OT", "PT", "RF", "SC", "SR", "US", "XA"] %}
+          <label class="find-modality-chip">
+            <input type="checkbox" value="{{ code }}" data-modality-chip>
+            <span>{{ code }}</span>
+          </label>
+          {% endfor %}
+        </div>
+        {% elif key.keyword == "StudyDate" %}
+        <div class="find-date-tools" data-find-date-tools>
+          <div class="find-date-presets">
+            <button type="button" class="button compact" data-date-preset="today">Today</button>
+            <button type="button" class="button compact" data-date-preset="yesterday">Yesterday</button>
+            <button type="button" class="button compact" data-date-preset="7">Last 7 days</button>
+            <button type="button" class="button compact" data-date-preset="30">Last 30 days</button>
+            <button type="button" class="button compact" data-date-preset="month">This month</button>
+            <button type="button" class="button compact" data-date-preset="clear">Clear</button>
+          </div>
+          <div class="find-date-range">
+            <input type="date" data-date-from aria-label="Study Date from">
+            <span aria-hidden="true">→</span>
+            <input type="date" data-date-to aria-label="Study Date to">
+          </div>
+        </div>
+        {% endif %}
       </label>
       {% endmacro %}
 
