@@ -421,3 +421,48 @@ def test_seed_test_stores_both_variants_and_needs_no_storage_scp() -> None:
         assert len(received) == 2
     finally:
         server.shutdown()
+
+
+def _fetch_seed_variant(store, variant: str):
+    storage_port = _free_port()
+    move_port = _free_port()
+    dataset = _build_seed_instance(variant)
+    dataset.StudyInstanceUID = "1.2.3.44556677"
+    move_server, _received = _start_move_scp(move_port, storage_port, [dataset])
+    local = _local_ae(store, storage_port)
+    scp = WorklistSCP(store)
+    scp.start()
+    assert scp.running, scp.last_error
+    try:
+        time.sleep(0.05)
+        remote = RemoteNode(name="pacs", ae_title="QR_SCP", host="127.0.0.1", port=move_port)
+        return TagEditorTool().run(
+            local,
+            remote,
+            {
+                "action": "fetch",
+                "study_uid": "1.2.3.44556677",
+                "_listen_ae": "DICOMM",
+                "_storage_enabled": True,
+                "_storage_running": True,
+            },
+        )
+    finally:
+        scp.stop()
+        move_server.shutdown()
+
+
+def test_fetch_shows_a_present_but_blank_tag_distinctly(store) -> None:
+    # Used to display as the same empty cell as an absent tag -- that's exactly
+    # the distinction that decides whether Push can do anything at all.
+    result = _fetch_seed_variant(store, "blank")
+    assert result.ok, result.summary
+    assert result.records[0]["final_sign_timestamp"] == "(present, empty)"
+    assert result.records[0]["last_composed_by"] == "(present, empty)"
+
+
+def test_fetch_shows_an_absent_tag_distinctly(store) -> None:
+    result = _fetch_seed_variant(store, "absent")
+    assert result.ok, result.summary
+    assert result.records[0]["final_sign_timestamp"] == "(not present)"
+    assert result.records[0]["last_composed_by"] == "(not present)"
