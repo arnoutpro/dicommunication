@@ -6,7 +6,7 @@ A low-code DICOM communication validator and PACS admin toolkit.
 
 Configure this workstation as a DICOM Application Entity, register remote nodes (PACS, Orthanc, RIS/MWL, modalities), impersonate extra calling AE Titles, and run the checks a connectivity ticket actually needs: network PING, C-ECHO, simulated C-STORE, PDF to Encapsulated PDF Storage, Study Root C-FIND (including Study / Series / Image), Modality Worklist C-FIND, and HL7 v2 send over MLLP.
 
-The Windows MSI installs **two Start-menu tools** that share this config: **Dicommunication** (network / DIMSE / HL7 workstation) and **Dicomtag Analytics** (Study Root C-FIND, including Vue ELSCINT1 keys, plus listing and retrieving DICOM Structured Reports).
+The Windows MSI installs **two Start-menu tools** that share this config: **Dicommunication** (network / DIMSE / HL7 workstation) and **Dicomtag Analytics** (Study Root C-FIND, including Vue ELSCINT1 keys, plus listing and retrieving DICOM Structured Reports). A third product, **Dicom Anonymizer** (query, retrieve, and anonymize studies/series/images — see below), is available in the running app at `/anonymize/` but not yet wired into the MSI/DMG installers.
 
 The web UI is FastAPI + HTMX. DICOM uses pynetdicom/pydicom. New test tools are Python plugins: drop a file in `app/tools/` and it appears in the Dicommunication sidebar. The sidebar **About** button shows the running version; **Help** is the in-app administrator guide.
 
@@ -191,13 +191,15 @@ dotnet nuget install dicommunication.msi --version 0.3.0 --source github-arnoutp
 
 The already-cut `v0.2.0` MSI can be wrapped without rebuilding: **Actions → Windows MSI → Run workflow** and set `nuget_from_release` to `v0.2.0`.
 
-Install the MSI, start **Dicommunication** or **Dicomtag Analytics** from the Start menu. Each UI opens in its own window (Edge WebView2 — not a browser tab). Close that window to stop the server if this shortcut started it. Config lives in `%LOCALAPPDATA%\dicommunication` and survives upgrades; both tools share it. Windows 10/11 already have WebView2; if it is missing the app falls back to the default browser. Uninstalling asks, once, whether to also delete that folder — it can hold patient data from past runs (see [`SECURITY.md`](SECURITY.md#patient-data-on-disk)); answering No (the default) leaves it in place, same as before.
+The setup wizard shows a feature tree: **Dicommunication** and **Dicomtag Analytics** are separately checkable (both on by default), each with an off-by-default **Desktop shortcut** sub-feature alongside the Start Menu one they always get. Unchecking one app only skips its own shortcut — the underlying program files are shared, since both are the same `dicommunication.exe` under a different `--profile`.
+
+Install the MSI, start **Dicommunication** or **Dicomtag Analytics** from the Start menu (or the Desktop, if that shortcut was selected). Each UI opens in its own window (Edge WebView2 — not a browser tab). Close that window to stop the server if this shortcut started it. Config lives in `%LOCALAPPDATA%\dicommunication` and survives upgrades; both tools share it. Windows 10/11 already have WebView2; if it is missing the app falls back to the default browser. Uninstalling asks, once, whether to also delete that folder — it can hold patient data from past runs (see [`SECURITY.md`](SECURITY.md#patient-data-on-disk)); answering No (the default) leaves it in place, same as before.
 
 Unsigned builds trigger SmartScreen until a code-signing certificate is used. If a modality must C-FIND this workstation, allow inbound TCP for `dicommunication.exe` (listen port 11112). Details and a local build script: [`packaging/windows/README.md`](packaging/windows/README.md).
 
 ## macOS DMG
 
-Same idea as the MSI: the browser does **not** need Python. The DMG freezes a private runtime into `Dicommunication.app`. You should not install Python yourself on a locked-down PACS Mac. Docker does the same thing inside the image.
+Same idea as the MSI: the browser does **not** need Python. The DMG freezes a private runtime into two independent, self-contained app bundles — `Dicommunication.app` and `Dicomtag Analytics.app` — so either can be dragged out on its own. You should not install Python yourself on a locked-down PACS Mac. Docker does the same thing inside the image.
 
 **Those components cannot be installed from this app’s webpage.** The UI is served *by* the Python process, so the page only exists after the backend is already running. Ship the DMG through IT (or a USB stick), not through a button on localhost.
 
@@ -205,7 +207,7 @@ CI builds `dicommunication-<version>-macos-arm64.dmg` on `macos-latest` (workflo
 
 The already-cut `v0.2.0` release can get a DMG without a new version tag: **Actions → macOS DMG → Run workflow** and set `release_tag` to `v0.2.0`.
 
-Open the DMG, drag **Dicommunication** to Applications, then right-click the app and choose **Open** the first time (unsigned builds trip Gatekeeper). The Dock icon is the **Sansation Bold** A from the watermark. The UI opens in its own window (not a Safari tab). Close the window or quit from the Dock to stop the server. Config lives in `~/.dicommunication` and survives upgrades. Dicomtag Analytics: `open -n /Applications/Dicommunication.app --args --profile dicomtag-analytics` (or open `/vue/` in the running UI).
+Open the DMG, drag whichever app(s) you want to Applications (or straight to the Desktop for a shortcut) — **Dicommunication**, **Dicomtag Analytics**, or both, independently. Right-click and choose **Open** the first time (unsigned builds trip Gatekeeper). The Dock icon is the **Sansation Bold** A from the watermark. Each UI opens in its own window (not a Safari tab). They share one background server, so opening the second while the first is already running just adds a window. Close a window or quit from the Dock to stop the server. Config lives in `~/.dicommunication` and survives upgrades.
 
 Apple Silicon only for now. Intel Macs keep using Docker Compose. If a modality must C-FIND this workstation, allow incoming TCP for **Dicommunication** (listen port 11112). Details: [`packaging/macos/README.md`](packaging/macos/README.md).
 
@@ -340,6 +342,10 @@ Own product in the Dicommunication installer. Start-menu **Dicomtag Analytics**,
 Hierarchical FIND (no relational queries): Series keys unlock after **Study Instance UID** is present; Image keys unlock after **Study Instance UID** and **Series Instance UID**. MR-only keys such as Repetition Time stay locked unless Modality is `MR` or empty. Keys are grouped by Study / Series / Image as a list (not a grid). Collapsed **Vue PACS (ELSCINT1)** lists expose Tamar private study and series tags as optional return/match keys. Vue’s DCS does not list them. **Tamar Assign To Doctor** is a confirmed matching key on Vue 12.2.8 (used with Modalities in Study); other Vue tags may still come back empty. Grid Token sequences are not sent. Results are a column-aligned table. **Copy table** is tab-separated for Excel; **Download CSV** and **Download JSON** export the same rows. Click a result row to copy parent UIDs into the next level.
 
 Radiology reports stored as DICOM SR are a series in the same study (same Study Instance UID, different Series Instance UID, modality `SR`). After a Study query (for example today’s CTs), **List SR reports** runs Series C-FIND with `Modality=SR` for every study in the table (cap 200). **Retrieve report text** C-MOVEs each listed SR on its own association so Vue cannot stop after the first exam. Enable **Accept C-STORE (Structured Reports)** on Local DICOM AE, and register that AE Title (not a virtual Present as title) in Vue as a C-MOVE destination at this host:listen-port. The Content Sequence is flattened into concept / type / value rows — no language model. **Download JSON** (and CSV) include **Findings** and **Impression** as their own fields, plus `sr_text` for the full report. Imaging series are not stored. C-GET is not used.
+
+### Dicom Anonymizer (`/anonymize/`)
+
+A third product, `python -m app --profile dicom-anonymizer` (not yet in the MSI/DMG installers). Study-level C-FIND on Patient ID / Accession Number / Study Date (required) / Modality, same fields and rules as Dicomtag Analytics. Pick studies from the result table and a level — **Study** anonymizes exactly what you checked; **Series** or **Image** C-MOVEs every series or image inside those studies (no per-series/per-image picker yet). Four modes: **Nuke** (keep only what a viewer needs to open the image, drop everything else, fresh UIDs), **Fuzz** (keep every tag, scramble its value, pixel data untouched), **Remove patient information** (erase or scramble only a curated ~50-tag patient-identifying list), and **Custom** (per-tag keep / erase / replace, same list). Study/Series/SOP Instance UIDs are remapped consistently across one run so a multi-instance study stays one coherent study afterward. Output is loose `.dcm` files or a ZIP in a folder you choose (7z not implemented yet); filenames are always built from the anonymized UIDs, never the originals.
 
 The simple C-FIND tool and Testbench stay STUDY-level with a short filter list. This window has Query, Configured nodes, Logs, About, and Help only.
 

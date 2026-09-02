@@ -15,12 +15,17 @@ from app import __version__
 from app.applog import configure as configure_logging, log, should_skip_http_log
 from app.mwl_scp import WorklistSCP
 from app.paths import package_dir
-from app.routes import api, config, echo_board, logs, misc, testbench, tools, worklist
+from app.routes import anonymize, api, config, echo_board, logs, misc, testbench, tools, worklist
 from app.shell import (
+    ANONYMIZE_PREFIX,
+    SHELL_ANONYMIZE,
     SHELL_DICOMM,
     SHELL_VUE,
+    anonymize_path_allowed,
+    is_anonymize_public_path,
     is_vue_public_path,
     prefix_redirect_location,
+    strip_anonymize_prefix,
     strip_vue_prefix,
     vue_path_allowed,
 )
@@ -98,10 +103,9 @@ def create_app(store: ConfigStore | None = None) -> FastAPI:
         app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
 
     @app.middleware("http")
-    async def vue_shell_middleware(request: Request, call_next):
+    async def shell_middleware(request: Request, call_next):
         original = request.scope.get("path") or "/"
-        vue = is_vue_public_path(original)
-        if vue:
+        if is_vue_public_path(original):
             request.state.shell = SHELL_VUE
             new_path = strip_vue_prefix(original)
             request.scope["path"] = new_path
@@ -113,6 +117,19 @@ def create_app(store: ConfigStore | None = None) -> FastAPI:
             location = response.headers.get("location")
             if location:
                 response.headers["location"] = prefix_redirect_location(location)
+            return response
+        if is_anonymize_public_path(original):
+            request.state.shell = SHELL_ANONYMIZE
+            new_path = strip_anonymize_prefix(original)
+            request.scope["path"] = new_path
+            request.scope["raw_path"] = new_path.encode("utf-8")
+            if not anonymize_path_allowed(new_path):
+                response = RedirectResponse("/", status_code=303)
+            else:
+                response = await call_next(request)
+            location = response.headers.get("location")
+            if location:
+                response.headers["location"] = prefix_redirect_location(location, prefix=ANONYMIZE_PREFIX)
             return response
         request.state.shell = SHELL_DICOMM
         return await call_next(request)
@@ -148,6 +165,11 @@ def create_app(store: ConfigStore | None = None) -> FastAPI:
     app.include_router(config.router)
     app.include_router(testbench.router)
     app.include_router(worklist.router)
+    # anonymize.router's specific POST /tools/anonymize/run must be registered
+    # before tools.router's generic POST /tools/{tool_id}/run catch-all, or the
+    # catch-all matches first and swallows every anonymize request without any
+    # of the options this tool actually needs.
+    app.include_router(anonymize.router)
     app.include_router(tools.router)
     app.include_router(api.router)
 
