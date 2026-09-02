@@ -1,0 +1,221 @@
+{% extends "base.html" %}
+{% block title %}{{ tool.name }} · {{ product_name }}{% endblock %}
+{% block content %}
+<header class="page-head">
+  <div>
+    <p class="eyebrow">{{ tool.category }}</p>
+    <h1>{{ tool.name }}</h1>
+    <p class="lede">{{ tool.description }}</p>
+  </div>
+</header>
+
+<section class="panel">
+  <header class="panel-head">
+    <h2>Query</h2>
+    <span class="muted">
+      Calling AE {{ config.local.ae_title }}
+      · Local Storage SCP {{ "listening" if storage_scp_running else "not listening" }}
+      {% if not config.local.storage_scp_enabled %}(Accept C-STORE is off){% endif %}
+    </span>
+  </header>
+
+  {% if config.remotes %}
+  <form class="form-grid" method="post" action="{{ href('/tools/anonymize/run') }}" data-anon-form>
+    <label>
+      Remote node
+      <select name="remote_id" required>
+        {% for remote in config.remotes %}
+        <option value="{{ remote.id }}" {% if remote.id == remote_id %}selected{% endif %}>
+          {{ remote.name }} — {{ remote.ae_title }} @ {{ remote.connect_host }}:{{ remote.port }}
+        </option>
+        {% endfor %}
+      </select>
+    </label>
+    {% include "partials/identity_select.html" %}
+
+    <label>
+      Patient ID <span class="muted">(optional)</span>
+      <input type="text" name="patient_id" placeholder="12345">
+    </label>
+    <label>
+      Accession Number <span class="muted">(optional)</span>
+      <input type="text" name="accession_number" placeholder="ACC1">
+    </label>
+    <label>
+      Study Date <span class="muted">(required)</span>
+      <input type="date" name="study_date" required>
+    </label>
+    <label>
+      Modalities <span class="muted">(optional — leave all unchecked to match any)</span>
+      <div class="find-modality-chips" data-anon-modality-chips>
+        {% for code in ["CR", "CT", "DX", "MG", "MR", "NM", "OT", "PT", "RF", "SC", "SR", "US", "XA"] %}
+        <label class="find-modality-chip">
+          <input type="checkbox" name="modality" value="{{ code }}">
+          <span>{{ code }}</span>
+        </label>
+        {% endfor %}
+      </div>
+    </label>
+
+    <div class="form-actions">
+      <button class="button primary" type="submit" name="action" value="query">Run query</button>
+      <span class="hint">Study-level C-FIND, same as Dicomtag Analytics.</span>
+    </div>
+
+    {% if action == "query" and result and result.ok and result.records %}
+    <div class="form-row-wide">
+      <h3 class="result-subhead">Studies found — select what to anonymize</h3>
+      <div class="table-wrap">
+        <table class="find-table">
+          <thead>
+            <tr>
+              <th></th>
+              {% for key in result.records[0].keys() %}
+              <th>{{ key.replace("_", " ") }}</th>
+              {% endfor %}
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in result.records %}
+            <tr>
+              <td><input type="checkbox" name="study_uid" value="{{ row.StudyInstanceUID }}"></td>
+              {% for value in row.values() %}
+              <td>{{ value }}</td>
+              {% endfor %}
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      <fieldset class="find-level-field">
+        <legend>Anonymize at</legend>
+        <div class="find-level-tabs" role="radiogroup" aria-label="Level">
+          <label class="find-level-tab">
+            <input type="radio" name="level" value="STUDY" {% if level == "STUDY" %}checked{% endif %}>
+            <span>Study</span>
+          </label>
+          <label class="find-level-tab">
+            <input type="radio" name="level" value="SERIES" {% if level == "SERIES" %}checked{% endif %}>
+            <span>Series</span>
+          </label>
+          <label class="find-level-tab">
+            <input type="radio" name="level" value="IMAGE" {% if level == "IMAGE" %}checked{% endif %}>
+            <span>Image</span>
+          </label>
+        </div>
+        <p class="hint">
+          Study anonymizes exactly the checked studies. Series or Image anonymizes
+          <strong>every</strong> series or image inside the checked studies — there is no
+          per-series/per-image picker yet, so check only the studies you actually want.
+        </p>
+      </fieldset>
+
+      <fieldset>
+        <legend>Anonymization mode</legend>
+        <div class="find-level-tabs" role="radiogroup" aria-label="Mode" data-anon-mode-tabs>
+          {% for mode in anon_modes %}
+          <label class="find-level-tab">
+            <input type="radio" name="mode" value="{{ mode }}" {% if loop.first %}checked{% endif %} data-anon-mode-radio>
+            <span>{{ anon_mode_labels[mode] }}</span>
+          </label>
+          {% endfor %}
+        </div>
+        <p class="hint">
+          <strong>Nuke</strong> keeps only what a DICOM viewer needs to open the image (Rows, Columns,
+          pixel data, fresh UIDs) — every other tag is dropped entirely.
+          <strong>Fuzz</strong> keeps every tag but scrambles its value (dates, names, IDs, free text);
+          pixel data and image-structure tags are left alone so the image still decodes.
+          <strong>Remove patient information</strong> only touches the patient-identifying tags.
+          <strong>Custom</strong> lets you decide per tag below.
+        </p>
+      </fieldset>
+
+      <fieldset data-anon-remove-patient-options hidden>
+        <legend>Remove patient information — how</legend>
+        <label class="checkbox">
+          <input type="radio" name="remove_patient_action" value="erase" checked> Erase (blank)
+        </label>
+        <label class="checkbox">
+          <input type="radio" name="remove_patient_action" value="fuzz"> Fuzz (scrambled placeholder)
+        </label>
+      </fieldset>
+
+      <details data-anon-custom-table hidden>
+        <summary>Custom — per-tag actions</summary>
+        <p class="hint">Anything left on "Keep as is" is not touched. UID tags can only be kept or given a fresh, consistent UID — a UID cannot be blanked or replaced with arbitrary text and stay valid.</p>
+        {% for category_id, category_label, tags in anon_tag_categories %}
+        <h4 class="result-subhead">{{ category_label }}</h4>
+        <div class="table-wrap">
+          <table class="find-table">
+            <thead><tr><th>Tag</th><th>Action</th><th>Replacement value</th></tr></thead>
+            <tbody>
+              {% for tag in tags %}
+              <tr>
+                <td>{{ tag.label }}</td>
+                <td>
+                  <select name="custom_action__{{ tag.keyword }}">
+                    <option value="keep">Keep as is</option>
+                    {% if category_id == "uid" %}
+                    <option value="fresh_uid">Fresh UID</option>
+                    {% else %}
+                    <option value="erase">Erase</option>
+                    <option value="replace">Replace with…</option>
+                    {% endif %}
+                  </select>
+                </td>
+                <td>
+                  {% if category_id != "uid" %}
+                  <input type="text" name="custom_value__{{ tag.keyword }}" placeholder="new value">
+                  {% endif %}
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% endfor %}
+      </details>
+
+      <label>
+        Output folder
+        <div class="inline-input">
+          <input type="text" name="output_dir" placeholder="C:\Anonymized" data-anon-output-dir required>
+          <button class="button compact" type="button" data-anon-browse
+                  {% if not dialogs_available %}disabled title="No desktop folder dialog in this session"{% endif %}>
+            Browse…
+          </button>
+        </div>
+      </label>
+      <label>
+        Archive
+        <select name="archive">
+          <option value="none">No archive — loose files in a new subfolder</option>
+          <option value="zip">ZIP</option>
+        </select>
+      </label>
+
+      <div class="form-actions">
+        <button class="button primary" type="submit" name="action" value="run"
+                onclick="return confirm('Retrieve and anonymize the checked studies? This C-MOVEs real data off the PACS.');">
+          Anonymize selected
+        </button>
+      </div>
+    </div>
+    {% endif %}
+  </form>
+  {% else %}
+  <div class="empty">
+    <strong>No remote node configured</strong>
+    <p>Add a PACS or modality first, then come back to run {{ tool.name }}.</p>
+    <a class="button" href="{{ href('/config/remotes') }}">Open configuration</a>
+  </div>
+  {% endif %}
+</section>
+
+<div id="result">
+  {% if result and not (action == "query" and result.ok and result.records) %}
+    {% include "partials/result.html" %}
+  {% endif %}
+</div>
+{% endblock %}

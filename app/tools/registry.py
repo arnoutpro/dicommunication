@@ -10,6 +10,9 @@ from app.tools.base import BaseTool
 
 # Fallback when pkgutil cannot see frozen modules. Keep in sync with app/tools/*.py.
 BUILTIN_TOOL_MODULES = (
+    "anon_engine",
+    "anon_tags",
+    "anonymize",
     "echo",
     "find",
     "find_advanced",
@@ -65,6 +68,7 @@ TOOL_ORDER = (
     "mwl-find",
     "hl7-send",
     "tag-editor",
+    "anonymize",
 )
 
 

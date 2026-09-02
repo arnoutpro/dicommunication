@@ -89,7 +89,7 @@ def execute_tool(
         local = config.calling_ae(identity_id or None)
     except KeyError as exc:
         raise HTTPException(status_code=400, detail="Virtual local AE not found") from exc
-    if tool_id in ("c-find-advanced", "tag-editor"):
+    if tool_id in ("c-find-advanced", "tag-editor", "anonymize"):
         options = dict(options or {})
         scp = getattr(app.state, "mwl_scp", None)
         options.setdefault("_listen_ae", config.local.ae_title)

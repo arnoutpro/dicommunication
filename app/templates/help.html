@@ -38,6 +38,7 @@
     <li><a href="#mwl-find">MWL C-FIND</a></li>
     <li><a href="#hl7-send">HL7 send</a></li>
     <li><a href="#tag-editor">Tag Editor</a></li>
+    <li><a href="#anonymize">Dicom Anonymizer</a></li>
     <li><a href="#reading-results">Reading accepted vs rejected SOP Classes</a></li>
     <li><a href="#data">Where data is stored</a></li>
     <li><a href="#json-api">JSON API</a></li>
@@ -498,6 +499,24 @@
     <li><strong>Push</strong> retrieves fresh, overwrites only the field(s) you filled in, and C-STOREs every retrieved instance back — Vue mirrors both tags onto every instance in a study, so a partial fix would leave the study inconsistent.</li>
     <li>Only overwrites a tag that is already present. An instance that never had one of these tags is left alone for that tag and noted as skipped — this tool never invents a compose/sign event. If the real stuck case turns out to have the tag <em>entirely absent</em> rather than present-and-blank, Push cannot fix it as built; that would need deliberately relaxing this safety rule.</li>
     <li><strong>Tested once against a real Vue archive, on an already-complete study: C-MOVE and C-STORE both reported success, but the stored object was not actually replaced</strong> — a Fetch right after a Push still showed the old values. That only shows Vue ignores a C-STORE that changes an already-filled field; it says nothing about the actual target case (a genuinely missing value), which Seed test studies exists to let you check. Two things worth ruling out first regardless: whether Vue's report UI has a "re-open / re-sign" action for a stuck report (would go through the same internal path that sets these fields correctly on every normal report), and whether this is a one-off vendor-side bug worth a Philips/Vue support escalation. A separate distribution log shows these fields are <strong>required input to Vue's own report-distribution step</strong>, not something an inbound HL7 message could supply — so fixing this via HL7 sent to Vue is not a workable direction.</li>
+  </ul>
+</section>
+
+<section class="panel help-section" id="anonymize">
+  <header class="panel-head">
+    <h2>Dicom Anonymizer</h2>
+  </header>
+  <p>This installer ships a third tool, <strong>Dicom Anonymizer</strong>, that is not in the Test tools list. Open it from the Start menu (Windows, once wired into the installer), or at <code>http://127.0.0.1:8080/anonymize/</code> — <code>--profile dicom-anonymizer</code> opens it directly. It shares this workstation's calling AE and remote nodes.</p>
+  <ul>
+    <li><strong>Query</strong> is a Study-level C-FIND on Patient ID, Accession Number, Study Date (required), and Modality — the same fields and rules as Dicomtag Analytics. The result is a checkbox table; check the studies you want to anonymize.</li>
+    <li><strong>Anonymize at</strong> chooses the granularity. <strong>Study</strong> retrieves and anonymizes exactly the checked studies. <strong>Series</strong> or <strong>Image</strong> first walks down from each checked study (an internal C-FIND to every series, and for Image every image in every series) and anonymizes <em>all</em> of them — there is no per-series or per-image picker yet, so at those levels check only the studies you actually want processed.</li>
+    <li><strong>Nuke all information</strong> rebuilds each instance from only the tags a DICOM viewer needs to open it — Rows, Columns, pixel data, Modality, and fresh Study/Series/SOP Instance UIDs — and drops every other tag entirely, including ones this page doesn't otherwise know about.</li>
+    <li><strong>Fuzz all data</strong> keeps every tag present but replaces its value with scrambled placeholder data (dates become <code>1900-01-01</code>, names and free text become random letters, numbers become <code>0</code>). Pixel data and the same handful of image-structure tags as Nuke are left alone so the image still decodes; UIDs are remapped, not fuzzed as text.</li>
+    <li><strong>Remove patient information</strong> only touches a curated list of roughly 50 patient-identifying tags (patient name/ID/birth date/sex/address/phone, referring and performing physicians, operator, institution and station name, and a few more — not the full DICOM standard list) — erased blank or scrambled, your choice. Everything else on the instance (Study Description, Series Description, equipment fields not on that list, and so on) is left untouched.</li>
+    <li><strong>Custom</strong> shows that same tag list, grouped by category, with a per-tag choice: keep as is, erase, or replace with a value you type. UID tags (Study/Series/SOP Instance UID, Frame of Reference UID) can only be kept or given a fresh UID — a UID cannot be blanked or given arbitrary text and still be a valid DICOM identifier.</li>
+    <li>Every mode routes Study/Series/SOP Instance UIDs it changes through one shared map for the whole run, so instances that shared a UID before anonymizing (the same study, the same series) still share one afterward instead of each becoming its own orphan study.</li>
+    <li><strong>Output folder</strong> and <strong>Archive</strong> (no archive — loose files in a new timestamped subfolder, or a ZIP) decide where the result goes. Every filename and folder name is built from the <em>anonymized</em> UIDs, never the originals, so a filename cannot leak PHI regardless of mode. 7z archiving is not implemented yet.</li>
+    <li>Retrieve needs Accept C-STORE on and this AE listed as a C-MOVE destination, same as Dicomtag Analytics and Tag Editor retrieve.</li>
   </ul>
 </section>
 
