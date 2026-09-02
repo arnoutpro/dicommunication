@@ -139,3 +139,31 @@ app = BUNDLE(
         "NSAppTransportSecurity": {"NSAllowsLocalNetworking": True},
     },
 )
+
+# A second, fully self-contained bundle sharing the same frozen `coll` — not
+# a thin wrapper around Dicommunication.app, so either one can be dragged to
+# Applications (or the Desktop) independently and moved or deleted without
+# breaking the other. Same launcher.py entry point; LSEnvironment sets the
+# profile it reads on a plain Finder double-click (`open -n ... --args
+# --profile ...` still works too, and overrides this if given). Both share
+# one backend: whichever launches first starts the server, the other just
+# opens a second window against it (see main()'s "Already running" path).
+app_analytics = BUNDLE(
+    coll,
+    name="Dicomtag Analytics.app",
+    icon=ICON,
+    bundle_identifier="pro.arnout.dicommunication.dicomtag-analytics",
+    info_plist={
+        "CFBundleName": "Dicomtag Analytics",
+        "CFBundleDisplayName": "Dicomtag Analytics",
+        "CFBundleGetInfoString": "Arnout.pro Dicomtag Analytics (Study Root C-FIND)",
+        "CFBundleIdentifier": "pro.arnout.dicommunication.dicomtag-analytics",
+        "CFBundleShortVersionString": VERSION,
+        "CFBundleVersion": VERSION,
+        "NSHighResolutionCapable": True,
+        "NSPrincipalClass": "NSApplication",
+        "NSSupportsAutomaticGraphicsSwitching": True,
+        "NSAppTransportSecurity": {"NSAllowsLocalNetworking": True},
+        "LSEnvironment": {"DICOMM_PROFILE": "dicomtag-analytics"},
+    },
+)
