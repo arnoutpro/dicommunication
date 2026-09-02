@@ -643,6 +643,95 @@ async def c_find_advanced_run(request: Request):
     )
 
 
+def _tag_editor_page(
+    request: Request,
+    *,
+    result: ToolResult | None = None,
+    remote_id: str = "",
+    identity_id: str = "",
+    study_uid: str = "",
+    series_uid: str = "",
+    final_sign_timestamp: str = "",
+    last_composed_by: str = "",
+    status_code: int = 200,
+):
+    tool = get_tool("tag-editor")
+    return templates.TemplateResponse(
+        request,
+        tool.template,
+        page(
+            request,
+            nav="tools",
+            tool=tool,
+            tool_id=tool.id,
+            result=result,
+            remote_id=remote_id,
+            identity_id=identity_id,
+            study_uid=study_uid,
+            series_uid=series_uid,
+            final_sign_timestamp=final_sign_timestamp,
+            last_composed_by=last_composed_by,
+        ),
+        status_code=status_code,
+    )
+
+
+@router.post("/tools/tag-editor/run")
+async def tag_editor_run(request: Request):
+    form = await request.form()
+    remote_id = str(form.get("remote_id") or "")
+    identity_id = str(form.get("identity_id") or "")
+    study_uid = str(form.get("study_uid") or "").strip()
+    series_uid = str(form.get("series_uid") or "").strip()
+    final_sign_timestamp = str(form.get("final_sign_timestamp") or "").strip()
+    last_composed_by = str(form.get("last_composed_by") or "").strip()
+    action = str(form.get("action") or "fetch").strip()
+    echo = {
+        "remote_id": remote_id,
+        "identity_id": identity_id,
+        "study_uid": study_uid,
+        "series_uid": series_uid,
+        "final_sign_timestamp": final_sign_timestamp,
+        "last_composed_by": last_composed_by,
+    }
+    try:
+        result = execute_tool(
+            request,
+            "tag-editor",
+            remote_id or None,
+            {
+                "action": action,
+                "study_uid": study_uid,
+                "series_uid": series_uid,
+                "final_sign_timestamp": final_sign_timestamp,
+                "last_composed_by": last_composed_by,
+            },
+            identity_id or None,
+        )
+    except HTTPException as exc:
+        failure = ToolResult(
+            tool_id="tag-editor",
+            tool_name=get_tool("tag-editor").name,
+            ok=False,
+            summary=str(exc.detail),
+        )
+        if _hx(request):
+            return templates.TemplateResponse(
+                request,
+                "partials/result.html",
+                {"request": request, "result": failure, "display_tool_name": display_tool_name},
+                status_code=exc.status_code,
+            )
+        return _tag_editor_page(request, result=failure, status_code=exc.status_code, **echo)
+    if _hx(request):
+        return templates.TemplateResponse(
+            request,
+            "partials/result.html",
+            {"request": request, "result": result, "display_tool_name": display_tool_name},
+        )
+    return _tag_editor_page(request, result=result, **echo)
+
+
 @router.post("/tools/{tool_id}/run")
 def run_tool_form(
     request: Request,

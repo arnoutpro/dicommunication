@@ -19,6 +19,7 @@ BUILTIN_TOOL_MODULES = (
     "pdf_store",
     "ping",
     "store",
+    "tag_editor",
 )
 
 _REGISTRY: dict[str, BaseTool] = {}
@@ -63,6 +64,7 @@ TOOL_ORDER = (
     "c-find-advanced",
     "mwl-find",
     "hl7-send",
+    "tag-editor",
 )
 
 
