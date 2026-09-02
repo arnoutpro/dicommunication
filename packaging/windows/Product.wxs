@@ -36,6 +36,17 @@
       <Directory Id="ApplicationProgramsFolder" Name="Arnout.pro" />
     </StandardDirectory>
 
+    <StandardDirectory Id="DesktopFolder" />
+
+    <!--
+      Both apps run from the same frozen dicommunication.exe (Dicomtag
+      Analytics just passes the dicomtag-analytics profile), so AppFiles is one
+      shared ComponentGroup referenced by both Features below rather than
+      installed twice. Unchecking one app in the feature tree only removes
+      that app's shortcuts; the shared files stay until both are unchecked
+      (Windows Installer reference-counts a component against every Feature
+      that lists it).
+    -->
     <ComponentGroup Id="Shortcuts" Directory="ApplicationProgramsFolder">
       <Component Id="StartMenuShortcut" Guid="c4e91b07-2f6a-4d8e-9b31-7a5c0e12d844">
         <Shortcut
@@ -64,6 +75,14 @@
             WorkingDirectory="INSTALLFOLDER"
             Icon="AppIcon" />
         <!--
+          Each app is now a separately selectable Feature, so this can be
+          the only shortcut in ApplicationProgramsFolder (Dicommunication
+          unchecked). RemoveFolder only deletes an empty folder, so this is
+          safe alongside StartMenuShortcut's own RemoveFolder above when
+          both are installed.
+        -->
+        <RemoveFolder Id="RemoveApplicationProgramsFolder2" On="uninstall" />
+        <!--
           Explicit cleanup, independent of AllowSameVersionUpgrades above:
           this tool was named "Vue PACS Database Analytics" before it was
           Dicomtag Analytics. Delete that stale .lnk on every (re)install so
@@ -84,9 +103,64 @@
       </Component>
     </ComponentGroup>
 
-    <Feature Id="Main" Title="Dicommunication" Level="1">
+    <!--
+      Off by default (Level 1000, above the default INSTALLLEVEL of 1) but
+      selectable in the feature tree — the Start Menu shortcuts above already
+      cover the common case, so a desktop shortcut is opt-in clutter.
+    -->
+    <ComponentGroup Id="DesktopShortcuts" Directory="DesktopFolder">
+      <Component Id="DesktopShortcutDicommunication" Guid="262bd9d7-9290-4214-8ec5-c4e8b9977ce9">
+        <Shortcut
+            Id="DesktopAppShortcut"
+            Name="Dicommunication"
+            Description="Open the Dicommunication workstation UI"
+            Target="[INSTALLFOLDER]dicommunication.exe"
+            WorkingDirectory="INSTALLFOLDER"
+            Icon="AppIcon" />
+        <RegistryValue
+            Root="HKCU"
+            Key="Software\Arnout.pro\Dicommunication"
+            Name="desktop_shortcut"
+            Type="integer"
+            Value="1"
+            KeyPath="yes" />
+      </Component>
+      <Component Id="DesktopShortcutDicomtagAnalytics" Guid="2d141871-208c-417e-8779-c87fd52d32fc">
+        <Shortcut
+            Id="DesktopVueAnalyticsShortcut"
+            Name="Dicomtag Analytics"
+            Description="Open Dicomtag Analytics (Study Root C-FIND)"
+            Target="[INSTALLFOLDER]dicommunication.exe"
+            Arguments="--profile dicomtag-analytics"
+            WorkingDirectory="INSTALLFOLDER"
+            Icon="AppIcon" />
+        <RegistryValue
+            Root="HKCU"
+            Key="Software\Arnout.pro\Dicommunication"
+            Name="desktop_shortcut_vue_analytics"
+            Type="integer"
+            Value="1"
+            KeyPath="yes" />
+      </Component>
+    </ComponentGroup>
+
+    <Feature Id="Dicommunication" Title="Dicommunication" Level="1"
+        Description="The Dicommunication workstation UI (C-ECHO, C-STORE, C-FIND, worklist, HL7, Tag Editor).">
       <ComponentGroupRef Id="AppFiles" />
-      <ComponentGroupRef Id="Shortcuts" />
+      <ComponentRef Id="StartMenuShortcut" />
+      <Feature Id="DicommunicationDesktop" Title="Desktop shortcut" Level="1000"
+          Description="Add a Dicommunication shortcut on the Desktop, in addition to the Start Menu.">
+        <ComponentRef Id="DesktopShortcutDicommunication" />
+      </Feature>
+    </Feature>
+    <Feature Id="DicomtagAnalytics" Title="Dicomtag Analytics" Level="1"
+        Description="Study Root C-FIND / Vue-Tamar analytics tool (patient counts, report retrieve).">
+      <ComponentGroupRef Id="AppFiles" />
+      <ComponentRef Id="DicomtagAnalyticsShortcut" />
+      <Feature Id="DicomtagAnalyticsDesktop" Title="Desktop shortcut" Level="1000"
+          Description="Add a Dicomtag Analytics shortcut on the Desktop, in addition to the Start Menu.">
+        <ComponentRef Id="DesktopShortcutDicomtagAnalytics" />
+      </Feature>
     </Feature>
 
     <!--
@@ -113,8 +187,14 @@
           Condition='REMOVE="ALL" AND NOT UPGRADINGPRODUCTCODE AND UILevel &gt;= 5' />
     </InstallExecuteSequence>
 
+    <!--
+      FeatureTree (not InstallDir): lets the setup wizard show the four
+      features above as a checkbox tree (Dicommunication / Dicomtag
+      Analytics, each with a Desktop shortcut sub-feature) via CustomizeDlg,
+      which also has its own Browse button for INSTALLFOLDER.
+    -->
     <Property Id="WIXUI_INSTALLDIR" Value="INSTALLFOLDER" />
-    <ui:WixUI Id="WixUI_InstallDir" />
+    <ui:WixUI Id="WixUI_FeatureTree" />
     <WixVariable Id="WixUILicenseRtf" Value="packaging\windows\License.rtf" />
   </Package>
 </Wix>
