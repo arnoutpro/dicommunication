@@ -862,6 +862,112 @@ function setFindLevel(form, level) {
   }
 }
 
+const MODALITY_CHIP_CODES = ["CR", "CT", "DX", "MG", "MR", "NM", "OT", "PT", "RF", "SC", "SR", "US", "XA"];
+
+function syncModalityChipsFromInput(form) {
+  const input = findValueInput(form, "ModalitiesInStudy");
+  const chipsBox = form.querySelector("[data-find-modality-chips]");
+  if (!input || !chipsBox) {
+    return;
+  }
+  const tokens = input.value
+    .split("\\")
+    .map((token) => token.trim().toUpperCase())
+    .filter(Boolean);
+  chipsBox.querySelectorAll("[data-modality-chip]").forEach((box) => {
+    box.checked = tokens.includes(box.value);
+  });
+}
+
+function syncModalityInputFromChips(form) {
+  const input = findValueInput(form, "ModalitiesInStudy");
+  const chipsBox = form.querySelector("[data-find-modality-chips]");
+  if (!input || !chipsBox) {
+    return;
+  }
+  const known = new Set(MODALITY_CHIP_CODES);
+  const extras = input.value
+    .split("\\")
+    .map((token) => token.trim().toUpperCase())
+    .filter((token) => token && !known.has(token));
+  const checked = [...chipsBox.querySelectorAll("[data-modality-chip]:checked")].map((box) => box.value);
+  input.value = [...checked, ...extras].join("\\");
+}
+
+function isoDateFromDicomToken(token) {
+  return /^\d{8}$/.test(token) ? `${token.slice(0, 4)}-${token.slice(4, 6)}-${token.slice(6, 8)}` : token;
+}
+
+function syncDatePickersFromInput(form) {
+  const input = findValueInput(form, "StudyDate");
+  const from = form.querySelector("[data-date-from]");
+  const to = form.querySelector("[data-date-to]");
+  if (!input || !from || !to) {
+    return;
+  }
+  const text = input.value.trim();
+  const datePart = "\\d{4}-\\d{2}-\\d{2}|\\d{8}";
+  const rangeMatch = text.match(new RegExp(`^(${datePart})\\s*-\\s*(${datePart})$`));
+  if (rangeMatch) {
+    from.value = isoDateFromDicomToken(rangeMatch[1]);
+    to.value = isoDateFromDicomToken(rangeMatch[2]);
+  } else if (new RegExp(`^(${datePart})$`).test(text)) {
+    from.value = isoDateFromDicomToken(text);
+    to.value = "";
+  } else {
+    // Open-ended range, wildcard, or other raw DICOM syntax the pickers can't represent.
+    from.value = "";
+    to.value = "";
+  }
+}
+
+function syncDateInputFromPickers(form) {
+  const input = findValueInput(form, "StudyDate");
+  const from = form.querySelector("[data-date-from]");
+  const to = form.querySelector("[data-date-to]");
+  if (!input || !from || !to) {
+    return;
+  }
+  if (from.value && to.value) {
+    input.value = `${from.value}-${to.value}`;
+  } else {
+    input.value = from.value || to.value || "";
+  }
+}
+
+function applyDatePreset(form, preset) {
+  const from = form.querySelector("[data-date-from]");
+  const to = form.querySelector("[data-date-to]");
+  if (!from || !to) {
+    return;
+  }
+  const fmt = (date) => date.toISOString().slice(0, 10);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  if (preset === "clear") {
+    from.value = "";
+    to.value = "";
+  } else if (preset === "today") {
+    from.value = fmt(today);
+    to.value = "";
+  } else if (preset === "yesterday") {
+    const day = new Date(today);
+    day.setDate(day.getDate() - 1);
+    from.value = fmt(day);
+    to.value = "";
+  } else if (preset === "7" || preset === "30") {
+    const start = new Date(today);
+    start.setDate(start.getDate() - (Number(preset) - 1));
+    from.value = fmt(start);
+    to.value = fmt(today);
+  } else if (preset === "month") {
+    from.value = fmt(new Date(today.getFullYear(), today.getMonth(), 1));
+    to.value = fmt(today);
+  }
+  syncDateInputFromPickers(form);
+  syncFindAdvanced(form);
+}
+
 function syncFindAdvanced(form) {
   if (!form) {
     return;
@@ -926,6 +1032,8 @@ function syncFindAdvanced(form) {
       }
     }
   });
+  syncModalityChipsFromInput(form);
+  syncDatePickersFromInput(form);
 }
 
 function applyFindSelection(form, mode) {
@@ -1339,6 +1447,16 @@ function bindFindAdvanced(root) {
   if (target && !target.dataset.findBound) {
     target.dataset.findBound = "1";
     target.addEventListener("change", (event) => {
+      if (event.target.matches("[data-modality-chip]")) {
+        syncModalityInputFromChips(target);
+        syncFindAdvanced(target);
+        return;
+      }
+      if (event.target.matches("[data-date-from], [data-date-to]")) {
+        syncDateInputFromPickers(target);
+        syncFindAdvanced(target);
+        return;
+      }
       if (event.target.closest("[data-find-level], [data-find-value], [data-find-include]")) {
         syncFindAdvanced(target);
       }
@@ -1361,6 +1479,16 @@ function bindFindAdvanced(root) {
       if (stop) {
         stopFindQuery(target);
       }
+      const preset = event.target.closest("[data-date-preset]");
+      if (preset) {
+        applyDatePreset(target, preset.getAttribute("data-date-preset"));
+      }
+    });
+    target.querySelectorAll("[data-find-modality-chips], [data-find-date-tools]").forEach((box) => {
+      // These sit inside the <label class="find-key"> row; without this, a click on
+      // blank space between chips/buttons would bubble to the label and toggle its
+      // "include as return column" checkbox instead of doing nothing.
+      box.addEventListener("click", (event) => event.stopPropagation());
     });
     target.addEventListener("htmx:beforeRequest", () => {
       delete target.dataset.findAborted;
