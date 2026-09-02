@@ -50,6 +50,20 @@
     </label>
     {% include "partials/identity_select.html" %}
 
+    <div class="form-actions">
+      <button class="button" type="submit" name="action" value="seed_test"
+              hx-post="/tools/tag-editor/run" hx-include="closest form"
+              hx-target="#result" hx-indicator="#busy">
+        Seed test studies (synthetic, safe)
+      </button>
+      <span class="hint">
+        C-STOREs two throwaway studies (patient ARNPRO^TESTBENCH) — one with both
+        tags present but blank, one with them entirely absent — so you can test
+        whether Push actually applies without touching a real patient. Copy either
+        Study Instance UID from the result below.
+      </span>
+    </div>
+
     <label>
       Accession Number
       <input type="text" name="accession_number" value="{{ accession_number|default('') }}"
