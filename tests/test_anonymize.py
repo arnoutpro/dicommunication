@@ -105,6 +105,22 @@ def test_anonymize_tool_hidden_from_other_shells() -> None:
     assert ids == {"anonymize"}
 
 
+def test_anonymize_shell_sidebar_has_no_test_tools(client) -> None:
+    """The sidebar's Test tools branch (Testbench, C-ECHO board, Worklist, the
+    full tool list) is for the main Dicommunication shell only — a single-tool
+    shell like Dicom Anonymizer gets the slim sidebar (its own page, Configured
+    nodes, Logs), same as Dicomtag Analytics already did.
+    """
+    response = client.get("/anonymize/")
+    assert response.status_code == 200
+    body = response.text
+    assert "Testbench" not in body
+    assert "C-ECHO board" not in body
+    assert "Worklist" not in body
+    assert "Configured nodes" in body
+    assert "Dicom Anonymizer" in body
+
+
 # ---------------------------------------------------------------------------
 # Engine
 # ---------------------------------------------------------------------------
