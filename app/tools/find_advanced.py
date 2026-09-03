@@ -26,7 +26,17 @@ from app.dicom_client import (
 )
 from app.models import LocalAE, RemoteNode, ToolResult, ToolStep
 from app.mwl_scp import STORAGE_INBOX
-from app.sr import SR_SOP_CLASS_UIDS, is_structured_report, parse_sr
+from app.sr import (
+    FINDINGS_CODES,
+    FINDINGS_NAMES,
+    IMPRESSION_CODES,
+    IMPRESSION_NAMES,
+    SR_SOP_CLASS_UIDS,
+    is_structured_report,
+    parse_sr,
+    prune_sections,
+    sr_plain_text,
+)
 from app.tools.base import BaseTool, elapsed_ms
 from app.tools.find_keys import (
     LEVEL_LABELS,
@@ -350,8 +360,16 @@ def _expand_image_uids(
 
 
 def _records_from_stored(
-    datasets: list, parents: list[Mapping[str, Any]]
+    datasets: list,
+    parents: list[Mapping[str, Any]],
+    include_findings: bool = True,
+    include_impression: bool = True,
 ) -> tuple[list[dict[str, Any]], int]:
+    columns = [
+        key
+        for key in SR_CONTENT_COLUMNS
+        if (key != "Findings" or include_findings) and (key != "Impression" or include_impression)
+    ]
     records: list[dict[str, Any]] = []
     skipped = 0
     for dataset in datasets:
@@ -369,7 +387,7 @@ def _records_from_stored(
             ),
             {},
         )
-        record: dict[str, Any] = {key: "" for key in SR_CONTENT_COLUMNS}
+        record: dict[str, Any] = {key: "" for key in columns}
         for key in (
             "PatientName",
             "PatientID",
@@ -379,16 +397,23 @@ def _records_from_stored(
         ):
             record[key] = _stringify_attr(dataset, key) or _cell(parent, key)
         record["DocumentTitle"] = str(parsed_sr["document_title"])
-        record["Findings"] = str(parsed_sr["findings"])
-        record["Impression"] = str(parsed_sr["impression"])
+        items = parsed_sr["items"]
+        if include_findings:
+            record["Findings"] = str(parsed_sr["findings"])
+        else:
+            items = prune_sections(items, names=FINDINGS_NAMES, codes=FINDINGS_CODES)
+        if include_impression:
+            record["Impression"] = str(parsed_sr["impression"])
+        else:
+            items = prune_sections(items, names=IMPRESSION_NAMES, codes=IMPRESSION_CODES)
         record["CompletionFlag"] = str(parsed_sr["completion_flag"])
         record["VerificationFlag"] = str(parsed_sr["verification_flag"])
         record["StudyInstanceUID"] = str(parsed_sr["study_instance_uid"])
         record["SeriesInstanceUID"] = str(parsed_sr["series_instance_uid"])
         record["SOPInstanceUID"] = str(parsed_sr["sop_instance_uid"])
         record["SOPClass"] = uid_name(parsed_sr["sop_class_uid"])
-        record["sr_text"] = str(parsed_sr["text"])
-        record["sr_items"] = parsed_sr["items"]
+        record["sr_text"] = sr_plain_text(items) if not (include_findings and include_impression) else str(parsed_sr["text"])
+        record["sr_items"] = items
         records.append(record)
     return records, skipped
 
@@ -940,7 +965,12 @@ class CFindAdvancedTool(BaseTool):
                             )
                         )
                     else:
-                        records, skipped = _records_from_stored(datasets, requested)
+                        records, skipped = _records_from_stored(
+                            datasets,
+                            requested,
+                            include_findings=bool(options.get("sr_include_findings", True)),
+                            include_impression=bool(options.get("sr_include_impression", True)),
+                        )
                         parsed_count = len(records)
                         notes: list[str] = []
                         if truncated:

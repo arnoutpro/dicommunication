@@ -54,6 +54,18 @@
       </p>
       {% endif %}
 
+      <fieldset class="find-sr-fields">
+        <legend>Retrieve report text includes</legend>
+        <label class="find-sr-field-toggle">
+          <input type="checkbox" name="sr_include_findings" checked>
+          Findings
+        </label>
+        <label class="find-sr-field-toggle">
+          <input type="checkbox" name="sr_include_impression" checked>
+          Impression
+        </label>
+      </fieldset>
+
       <fieldset class="find-level-field">
         <legend>Level</legend>
         <div class="find-level-tabs" role="radiogroup" aria-label="Query level">

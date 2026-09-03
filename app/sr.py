@@ -217,6 +217,32 @@ def section_text(
     return "\n".join(chunks).strip()
 
 
+def prune_sections(
+    items: list[dict[str, str | int]],
+    *,
+    names: set[str],
+    codes: set[str],
+) -> list[dict[str, str | int]]:
+    """Drop concepts matching names/codes, and anything nested under them."""
+    wanted_names = {name.lower() for name in names}
+    wanted_codes = {code.lower() for code in codes}
+    kept: list[dict[str, str | int]] = []
+    skip_below_depth: int | None = None
+    for item in items:
+        depth = int(item.get("depth") or 0)
+        if skip_below_depth is not None:
+            if depth > skip_below_depth:
+                continue
+            skip_below_depth = None
+        name = str(item.get("name") or "").strip().lower()
+        code = _item_code(item).lower()
+        if name in wanted_names or code in wanted_codes:
+            skip_below_depth = depth
+            continue
+        kept.append(item)
+    return kept
+
+
 def sr_plain_text(items: list[dict[str, str | int]]) -> str:
     lines: list[str] = []
     for item in items:
