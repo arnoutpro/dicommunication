@@ -24,6 +24,7 @@ from app.routes._shared import _as_bool, _first_error, _hx, execute_tool, page, 
 from app.routes.anonymize import _anonymize_page
 from app.shell import SHELL_ANONYMIZE, SHELL_DICOMM, SHELL_VUE, display_tool_name
 from app.tools import get_tool
+from app.tools.find_advanced import COUNT_MAX_RECORDS
 from app.tools.find_keys import catalog_payload, column_labels, options_from_form
 
 router = APIRouter()
@@ -278,6 +279,7 @@ def _find_advanced_extras(
     resolved = level
     kind = "table"
     truncated = False
+    record_count = len(records)
     if result:
         for step in result.steps:
             step_level = step.details.get("level")
@@ -288,6 +290,9 @@ def _find_advanced_extras(
                 kind = str(step_kind)
             if step.details.get("truncated"):
                 truncated = True
+                count = step.details.get("count")
+                if isinstance(count, int):
+                    record_count = count
     labels = dict(zip(columns, column_labels(columns)))
     labels.update(
         {
@@ -307,6 +312,8 @@ def _find_advanced_extras(
         "find_level": resolved,
         "find_kind": kind,
         "find_truncated": truncated,
+        "find_record_count": record_count,
+        "find_cap_ceiling": COUNT_MAX_RECORDS,
         "find_labels": labels,
         "find_columns": columns,
         "storage_scp_enabled": config.local.storage_scp_enabled,

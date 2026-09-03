@@ -414,6 +414,104 @@ def test_max_records_override_lifts_the_display_cap() -> None:
         server.shutdown()
 
 
+def test_truncated_query_shows_cap_confirm_banner_and_max_records_lifts_it(client, store) -> None:
+    """A table-level query that hits the display cap should show a proactive
+    confirmation banner (not silently keep going) — clicking "Continue anyway"
+    resubmits the form with a higher `max_records`, which lifts the cap.
+    """
+    import app.tools.find_advanced as find_advanced_mod
+
+    port = _free_port()
+    original_cap = find_advanced_mod.MAX_RECORDS
+
+    def handle_find(event):
+        for i in range(5):
+            ds = Dataset()
+            ds.QueryRetrieveLevel = "STUDY"
+            ds.PatientName = f"DOE^PERSON{i}"
+            ds.PatientID = str(100 + i)
+            ds.StudyInstanceUID = f"1.2.{i}"
+            yield 0xFF00, ds
+        yield 0x0000, None
+
+    server = _start_scp("QR_SCP", port, [(evt.EVT_C_FIND, handle_find)])
+    find_advanced_mod.MAX_RECORDS = 3
+    try:
+        time.sleep(0.05)
+        remote = RemoteNode(name="pacs", ae_title="QR_SCP", host="127.0.0.1", port=port)
+        store.add_remote(remote)
+
+        capped = client.post(
+            "/tools/c-find-advanced/run",
+            data={
+                "remote_id": remote.id,
+                "level": "STUDY",
+                "include": ["PatientName", "PatientID"],
+                "key_StudyDate": "20260826",
+            },
+            headers={"HX-Request": "true"},
+        )
+        assert capped.status_code == 200
+        assert b'data-find-cap-confirm' in capped.content
+        assert b"Continuing could have a significant impact on the performance of the PACS" in capped.content
+        assert b'data-find-continue-cap="50000"' in capped.content
+
+        lifted = client.post(
+            "/tools/c-find-advanced/run",
+            data={
+                "remote_id": remote.id,
+                "level": "STUDY",
+                "include": ["PatientName", "PatientID"],
+                "key_StudyDate": "20260826",
+                "max_records": "50000",
+            },
+            headers={"HX-Request": "true"},
+        )
+        assert lifted.status_code == 200
+        assert b'data-find-cap-confirm' not in lifted.content
+        assert b"DOE^PERSON4" in lifted.content
+    finally:
+        find_advanced_mod.MAX_RECORDS = original_cap
+        server.shutdown()
+
+
+def test_sr_follow_results_have_back_button_and_table_does_not(client, store) -> None:
+    """The "Back to results" affordance should only render on a follow-up view
+    (List SR reports / Retrieve report text), never on the plain results table.
+    """
+    port = _free_port()
+
+    def handle_find(event):
+        ds = Dataset()
+        ds.QueryRetrieveLevel = "STUDY"
+        ds.PatientName = "DOE^JANE"
+        ds.PatientID = "1001"
+        ds.StudyInstanceUID = "1.2.3"
+        yield 0xFF00, ds
+        yield 0x0000, None
+
+    server = _start_scp("QR_SCP", port, [(evt.EVT_C_FIND, handle_find)])
+    try:
+        time.sleep(0.05)
+        remote = RemoteNode(name="pacs", ae_title="QR_SCP", host="127.0.0.1", port=port)
+        store.add_remote(remote)
+
+        table = client.post(
+            "/tools/c-find-advanced/run",
+            data={
+                "remote_id": remote.id,
+                "level": "STUDY",
+                "include": ["PatientName", "PatientID"],
+                "key_StudyDate": "20260826",
+            },
+            headers={"HX-Request": "true"},
+        )
+        assert table.status_code == 200
+        assert b"data-find-back" not in table.content
+    finally:
+        server.shutdown()
+
+
 def test_empty_numeric_return_key_is_zero_length() -> None:
     ds = Dataset()
     apply_key(ds, "Rows", "")
@@ -921,6 +1019,9 @@ def test_retrieve_sr_html_shows_findings_cards(client, store, app) -> None:
         assert b"<h4>Findings</h4>" in html.content
         assert b"<h4>Impression</h4>" in html.content
         assert b"No acute osseous abnormality." in html.content
+        assert b"data-find-back" in html.content
+        assert b"data-find-sr-search" in html.content
+        assert b'data-sr-index="0"' in html.content
         assert b"Content Sequence" in html.content
         assert b"<textarea hidden data-find-export>" in html.content
         assert b'data-find-export-hint' in html.content

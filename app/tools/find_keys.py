@@ -1139,6 +1139,12 @@ def options_from_form(form: Mapping[str, Any]) -> dict[str, Any]:
     studies = _parse_studies(form.get("studies_json") or form.get("studies"))
     if studies:
         payload["studies"] = studies
+    raw_cap = str(form.get("max_records") or "").strip()
+    if raw_cap:
+        try:
+            payload["max_records"] = int(raw_cap)
+        except ValueError:
+            pass
     return payload
 
 
