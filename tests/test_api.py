@@ -26,8 +26,7 @@ def test_health_and_pages(client) -> None:
     assert b'data-theme-option="dark"' in home.content
     assert b'data-theme-option="system"' in home.content
     assert b'data-theme-option="professional"' in home.content
-    assert b"site-brand-mark-layer" in home.content
-    assert b"site-brand-mark-svg" in home.content
+    assert b"site-brand-mark-img" in home.content
     assert b"site-brand-copy" in home.content
     assert b'href="/logs"' in home.content
     assert b"DIMSE" in home.content

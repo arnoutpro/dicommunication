@@ -80,7 +80,7 @@ def test_vue_home_is_query_page(client) -> None:
     assert b'href="/vue/config/remotes"' in page.content
     assert b"shell-vue" in page.content
     assert b"topbar" in page.content
-    assert b"site-brand-mark-layer" in page.content
+    assert b"site-brand-mark-img" in page.content
 
 
 def test_vue_query_form_uses_prefixed_action(client, remote) -> None:

@@ -167,74 +167,11 @@ h1, h2, h3, h4 {
   overflow: hidden;
   transition: transform 0.3s ease;
 }
-.site-brand-mark-svg {
+.site-brand-mark-img {
   display: block;
   width: 100%;
   height: 100%;
-  overflow: hidden;
-}
-.site-brand-mark-svg clipPath text {
-  font-family: Sansation, sans-serif;
-  font-weight: 700;
-}
-.site-brand-mark-sky {
-  position: relative;
-  width: 64px;
-  height: 64px;
-  overflow: hidden;
-  isolation: isolate;
-  background: transparent;
-}
-.site-brand-mark-layer {
-  position: absolute;
-  inset: -50%;
-  width: 200%;
-  height: 200%;
-  pointer-events: none;
-  will-change: background-position, transform;
-}
-.site-brand-mark-layer--a {
-  background-image: repeating-linear-gradient(
-    105deg,
-    #000000 0 10px,
-    #00e5ff 10px 22px,
-    #22d3ee 22px 32px,
-    #39ff6a 32px 42px,
-    #ffffff 42px 50px,
-    #d946ef 50px 62px,
-    #ff2d95 62px 74px,
-    #0ea5e9 74px 86px,
-    #000000 86px 98px
-  );
-  background-size: 200% 200%;
-  animation: site-brand-aurora-a 7.2s linear infinite;
-}
-.site-brand-mark-layer--b {
-  background-image: repeating-linear-gradient(
-    75deg,
-    transparent 0 14px,
-    rgba(0, 229, 255, 0.95) 14px 22px,
-    rgba(255, 45, 149, 0.95) 22px 30px,
-    rgba(57, 255, 106, 0.85) 30px 38px,
-    transparent 38px 52px
-  );
-  background-size: 220% 220%;
-  mix-blend-mode: screen;
-  opacity: 0.9;
-  animation: site-brand-aurora-b 10.4s linear infinite;
-}
-@keyframes site-brand-aurora-a {
-  from { background-position: 0% 40%; transform: translate3d(0, 0, 0); }
-  to { background-position: 100% 55%; transform: translate3d(-8%, 3%, 0); }
-}
-@keyframes site-brand-aurora-b {
-  from { background-position: 100% 30%; transform: translate3d(0, 0, 0); }
-  to { background-position: 0% 60%; transform: translate3d(6%, -4%, 0); }
-}
-.brand:hover .site-brand-mark-layer--a { animation-duration: 3.6s; }
-.brand:hover .site-brand-mark-layer--b { animation-duration: 5.2s; }
-@media (prefers-reduced-motion: reduce) {
-  .site-brand-mark-layer { animation: none; }
+  object-fit: contain;
 }
 
 .site-brand-copy {
