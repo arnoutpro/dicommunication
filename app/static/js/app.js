@@ -1301,7 +1301,7 @@ async function recountFindPatientsExact(box, capNote) {
   }
   const note = document.createElement("p");
   note.className = "hint";
-  note.textContent = "Query was capped in the display table — automatically re-querying without the row limit for an exact count…";
+  note.textContent = "Re-querying without the row limit for an exact count…";
   box.appendChild(note);
   try {
     const { records, truncated } = await fetchExactPatientRecords(query);
@@ -1336,20 +1336,36 @@ function toggleFindPatientSummary(root) {
   const summary = buildFindPatientSummary(payload);
   renderFindPatientSummary(box, summary, "");
   if (payload.truncated) {
-    const capNote =
-      "these counts only cover the studies already in the table. Narrow Study Date (or other filters) and re-run to get a complete count.";
-    recountFindPatientsExact(box, capNote);
+    offerFindPatientsRecount(box);
   }
+}
+
+function offerFindPatientsRecount(box) {
+  const capNote = "narrow Study Date (or other filters) and re-run to get a complete count.";
+  const prompt = document.createElement("div");
+  prompt.className = "find-cap-confirm";
+  prompt.innerHTML =
+    "<p>These counts only cover the first 2000 studies in the table. Getting an exact count re-queries the PACS without that limit, which could have a significant impact on the performance of the PACS.</p>" +
+    '<button class="button compact" type="button" data-find-recount-confirm>Get exact count anyway</button>';
+  box.appendChild(prompt);
+  prompt.querySelector("[data-find-recount-confirm]").addEventListener("click", () => {
+    prompt.remove();
+    recountFindPatientsExact(box, capNote);
+  });
 }
 
 function clearFindFollow(form) {
   const follow = form.querySelector("[data-find-follow-field]");
   const studies = form.querySelector("[data-find-studies-field]");
+  const cap = form.querySelector("[data-find-cap-field]");
   if (follow) {
     follow.value = "";
   }
   if (studies) {
     studies.value = "";
+  }
+  if (cap) {
+    cap.value = "";
   }
 }
 
@@ -1402,6 +1418,42 @@ function clearFindParentUids(form) {
   syncFindAdvanced(form);
 }
 
+let findResultHistory = [];
+
+function resetFindHistory() {
+  findResultHistory = [];
+}
+
+function pushFindHistory() {
+  const result = document.getElementById("result");
+  if (result && result.querySelector("[data-find-result]")) {
+    findResultHistory.push(result.innerHTML);
+  }
+}
+
+function popFindHistory() {
+  const result = document.getElementById("result");
+  const html = findResultHistory.pop();
+  if (result && html !== undefined) {
+    result.innerHTML = html;
+  }
+}
+
+function continueFindWithHigherCap(cap) {
+  const form = findAdvancedForm();
+  const capField = form && form.querySelector("[data-find-cap-field]");
+  if (!form || !capField) {
+    return;
+  }
+  resetFindHistory();
+  capField.value = cap || "50000";
+  if (typeof form.requestSubmit === "function") {
+    form.requestSubmit();
+  } else {
+    form.submit();
+  }
+}
+
 function startFindFollow(kind, resultRoot) {
   const form = findAdvancedForm();
   const payload = parseFindExport(resultRoot);
@@ -1417,6 +1469,7 @@ function startFindFollow(kind, resultRoot) {
   if (!follow || !studies) {
     return;
   }
+  pushFindHistory();
   clearFindParentUids(form);
   follow.value = kind;
   studies.value = JSON.stringify(records);
@@ -1494,21 +1547,26 @@ function bindFindAdvanced(root) {
       const run = event.target.closest("[data-find-run]");
       if (run) {
         clearFindFollow(target);
+        resetFindHistory();
       }
       const stop = event.target.closest("[data-find-stop]");
       if (stop) {
         stopFindQuery(target);
       }
-      const preset = event.target.closest("[data-date-preset]");
-      if (preset) {
-        applyDatePreset(target, preset.getAttribute("data-date-preset"));
-      }
     });
     target.querySelectorAll("[data-find-modality-chips], [data-find-date-tools]").forEach((box) => {
       // These sit inside the <label class="find-key"> row; without this, a click on
       // blank space between chips/buttons would bubble to the label and toggle its
-      // "include as return column" checkbox instead of doing nothing.
-      box.addEventListener("click", (event) => event.stopPropagation());
+      // "include as return column" checkbox instead of doing nothing. Handle the date
+      // presets here before stopping propagation, since stopPropagation also keeps the
+      // click from ever reaching the delegated listener on `target` above.
+      box.addEventListener("click", (event) => {
+        const preset = event.target.closest("[data-date-preset]");
+        if (preset) {
+          applyDatePreset(target, preset.getAttribute("data-date-preset"));
+        }
+        event.stopPropagation();
+      });
     });
     target.addEventListener("htmx:beforeRequest", () => {
       delete target.dataset.findAborted;
@@ -1562,6 +1620,8 @@ document.addEventListener("click", (event) => {
   const csv = event.target.closest("[data-find-csv]");
   const json = event.target.closest("[data-find-json]");
   const follow = event.target.closest("[data-find-follow]");
+  const back = event.target.closest("[data-find-back]");
+  const continueCap = event.target.closest("[data-find-continue-cap]");
   const patientSummary = event.target.closest("[data-find-patient-summary]");
   const row = event.target.closest("[data-find-row]");
   const result = event.target.closest("[data-find-result]");
@@ -1571,6 +1631,10 @@ document.addEventListener("click", (event) => {
     downloadFindCsv(result);
   } else if (json && result) {
     downloadFindJson(result);
+  } else if (back && result) {
+    popFindHistory();
+  } else if (continueCap && result) {
+    continueFindWithHigherCap(continueCap.getAttribute("data-find-continue-cap"));
   } else if (patientSummary && result) {
     toggleFindPatientSummary(result);
   } else if (follow && result) {
@@ -1578,6 +1642,39 @@ document.addEventListener("click", (event) => {
     startFindFollow(follow.getAttribute("data-find-follow"), result);
   } else if (row && result) {
     useFindRow(row);
+  }
+});
+
+function filterFindSrResults(result, query) {
+  const term = query.trim().toLowerCase();
+  const cards = Array.from(result.querySelectorAll(".find-sr-card"));
+  let visible = 0;
+  cards.forEach((card) => {
+    const index = card.getAttribute("data-sr-index");
+    const row = result.querySelector(`tr[data-sr-index="${CSS.escape(index)}"]`);
+    const match = !term || card.textContent.toLowerCase().includes(term);
+    card.hidden = !match;
+    if (row) {
+      row.hidden = !match;
+    }
+    if (match) {
+      visible += 1;
+    }
+  });
+  const count = result.querySelector("[data-find-sr-search-count]");
+  if (count) {
+    count.textContent = term ? `${visible} of ${cards.length} shown` : "";
+  }
+}
+
+document.addEventListener("input", (event) => {
+  const search = event.target.closest("[data-find-sr-search]");
+  if (!search) {
+    return;
+  }
+  const result = event.target.closest("[data-find-result]");
+  if (result) {
+    filterFindSrResults(result, search.value);
   }
 });
 

@@ -49,7 +49,20 @@
   {% set labels = find_labels if find_labels is defined else {} %}
   {% set kind = find_kind if find_kind is defined else "table" %}
   <h3 class="result-subhead">{% if kind == "sr_series" %}Structured Report series{% elif kind == "sr_content" %}Structured Report contents{% else %}Returned records{% endif %}</h3>
+  {% if kind == "table" and find_truncated|default(false) %}
+  <div class="find-cap-confirm" data-find-cap-confirm>
+    {% if find_record_count|default(0) >= find_cap_ceiling|default(50000) %}
+    <p><strong>{{ "{:,}".format(find_record_count|default(0)) }} records</strong> matched — even the raised limit was hit. Narrow Study Date (or another filter) to see the rest; the PACS will not return more than {{ "{:,}".format(find_cap_ceiling|default(50000)) }} at once.</p>
+    {% else %}
+    <p><strong>More than {{ "{:,}".format(find_record_count|default(0)) }} records</strong> matched — only the first {{ "{:,}".format(find_record_count|default(0)) }} are shown. Continuing could have a significant impact on the performance of the PACS. Continue and fetch more anyway?</p>
+    <button class="button compact" type="button" data-find-continue-cap="{{ find_cap_ceiling|default(50000) }}">Continue anyway</button>
+    {% endif %}
+  </div>
+  {% endif %}
   <div class="find-export-bar">
+    {% if kind == "sr_series" or kind == "sr_content" %}
+    <button class="button compact" type="button" data-find-back>&larr; Back to results</button>
+    {% endif %}
     <button class="button compact" type="button" data-find-copy>Copy table</button>
     <button class="button compact" type="button" data-find-csv>Download CSV</button>
     <button class="button compact" type="button" data-find-json>Download JSON</button>
@@ -87,6 +100,10 @@
   </div>
   {% else %}
   {% set table_columns = ["PatientName", "PatientID", "StudyDate", "AccessionNumber", "DocumentTitle", "Findings", "Impression"] %}
+  <div class="find-sr-search">
+    <input type="search" data-find-sr-search placeholder="Search patient, ID, accession, findings, impression…" aria-label="Search structured reports">
+    <span class="hint" data-find-sr-search-count></span>
+  </div>
   <div class="table-wrap find-table-wrap find-sr-overview">
     <table class="find-table" data-find-table>
       <thead>
@@ -98,7 +115,7 @@
       </thead>
       <tbody>
         {% for row in result.records %}
-        <tr data-find-row>
+        <tr data-find-row data-sr-index="{{ loop.index0 }}">
           {% for key in table_columns %}
           <td data-key="{{ key }}">{{ row.get(key, "") }}</td>
           {% endfor %}
@@ -108,7 +125,7 @@
     </table>
   </div>
   {% for row in result.records %}
-  <article class="find-sr-card">
+  <article class="find-sr-card" data-sr-index="{{ loop.index0 }}">
     <header>
       <strong>{{ row.get("PatientName") or "Patient" }}</strong>
       <span class="muted">{{ row.get("StudyDate") }}{% if row.get("AccessionNumber") %} · {{ row.get("AccessionNumber") }}{% endif %} · {{ row.get("DocumentTitle") or "Structured Report" }}</span>
