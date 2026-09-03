@@ -99,7 +99,7 @@
     </table>
   </div>
   {% else %}
-  {% set table_columns = ["PatientName", "PatientID", "StudyDate", "AccessionNumber", "DocumentTitle", "Findings", "Impression"] %}
+  {% set table_columns = ["PatientName", "PatientID", "StudyDate", "AccessionNumber", "DocumentTitle"] + (["Findings"] if "Findings" in result.records[0] else []) + (["Impression"] if "Impression" in result.records[0] else []) %}
   <div class="find-sr-search">
     <input type="search" data-find-sr-search placeholder="Search patient, ID, accession, findings, impression…" aria-label="Search structured reports">
     <span class="hint" data-find-sr-search-count></span>
@@ -131,14 +131,18 @@
       <span class="muted">{{ row.get("StudyDate") }}{% if row.get("AccessionNumber") %} · {{ row.get("AccessionNumber") }}{% endif %} · {{ row.get("DocumentTitle") or "Structured Report" }}</span>
     </header>
     <div class="find-sr-sections">
+      {% if "Findings" in row %}
       <section>
         <h4>Findings</h4>
         {% if row.get("Findings") %}<pre class="find-sr-prose">{{ row.Findings }}</pre>{% else %}<p class="hint">No Findings concept in this Content Sequence.</p>{% endif %}
       </section>
+      {% endif %}
+      {% if "Impression" in row %}
       <section>
         <h4>Impression</h4>
         {% if row.get("Impression") %}<pre class="find-sr-prose">{{ row.Impression }}</pre>{% else %}<p class="hint">No Impression concept in this Content Sequence.</p>{% endif %}
       </section>
+      {% endif %}
     </div>
     <details class="find-sr-report">
       <summary>Content Sequence</summary>

@@ -1139,6 +1139,8 @@ def options_from_form(form: Mapping[str, Any]) -> dict[str, Any]:
     studies = _parse_studies(form.get("studies_json") or form.get("studies"))
     if studies:
         payload["studies"] = studies
+    payload["sr_include_findings"] = bool(form.get("sr_include_findings"))
+    payload["sr_include_impression"] = bool(form.get("sr_include_impression"))
     raw_cap = str(form.get("max_records") or "").strip()
     if raw_cap:
         try:
@@ -1192,6 +1194,10 @@ def options_from_payload(options: Mapping[str, Any] | None) -> dict[str, Any]:
         payload["studies"] = _parse_studies(options.get("studies"))
     elif "records" in options and options.get("follow"):
         payload["studies"] = _parse_studies(options.get("records"))
+    payload["sr_include_findings"] = bool(options.get("sr_include_findings", True))
+    payload["sr_include_impression"] = bool(options.get("sr_include_impression", True))
+    if "max_records" in options:
+        payload["max_records"] = options.get("max_records")
     return payload
 
 
