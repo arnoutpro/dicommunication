@@ -118,7 +118,7 @@
     </header>
     <aside class="sidebar">
       <nav>
-        {% if shell == 'vue' %}
+        {% if shell != 'dicommunication' %}
         <a href="{{ href('/') }}" class="{% if nav == 'home' %}active{% endif %}">Query</a>
 
         {% set config_open = nav.startswith('config') %}
