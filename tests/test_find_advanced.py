@@ -1010,6 +1010,8 @@ def test_retrieve_sr_html_shows_findings_cards(client, store, app) -> None:
                     '[{"StudyInstanceUID":"1.2.3","SeriesInstanceUID":"1.2.3.99",'
                     '"Modality":"SR","PatientName":"DOE^JANE"}]'
                 ),
+                "sr_include_findings": "on",
+                "sr_include_impression": "on",
             },
             headers={"HX-Request": "true"},
         )
@@ -1025,5 +1027,67 @@ def test_retrieve_sr_html_shows_findings_cards(client, store, app) -> None:
         assert b"Content Sequence" in html.content
         assert b"<textarea hidden data-find-export>" in html.content
         assert b'data-find-export-hint' in html.content
+    finally:
+        move_server.shutdown()
+
+
+def test_retrieve_sr_findings_and_impression_are_individually_selectable(client, store, app) -> None:
+    """Findings and Impression should be droppable independently — unchecking one
+    removes its column, its card section, and its key from the JSON/CSV export,
+    without touching the other.
+    """
+    storage_port = _free_port()
+    move_port = _free_port()
+    report = make_radiology_sr()
+
+    def handle_move(event):
+        yield "127.0.0.1", storage_port, {"contexts": [build_context(str(report.SOPClassUID))]}
+        yield 1
+        yield 0xFF00, report
+
+    move_ae = AE(ae_title="QR_SCP")
+    move_ae.add_supported_context(StudyRootQueryRetrieveInformationModelMove)
+    move_server = move_ae.start_server(
+        ("127.0.0.1", move_port),
+        block=False,
+        evt_handlers=[(evt.EVT_C_MOVE, handle_move)],
+    )
+    store.save_local(
+        LocalAE(
+            ae_title="DICOMM",
+            host="127.0.0.1",
+            port=storage_port,
+            timeout_seconds=5,
+            storage_scp_enabled=True,
+        )
+    )
+    app.state.mwl_scp.restart()
+    assert app.state.mwl_scp.running, app.state.mwl_scp.last_error
+    try:
+        time.sleep(0.05)
+        remote = RemoteNode(name="pacs", ae_title="QR_SCP", host="127.0.0.1", port=move_port)
+        store.add_remote(remote)
+        html = client.post(
+            "/vue/tools/c-find-advanced/run",
+            data={
+                "remote_id": remote.id,
+                "follow": "retrieve_sr",
+                "studies_json": (
+                    '[{"StudyInstanceUID":"1.2.3","SeriesInstanceUID":"1.2.3.99",'
+                    '"Modality":"SR","PatientName":"DOE^JANE"}]'
+                ),
+                "sr_include_findings": "on",
+                # sr_include_impression intentionally omitted (unchecked)
+            },
+            headers={"HX-Request": "true"},
+        )
+        assert html.status_code == 200
+        assert b"<h4>Findings</h4>" in html.content
+        assert b"<h4>Impression</h4>" not in html.content
+        assert b"No acute osseous abnormality." in html.content
+        assert b"Normal CT chest." not in html.content
+        assert b'title="Impression"' not in html.content
+        # excluded from the raw Content Sequence tree too, not just the summary card
+        assert b">Impression<" not in html.content
     finally:
         move_server.shutdown()

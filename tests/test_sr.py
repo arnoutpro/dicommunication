@@ -4,7 +4,17 @@ from pydicom.dataset import Dataset, FileMetaDataset
 from pydicom.uid import ExplicitVRLittleEndian, generate_uid
 from pynetdicom.sop_class import BasicTextSRStorage
 
-from app.sr import flatten_sr, is_structured_report, parse_sr, sr_plain_text
+from app.sr import (
+    FINDINGS_CODES,
+    FINDINGS_NAMES,
+    IMPRESSION_CODES,
+    IMPRESSION_NAMES,
+    flatten_sr,
+    is_structured_report,
+    parse_sr,
+    prune_sections,
+    sr_plain_text,
+)
 
 
 def _code(value: str, meaning: str, scheme: str = "DCM") -> Dataset:
@@ -92,3 +102,22 @@ def test_findings_column_joins_nested_text() -> None:
     parsed = parse_sr(ds)
     assert parsed["findings"] == "No acute osseous abnormality.\nNo pleural effusion."
     assert parsed["impression"] == "Normal CT chest."
+
+
+def test_prune_sections_drops_concept_and_its_nested_children() -> None:
+    ds = make_radiology_sr()
+    items = parse_sr(ds)["items"]
+    assert [item["name"] for item in items] == ["Findings", "Finding", "Impression"]
+
+    without_findings = prune_sections(items, names=FINDINGS_NAMES, codes=FINDINGS_CODES)
+    assert [item["name"] for item in without_findings] == ["Impression"]
+
+    without_impression = prune_sections(items, names=IMPRESSION_NAMES, codes=IMPRESSION_CODES)
+    assert [item["name"] for item in without_impression] == ["Findings", "Finding"]
+
+    without_both = prune_sections(
+        prune_sections(items, names=FINDINGS_NAMES, codes=FINDINGS_CODES),
+        names=IMPRESSION_NAMES,
+        codes=IMPRESSION_CODES,
+    )
+    assert without_both == []

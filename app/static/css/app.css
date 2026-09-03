@@ -1598,6 +1598,34 @@ body.page-find .find-head h1 {
   padding: 0.28rem 0.45rem;
   font-size: var(--text-sm);
 }
+.find-sr-fields {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.15rem 0.9rem;
+}
+.find-sr-fields legend {
+  font-size: var(--text-xs);
+  color: var(--muted);
+  font-weight: 600;
+  width: 100%;
+  margin-bottom: 0.1rem;
+}
+.find-sr-field-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  cursor: pointer;
+}
+.find-sr-field-toggle input {
+  width: auto;
+}
 .find-level-field {
   border: 0;
   margin: 0;
