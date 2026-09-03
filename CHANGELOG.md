@@ -26,6 +26,7 @@
 
 ### Interface
 
+- **Dicomtag Analytics**: **Retrieve report text** now has **Findings** / **Impression** checkboxes (both on by default, next to the retrieve note) so a field that isn't used in a given environment can be dropped entirely — from the summary card section, the overview table column, the raw Content Sequence tree (nested children under that concept are pruned too, not just the top-level entry), and the CSV/JSON export. Unrelated to the DICOM query itself: the C-MOVE/C-STORE still retrieves the whole report, this only controls what's parsed out and shown.
 - **Dicomtag Analytics**: six fixes/polish items from live use of the new Study Date picker and query results.
   - The **Today** / **Yesterday** / **Last 7 days** / **Last 30 days** / **This month** / **Clear** preset buttons did nothing when clicked. The date-tools box stops clicks from bubbling to the parent `<label>` (so blank space doesn't toggle its "include as return column" checkbox), but that `stopPropagation()` also silently swallowed the click before it ever reached the delegated handler that applies the preset — now the box applies the preset itself before stopping propagation.
   - The focus border on inputs/selects (the gradient ring shown while editing a field) is thicker (1.5px → 3px) so it reads clearly instead of being a thin line.
