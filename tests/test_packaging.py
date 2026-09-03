@@ -614,8 +614,7 @@ def test_windows_spec_hides_console_and_bundles_webview() -> None:
 def test_packaging_icons_match_favicon() -> None:
     svg = (ROOT / "app" / "static" / "favicon.svg").read_text(encoding="utf-8")
     assert "arnout.pro" in svg
-    assert "Sansation Bold" in svg
-    assert "M32 10 12 54" not in svg
+    assert "image/png;base64," in svg
     ico = ROOT / "packaging" / "icons" / "app.ico"
     icns = ROOT / "packaging" / "icons" / "app.icns"
     preview = ROOT / "packaging" / "icons" / "app-1024.png"

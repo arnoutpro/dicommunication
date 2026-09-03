@@ -1,28 +1,3 @@
-async function refreshSansationClips() {
-  try {
-    await document.fonts.load("700 58px Sansation");
-    await document.fonts.ready;
-  } catch {
-    /* font loading is best-effort */
-  }
-  document.querySelectorAll(".site-brand-mark-svg clipPath text").forEach((node) => {
-    node.setAttribute("font-family", "Sansation, sans-serif");
-    node.setAttribute("font-weight", "700");
-    node.style.fontFamily = "Sansation, sans-serif";
-    node.style.fontWeight = "700";
-  });
-  document.querySelectorAll(".site-brand-mark-svg foreignObject[clip-path]").forEach((node) => {
-    const value = node.getAttribute("clip-path");
-    if (!value || value === "none") {
-      return;
-    }
-    node.setAttribute("clip-path", "none");
-    node.getBoundingClientRect();
-    node.setAttribute("clip-path", value);
-  });
-}
-refreshSansationClips();
-
 const THEME_STORAGE_KEY = "theme";
 const THEME_OPTIONS = ["light", "dark", "system", "professional"];
 const THEME_LABELS = {

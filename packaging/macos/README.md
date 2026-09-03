@@ -12,7 +12,7 @@ The installer cannot live *inside* this app’s webpage. That page is served by 
 
 1. Open `dicommunication-<version>-macos-arm64.dmg`.
 2. Drag whichever app(s) they want onto **Applications** — or straight onto the Desktop for a quick-launch icon. Each is independent, so dragging only one is fine.
-3. The first time, right-click the app and choose **Open** (unsigned builds trip Gatekeeper). The Dock icon is the **Sansation Bold** A from the watermark, not PyInstaller’s floppy disk.
+3. The first time, right-click the app and choose **Open** (unsigned builds trip Gatekeeper). The Dock icon is the arnout.pro brand mark, not PyInstaller’s floppy disk.
 4. The UI opens in its own window (not a Safari tab). If the Dock icon is live but no window appears, quit from the Dock and check `~/.dicommunication/launch.log`. Rebuild the DMG without PyInstaller argv emulation.
 5. Close the window or quit from the Dock to stop the server.
 
