@@ -19,14 +19,19 @@ from app.router_scheduler import RouterScheduler
 from app.routes import anonymize, api, config, echo_board, logs, misc, route_rules, testbench, tools, worklist
 from app.shell import (
     ANONYMIZE_PREFIX,
+    ROUTER_PREFIX,
     SHELL_ANONYMIZE,
     SHELL_DICOMM,
+    SHELL_ROUTER,
     SHELL_VUE,
     anonymize_path_allowed,
     is_anonymize_public_path,
+    is_router_public_path,
     is_vue_public_path,
     prefix_redirect_location,
+    router_path_allowed,
     strip_anonymize_prefix,
+    strip_router_prefix,
     strip_vue_prefix,
     vue_path_allowed,
 )
@@ -136,6 +141,19 @@ def create_app(store: ConfigStore | None = None) -> FastAPI:
             location = response.headers.get("location")
             if location:
                 response.headers["location"] = prefix_redirect_location(location, prefix=ANONYMIZE_PREFIX)
+            return response
+        if is_router_public_path(original):
+            request.state.shell = SHELL_ROUTER
+            new_path = strip_router_prefix(original)
+            request.scope["path"] = new_path
+            request.scope["raw_path"] = new_path.encode("utf-8")
+            if not router_path_allowed(new_path):
+                response = RedirectResponse("/", status_code=303)
+            else:
+                response = await call_next(request)
+            location = response.headers.get("location")
+            if location:
+                response.headers["location"] = prefix_redirect_location(location, prefix=ROUTER_PREFIX)
             return response
         request.state.shell = SHELL_DICOMM
         return await call_next(request)

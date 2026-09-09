@@ -19,6 +19,7 @@ def _router_view(
     editing: RouteRule | None = None,
     saved: str | None = None,
     error: str | None = None,
+    nav: str = "router",
     status_code: int = 200,
 ) -> HTMLResponse:
     store = request.app.state.store
@@ -27,7 +28,7 @@ def _router_view(
         "router.html",
         page(
             request,
-            nav="router",
+            nav=nav,
             rules=store.list_route_rules(),
             editing=editing,
             saved=saved,
