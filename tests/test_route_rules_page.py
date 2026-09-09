@@ -18,6 +18,13 @@ def _free_port() -> int:
         return sock.getsockname()[1]
 
 
+def _wait_until_idle(app, rule_id: str, timeout: float = 5.0) -> None:
+    scheduler = app.state.router_scheduler
+    deadline = time.time() + timeout
+    while scheduler.is_running(rule_id) and time.time() < deadline:
+        time.sleep(0.02)
+
+
 def test_router_page_lists_rules(client: TestClient, store: ConfigStore, remote: RemoteNode) -> None:
     store.add_route_rule(RouteRule(name="Nightly CT", source_remote_id=remote.id, modality="CT"))
     response = client.get("/router")
@@ -26,12 +33,11 @@ def test_router_page_lists_rules(client: TestClient, store: ConfigStore, remote:
     assert "every 15 min" in response.text
 
 
-def test_add_edit_toggle_delete_route_rule(client: TestClient, store: ConfigStore, remote: RemoteNode) -> None:
+def test_add_edit_delete_route_rule(client: TestClient, store: ConfigStore, remote: RemoteNode) -> None:
     response = client.post(
         "/router",
         data={
             "name": "Nightly CT",
-            "enabled": "on",
             "source_remote_id": remote.id,
             "level": "STUDY",
             "modality": "ct, mr",
@@ -51,6 +57,7 @@ def test_add_edit_toggle_delete_route_rule(client: TestClient, store: ConfigStor
     rule = rules[0]
     assert rule.modality == "CT,MR"
     assert rule.interval_minutes == 30
+    assert rule.status == "active"
 
     edit_page = client.get(f"/router?edit={rule.id}")
     assert edit_page.status_code == 200
@@ -61,7 +68,6 @@ def test_add_edit_toggle_delete_route_rule(client: TestClient, store: ConfigStor
         data={
             "rule_id": rule.id,
             "name": "Nightly CT/MR",
-            "enabled": "on",
             "source_remote_id": remote.id,
             "level": "STUDY",
             "modality": "CT",
@@ -81,10 +87,6 @@ def test_add_edit_toggle_delete_route_rule(client: TestClient, store: ConfigStor
     assert reloaded.daily_times == ["08:00", "20:00"]
     assert reloaded.days_of_week == [0, 2]
 
-    toggled = client.post(f"/router/{rule.id}/toggle", follow_redirects=False)
-    assert toggled.status_code == 303
-    assert store.get_route_rule(rule.id).enabled is False
-
     deleted = client.post(f"/router/{rule.id}/delete", follow_redirects=False)
     assert deleted.status_code == 303
     assert store.list_route_rules() == []
@@ -99,13 +101,35 @@ def test_add_route_rule_rejects_missing_source(client: TestClient, store: Config
     assert store.list_route_rules() == []
 
 
+def test_edit_does_not_reset_status(client: TestClient, store: ConfigStore, remote: RemoteNode, app) -> None:
+    rule = store.add_route_rule(RouteRule(name="X", source_remote_id=remote.id))
+    app.state.router_scheduler.request_pause(rule.id)
+    assert store.get_route_rule(rule.id).status == "paused"
+
+    client.post(
+        "/router",
+        data={
+            "rule_id": rule.id,
+            "name": "X renamed",
+            "source_remote_id": remote.id,
+            "schedule_mode": "interval",
+            "interval_minutes": "15",
+        },
+    )
+    assert store.get_route_rule(rule.id).status == "paused"
+
+
 def test_route_rule_not_found_returns_404(client: TestClient) -> None:
-    assert client.post("/router/missing/toggle").status_code == 404
+    assert client.post("/router/missing/start").status_code == 404
+    assert client.post("/router/missing/pause").status_code == 404
+    assert client.post("/router/missing/stop").status_code == 404
     assert client.post("/router/missing/run-now").status_code == 404
     assert client.get("/router/missing/runs").status_code == 404
 
 
-def test_run_now_and_history_page(client: TestClient, store: ConfigStore) -> None:
+def test_run_now_runs_in_background_and_history_page_shows_it(
+    client: TestClient, store: ConfigStore, app
+) -> None:
     port = _free_port()
 
     def handle_find(event):
@@ -134,7 +158,9 @@ def test_run_now_and_history_page(client: TestClient, store: ConfigStore) -> Non
 
         response = client.post(f"/router/{rule.id}/run-now", follow_redirects=False)
         assert response.status_code == 303
-        assert response.headers["location"] == f"/router/{rule.id}/runs?saved=run"
+        assert response.headers["location"] == f"/router/{rule.id}/runs?saved=running"
+
+        _wait_until_idle(app, rule.id)
 
         runs = store.list_route_runs(rule_id=rule.id)
         assert len(runs) == 1
@@ -145,5 +171,32 @@ def test_run_now_and_history_page(client: TestClient, store: ConfigStore) -> Non
         assert history.status_code == 200
         assert "DOE" in history.text
         assert "ACC1" in history.text
+
+        again = client.post(f"/router/{rule.id}/run-now", follow_redirects=False)
+        assert again.status_code == 303
     finally:
         server.shutdown()
+
+
+def test_start_pause_stop_lifecycle(client: TestClient, store: ConfigStore, remote: RemoteNode, app) -> None:
+    rule = store.add_route_rule(RouteRule(name="X", source_remote_id=remote.id, status="stopped"))
+
+    started = client.post(f"/router/{rule.id}/start", follow_redirects=False)
+    assert started.status_code == 303
+    assert started.headers["location"] == "/router?saved=started"
+    _wait_until_idle(app, rule.id)
+    assert store.get_route_rule(rule.id).status == "active"
+
+    paused = client.post(f"/router/{rule.id}/pause", follow_redirects=False)
+    assert paused.status_code == 303
+    assert paused.headers["location"] == "/router?saved=paused"
+    assert store.get_route_rule(rule.id).status == "paused"
+
+    stopped = client.post(f"/router/{rule.id}/stop", follow_redirects=False)
+    assert stopped.status_code == 303
+    assert stopped.headers["location"] == "/router?saved=stopped"
+    assert store.get_route_rule(rule.id).status == "stopped"
+    assert store.get_route_rule(rule.id).next_run_at is None
+
+    page = client.get("/router")
+    assert "Stopped" in page.text

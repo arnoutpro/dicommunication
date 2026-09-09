@@ -50,6 +50,8 @@ DEFAULT_DATA_DIR = _default_data_dir()
 
 ModelT = TypeVar("ModelT", bound=BaseModel)
 
+_UNSET = object()
+
 
 def _ensure_unique_id(record, existing: list) -> None:
     """Give ``record`` a fresh id if one already in the store uses it.
@@ -290,6 +292,7 @@ class ConfigStore:
                     payload = rule.model_dump()
                     payload["id"] = rule_id
                     payload["created_at"] = existing.created_at
+                    payload["status"] = existing.status
                     payload["last_run_at"] = existing.last_run_at
                     payload["next_run_at"] = existing.next_run_at
                     payload["last_run_ok"] = existing.last_run_ok
@@ -342,6 +345,37 @@ class ConfigStore:
                 raise KeyError(rule.id)
             self._write_json(self.route_rules_path, [item.model_dump(mode="json") for item in updated])
             return next(item for item in updated if item.id == rule.id)
+
+    def set_route_rule_status(
+        self, rule_id: str, status: str, *, next_run_at: object = _UNSET
+    ) -> RouteRule:
+        """Persist a rule's start/pause/stop status (RouterScheduler.request_pause etc).
+
+        Kept separate from ``update_route_rule`` for the same reason as
+        ``save_route_rule_run_state``: an operator's Pause/Stop/Start click
+        must not race their concurrent edit of the rule's query/schedule
+        fields, and a run's own finalization must not race a status change
+        requested while it was executing. ``next_run_at`` is left alone
+        unless explicitly given (pass ``None`` to clear it).
+        """
+        with self._lock:
+            rules = _parse_all(RouteRule, self._load_route_rules_unlocked())
+            updated: list[RouteRule] = []
+            found = False
+            for existing in rules:
+                if existing.id == rule_id:
+                    payload = existing.model_dump()
+                    payload["status"] = status
+                    if next_run_at is not _UNSET:
+                        payload["next_run_at"] = next_run_at
+                    updated.append(RouteRule.model_validate(payload))
+                    found = True
+                else:
+                    updated.append(existing)
+            if not found:
+                raise KeyError(rule_id)
+            self._write_json(self.route_rules_path, [item.model_dump(mode="json") for item in updated])
+            return next(item for item in updated if item.id == rule_id)
 
     def add_route_run(self, run: RouteRun) -> RouteRun:
         with self._lock:

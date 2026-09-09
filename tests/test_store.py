@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import json
 
+import pytest
+
 from app.models import Hl7Message, LocalAE, RemoteNode, RouteMatch, RouteRule, RouteRun, VirtualAE, WorklistEntry
 from app.store import ConfigStore
 
@@ -81,6 +83,41 @@ def test_store_roundtrip_route_rules(tmp_path) -> None:
 
     store.delete_route_rule(rule.id)
     assert store.list_route_rules() == []
+
+
+def test_update_route_rule_preserves_status(tmp_path) -> None:
+    store = ConfigStore(tmp_path)
+    rule = store.add_route_rule(RouteRule(name="X", source_remote_id="pacs1"))
+    store.set_route_rule_status(rule.id, "paused")
+
+    updated = store.update_route_rule(rule.id, RouteRule(name="X renamed", source_remote_id="pacs1"))
+    assert updated.name == "X renamed"
+    assert updated.status == "paused"
+    assert store.get_route_rule(rule.id).status == "paused"
+
+
+def test_set_route_rule_status_roundtrip(tmp_path) -> None:
+    store = ConfigStore(tmp_path)
+    rule = store.add_route_rule(RouteRule(name="X", source_remote_id="pacs1"))
+
+    paused = store.set_route_rule_status(rule.id, "paused")
+    assert paused.status == "paused"
+    assert paused.next_run_at is None  # untouched, was already None
+
+    from datetime import datetime, timezone
+
+    when = datetime.now(timezone.utc)
+    store.save_route_rule_run_state(store.get_route_rule(rule.id).model_copy(update={"next_run_at": when}))
+
+    still_paused = store.set_route_rule_status(rule.id, "paused")
+    assert still_paused.next_run_at == when  # next_run_at left alone when omitted
+
+    stopped = store.set_route_rule_status(rule.id, "stopped", next_run_at=None)
+    assert stopped.status == "stopped"
+    assert stopped.next_run_at is None
+
+    with pytest.raises(KeyError):
+        store.set_route_rule_status("missing", "active")
 
 
 def test_update_route_rule_missing_raises(tmp_path) -> None:
