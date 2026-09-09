@@ -331,6 +331,7 @@ class RouteMatch(BaseModel):
     """One study a route run found (and, in a later phase, retrieved/forwarded)."""
 
     study_instance_uid: str
+    series_instance_uid: str = ""
     patient_name: str = ""
     patient_id: str = ""
     study_date: str = ""
