@@ -4,20 +4,50 @@
 <header class="page-head">
   <div>
     <p class="eyebrow">Dicom Router</p>
-    <h1>{{ rule.name }} {% if running %}<span class="badge ok">Running</span>{% endif %}</h1>
+    <h1>
+      {{ rule.name }}
+      {% if running %}
+      <span class="badge ok">Running</span>
+      {% elif rule.status == 'active' %}
+      <span class="badge ok">Active</span>
+      {% elif rule.status == 'paused' %}
+      <span class="badge">Paused</span>
+      {% else %}
+      <span class="badge">Stopped</span>
+      {% endif %}
+    </h1>
     <p class="lede">{{ rule.schedule_label }} · {{ config.get_remote(rule.source_remote_id).ae_title if config.get_remote(rule.source_remote_id) else 'source node missing' }}{% if rule.destination_remote_ids %} → {{ rule.destination_remote_ids | length }} destination{% if rule.destination_remote_ids | length != 1 %}s{% endif %}{% endif %}</p>
   </div>
-  <a href="{{ href('/router') }}">&larr; Back to route rules</a>
+  <a href="{{ href('/router') }}">&larr; Add / edit route rules</a>
 </header>
 
 {% if saved == 'running' %}
 <div class="flash ok" data-autohide>Started in the background — refresh to see progress and results.</div>
 {% elif saved == 'already-running' %}
 <div class="flash ok" data-autohide>Already running.</div>
+{% elif saved == 'started' %}
+<div class="flash ok" data-autohide>Started.</div>
+{% elif saved == 'paused' %}
+<div class="flash ok" data-autohide>Paused — a run in progress finishes its current study then stops.</div>
+{% elif saved == 'stopped' %}
+<div class="flash ok" data-autohide>Stopped — a run in progress finishes its current study then stops.</div>
 {% endif %}
 {% if running %}
-<div class="flash ok">This rule is running right now. Refresh to see progress, or use Pause / Stop on the <a href="{{ href('/router') }}">route rules page</a>.</div>
+<div class="flash ok">This rule is running right now. Refresh to see progress.</div>
 {% endif %}
+
+<section class="panel">
+  <header class="panel-head">
+    <h2>Actions</h2>
+  </header>
+  <div class="actions" style="padding: 0 1.25rem 1.25rem;">
+    <a href="{{ href('/router?edit=' ~ rule.id) }}">Edit</a>
+    {% include "partials/route_rule_actions.html" %}
+    <form method="post" action="{{ href('/router/' ~ rule.id ~ '/delete') }}" class="inline" data-confirm="Delete route rule {{ rule.name }}?">
+      <button type="submit" class="link-button danger">Delete</button>
+    </form>
+  </div>
+</section>
 
 <section class="panel">
   <header class="panel-head">
@@ -72,7 +102,7 @@
   {% else %}
   <div class="empty">
     <strong>No runs yet</strong>
-    <p>This rule hasn't run yet. Use <strong>Run now</strong> on the route rules page to try it immediately.</p>
+    <p>This rule hasn't run yet. Use <strong>Run now</strong> above to try it immediately.</p>
   </div>
   {% endif %}
 </section>

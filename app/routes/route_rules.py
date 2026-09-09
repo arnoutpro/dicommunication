@@ -22,17 +22,12 @@ def _router_view(
     nav: str = "router",
     status_code: int = 200,
 ) -> HTMLResponse:
-    store = request.app.state.store
-    scheduler = request.app.state.router_scheduler
-    rules = store.list_route_rules()
     return templates.TemplateResponse(
         request,
         "router.html",
         page(
             request,
             nav=nav,
-            rules=rules,
-            running_ids={rule.id for rule in rules if scheduler.is_running(rule.id)},
             editing=editing,
             saved=saved,
             error=error,
