@@ -322,6 +322,39 @@ nav > .nav-branch { margin-top: 0.35rem; }
   font-weight: 700;
 }
 .nav-children .nav-group { margin-top: 0.2rem; }
+.nav-rule-link {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.nav-rule-link .name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+.nav-rule-dot {
+  flex-shrink: 0;
+  width: 0.55rem;
+  height: 0.55rem;
+  border-radius: 50%;
+  background: var(--muted);
+}
+.nav-rule-dot.is-active { background: var(--ok); }
+.nav-rule-dot.is-paused { background: #fbbf24; }
+.nav-rule-dot.is-stopped { background: var(--muted); }
+.nav-rule-dot.is-running {
+  background: var(--accent);
+  animation: nav-rule-pulse 1.4s ease-in-out infinite;
+}
+@keyframes nav-rule-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 45%, transparent); }
+  50% { box-shadow: 0 0 0 0.28rem color-mix(in srgb, var(--accent) 0%, transparent); }
+}
+.nav-empty {
+  padding: 0.35rem 0.7rem;
+  display: block;
+}
 
 .sidebar-foot {
   display: flex;
