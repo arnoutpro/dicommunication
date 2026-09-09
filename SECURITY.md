@@ -32,6 +32,7 @@ vulnerabilities — but do factor them into where you deploy it.
 | `/api/logs` returns absolute host paths | Diagnostic output for the person at the keyboard | Same as above |
 | The MWL SCP listens on all interfaces | A modality has to be able to C-FIND this workstation or the feature is pointless | It only listens once enabled in Configuration. `DICOMM_DICOM_BIND` pins it to one NIC. |
 | **Tag Editor** writes patient study data back to the configured PACS, with no confirmation beyond the browser prompt | It exists specifically to correct stuck report-workflow metadata on a real archive | Only overwrites a tag already present, never invents one. Against a real Vue archive, Push has been observed to report success without the stored object actually changing — Fetch and check the current values before *and after* every Push. Use **Seed test studies** (synthetic `ARNPRO^TESTBENCH` patient, not a real one) to try Push before ever running it against a real study. |
+| **Dicom Router** moves real patient studies (C-MOVE then C-STORE) to configured destination nodes on an unattended schedule, with no per-study confirmation | That's the point of a router — it forwards without anyone watching | A route rule's destinations are exactly what you configured, nothing else; there is no discovery or fan-out beyond the node list on the rule. Review a rule's destination nodes and filters before enabling it, same care as any AE you register as a C-MOVE destination elsewhere. |
 
 ## Patient data on disk
 
@@ -44,13 +45,21 @@ Everything lives unencrypted under the data directory (`~/.dicommunication`,
   real worklist, or retrieve real reports, patient identifiers and report text
   are written to this file in cleartext.
 - `worklist.json` holds whatever you typed into the local worklist.
+- **`route_runs.json` keeps the last 500 Dicom Router run records, including
+  the patient name, patient ID, accession number, and study date of every
+  study a rule matched.** A rule that runs against real patient data writes
+  those identifiers to this file in cleartext on every run, whether or not
+  the rule forwards anywhere. `route_rules.json` (the rule definitions
+  themselves — source PACS, filters, schedule, destination AE titles) holds
+  configuration, not patient data.
 - `dicommunication.log` records what you ran, against which AE titles and
   endpoints.
 
 There is no retention policy and no encryption at rest. On a machine that touches
 production data, treat the data directory as containing PHI: put it on encrypted
 storage, and clear it when you are done. **Logs → Clear** empties the log file;
-deleting `results.json` clears the result history. Uninstalling the Windows MSI
+deleting `results.json` clears the result history, and deleting `route_runs.json`
+clears Dicom Router's. Uninstalling the Windows MSI
 asks once whether to also delete the whole data directory; answering No (the
 default) leaves it in place, same as before this prompt existed — MSI uninstall
 only removes what it installed under Program Files, not files the running app
