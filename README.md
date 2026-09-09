@@ -1,3 +1,5 @@
+![Dicommunication — a low-code DICOM connectivity & PACS admin toolkit for PACS admins, imaging IT, and biomedical engineering](docs/banner.svg)
+
 # Arnout.pro Dicommunication Tool
 
 A low-code DICOM communication validator and PACS admin toolkit.
