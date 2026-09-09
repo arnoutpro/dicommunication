@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% block title %}{{ rule.name }} · Dicom Router · {{ product_name }}{% endblock %}
+{% block content %}
+<header class="page-head">
+  <div>
+    <p class="eyebrow">Dicom Router</p>
+    <h1>{{ rule.name }}</h1>
+    <p class="lede">{{ rule.schedule_label }} · {{ config.get_remote(rule.source_remote_id).ae_title if config.get_remote(rule.source_remote_id) else 'source node missing' }}{% if rule.destination_remote_ids %} → {{ rule.destination_remote_ids | length }} destination{% if rule.destination_remote_ids | length != 1 %}s{% endif %}{% endif %}</p>
+  </div>
+  <a href="{{ href('/router') }}">&larr; Back to route rules</a>
+</header>
+
+{% if saved == 'run' %}
+<div class="flash ok" data-autohide>Ran now.</div>
+{% endif %}
+
+<section class="panel">
+  <header class="panel-head">
+    <h2>Run history</h2>
+    <span class="muted">{{ runs | length }} run{% if runs | length != 1 %}s{% endif %} (most recent first)</span>
+  </header>
+  {% if runs %}
+  {% for run in runs %}
+  <div class="panel" style="margin-bottom: 1rem;">
+    <header class="panel-head">
+      <h3>
+        <span class="badge {% if run.ok %}ok{% else %}fail{% endif %}">{{ run.started_at.strftime('%Y-%m-%d %H:%M:%S') }} UTC</span>
+        {{ run.matched_count }} matched · {{ run.new_count }} new
+      </h3>
+      <span class="muted small">{{ "%.0f"|format(run.duration_ms) }} ms</span>
+    </header>
+    {% if run.error %}<p class="muted">{{ run.error }}</p>{% endif %}
+    {% if run.matches %}
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Patient</th>
+            <th>Study date</th>
+            <th>Accession</th>
+            <th>Modality</th>
+            <th>UID</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for match in run.matches %}
+          <tr>
+            <td>{{ match.patient_name }} <span class="muted small">{{ match.patient_id }}</span></td>
+            <td>{{ match.study_date }}</td>
+            <td>{{ match.accession_number }}</td>
+            <td>{{ match.modality }}</td>
+            <td><code class="small">{{ match.series_instance_uid or match.study_instance_uid }}</code></td>
+            <td>
+              <span class="badge {% if match.status == 'forwarded' %}ok{% elif match.status == 'failed' %}fail{% endif %}">{{ match.status }}</span>
+              {% if match.error %}<div class="muted small">{{ match.error }}</div>{% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% endif %}
+  </div>
+  {% endfor %}
+  {% else %}
+  <div class="empty">
+    <strong>No runs yet</strong>
+    <p>This rule hasn't run yet. Use <strong>Run now</strong> on the route rules page to try it immediately.</p>
+  </div>
+  {% endif %}
+</section>
+{% endblock %}
