@@ -50,7 +50,11 @@ def page(request: Request, **extra: object) -> dict:
     app = request.app
     config = app.state.store.load()
     scp = getattr(app.state, "mwl_scp", None)
+    router_scheduler = getattr(app.state, "router_scheduler", None)
     shell = getattr(request.state, "shell", SHELL_DICOMM)
+    # Loaded on every page (not just /router) so the sidebar can list route
+    # rules with a live status dot, same as config.remotes already is.
+    route_rules = app.state.store.list_route_rules()
     return {
         "request": request,
         "config": config,
@@ -64,6 +68,10 @@ def page(request: Request, **extra: object) -> dict:
         "mwl_scp_running": bool(scp and scp.running and config.local.mwl_scp_enabled),
         "mwl_scp_error": getattr(scp, "last_error", None) if scp else None,
         "storage_scp_running": bool(scp and scp.running and config.local.storage_scp_enabled),
+        "route_rules": route_rules,
+        "running_route_rule_ids": {
+            rule.id for rule in route_rules if router_scheduler and router_scheduler.is_running(rule.id)
+        },
         "app_version": __version__,
         **extra,
     }
