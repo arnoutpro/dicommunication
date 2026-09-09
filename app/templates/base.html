@@ -107,7 +107,7 @@
     <aside class="sidebar">
       <nav>
         {% if shell != 'dicommunication' %}
-        <a href="{{ href('/') }}" class="{% if nav == 'home' %}active{% endif %}">Query</a>
+        <a href="{{ href('/') }}" class="{% if nav in ['home', 'router'] %}active{% endif %}">{% if shell == 'router' %}Route rules{% else %}Query{% endif %}</a>
 
         {% set config_open = nav.startswith('config') %}
         <div class="nav-branch{% if config_open %} is-open{% endif %}" data-nav-id="config">

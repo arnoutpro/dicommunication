@@ -136,7 +136,9 @@ def main(argv: list[str] | None = None) -> int:
         help=(
             "dicommunication is the workstation. dicomtag-analytics opens "
             "Dicomtag Analytics (Study Root C-FIND). vue-analytics is the "
-            "previous name for that profile."
+            "previous name for that profile. dicom-anonymizer opens Dicom "
+            "Anonymizer. dicom-router opens Dicom Router (scheduled C-FIND, "
+            "retrieve/forward)."
         ),
     )
     parser.add_argument("--host", default=os.environ.get("DICOMM_HOST", DEFAULT_HOST))

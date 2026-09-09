@@ -6,7 +6,7 @@ A low-code DICOM communication validator and PACS admin toolkit.
 
 Configure this workstation as a DICOM Application Entity, register remote nodes (PACS, Orthanc, RIS/MWL, modalities), impersonate extra calling AE Titles, and run the checks a connectivity ticket actually needs: network PING, C-ECHO, simulated C-STORE, PDF to Encapsulated PDF Storage, Study Root C-FIND (including Study / Series / Image), Modality Worklist C-FIND, and HL7 v2 send over MLLP.
 
-The Windows MSI installs **three Start-menu tools** that share this config: **Dicommunication** (network / DIMSE / HL7 workstation), **Dicomtag Analytics** (Study Root C-FIND, including Vue ELSCINT1 keys, plus listing and retrieving DICOM Structured Reports), and **Dicom Anonymizer** (query, retrieve, and anonymize studies/series/images — see below).
+The Windows MSI installs **four Start-menu tools** that share this config: **Dicommunication** (network / DIMSE / HL7 workstation), **Dicomtag Analytics** (Study Root C-FIND, including Vue ELSCINT1 keys, plus listing and retrieving DICOM Structured Reports), **Dicom Anonymizer** (query, retrieve, and anonymize studies/series/images — see below), and **Dicom Router** (scheduled C-FIND rules with optional retrieve/forward — see below).
 
 The web UI is FastAPI + HTMX. DICOM uses pynetdicom/pydicom. New test tools are Python plugins: drop a file in `app/tools/` and it appears in the Dicommunication sidebar. The sidebar **About** button shows the running version; **Help** is the in-app administrator guide.
 
@@ -191,7 +191,7 @@ dotnet nuget install dicommunication.msi --version 0.3.0 --source github-arnoutp
 
 The already-cut `v0.2.0` MSI can be wrapped without rebuilding: **Actions → Windows MSI → Run workflow** and set `nuget_from_release` to `v0.2.0`.
 
-The setup wizard shows a feature tree: **Dicommunication**, **Dicomtag Analytics**, and **Dicom Anonymizer** are separately checkable (all on by default), each with an off-by-default **Desktop shortcut** sub-feature alongside the Start Menu one they always get. Unchecking one app only skips its own shortcut — the underlying program files are shared, since all three are the same `dicommunication.exe` under a different `--profile`.
+The setup wizard shows a feature tree: **Dicommunication**, **Dicomtag Analytics**, **Dicom Anonymizer**, and **Dicom Router** are separately checkable (all on by default), each with an off-by-default **Desktop shortcut** sub-feature alongside the Start Menu one they always get. Unchecking one app only skips its own shortcut — the underlying program files are shared, since all four are the same `dicommunication.exe` under a different `--profile`.
 
 Install the MSI, start **Dicommunication** or **Dicomtag Analytics** from the Start menu (or the Desktop, if that shortcut was selected). Each UI opens in its own window (Edge WebView2 — not a browser tab). Close that window to stop the server if this shortcut started it. Config lives in `%LOCALAPPDATA%\dicommunication` and survives upgrades; both tools share it. Windows 10/11 already have WebView2; if it is missing the app falls back to the default browser. Uninstalling asks, once, whether to also delete that folder — it can hold patient data from past runs (see [`SECURITY.md`](SECURITY.md#patient-data-on-disk)); answering No (the default) leaves it in place, same as before.
 
@@ -199,7 +199,7 @@ Unsigned builds trigger SmartScreen until a code-signing certificate is used. If
 
 ## macOS DMG
 
-Same idea as the MSI: the browser does **not** need Python. The DMG freezes a private runtime into two independent, self-contained app bundles — `Dicommunication.app` and `Dicomtag Analytics.app` — so either can be dragged out on its own. You should not install Python yourself on a locked-down PACS Mac. Docker does the same thing inside the image.
+Same idea as the MSI: the browser does **not** need Python. The DMG freezes a private runtime into four independent, self-contained app bundles — `Dicommunication.app`, `Dicomtag Analytics.app`, `Dicom Anonymizer.app`, and `Dicom Router.app` — so any of them can be dragged out on its own. You should not install Python yourself on a locked-down PACS Mac. Docker does the same thing inside the image.
 
 **Those components cannot be installed from this app’s webpage.** The UI is served *by* the Python process, so the page only exists after the backend is already running. Ship the DMG through IT (or a USB stick), not through a button on localhost.
 
@@ -207,7 +207,7 @@ CI builds `dicommunication-<version>-macos-arm64.dmg` on `macos-latest` (workflo
 
 The already-cut `v0.2.0` release can get a DMG without a new version tag: **Actions → macOS DMG → Run workflow** and set `release_tag` to `v0.2.0`.
 
-Open the DMG, drag whichever app(s) you want to Applications (or straight to the Desktop for a shortcut) — **Dicommunication**, **Dicomtag Analytics**, **Dicom Anonymizer**, or any combination, independently. Right-click and choose **Open** the first time (unsigned builds trip Gatekeeper). The Dock icon is the arnout.pro brand mark. Each UI opens in its own window (not a Safari tab). They share one background server, so opening another while the first is already running just adds a window. Close a window or quit from the Dock to stop the server. Config lives in `~/.dicommunication` and survives upgrades.
+Open the DMG, drag whichever app(s) you want to Applications (or straight to the Desktop for a shortcut) — **Dicommunication**, **Dicomtag Analytics**, **Dicom Anonymizer**, **Dicom Router**, or any combination, independently. Right-click and choose **Open** the first time (unsigned builds trip Gatekeeper). The Dock icon is the arnout.pro brand mark. Each UI opens in its own window (not a Safari tab). They share one background server, so opening another while the first is already running just adds a window. Close a window or quit from the Dock to stop the server. Config lives in `~/.dicommunication` and survives upgrades.
 
 Apple Silicon only for now. Intel Macs keep using Docker Compose. If a modality must C-FIND this workstation, allow incoming TCP for **Dicommunication** (listen port 11112). Details: [`packaging/macos/README.md`](packaging/macos/README.md).
 
@@ -348,6 +348,12 @@ Radiology reports stored as DICOM SR are a series in the same study (same Study 
 A third product, `python -m app --profile dicom-anonymizer` — own Start Menu / Desktop shortcut in the Windows MSI and its own `Dicom Anonymizer.app` bundle in the macOS DMG, same as Dicomtag Analytics. Study-level C-FIND on Patient ID / Accession Number / Study Date (required) / Modality, same fields and rules as Dicomtag Analytics. Pick studies from the result table and a level — **Study** anonymizes exactly what you checked; **Series** or **Image** C-MOVEs every series or image inside those studies (no per-series/per-image picker yet). Four modes: **Nuke** (keep only what a viewer needs to open the image, drop everything else, fresh UIDs), **Fuzz** (keep every tag, scramble its value, pixel data untouched), **Remove patient information** (erase or scramble only a curated ~50-tag patient-identifying list), and **Custom** (per-tag keep / erase / replace, same list). Study/Series/SOP Instance UIDs are remapped consistently across one run so a multi-instance study stays one coherent study afterward. Output is loose `.dcm` files or a ZIP in a folder you choose (7z not implemented yet); filenames are always built from the anonymized UIDs, never the originals.
 
 The simple C-FIND tool and Testbench stay STUDY-level with a short filter list. This window has Query, Configured nodes, Logs, About, and Help only.
+
+### Dicom Router (`/dicom-router/`)
+
+A fourth product, `python -m app --profile dicom-router` — own Start Menu / Desktop shortcut in the Windows MSI and its own `Dicom Router.app` bundle in the macOS DMG, same as Dicomtag Analytics and Dicom Anonymizer. Unlike those two it isn't a query form: it manages **route rules**, each a scheduled Study Root C-FIND (interval in minutes, or specific times of day with optional days-of-week) against a configured PACS, filtered by modality / study date scope / query level. A background scheduler (`app/router_scheduler.py`) runs due rules automatically and records what's new since the rule last ran.
+
+A rule with no destination nodes just tracks new studies (find-only). Add one or more destination nodes and the scheduler additionally C-MOVEs each new match to this workstation's local Storage SCP (same **Accept C-STORE** setting Dicomtag Analytics' SR retrieve uses) and C-STOREs it on to every destination, using the retrieved object's own SOP Class — no need to pre-register storage SOP classes per rule. A study is only marked "seen" once it's fully handled, so a failed retrieve or forward is retried automatically on the next scheduled run rather than silently dropped. Each rule has a run history showing every match and its status (found / retrieved / forwarded / failed) with the error if any, plus a manual **Run now** to try a rule immediately. This window has Route rules, Configured nodes, Logs, About, and Help only.
 
 ### PDF to DICOM (`/tools/pdf-store`)
 
