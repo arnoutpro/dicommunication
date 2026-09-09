@@ -15,6 +15,7 @@ from app import __version__
 from app.applog import configure as configure_logging, log, should_skip_http_log
 from app.mwl_scp import WorklistSCP
 from app.paths import package_dir
+from app.router_scheduler import RouterScheduler
 from app.routes import anonymize, api, config, echo_board, logs, misc, testbench, tools, worklist
 from app.shell import (
     ANONYMIZE_PREFIX,
@@ -66,6 +67,7 @@ def http_publish_note(environ: Mapping[str, str] | None = None) -> str | None:
 def create_app(store: ConfigStore | None = None) -> FastAPI:
     store = store or ConfigStore()
     scp = WorklistSCP(store)
+    router_scheduler = RouterScheduler(store, scp)
     configure_logging(store.data_dir, store.load().logging)
 
     @asynccontextmanager
@@ -86,8 +88,11 @@ def create_app(store: ConfigStore | None = None) -> FastAPI:
             log.info("MWL SCP is listening")
         elif scp.last_error:
             log.warning("%s", scp.last_error)
+        router_scheduler.start()
+        log.info("Dicom Router scheduler started")
         yield
         log.info("Dicommunication stopping")
+        router_scheduler.stop()
         scp.stop()
 
     app = FastAPI(
@@ -98,6 +103,7 @@ def create_app(store: ConfigStore | None = None) -> FastAPI:
     )
     app.state.store = store
     app.state.mwl_scp = scp
+    app.state.router_scheduler = router_scheduler
     static_dir = BASE_DIR / "static"
     if static_dir.exists():
         app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
