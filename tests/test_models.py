@@ -89,7 +89,7 @@ def test_route_rule_requires_name_and_source() -> None:
 
 def test_route_rule_defaults_to_interval_schedule() -> None:
     rule = RouteRule(name="Nightly CT", source_remote_id="pacs1")
-    assert rule.enabled is True
+    assert rule.status == "active"
     assert rule.schedule_mode == "interval"
     assert rule.interval_minutes == 15
     assert rule.schedule_label == "every 15 min"

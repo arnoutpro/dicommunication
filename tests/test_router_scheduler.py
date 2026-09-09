@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import socket
+import threading
 import time
 from datetime import datetime, timedelta, timezone
 
@@ -268,10 +269,13 @@ def test_run_rule_without_storage_scp_running_marks_failed(store: ConfigStore) -
         server.shutdown()
 
 
-def test_tick_skips_disabled_and_not_due_rules(store: ConfigStore) -> None:
+def test_tick_skips_stopped_paused_and_not_due_rules(store: ConfigStore) -> None:
     remote = store.add_remote(RemoteNode(name="pacs", ae_title="QR_SCP", host="127.0.0.1", port=1)).remotes[-1]
-    disabled = store.add_route_rule(
-        RouteRule(name="Disabled", source_remote_id=remote.id, enabled=False)
+    stopped = store.add_route_rule(
+        RouteRule(name="Stopped", source_remote_id=remote.id, status="stopped")
+    )
+    paused = store.add_route_rule(
+        RouteRule(name="Paused", source_remote_id=remote.id, status="paused")
     )
     not_due = store.add_route_rule(RouteRule(name="Not due", source_remote_id=remote.id))
     store.save_route_rule_run_state(
@@ -284,6 +288,196 @@ def test_tick_skips_disabled_and_not_due_rules(store: ConfigStore) -> None:
     scheduler = RouterScheduler(store, storage_scp)
     scheduler._tick()
 
-    assert store.get_route_rule(disabled.id).last_run_at is None
+    assert store.get_route_rule(stopped.id).last_run_at is None
+    assert store.get_route_rule(paused.id).last_run_at is None
     assert store.get_route_rule(not_due.id).last_run_at is None
     assert store.list_route_runs() == []
+
+
+def test_run_rule_stops_between_targets_when_interrupted_and_keeps_completed_work(
+    store: ConfigStore,
+) -> None:
+    """Pausing/stopping mid-run must not redo or lose already-forwarded studies."""
+    storage_port = _free_port()
+    pacs_port = _free_port()
+    dest_port = _free_port()
+    instance_1 = _instance("1.2.1")
+    instance_2 = _instance("1.2.2")
+
+    def handle_find(event):
+        yield 0xFF00, _study_ds("1.2.1")
+        yield 0xFF00, _study_ds("1.2.2")
+        yield 0x0000, None
+
+    def handle_move(event):
+        study_uid = str(event.identifier.StudyInstanceUID)
+        instance = instance_1 if study_uid == "1.2.1" else instance_2
+        yield "127.0.0.1", storage_port, {"contexts": [build_context(str(instance.SOPClassUID))]}
+        yield 1
+        yield 0xFF00, instance
+
+    pacs_ae = AE(ae_title="QR_SCP")
+    pacs_ae.add_supported_context(StudyRootQueryRetrieveInformationModelFind)
+    pacs_ae.add_supported_context(StudyRootQueryRetrieveInformationModelMove)
+    pacs_server = pacs_ae.start_server(
+        ("127.0.0.1", pacs_port),
+        block=False,
+        evt_handlers=[(evt.EVT_C_FIND, handle_find), (evt.EVT_C_MOVE, handle_move)],
+    )
+
+    interrupt = threading.Event()
+    received: list[Dataset] = []
+
+    def handle_store(event):
+        received.append(event.dataset)
+        interrupt.set()  # simulate Pause/Stop being clicked right after the first forward
+        return 0x0000
+
+    dest_ae = AE(ae_title="DEST_SCP")
+    dest_ae.add_supported_context(CTImageStorage)
+    dest_server = dest_ae.start_server(
+        ("127.0.0.1", dest_port), block=False, evt_handlers=[(evt.EVT_C_STORE, handle_store)]
+    )
+
+    try:
+        time.sleep(0.05)
+        store.save_local(
+            LocalAE(
+                ae_title="DICOMM",
+                host="127.0.0.1",
+                port=storage_port,
+                timeout_seconds=5,
+                storage_scp_enabled=True,
+            )
+        )
+        pacs_node = store.add_remote(RemoteNode(name="pacs", ae_title="QR_SCP", host="127.0.0.1", port=pacs_port)).remotes[-1]
+        dest_node = store.add_remote(RemoteNode(name="dest", ae_title="DEST_SCP", host="127.0.0.1", port=dest_port)).remotes[-1]
+        rule = store.add_route_rule(
+            RouteRule(
+                name="Forward CT",
+                source_remote_id=pacs_node.id,
+                modality="CT",
+                date_scope="all",
+                destination_remote_ids=[dest_node.id],
+            )
+        )
+
+        storage_scp = WorklistSCP(store)
+        storage_scp.start()
+        assert storage_scp.running, storage_scp.last_error
+        scheduler = RouterScheduler(store, storage_scp)
+        run = scheduler.run_rule(rule, interrupt=interrupt)
+
+        assert run.status == "interrupted"
+        assert run.new_count == 2
+        assert len(run.matches) == 1
+        assert run.matches[0].status == "forwarded"
+        assert len(received) == 1
+
+        reloaded = store.get_route_rule(rule.id)
+        assert reloaded.has_seen("1.2.1")
+        assert not reloaded.has_seen("1.2.2")
+    finally:
+        storage_scp.stop()
+        pacs_server.shutdown()
+        dest_server.shutdown()
+
+
+def test_request_pause_keeps_next_run_at_for_catch_up(store: ConfigStore) -> None:
+    remote = store.add_remote(RemoteNode(name="pacs", ae_title="QR_SCP", host="127.0.0.1", port=1)).remotes[-1]
+    when = datetime.now(timezone.utc) + timedelta(minutes=5)
+    rule = store.add_route_rule(RouteRule(name="X", source_remote_id=remote.id))
+    store.save_route_rule_run_state(store.get_route_rule(rule.id).model_copy(update={"next_run_at": when}))
+
+    scheduler = RouterScheduler(store, WorklistSCP(store))
+    updated = scheduler.request_pause(rule.id)
+
+    assert updated.status == "paused"
+    assert updated.next_run_at == when
+    assert store.get_route_rule(rule.id).status == "paused"
+
+
+def test_request_stop_clears_next_run_at(store: ConfigStore) -> None:
+    remote = store.add_remote(RemoteNode(name="pacs", ae_title="QR_SCP", host="127.0.0.1", port=1)).remotes[-1]
+    when = datetime.now(timezone.utc) + timedelta(minutes=5)
+    rule = store.add_route_rule(RouteRule(name="X", source_remote_id=remote.id))
+    store.save_route_rule_run_state(store.get_route_rule(rule.id).model_copy(update={"next_run_at": when}))
+
+    scheduler = RouterScheduler(store, WorklistSCP(store))
+    updated = scheduler.request_stop(rule.id)
+
+    assert updated.status == "stopped"
+    assert updated.next_run_at is None
+
+
+def test_request_pause_and_stop_interrupt_a_running_rule(store: ConfigStore) -> None:
+    remote = store.add_remote(RemoteNode(name="pacs", ae_title="QR_SCP", host="127.0.0.1", port=1)).remotes[-1]
+    rule = store.add_route_rule(RouteRule(name="X", source_remote_id=remote.id))
+    scheduler = RouterScheduler(store, WorklistSCP(store))
+
+    event = scheduler._register(rule.id)
+    assert event is not None
+    assert scheduler.is_running(rule.id)
+
+    scheduler.request_pause(rule.id)
+    assert event.is_set()
+
+    scheduler._unregister(rule.id)
+    assert not scheduler.is_running(rule.id)
+
+
+def test_start_rule_reactivates_a_paused_rule_and_runs_it(store: ConfigStore) -> None:
+    remote = store.add_remote(RemoteNode(name="pacs", ae_title="QR_SCP", host="127.0.0.1", port=1)).remotes[-1]
+    stale = datetime.now(timezone.utc) - timedelta(minutes=1)
+    rule = store.add_route_rule(RouteRule(name="X", source_remote_id=remote.id, status="paused"))
+    store.save_route_rule_run_state(store.get_route_rule(rule.id).model_copy(update={"next_run_at": stale}))
+
+    before = datetime.now(timezone.utc)
+    scheduler = RouterScheduler(store, WorklistSCP(store))
+    outcome = scheduler.start_rule(rule.id)
+    assert outcome == "started"
+
+    deadline = time.time() + 5
+    while scheduler.is_running(rule.id) and time.time() < deadline:
+        time.sleep(0.02)
+
+    reloaded = store.get_route_rule(rule.id)
+    assert reloaded.status == "active"
+    # The run this triggered computed a fresh schedule, replacing the stale one.
+    assert reloaded.next_run_at is not None
+    assert reloaded.next_run_at > before
+    assert len(store.list_route_runs(rule_id=rule.id)) == 1
+
+
+def test_start_rule_computes_fresh_schedule_when_stopped(store: ConfigStore) -> None:
+    remote = store.add_remote(RemoteNode(name="pacs", ae_title="QR_SCP", host="127.0.0.1", port=1)).remotes[-1]
+    rule = store.add_route_rule(
+        RouteRule(name="X", source_remote_id=remote.id, status="stopped", interval_minutes=30)
+    )
+    assert rule.next_run_at is None
+
+    before = datetime.now(timezone.utc)
+    scheduler = RouterScheduler(store, WorklistSCP(store))
+    scheduler.start_rule(rule.id)
+
+    deadline = time.time() + 5
+    while scheduler.is_running(rule.id) and time.time() < deadline:
+        time.sleep(0.02)
+
+    reloaded = store.get_route_rule(rule.id)
+    assert reloaded.status == "active"
+    assert reloaded.next_run_at is not None
+    assert reloaded.next_run_at >= before + timedelta(minutes=29)
+
+
+def test_run_now_reports_already_running(store: ConfigStore) -> None:
+    remote = store.add_remote(RemoteNode(name="pacs", ae_title="QR_SCP", host="127.0.0.1", port=1)).remotes[-1]
+    rule = store.add_route_rule(RouteRule(name="X", source_remote_id=remote.id))
+    scheduler = RouterScheduler(store, WorklistSCP(store))
+
+    event = scheduler._register(rule.id)
+    assert event is not None
+    try:
+        assert scheduler.run_now(rule.id) == "already_running"
+    finally:
+        scheduler._unregister(rule.id)

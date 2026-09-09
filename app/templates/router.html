@@ -10,7 +10,14 @@
 </header>
 
 {% if saved %}
-<div class="flash ok" data-autohide>{% if saved == "deleted" %}Route rule deleted.{% else %}Saved.{% endif %}</div>
+<div class="flash ok" data-autohide>
+  {% if saved == "deleted" %}Route rule deleted.
+  {% elif saved == "started" %}Started.
+  {% elif saved == "paused" %}Paused — scheduling stopped, a run in progress finishes its current study then stops.
+  {% elif saved == "stopped" %}Stopped — scheduling cleared, a run in progress finishes its current study then stops.
+  {% elif saved == "already-running" %}Already running.
+  {% else %}Saved.{% endif %}
+</div>
 {% endif %}
 {% if error %}
 <div class="flash fail">{{ error }}</div>
@@ -21,6 +28,9 @@
     <h2>{% if editing %}Edit route rule{% else %}Add route rule{% endif %}</h2>
     {% if editing %}<a href="{{ href('/router') }}">Cancel</a>{% endif %}
   </header>
+  {% if editing %}
+  <p class="muted small" style="padding: 0 1.25rem;">Start / Pause / Stop are on the route rules table below — editing here never changes a rule's running state.</p>
+  {% endif %}
   {% if not config.remotes %}
   <div class="empty">
     <strong>Add a remote DICOM node first</strong>
@@ -44,11 +54,6 @@
         {% endfor %}
       </select>
     </label>
-    <label class="checkbox">
-      <input type="checkbox" name="enabled" value="on" {% if not editing or editing.enabled %}checked{% endif %}>
-      Enabled
-    </label>
-
     <label>
       Modality
       <input name="modality" placeholder="CT,MR" value="{{ editing.modality if editing else '' }}">
@@ -161,6 +166,7 @@
           <th>Source</th>
           <th>Schedule</th>
           <th>Forwarding</th>
+          <th>Status</th>
           <th>Last run</th>
           <th></th>
         </tr>
@@ -170,7 +176,6 @@
         <tr>
           <td>
             <strong>{{ rule.name }}</strong>
-            {% if not rule.enabled %}<div class="muted small">Disabled</div>{% endif %}
           </td>
           <td>
             <code>{{ config.get_remote(rule.source_remote_id).ae_title if config.get_remote(rule.source_remote_id) else 'missing node' }}</code>
@@ -185,6 +190,17 @@
             {% endif %}
           </td>
           <td>
+            {% if rule.id in running_ids %}
+            <span class="badge ok">Running</span>
+            {% elif rule.status == 'active' %}
+            <span class="badge ok">Active</span>
+            {% elif rule.status == 'paused' %}
+            <span class="badge">Paused</span>
+            {% else %}
+            <span class="badge">Stopped</span>
+            {% endif %}
+          </td>
+          <td>
             {% if rule.last_run_at %}
             <span class="badge {% if rule.last_run_ok %}ok{% else %}fail{% endif %}">{{ rule.last_run_at.strftime('%Y-%m-%d %H:%M') }} UTC</span>
             {% if rule.last_error %}<div class="muted small">{{ rule.last_error }}</div>{% endif %}
@@ -195,12 +211,32 @@
           <td class="actions">
             <a href="{{ href('/router/' ~ rule.id ~ '/runs') }}">History</a>
             <a href="{{ href('/router?edit=' ~ rule.id) }}">Edit</a>
+            {% set running = rule.id in running_ids %}
+            {% if running %}
+            <form method="post" action="{{ href('/router/' ~ rule.id ~ '/pause') }}" class="inline">
+              <button type="submit" class="link-button">Pause</button>
+            </form>
+            <form method="post" action="{{ href('/router/' ~ rule.id ~ '/stop') }}" class="inline">
+              <button type="submit" class="link-button">Stop</button>
+            </form>
+            {% else %}
+            {% if rule.status != 'active' %}
+            <form method="post" action="{{ href('/router/' ~ rule.id ~ '/start') }}" class="inline">
+              <button type="submit" class="link-button">{% if rule.status == 'paused' %}Resume{% else %}Start{% endif %}</button>
+            </form>
+            {% endif %}
             <form method="post" action="{{ href('/router/' ~ rule.id ~ '/run-now') }}" class="inline">
               <button type="submit" class="link-button">Run now</button>
             </form>
-            <form method="post" action="{{ href('/router/' ~ rule.id ~ '/toggle') }}" class="inline">
-              <button type="submit" class="link-button">{% if rule.enabled %}Disable{% else %}Enable{% endif %}</button>
+            {% if rule.status == 'active' %}
+            <form method="post" action="{{ href('/router/' ~ rule.id ~ '/pause') }}" class="inline">
+              <button type="submit" class="link-button">Pause</button>
             </form>
+            <form method="post" action="{{ href('/router/' ~ rule.id ~ '/stop') }}" class="inline">
+              <button type="submit" class="link-button">Stop</button>
+            </form>
+            {% endif %}
+            {% endif %}
             <form method="post" action="{{ href('/router/' ~ rule.id ~ '/delete') }}" class="inline" data-confirm="Delete route rule {{ rule.name }}?">
               <button type="submit" class="link-button danger">Delete</button>
             </form>

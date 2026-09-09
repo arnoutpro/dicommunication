@@ -196,15 +196,25 @@ ROUTE_RUN_MAX_MATCHES = 500
 class RouteRule(BaseModel):
     """A scheduled C-FIND against a PACS, with optional retrieve/forward.
 
-    MVP only runs the C-FIND and records new matches (``seen_study_uids``
-    tracks what has already been reported so a rule doesn't re-announce the
-    same study on every tick). ``destination_remote_ids`` is reserved for the
-    retrieve-and-forward phase and is unused until that ships.
+    Runs the C-FIND and records new matches (``seen_study_uids`` tracks what
+    has already been fully handled so a rule doesn't redo it on every tick —
+    see RouterScheduler for how that also makes a paused/stopped run resume
+    without repeating work). ``destination_remote_ids``, when set, additionally
+    retrieves and forwards each new match.
+
+    ``status`` is the rule's own start/pause/stop state, independent of its
+    schedule: "active" is eligible to fire on schedule; "paused" and
+    "stopped" are both skipped by the scheduler and can both still be run
+    manually (Run now). Starting either one always computes a fresh
+    next_run_at from that moment (RouterScheduler.start_rule) — they differ
+    only in ``next_run_at`` while inactive: Stop clears it (nothing
+    scheduled), Pause leaves the old value in place purely as a "would have
+    run at" record.
     """
 
     id: str = Field(default_factory=new_record_id)
     name: str
-    enabled: bool = True
+    status: Literal["active", "paused", "stopped"] = "active"
 
     source_remote_id: str
     level: Literal["STUDY", "SERIES"] = "STUDY"
@@ -343,7 +353,13 @@ class RouteMatch(BaseModel):
 
 
 class RouteRun(BaseModel):
-    """History entry for one execution of a RouteRule."""
+    """History entry for one execution of a RouteRule.
+
+    ``status`` is "completed" unless a Pause or Stop request interrupted the
+    run partway through — see RouterScheduler. An interrupted run's
+    completed matches are still fully handled (marked seen); the studies it
+    didn't get to just show up as new again on the next run.
+    """
 
     id: str = Field(default_factory=new_record_id)
     rule_id: str
@@ -352,6 +368,7 @@ class RouteRun(BaseModel):
     duration_ms: float = 0
     ok: bool = True
     error: str = ""
+    status: Literal["completed", "interrupted"] = "completed"
     matched_count: int = 0
     new_count: int = 0
     matches: list[RouteMatch] = Field(default_factory=list)

@@ -1,13 +1,18 @@
 """Dicom Router background service.
 
-Runs each enabled RouteRule's C-FIND on its schedule. A rule with no
-destinations only reports new matches (the MVP). A rule with destinations
-additionally C-MOVEs each new match to this workstation's local Storage SCP
-and C-STOREs it on to every destination node — the retrieve/forward phase.
+Runs each active RouteRule's C-FIND on its schedule. A rule with no
+destinations only reports new matches. A rule with destinations additionally
+C-MOVEs each new match to this workstation's local Storage SCP and C-STOREs
+it on to every destination node — the retrieve/forward phase.
 
 Mirrors the threading shape of WorklistSCP (app/mwl_scp.py): one background
 thread started/stopped from the app lifespan, reading/writing through the
-same ConfigStore other requests use.
+same ConfigStore other requests use. On top of that ticking loop, each rule
+can also be started/paused/stopped/run-now on demand (see RouterScheduler's
+request_pause/request_stop/start_rule/run_now); `_active` tracks which rule
+is currently executing (scheduled or manual) and its cooperative interrupt
+signal, checked between targets so Pause/Stop can cut a long batch short
+without redoing or losing already-forwarded work.
 """
 
 from __future__ import annotations
@@ -248,6 +253,10 @@ class RouterScheduler:
         self.storage_scp = storage_scp
         self._thread: threading.Thread | None = None
         self._stop_event = threading.Event()
+        self._active_lock = threading.Lock()
+        # rule_id -> interrupt signal for whichever run (scheduled or manual)
+        # is currently executing that rule. Presence of a key means running.
+        self._active: dict[str, threading.Event] = {}
 
     def start(self) -> None:
         if self._thread is not None:
@@ -277,28 +286,129 @@ class RouterScheduler:
     def _tick(self) -> None:
         now = utc_now()
         for rule in self.store.list_route_rules():
-            if not rule.enabled:
+            if rule.status != "active":
                 continue
             if rule.next_run_at is not None and rule.next_run_at > now:
                 continue
+            event = self._register(rule.id)
+            if event is None:
+                continue  # already running (a manual trigger got there first)
             try:
-                self.run_rule(rule, now=now)
+                self.run_rule(rule, now=now, interrupt=event)
             except Exception as exc:  # noqa: BLE001
                 log.warning("Route rule %r failed: %s", rule.name, exc)
+            finally:
+                self._unregister(rule.id)
 
-    def run_rule(self, rule: RouteRule, *, now: datetime | None = None) -> RouteRun:
-        """Run one rule's C-FIND (and, with destinations configured, retrieve+forward)."""
+    def is_running(self, rule_id: str) -> bool:
+        with self._active_lock:
+            return rule_id in self._active
+
+    def _register(self, rule_id: str) -> threading.Event | None:
+        """Claim a rule for execution. None means it's already running."""
+        with self._active_lock:
+            if rule_id in self._active:
+                return None
+            event = threading.Event()
+            self._active[rule_id] = event
+            return event
+
+    def _unregister(self, rule_id: str) -> None:
+        with self._active_lock:
+            self._active.pop(rule_id, None)
+
+    def request_pause(self, rule_id: str) -> RouteRule:
+        """Stop scheduling this rule and interrupt a run in progress, if any.
+
+        next_run_at is left untouched (purely informational while paused —
+        starting always computes a fresh one, see start_rule).
+        """
+        updated = self.store.set_route_rule_status(rule_id, "paused")
+        self._interrupt_if_running(rule_id)
+        return updated
+
+    def request_stop(self, rule_id: str) -> RouteRule:
+        """Stop scheduling this rule, clear its next run, interrupt if running."""
+        updated = self.store.set_route_rule_status(rule_id, "stopped", next_run_at=None)
+        self._interrupt_if_running(rule_id)
+        return updated
+
+    def start_rule(self, rule_id: str) -> str:
+        """Mark active and run right now.
+
+        The triggered run's own completion computes a fresh next_run_at (see
+        run_rule) since the rule is active by the time it finishes — so this
+        doesn't need to compute one itself. Returns "started" or
+        "already_running" (from the run-now that follows).
+        """
+        updated = self.store.set_route_rule_status(rule_id, "active")
+        return self.run_now(rule_id, rule=updated)
+
+    def run_now(self, rule_id: str, *, rule: RouteRule | None = None) -> str:
+        """Run a rule immediately in the background, regardless of its status."""
+        rule = rule or self._require_rule(rule_id)
+        event = self._register(rule.id)
+        if event is None:
+            return "already_running"
+        thread = threading.Thread(
+            target=self._run_registered,
+            args=(rule, event),
+            name=f"route-rule-{rule.id}",
+            daemon=True,
+        )
+        thread.start()
+        return "started"
+
+    def _run_registered(self, rule: RouteRule, event: threading.Event) -> None:
+        try:
+            self.run_rule(rule, interrupt=event)
+        except Exception:  # noqa: BLE001
+            log.exception("Route rule %r failed", rule.name)
+        finally:
+            self._unregister(rule.id)
+
+    def _interrupt_if_running(self, rule_id: str) -> None:
+        with self._active_lock:
+            event = self._active.get(rule_id)
+        if event is not None:
+            event.set()
+
+    def _require_rule(self, rule_id: str) -> RouteRule:
+        rule = self.store.get_route_rule(rule_id)
+        if rule is None:
+            raise KeyError(rule_id)
+        return rule
+
+    def run_rule(
+        self,
+        rule: RouteRule,
+        *,
+        now: datetime | None = None,
+        interrupt: threading.Event | None = None,
+    ) -> RouteRun:
+        """Run one rule's C-FIND (and, with destinations configured, retrieve+forward).
+
+        Checked between targets (never mid-association): if `interrupt` is
+        set, finishes the target in progress and stops before starting the
+        next one. Each target is marked seen — persisted immediately, not
+        batched at the end — as soon as it's fully handled, so an interrupted
+        run never redoes work: whatever it didn't reach is still "new" and
+        picked up by the next run, scheduled or manual.
+        """
         now = now or utc_now()
         started = time.perf_counter()
         config = self.store.load()
         local = config.local
         remote = config.get_remote(rule.source_remote_id)
         run = RouteRun(rule_id=rule.id, rule_name=rule.name, started_at=now)
-        newly_seen: list[str] = []
+        interrupted = bool(interrupt is not None and interrupt.is_set())
 
         if remote is None:
             run.ok = False
             run.error = "Source PACS is no longer configured."
+        elif interrupted:
+            run.ok = True
+            run.status = "interrupted"
         else:
             ok, study_datasets, error = _run_find(local, remote, _study_identifier(rule))
             run.ok = ok
@@ -331,6 +441,9 @@ class RouterScheduler:
                 run.new_count = len(targets)
 
                 for target in targets[:ROUTE_RUN_MAX_MATCHES]:
+                    if interrupt is not None and interrupt.is_set():
+                        interrupted = True
+                        break
                     match = RouteMatch(
                         study_instance_uid=target["study_instance_uid"],
                         series_instance_uid=target.get("series_instance_uid", ""),
@@ -342,28 +455,40 @@ class RouterScheduler:
                         study_description=target["study_description"],
                     )
                     dedupe_uid = match.series_instance_uid or match.study_instance_uid
+                    newly_handled = False
                     if target.get("_error"):
                         match.status = "failed"
                         match.error = target["_error"]
                     elif not rule.destination_remote_ids:
-                        newly_seen.append(dedupe_uid)
+                        newly_handled = True
                     else:
-                        forwarded = self._retrieve_and_forward(local, remote, destinations, match)
-                        if forwarded:
-                            newly_seen.append(dedupe_uid)
+                        newly_handled = self._retrieve_and_forward(local, remote, destinations, match)
                     run.matches.append(match)
+                    if newly_handled:
+                        rule.mark_seen([dedupe_uid])
+                        try:
+                            self.store.save_route_rule_run_state(rule)
+                        except KeyError:
+                            break  # rule was deleted while this run was in flight
+                run.status = "interrupted" if interrupted else "completed"
 
         run.duration_ms = (time.perf_counter() - started) * 1000
         rule.last_run_at = now
         rule.last_run_ok = run.ok
         rule.last_error = run.error
-        if newly_seen:
-            rule.mark_seen(newly_seen)
-        rule.next_run_at = compute_next_run(rule, now)
-        try:
-            self.store.save_route_rule_run_state(rule)
-        except KeyError:
-            pass  # rule was deleted while this run was in flight
+        # Scheduling is only this run's business while the rule is (still)
+        # active — a status flip requested mid-run (Pause/Stop) already wrote
+        # its own next_run_at and must not be raced by a stale recompute here.
+        current = self.store.get_route_rule(rule.id)
+        if current is not None:
+            if current.status == "active":
+                rule.next_run_at = compute_next_run(rule, now)
+            else:
+                rule.next_run_at = current.next_run_at
+            try:
+                self.store.save_route_rule_run_state(rule)
+            except KeyError:
+                pass  # rule was deleted while this run was in flight
         self.store.add_route_run(run)
         return run
 

@@ -8,7 +8,7 @@ from pydantic import ValidationError
 
 from app.applog import log
 from app.models import RouteRule
-from app.routes._shared import _as_bool, _first_error, page, templates
+from app.routes._shared import _first_error, page, templates
 
 router = APIRouter()
 
@@ -23,13 +23,16 @@ def _router_view(
     status_code: int = 200,
 ) -> HTMLResponse:
     store = request.app.state.store
+    scheduler = request.app.state.router_scheduler
+    rules = store.list_route_rules()
     return templates.TemplateResponse(
         request,
         "router.html",
         page(
             request,
             nav=nav,
-            rules=store.list_route_rules(),
+            rules=rules,
+            running_ids={rule.id for rule in rules if scheduler.is_running(rule.id)},
             editing=editing,
             saved=saved,
             error=error,
@@ -45,11 +48,12 @@ def router_page(request: Request, edit: str | None = None, saved: str | None = N
 
 
 @router.get("/router/{rule_id}/runs", response_class=HTMLResponse)
-def router_runs_page(request: Request, rule_id: str) -> HTMLResponse:
+def router_runs_page(request: Request, rule_id: str, saved: str | None = None) -> HTMLResponse:
     store = request.app.state.store
     rule = store.get_route_rule(rule_id)
     if rule is None:
         raise HTTPException(status_code=404, detail="Route rule not found")
+    scheduler = request.app.state.router_scheduler
     return templates.TemplateResponse(
         request,
         "router_runs.html",
@@ -57,7 +61,9 @@ def router_runs_page(request: Request, rule_id: str) -> HTMLResponse:
             request,
             nav="router",
             rule=rule,
+            running=scheduler.is_running(rule_id),
             runs=store.list_route_runs(rule_id=rule_id, limit=50),
+            saved=saved,
         ),
     )
 
@@ -75,7 +81,6 @@ async def add_or_update_route_rule(request: Request):
     try:
         rule = RouteRule(
             name=str(form.get("name") or ""),
-            enabled=_as_bool(str(form.get("enabled") or "")),
             source_remote_id=str(form.get("source_remote_id") or ""),
             level=str(form.get("level") or "STUDY"),  # type: ignore[arg-type]
             modality=str(form.get("modality") or ""),
@@ -113,30 +118,51 @@ def delete_route_rule(request: Request, rule_id: str):
     return RedirectResponse("/router?saved=deleted", status_code=303)
 
 
-@router.post("/router/{rule_id}/toggle")
-def toggle_route_rule(request: Request, rule_id: str):
-    store = request.app.state.store
-    rule = store.get_route_rule(rule_id)
-    if rule is None:
-        raise HTTPException(status_code=404, detail="Route rule not found")
-    rule.enabled = not rule.enabled
-    store.update_route_rule(rule_id, rule)
-    log.info("Route rule %s %s", rule.name, "enabled" if rule.enabled else "disabled")
-    return RedirectResponse("/router?saved=rule", status_code=303)
+@router.post("/router/{rule_id}/start")
+def start_route_rule(request: Request, rule_id: str):
+    """Mark active and run right now — resumes wherever a paused schedule left off."""
+    scheduler = request.app.state.router_scheduler
+    try:
+        outcome = scheduler.start_rule(rule_id)
+    except KeyError:
+        raise HTTPException(status_code=404, detail="Route rule not found") from None
+    log.info("Started route rule %s (%s)", rule_id, outcome)
+    saved = "already-running" if outcome == "already_running" else "started"
+    return RedirectResponse(f"/router?saved={saved}", status_code=303)
+
+
+@router.post("/router/{rule_id}/pause")
+def pause_route_rule(request: Request, rule_id: str):
+    """Stop scheduling; interrupt a run in progress after its current target."""
+    scheduler = request.app.state.router_scheduler
+    try:
+        scheduler.request_pause(rule_id)
+    except KeyError:
+        raise HTTPException(status_code=404, detail="Route rule not found") from None
+    log.info("Paused route rule %s", rule_id)
+    return RedirectResponse("/router?saved=paused", status_code=303)
+
+
+@router.post("/router/{rule_id}/stop")
+def stop_route_rule(request: Request, rule_id: str):
+    """Stop scheduling and clear the next run; interrupt a run in progress."""
+    scheduler = request.app.state.router_scheduler
+    try:
+        scheduler.request_stop(rule_id)
+    except KeyError:
+        raise HTTPException(status_code=404, detail="Route rule not found") from None
+    log.info("Stopped route rule %s", rule_id)
+    return RedirectResponse("/router?saved=stopped", status_code=303)
 
 
 @router.post("/router/{rule_id}/run-now")
 def run_route_rule_now(request: Request, rule_id: str):
-    store = request.app.state.store
-    rule = store.get_route_rule(rule_id)
-    if rule is None:
-        raise HTTPException(status_code=404, detail="Route rule not found")
+    """Run once in the background without touching the rule's status/schedule."""
     scheduler = request.app.state.router_scheduler
-    run = scheduler.run_rule(rule)
-    log.info(
-        "Ran route rule %s on demand: matched %s, new %s",
-        rule.name,
-        run.matched_count,
-        run.new_count,
-    )
-    return RedirectResponse(f"/router/{rule_id}/runs?saved=run", status_code=303)
+    try:
+        outcome = scheduler.run_now(rule_id)
+    except KeyError:
+        raise HTTPException(status_code=404, detail="Route rule not found") from None
+    log.info("Ran route rule %s on demand (%s)", rule_id, outcome)
+    saved = "already-running" if outcome == "already_running" else "running"
+    return RedirectResponse(f"/router/{rule_id}/runs?saved={saved}", status_code=303)

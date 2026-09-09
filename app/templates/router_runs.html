@@ -4,14 +4,19 @@
 <header class="page-head">
   <div>
     <p class="eyebrow">Dicom Router</p>
-    <h1>{{ rule.name }}</h1>
+    <h1>{{ rule.name }} {% if running %}<span class="badge ok">Running</span>{% endif %}</h1>
     <p class="lede">{{ rule.schedule_label }} · {{ config.get_remote(rule.source_remote_id).ae_title if config.get_remote(rule.source_remote_id) else 'source node missing' }}{% if rule.destination_remote_ids %} → {{ rule.destination_remote_ids | length }} destination{% if rule.destination_remote_ids | length != 1 %}s{% endif %}{% endif %}</p>
   </div>
   <a href="{{ href('/router') }}">&larr; Back to route rules</a>
 </header>
 
-{% if saved == 'run' %}
-<div class="flash ok" data-autohide>Ran now.</div>
+{% if saved == 'running' %}
+<div class="flash ok" data-autohide>Started in the background — refresh to see progress and results.</div>
+{% elif saved == 'already-running' %}
+<div class="flash ok" data-autohide>Already running.</div>
+{% endif %}
+{% if running %}
+<div class="flash ok">This rule is running right now. Refresh to see progress, or use Pause / Stop on the <a href="{{ href('/router') }}">route rules page</a>.</div>
 {% endif %}
 
 <section class="panel">
@@ -25,6 +30,7 @@
     <header class="panel-head">
       <h3>
         <span class="badge {% if run.ok %}ok{% else %}fail{% endif %}">{{ run.started_at.strftime('%Y-%m-%d %H:%M:%S') }} UTC</span>
+        {% if run.status == 'interrupted' %}<span class="badge">interrupted</span>{% endif %}
         {{ run.matched_count }} matched · {{ run.new_count }} new
       </h3>
       <span class="muted small">{{ "%.0f"|format(run.duration_ms) }} ms</span>
