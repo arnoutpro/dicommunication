@@ -134,6 +134,9 @@ def test_launcher_reuses_running_server(monkeypatch) -> None:
     opened.clear()
     assert main(["--host", "127.0.0.1", "--port", "8080", "--profile", "vue-analytics"]) == 0
     assert opened == ["http://127.0.0.1:8080/vue/"]
+    opened.clear()
+    assert main(["--host", "127.0.0.1", "--port", "8080", "--profile", "dicom-router"]) == 0
+    assert opened == ["http://127.0.0.1:8080/dicom-router/"]
 
 
 def test_launcher_no_browser_on_existing_server(monkeypatch) -> None:
@@ -251,19 +254,22 @@ def test_macos_spec_is_windowed_app_bundle() -> None:
     assert "NSApplicationActivationPolicyRegular" in rthook.read_text(encoding="utf-8")
 
 
-def test_macos_spec_builds_second_and_third_self_contained_bundles() -> None:
+def test_macos_spec_builds_second_third_and_fourth_self_contained_bundles() -> None:
     spec = (ROOT / "packaging" / "macos" / "dicommunication.spec").read_text(encoding="utf-8")
-    # Three BUNDLE(...) calls sharing the same `coll`, not thin wrappers that
+    # Four BUNDLE(...) calls sharing the same `coll`, not thin wrappers that
     # exec another bundle's binary — each must be independently draggable.
-    assert spec.count("BUNDLE(\n    coll,") == 3
+    assert spec.count("BUNDLE(\n    coll,") == 4
     assert 'name="Dicomtag Analytics.app"' in spec
     assert 'name="Dicom Anonymizer.app"' in spec
+    assert 'name="Dicom Router.app"' in spec
     assert "pro.arnout.dicommunication.dicomtag-analytics" in spec
     assert "pro.arnout.dicommunication.dicom-anonymizer" in spec
+    assert "pro.arnout.dicommunication.dicom-router" in spec
     # LSEnvironment is how a plain Finder double-click (no CLI args) picks
     # the profile; launcher.py's --profile already defaults from this env var.
     assert '"LSEnvironment": {"DICOMM_PROFILE": "dicomtag-analytics"}' in spec
     assert '"LSEnvironment": {"DICOMM_PROFILE": "dicom-anonymizer"}' in spec
+    assert '"LSEnvironment": {"DICOMM_PROFILE": "dicom-router"}' in spec
     launcher = (ROOT / "app" / "launcher.py").read_text(encoding="utf-8")
     assert 'os.environ.get("DICOMM_PROFILE"' in launcher
 
@@ -277,6 +283,7 @@ def test_macos_build_script_exists() -> None:
     assert "Dicommunication.app" in text
     assert "Dicomtag Analytics.app" in text
     assert "Dicom Anonymizer.app" in text
+    assert "Dicom Router.app" in text
     assert "requirements-desktop.txt" in text
 
 
@@ -308,16 +315,18 @@ def _fake_app_bundle(root: Path, name: str) -> Path:
     return app
 
 
-def test_make_dmg_stages_all_three_apps_and_applications_link(tmp_path) -> None:
+def test_make_dmg_stages_all_four_apps_and_applications_link(tmp_path) -> None:
     dicommunication = _fake_app_bundle(tmp_path, "Dicommunication.app")
     analytics = _fake_app_bundle(tmp_path, "Dicomtag Analytics.app")
     anonymizer = _fake_app_bundle(tmp_path, "Dicom Anonymizer.app")
+    router = _fake_app_bundle(tmp_path, "Dicom Router.app")
     staging = tmp_path / "stage"
     make_dmg = _load_make_dmg()
-    make_dmg.stage_apps([dicommunication, analytics, anonymizer], staging)
+    make_dmg.stage_apps([dicommunication, analytics, anonymizer, router], staging)
     assert (staging / "Dicommunication.app" / "Contents" / "MacOS" / "dicommunication").is_file()
     assert (staging / "Dicomtag Analytics.app" / "Contents" / "MacOS" / "dicommunication").is_file()
     assert (staging / "Dicom Anonymizer.app" / "Contents" / "MacOS" / "dicommunication").is_file()
+    assert (staging / "Dicom Router.app" / "Contents" / "MacOS" / "dicommunication").is_file()
     assert (staging / "Applications").is_symlink()
     assert (staging / "Applications").readlink() == Path("/Applications")
     readme = (staging / "Read Me.txt").read_text(encoding="utf-8")
@@ -325,6 +334,7 @@ def test_make_dmg_stages_all_three_apps_and_applications_link(tmp_path) -> None:
     assert "own window" in readme
     assert "Dicomtag Analytics" in readme
     assert "Dicom Anonymizer" in readme
+    assert "Dicom Router" in readme
     assert "Desktop" in readme
 
 
@@ -348,7 +358,8 @@ def test_make_dmg_stage_only_cli(tmp_path) -> None:
     dicommunication = tmp_path / "Dicommunication.app"
     analytics = tmp_path / "Dicomtag Analytics.app"
     anonymizer = tmp_path / "Dicom Anonymizer.app"
-    for app in (dicommunication, analytics, anonymizer):
+    router = tmp_path / "Dicom Router.app"
+    for app in (dicommunication, analytics, anonymizer, router):
         (app / "Contents").mkdir(parents=True)
         (app / "Contents" / "Info.plist").write_text("<plist/>", encoding="utf-8")
     make_dmg = _load_make_dmg()
@@ -359,6 +370,7 @@ def test_make_dmg_stage_only_cli(tmp_path) -> None:
                 str(dicommunication),
                 str(analytics),
                 str(anonymizer),
+                str(router),
                 "--version",
                 "0.2.0",
                 "--arch",
@@ -374,6 +386,7 @@ def test_make_dmg_stage_only_cli(tmp_path) -> None:
     assert (staging / "Dicommunication.app").is_dir()
     assert (staging / "Dicomtag Analytics.app").is_dir()
     assert (staging / "Dicom Anonymizer.app").is_dir()
+    assert (staging / "Dicom Router.app").is_dir()
     assert not list(out.glob("*.dmg"))
 
 
@@ -653,13 +666,15 @@ def test_windows_wxs_offers_separately_selectable_app_features() -> None:
     assert 'Feature Id="Dicommunication" Title="Dicommunication"' in wxs
     assert 'Feature Id="DicomtagAnalytics" Title="Dicomtag Analytics"' in wxs
     assert 'Feature Id="DicomAnonymizer" Title="Dicom Anonymizer"' in wxs
+    assert 'Feature Id="DicomRouter" Title="Dicom Router"' in wxs
     assert 'Feature Id="Main"' not in wxs
     # FeatureTree (not InstallDir) is what actually shows the checkbox tree.
     assert 'Id="WixUI_FeatureTree"' in wxs
-    # AppFiles is shared between all three app Features, not duplicated —
+    # AppFiles is shared between all four app Features, not duplicated —
     # every profile runs the same frozen dicommunication.exe.
-    assert wxs.count('<ComponentGroupRef Id="AppFiles" />') == 3
+    assert wxs.count('<ComponentGroupRef Id="AppFiles" />') == 4
     assert 'Arguments="--profile dicom-anonymizer"' in wxs
+    assert 'Arguments="--profile dicom-router"' in wxs
 
 
 def test_windows_wxs_offers_optional_desktop_shortcuts() -> None:
@@ -668,12 +683,14 @@ def test_windows_wxs_offers_optional_desktop_shortcuts() -> None:
     assert 'Feature Id="DicommunicationDesktop" Title="Desktop shortcut" Level="1000"' in wxs
     assert 'Feature Id="DicomtagAnalyticsDesktop" Title="Desktop shortcut" Level="1000"' in wxs
     assert 'Feature Id="DicomAnonymizerDesktop" Title="Desktop shortcut" Level="1000"' in wxs
+    assert 'Feature Id="DicomRouterDesktop" Title="Desktop shortcut" Level="1000"' in wxs
     assert 'Id="DesktopShortcutDicommunication"' in wxs
     assert 'Id="DesktopShortcutDicomtagAnalytics"' in wxs
     assert 'Id="DesktopShortcutAnonymizer"' in wxs
-    # All three top-level app Features default on (Typical install keeps
+    assert 'Id="DesktopShortcutRouter"' in wxs
+    # All four top-level app Features default on (Typical install keeps
     # today's behavior); only the Desktop sub-features are opt-in.
-    assert wxs.count('Level="1"') == 3
+    assert wxs.count('Level="1"') == 4
 
 
 def test_htmx_is_served_from_this_app_not_a_cdn() -> None:

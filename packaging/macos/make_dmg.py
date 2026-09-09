@@ -9,21 +9,27 @@ import subprocess
 from pathlib import Path
 
 VOLUME_NAME = "Dicommunication"
-APP_BUNDLE_NAMES = ("Dicommunication.app", "Dicomtag Analytics.app", "Dicom Anonymizer.app")
+APP_BUNDLE_NAMES = (
+    "Dicommunication.app",
+    "Dicomtag Analytics.app",
+    "Dicom Anonymizer.app",
+    "Dicom Router.app",
+)
 README_NAME = "Read Me.txt"
 
 README_TEXT = """Dicommunication — Arnout.pro
 
 1. Drag whichever app(s) you want onto Applications — Dicommunication, Dicomtag
-   Analytics, Dicom Anonymizer, or any combination. Each is self-contained, so
-   you only need the one(s) you use. Drop one straight onto your Desktop
-   instead for a quick-launch icon.
+   Analytics, Dicom Anonymizer, Dicom Router, or any combination. Each is
+   self-contained, so you only need the one(s) you use. Drop one straight onto
+   your Desktop instead for a quick-launch icon.
 2. The first time, right-click the app and choose Open (the build is unsigned;
    Gatekeeper will warn).
 3. Each opens in its own window (not a browser tab). They share one background
    server, so opening another while the first is already running just adds a
-   window (http://127.0.0.1:8080/vue/ for Dicomtag Analytics, or
-   http://127.0.0.1:8080/anonymize/ for Dicom Anonymizer, if you'd rather use
+   window (http://127.0.0.1:8080/vue/ for Dicomtag Analytics,
+   http://127.0.0.1:8080/anonymize/ for Dicom Anonymizer, or
+   http://127.0.0.1:8080/dicom-router/ for Dicom Router, if you'd rather use
    a browser tab).
 4. Close the window or quit from the Dock to stop the server.
 
