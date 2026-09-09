@@ -16,7 +16,7 @@ from app.applog import configure as configure_logging, log, should_skip_http_log
 from app.mwl_scp import WorklistSCP
 from app.paths import package_dir
 from app.router_scheduler import RouterScheduler
-from app.routes import anonymize, api, config, echo_board, logs, misc, testbench, tools, worklist
+from app.routes import anonymize, api, config, echo_board, logs, misc, route_rules, testbench, tools, worklist
 from app.shell import (
     ANONYMIZE_PREFIX,
     SHELL_ANONYMIZE,
@@ -171,6 +171,7 @@ def create_app(store: ConfigStore | None = None) -> FastAPI:
     app.include_router(config.router)
     app.include_router(testbench.router)
     app.include_router(worklist.router)
+    app.include_router(route_rules.router)
     # anonymize.router's specific POST /tools/anonymize/run must be registered
     # before tools.router's generic POST /tools/{tool_id}/run catch-all, or the
     # catch-all matches first and swallows every anonymize request without any

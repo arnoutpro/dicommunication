@@ -142,6 +142,7 @@
         </div>
 
         <a href="{{ href('/logs') }}" class="{% if nav == 'logs' %}active{% endif %}">Logs</a>
+        <a href="{{ href('/router') }}" class="{% if nav == 'router' %}active{% endif %}">Dicom Router</a>
 
         {% set tools_open = nav in ['testbench', 'echo-board', 'worklist', 'tools'] %}
         <div class="nav-branch{% if tools_open %} is-open{% endif %}" data-nav-id="test-tools">
