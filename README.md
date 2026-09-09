@@ -1,3 +1,5 @@
+![Dicommunication — a low-code DICOM connectivity & PACS admin toolkit for PACS admins, imaging IT, and biomedical engineering](docs/banner.svg)
+
 # Arnout.pro Dicommunication Tool
 
 A low-code DICOM communication validator and PACS admin toolkit.
@@ -80,6 +82,7 @@ A successful C-ECHO only proves Verification. Orthanc (or any PACS) can accept C
 | C-FIND | C-FIND | Study Root Query/Retrieve FIND | Search *stored studies* in a PACS archive at STUDY level. Zero matches can still be a successful Q/R C-FIND. |
 | Dicomtag Analytics | C-FIND, optional C-MOVE | Study Root Query/Retrieve FIND (and MOVE for SR) | Own Start-menu tool (`/vue/`). Same SOP Class at Study, Series, or Image plus optional Vue ELSCINT1 keys. Hierarchical: Series needs Study Instance UID; Image needs Study and Series Instance UID. **List SR reports** is Series C-FIND with modality `SR` for every study in the table. **Retrieve report text** C-MOVEs each listed SR on its own association and parses the Content Sequence. Results copy / CSV / JSON. |
 | MWL C-FIND / Worklist | C-FIND | Modality Worklist `1.2.840.10008.5.1.4.31` | Search *scheduled procedures*, not the archive. |
+| Dicom Router | C-FIND, optional C-MOVE + C-STORE | Study Root Query/Retrieve FIND (MOVE/STORE for retrieve-and-forward) | Own Start-menu tool (`/dicom-router/`), and its rules also run inside the main Dicommunication window. Same FIND as Dicomtag Analytics, but scheduled/automatic instead of manual, with an optional automatic retrieve-and-forward to one or more destination nodes. |
 
 **MWL C-FIND and the Worklist page are the same SOP Class.** Study Root C-FIND is not. Orthanc without the worklist plugin typically accepts Verification, Storage, and Q/R, then rejects MWL. The Testbench and Worklist results show accepted vs rejected presentation contexts so that is visible.
 
@@ -221,6 +224,8 @@ Linux keeps using Docker Compose.
 | `results.json` | Recent tool runs (capped at 200) |
 | `worklist.json` | Local web worklist entries |
 | `hl7_messages.json` | Saved HL7 v2 drafts for the sender |
+| `route_rules.json` | Dicom Router rule definitions (source PACS, filters, schedule, destinations, status) |
+| `route_runs.json` | Dicom Router run history (capped at 500), including matched studies' patient/accession data |
 | `dicommunication.log` | Rotating application log (level and size set on **Logs**) |
 
 Default directory:
@@ -349,11 +354,24 @@ A third product, `python -m app --profile dicom-anonymizer` — own Start Menu /
 
 The simple C-FIND tool and Testbench stay STUDY-level with a short filter list. This window has Query, Configured nodes, Logs, About, and Help only.
 
-### Dicom Router (`/dicom-router/`)
+### Dicom Router (`/router` inside the main window, or its own product at `/dicom-router/`)
 
-A fourth product, `python -m app --profile dicom-router` — own Start Menu / Desktop shortcut in the Windows MSI and its own `Dicom Router.app` bundle in the macOS DMG, same as Dicomtag Analytics and Dicom Anonymizer. Unlike those two it isn't a query form: it manages **route rules**, each a scheduled Study Root C-FIND (interval in minutes, or specific times of day with optional days-of-week) against a configured PACS, filtered by modality / study date scope / query level. A background scheduler (`app/router_scheduler.py`) runs due rules automatically and records what's new since the rule last ran.
+Unlike Dicomtag Analytics and Dicom Anonymizer, Dicom Router isn't only a separate product — it's also built into the main Dicommunication window's sidebar, since it's a background service you manage alongside everything else, not a one-off query form. Both places work off the same rules and the same background scheduler (`app/router_scheduler.py`); there's exactly one scheduler per running server, so it makes no difference which window you use.
 
-A rule with no destination nodes just tracks new studies (find-only). Add one or more destination nodes and the scheduler additionally C-MOVEs each new match to this workstation's local Storage SCP (same **Accept C-STORE** setting Dicomtag Analytics' SR retrieve uses) and C-STOREs it on to every destination, using the retrieved object's own SOP Class — no need to pre-register storage SOP classes per rule. A study is only marked "seen" once it's fully handled, so a failed retrieve or forward is retried automatically on the next scheduled run rather than silently dropped. Each rule has a run history showing every match and its status (found / retrieved / forwarded / failed) with the error if any, plus a manual **Run now** to try a rule immediately. This window has Route rules, Configured nodes, Logs, About, and Help only.
+- **As its own product**: `python -m app --profile dicom-router` — own Start Menu / Desktop shortcut in the Windows MSI and its own `Dicom Router.app` bundle in the macOS DMG, same as Dicomtag Analytics and Dicom Anonymizer. This window has Route rules, Configured nodes, Logs, About, and Help only.
+- **Inside the main window**: a **Dicom Router** branch in the sidebar lists every configured rule with a small status dot — green (active), amber (paused), gray (stopped), pulsing accent while a run is actually executing — so you can see the state of everything at a glance without opening the page. This list shows on every page of the main window, the same way Configured nodes always does.
+
+A **route rule** is a scheduled Study Root C-FIND (interval in minutes, or specific times of day with optional days-of-week) against a configured PACS, filtered by modality / study date scope / query level. The scheduler runs due rules automatically and records what's new since the rule last ran.
+
+A rule with no destination nodes just tracks new studies (find-only). Add one or more destination nodes and the scheduler additionally C-MOVEs each new match to this workstation's local Storage SCP (same **Accept C-STORE** setting Dicomtag Analytics' SR retrieve uses) and C-STOREs it on to every destination, using the retrieved object's own SOP Class — no need to pre-register storage SOP classes per rule. A study is only marked "seen" once it's fully handled, so a failed retrieve or forward is retried automatically on the next run rather than silently dropped.
+
+Each rule can be **Started**, **Paused**, or **Stopped** independently of its own schedule (click the rule in the sidebar, or open it from the route rules page, to reach these):
+
+- **Start** runs the rule immediately and computes a fresh next scheduled time — whether it was paused or stopped before.
+- **Pause** and **Stop** both stop the schedule from firing again, and both interrupt a run that's already in progress — but cooperatively, between studies rather than mid-association, so nothing already retrieved/forwarded is ever redone or lost. They differ only in what's left behind: Pause keeps the rule's previously computed next-run time around as a record, Stop clears it.
+- **Run now** executes a rule immediately without touching its status or schedule at all — useful for testing a paused or stopped rule.
+
+Manual runs (**Run now**, and the run **Start** triggers) execute in a background thread rather than blocking the browser request, which is what makes Pause/Stop clickable while a batch is still going and lets the sidebar show a live "Running" dot. Each rule's own page shows a run history with every match and its status (found / retrieved / forwarded / failed, with the error if any) and whether the run itself completed or was interrupted.
 
 ### PDF to DICOM (`/tools/pdf-store`)
 
