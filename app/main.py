@@ -15,17 +15,23 @@ from app import __version__
 from app.applog import configure as configure_logging, log, should_skip_http_log
 from app.mwl_scp import WorklistSCP
 from app.paths import package_dir
-from app.routes import anonymize, api, config, echo_board, logs, misc, testbench, tools, worklist
+from app.router_scheduler import RouterScheduler
+from app.routes import anonymize, api, config, echo_board, logs, misc, route_rules, testbench, tools, worklist
 from app.shell import (
     ANONYMIZE_PREFIX,
+    ROUTER_PREFIX,
     SHELL_ANONYMIZE,
     SHELL_DICOMM,
+    SHELL_ROUTER,
     SHELL_VUE,
     anonymize_path_allowed,
     is_anonymize_public_path,
+    is_router_public_path,
     is_vue_public_path,
     prefix_redirect_location,
+    router_path_allowed,
     strip_anonymize_prefix,
+    strip_router_prefix,
     strip_vue_prefix,
     vue_path_allowed,
 )
@@ -66,6 +72,7 @@ def http_publish_note(environ: Mapping[str, str] | None = None) -> str | None:
 def create_app(store: ConfigStore | None = None) -> FastAPI:
     store = store or ConfigStore()
     scp = WorklistSCP(store)
+    router_scheduler = RouterScheduler(store, scp)
     configure_logging(store.data_dir, store.load().logging)
 
     @asynccontextmanager
@@ -86,8 +93,11 @@ def create_app(store: ConfigStore | None = None) -> FastAPI:
             log.info("MWL SCP is listening")
         elif scp.last_error:
             log.warning("%s", scp.last_error)
+        router_scheduler.start()
+        log.info("Dicom Router scheduler started")
         yield
         log.info("Dicommunication stopping")
+        router_scheduler.stop()
         scp.stop()
 
     app = FastAPI(
@@ -98,6 +108,7 @@ def create_app(store: ConfigStore | None = None) -> FastAPI:
     )
     app.state.store = store
     app.state.mwl_scp = scp
+    app.state.router_scheduler = router_scheduler
     static_dir = BASE_DIR / "static"
     if static_dir.exists():
         app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
@@ -130,6 +141,19 @@ def create_app(store: ConfigStore | None = None) -> FastAPI:
             location = response.headers.get("location")
             if location:
                 response.headers["location"] = prefix_redirect_location(location, prefix=ANONYMIZE_PREFIX)
+            return response
+        if is_router_public_path(original):
+            request.state.shell = SHELL_ROUTER
+            new_path = strip_router_prefix(original)
+            request.scope["path"] = new_path
+            request.scope["raw_path"] = new_path.encode("utf-8")
+            if not router_path_allowed(new_path):
+                response = RedirectResponse("/", status_code=303)
+            else:
+                response = await call_next(request)
+            location = response.headers.get("location")
+            if location:
+                response.headers["location"] = prefix_redirect_location(location, prefix=ROUTER_PREFIX)
             return response
         request.state.shell = SHELL_DICOMM
         return await call_next(request)
@@ -165,6 +189,7 @@ def create_app(store: ConfigStore | None = None) -> FastAPI:
     app.include_router(config.router)
     app.include_router(testbench.router)
     app.include_router(worklist.router)
+    app.include_router(route_rules.router)
     # anonymize.router's specific POST /tools/anonymize/run must be registered
     # before tools.router's generic POST /tools/{tool_id}/run catch-all, or the
     # catch-all matches first and swallows every anonymize request without any

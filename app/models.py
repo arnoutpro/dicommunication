@@ -5,7 +5,7 @@ from __future__ import annotations
 import re
 import uuid
 from datetime import datetime, timezone
-from typing import Any, Literal
+from typing import Any, Iterable, Literal
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
@@ -186,6 +186,192 @@ class RemoteNode(BaseModel):
             "other": "Other",
         }
         return labels.get(self.kind, self.kind)
+
+
+HHMM_PATTERN = re.compile(r"^([01]\d|2[0-3]):([0-5]\d)$")
+MAX_SEEN_STUDY_UIDS = 5000
+ROUTE_RUN_MAX_MATCHES = 500
+
+
+class RouteRule(BaseModel):
+    """A scheduled C-FIND against a PACS, with optional retrieve/forward.
+
+    Runs the C-FIND and records new matches (``seen_study_uids`` tracks what
+    has already been fully handled so a rule doesn't redo it on every tick —
+    see RouterScheduler for how that also makes a paused/stopped run resume
+    without repeating work). ``destination_remote_ids``, when set, additionally
+    retrieves and forwards each new match.
+
+    ``status`` is the rule's own start/pause/stop state, independent of its
+    schedule: "active" is eligible to fire on schedule; "paused" and
+    "stopped" are both skipped by the scheduler and can both still be run
+    manually (Run now). Starting either one always computes a fresh
+    next_run_at from that moment (RouterScheduler.start_rule) — they differ
+    only in ``next_run_at`` while inactive: Stop clears it (nothing
+    scheduled), Pause leaves the old value in place purely as a "would have
+    run at" record.
+    """
+
+    id: str = Field(default_factory=new_record_id)
+    name: str
+    status: Literal["active", "paused", "stopped"] = "active"
+
+    source_remote_id: str
+    level: Literal["STUDY", "SERIES"] = "STUDY"
+    modality: str = ""
+    date_scope: Literal["today", "yesterday", "last_n_days", "all"] = "today"
+    date_last_n_days: int = Field(default=1, ge=1, le=365)
+    station_ae_title: str = ""
+    extra_query: dict[str, str] = Field(default_factory=dict)
+
+    schedule_mode: Literal["interval", "daily"] = "interval"
+    interval_minutes: int = Field(default=15, ge=1, le=10080)
+    daily_times: list[str] = Field(default_factory=list)
+    days_of_week: list[int] = Field(default_factory=list)
+
+    destination_remote_ids: list[str] = Field(default_factory=list)
+
+    created_at: datetime = Field(default_factory=utc_now)
+    updated_at: datetime = Field(default_factory=utc_now)
+    last_run_at: datetime | None = None
+    next_run_at: datetime | None = None
+    last_run_ok: bool | None = None
+    last_error: str = ""
+    seen_study_uids: list[str] = Field(default_factory=list)
+
+    @field_validator("name")
+    @classmethod
+    def _required_name(cls, value: str) -> str:
+        value = (value or "").strip()
+        if not value:
+            raise ValueError("This field is required")
+        return value
+
+    @field_validator("source_remote_id")
+    @classmethod
+    def _required_source(cls, value: str) -> str:
+        value = (value or "").strip()
+        if not value:
+            raise ValueError("Source PACS is required")
+        return value
+
+    @field_validator("station_ae_title")
+    @classmethod
+    def _optional_station(cls, value: str) -> str:
+        value = (value or "").strip()
+        if not value:
+            return ""
+        return normalize_ae_title(value)
+
+    @field_validator("modality")
+    @classmethod
+    def _modality(cls, value: str) -> str:
+        parts = [part.strip().upper() for part in (value or "").split(",") if part.strip()]
+        return ",".join(parts)
+
+    @field_validator("daily_times")
+    @classmethod
+    def _daily_times(cls, value: list[str]) -> list[str]:
+        cleaned: list[str] = []
+        for item in value:
+            text = (item or "").strip()
+            if not text:
+                continue
+            if not HHMM_PATTERN.fullmatch(text):
+                raise ValueError(f"Invalid time {text!r}, expected HH:MM (24h)")
+            if text not in cleaned:
+                cleaned.append(text)
+        return sorted(cleaned)
+
+    @field_validator("days_of_week")
+    @classmethod
+    def _days_of_week(cls, value: list[int]) -> list[int]:
+        for day in value:
+            if not 0 <= day <= 6:
+                raise ValueError("Days of week must be 0 (Monday) through 6 (Sunday)")
+        return sorted(set(value))
+
+    @field_validator("destination_remote_ids")
+    @classmethod
+    def _dedupe_destinations(cls, value: list[str]) -> list[str]:
+        seen: list[str] = []
+        for item in value:
+            item = (item or "").strip()
+            if item and item not in seen:
+                seen.append(item)
+        return seen
+
+    @model_validator(mode="after")
+    def _require_daily_times(self) -> RouteRule:
+        if self.schedule_mode == "daily" and not self.daily_times:
+            raise ValueError("Add at least one time of day for a daily schedule")
+        return self
+
+    def has_seen(self, study_instance_uid: str) -> bool:
+        return study_instance_uid in self.seen_study_uids
+
+    def mark_seen(self, study_instance_uids: Iterable[str]) -> None:
+        """Remember matched studies so re-runs only report new ones.
+
+        Kept as a bounded, most-recent-first list rather than growing forever —
+        a rule that runs every few minutes for years must not turn its own
+        dedupe memory into the thing that makes it slow to load.
+        """
+        merged = list(self.seen_study_uids)
+        for uid in study_instance_uids:
+            uid = (uid or "").strip()
+            if uid and uid not in merged:
+                merged.insert(0, uid)
+        self.seen_study_uids = merged[:MAX_SEEN_STUDY_UIDS]
+
+    @property
+    def schedule_label(self) -> str:
+        if self.schedule_mode == "daily":
+            days = self.days_of_week
+            day_names = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+            day_text = "every day" if not days else ", ".join(day_names[d] for d in days)
+            return f"{', '.join(self.daily_times)} ({day_text})"
+        if self.interval_minutes % 60 == 0:
+            hours = self.interval_minutes // 60
+            return f"every {hours} hour{'s' if hours != 1 else ''}"
+        return f"every {self.interval_minutes} min"
+
+
+class RouteMatch(BaseModel):
+    """One study a route run found (and, in a later phase, retrieved/forwarded)."""
+
+    study_instance_uid: str
+    series_instance_uid: str = ""
+    patient_name: str = ""
+    patient_id: str = ""
+    study_date: str = ""
+    accession_number: str = ""
+    modality: str = ""
+    study_description: str = ""
+    status: Literal["found", "retrieved", "forwarded", "failed"] = "found"
+    error: str = ""
+
+
+class RouteRun(BaseModel):
+    """History entry for one execution of a RouteRule.
+
+    ``status`` is "completed" unless a Pause or Stop request interrupted the
+    run partway through — see RouterScheduler. An interrupted run's
+    completed matches are still fully handled (marked seen); the studies it
+    didn't get to just show up as new again on the next run.
+    """
+
+    id: str = Field(default_factory=new_record_id)
+    rule_id: str
+    rule_name: str = ""
+    started_at: datetime = Field(default_factory=utc_now)
+    duration_ms: float = 0
+    ok: bool = True
+    error: str = ""
+    status: Literal["completed", "interrupted"] = "completed"
+    matched_count: int = 0
+    new_count: int = 0
+    matches: list[RouteMatch] = Field(default_factory=list)
 
 
 class LoggingSettings(BaseModel):

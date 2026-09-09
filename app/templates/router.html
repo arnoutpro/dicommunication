@@ -1,0 +1,269 @@
+{% extends "base.html" %}
+{% block title %}Dicom Router · {{ product_name }}{% endblock %}
+{% block content %}
+<header class="page-head">
+  <div>
+    <p class="eyebrow">Dicom Router</p>
+    <h1>Scheduled routing rules</h1>
+    <p class="lede">Each rule runs a C-FIND against a PACS on a timer or daily schedule. Add destination nodes to also C-MOVE new matches here and C-STORE them onward; leave destinations empty to just track new studies.</p>
+  </div>
+</header>
+
+{% if saved %}
+<div class="flash ok" data-autohide>
+  {% if saved == "deleted" %}Route rule deleted.
+  {% elif saved == "started" %}Started.
+  {% elif saved == "paused" %}Paused — scheduling stopped, a run in progress finishes its current study then stops.
+  {% elif saved == "stopped" %}Stopped — scheduling cleared, a run in progress finishes its current study then stops.
+  {% elif saved == "already-running" %}Already running.
+  {% else %}Saved.{% endif %}
+</div>
+{% endif %}
+{% if error %}
+<div class="flash fail">{{ error }}</div>
+{% endif %}
+
+<section class="panel">
+  <header class="panel-head">
+    <h2>{% if editing %}Edit route rule{% else %}Add route rule{% endif %}</h2>
+    {% if editing %}<a href="{{ href('/router') }}">Cancel</a>{% endif %}
+  </header>
+  {% if editing %}
+  <p class="muted small" style="padding: 0 1.25rem;">Start / Pause / Stop are on the route rules table below — editing here never changes a rule's running state.</p>
+  {% endif %}
+  {% if not config.remotes %}
+  <div class="empty">
+    <strong>Add a remote DICOM node first</strong>
+    <p>A route rule needs a source PACS to query. <a href="{{ href('/config/remotes') }}">Add one on Remote nodes</a>.</p>
+  </div>
+  {% else %}
+  <form method="post" action="{{ href('/router') }}" class="form-grid" autocomplete="off">
+    {% if editing %}
+    <input type="hidden" name="rule_id" value="{{ editing.id }}">
+    {% endif %}
+    <label>
+      Name
+      <input name="name" required placeholder="Nightly CT from PACS" value="{{ editing.name if editing else '' }}">
+    </label>
+    <label>
+      Source PACS
+      <select name="source_remote_id" required>
+        <option value="">Select a remote node…</option>
+        {% for node in config.remotes %}
+        <option value="{{ node.id }}" {% if editing and editing.source_remote_id == node.id %}selected{% endif %}>{{ node.name }} ({{ node.ae_title }})</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label>
+      Modality
+      <input name="modality" placeholder="CT,MR" value="{{ editing.modality if editing else '' }}">
+      <span class="hint">Comma-separated. Leave blank to match any modality.</span>
+    </label>
+    <label>
+      Query level
+      <select name="level">
+        {% set level = editing.level if editing else 'STUDY' %}
+        <option value="STUDY" {% if level == 'STUDY' %}selected{% endif %}>Study</option>
+        <option value="SERIES" {% if level == 'SERIES' %}selected{% endif %}>Series (per matching study)</option>
+      </select>
+      <span class="hint">Series filters each new study's series by modality/station before retrieving.</span>
+    </label>
+    <label>
+      Study date
+      <select name="date_scope">
+        {% set date_scope = editing.date_scope if editing else 'today' %}
+        <option value="today" {% if date_scope == 'today' %}selected{% endif %}>Today</option>
+        <option value="yesterday" {% if date_scope == 'yesterday' %}selected{% endif %}>Yesterday</option>
+        <option value="last_n_days" {% if date_scope == 'last_n_days' %}selected{% endif %}>Last N days</option>
+        <option value="all" {% if date_scope == 'all' %}selected{% endif %}>Any date</option>
+      </select>
+    </label>
+    <label>
+      N days
+      <input type="number" name="date_last_n_days" min="1" max="365" value="{{ editing.date_last_n_days if editing else 1 }}">
+      <span class="hint">Only used when Study date is "Last N days".</span>
+    </label>
+    <label>
+      Station Name filter
+      <input name="station_ae_title" maxlength="16" placeholder="CT-ROOM1" value="{{ editing.station_ae_title if editing else '' }}">
+      <span class="hint">Optional. Only applied at the Series query level (Station Name isn't a Study-level DICOM matching key).</span>
+    </label>
+
+    <details class="advanced" {% if editing %}open{% endif %}>
+      <summary>Schedule</summary>
+      <div class="form-grid">
+        <label>
+          Schedule type
+          <select name="schedule_mode" data-schedule-mode>
+            {% set schedule_mode = editing.schedule_mode if editing else 'interval' %}
+            <option value="interval" {% if schedule_mode == 'interval' %}selected{% endif %}>Every N minutes</option>
+            <option value="daily" {% if schedule_mode == 'daily' %}selected{% endif %}>Time(s) of day</option>
+          </select>
+        </label>
+        <label data-schedule-interval>
+          Interval (minutes)
+          <input type="number" name="interval_minutes" min="1" max="10080" value="{{ editing.interval_minutes if editing else 15 }}">
+        </label>
+        <label class="span-2" data-schedule-daily>
+          Times of day
+          <input name="daily_times" placeholder="08:00, 20:00" value="{{ editing.daily_times | join(', ') if editing else '' }}">
+          <span class="hint">24h HH:MM, comma-separated.</span>
+        </label>
+        <label class="span-2" data-schedule-daily>
+          Days of week
+          <div class="find-modality-chips">
+            {% set day_labels = [('0', 'Mon'), ('1', 'Tue'), ('2', 'Wed'), ('3', 'Thu'), ('4', 'Fri'), ('5', 'Sat'), ('6', 'Sun')] %}
+            {% set selected_days = (editing.days_of_week if editing else []) | map('string') | list %}
+            {% for value, label in day_labels %}
+            <label class="find-modality-chip">
+              <input type="checkbox" name="days_of_week" value="{{ value }}" {% if value in selected_days %}checked{% endif %}>
+              <span>{{ label }}</span>
+            </label>
+            {% endfor %}
+          </div>
+          <span class="hint">Leave all unchecked to run every day.</span>
+        </label>
+      </div>
+    </details>
+
+    <details class="advanced" {% if editing and editing.destination_remote_ids %}open{% endif %}>
+      <summary>Forwarding (optional)</summary>
+      <div class="form-grid">
+        <label class="span-2">
+          Destination node(s)
+          <div class="find-modality-chips">
+            {% set selected_destinations = editing.destination_remote_ids if editing else [] %}
+            {% for node in config.remotes %}
+            <label class="find-modality-chip">
+              <input type="checkbox" name="destination_remote_ids" value="{{ node.id }}" {% if node.id in selected_destinations %}checked{% endif %}>
+              <span>{{ node.name }}</span>
+            </label>
+            {% endfor %}
+          </div>
+          <span class="hint">Leave all unchecked to only track new studies (no C-MOVE/C-STORE). Retrieving requires the local Storage SCP (Configured nodes → Local DICOM AE → Accept C-STORE).</span>
+        </label>
+      </div>
+    </details>
+
+    <div class="form-actions">
+      <button class="button primary" type="submit">{% if editing %}Save route rule{% else %}Add route rule{% endif %}</button>
+    </div>
+  </form>
+  {% endif %}
+</section>
+
+<section class="panel">
+  <header class="panel-head">
+    <h2>Route rules</h2>
+    <span class="muted">{{ rules | length }} rule{% if rules | length != 1 %}s{% endif %}</span>
+  </header>
+  {% if rules %}
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Source</th>
+          <th>Schedule</th>
+          <th>Forwarding</th>
+          <th>Status</th>
+          <th>Last run</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for rule in rules %}
+        <tr>
+          <td>
+            <strong>{{ rule.name }}</strong>
+          </td>
+          <td>
+            <code>{{ config.get_remote(rule.source_remote_id).ae_title if config.get_remote(rule.source_remote_id) else 'missing node' }}</code>
+            {% if rule.modality %}<div class="muted small">{{ rule.modality }}</div>{% endif %}
+          </td>
+          <td>{{ rule.schedule_label }}</td>
+          <td>
+            {% if rule.destination_remote_ids %}
+            <span class="badge ok">{{ rule.destination_remote_ids | length }} destination{% if rule.destination_remote_ids | length != 1 %}s{% endif %}</span>
+            {% else %}
+            <span class="badge">Find only</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if rule.id in running_ids %}
+            <span class="badge ok">Running</span>
+            {% elif rule.status == 'active' %}
+            <span class="badge ok">Active</span>
+            {% elif rule.status == 'paused' %}
+            <span class="badge">Paused</span>
+            {% else %}
+            <span class="badge">Stopped</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if rule.last_run_at %}
+            <span class="badge {% if rule.last_run_ok %}ok{% else %}fail{% endif %}">{{ rule.last_run_at.strftime('%Y-%m-%d %H:%M') }} UTC</span>
+            {% if rule.last_error %}<div class="muted small">{{ rule.last_error }}</div>{% endif %}
+            {% else %}
+            <span class="muted small">Never run</span>
+            {% endif %}
+          </td>
+          <td class="actions">
+            <a href="{{ href('/router/' ~ rule.id ~ '/runs') }}">History</a>
+            <a href="{{ href('/router?edit=' ~ rule.id) }}">Edit</a>
+            {% set running = rule.id in running_ids %}
+            {% if running %}
+            <form method="post" action="{{ href('/router/' ~ rule.id ~ '/pause') }}" class="inline">
+              <button type="submit" class="link-button">Pause</button>
+            </form>
+            <form method="post" action="{{ href('/router/' ~ rule.id ~ '/stop') }}" class="inline">
+              <button type="submit" class="link-button">Stop</button>
+            </form>
+            {% else %}
+            {% if rule.status != 'active' %}
+            <form method="post" action="{{ href('/router/' ~ rule.id ~ '/start') }}" class="inline">
+              <button type="submit" class="link-button">{% if rule.status == 'paused' %}Resume{% else %}Start{% endif %}</button>
+            </form>
+            {% endif %}
+            <form method="post" action="{{ href('/router/' ~ rule.id ~ '/run-now') }}" class="inline">
+              <button type="submit" class="link-button">Run now</button>
+            </form>
+            {% if rule.status == 'active' %}
+            <form method="post" action="{{ href('/router/' ~ rule.id ~ '/pause') }}" class="inline">
+              <button type="submit" class="link-button">Pause</button>
+            </form>
+            <form method="post" action="{{ href('/router/' ~ rule.id ~ '/stop') }}" class="inline">
+              <button type="submit" class="link-button">Stop</button>
+            </form>
+            {% endif %}
+            {% endif %}
+            <form method="post" action="{{ href('/router/' ~ rule.id ~ '/delete') }}" class="inline" data-confirm="Delete route rule {{ rule.name }}?">
+              <button type="submit" class="link-button danger">Delete</button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="empty">
+    <strong>No route rules yet</strong>
+    <p>Add one above to start scheduling C-FIND queries.</p>
+  </div>
+  {% endif %}
+</section>
+<script>
+(function () {
+  var select = document.querySelector('[data-schedule-mode]');
+  if (!select) return;
+  function sync() {
+    var daily = select.value === 'daily';
+    document.querySelectorAll('[data-schedule-daily]').forEach(function (el) { el.style.display = daily ? '' : 'none'; });
+    document.querySelectorAll('[data-schedule-interval]').forEach(function (el) { el.style.display = daily ? 'none' : ''; });
+  }
+  select.addEventListener('change', sync);
+  sync();
+})();
+</script>
+{% endblock %}

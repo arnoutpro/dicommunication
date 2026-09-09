@@ -29,7 +29,8 @@ fi
 APP="dist/Dicommunication.app"
 APP_ANALYTICS="dist/Dicomtag Analytics.app"
 APP_ANONYMIZER="dist/Dicom Anonymizer.app"
-for bundle in "$APP" "$APP_ANALYTICS" "$APP_ANONYMIZER"; do
+APP_ROUTER="dist/Dicom Router.app"
+for bundle in "$APP" "$APP_ANALYTICS" "$APP_ANONYMIZER" "$APP_ROUTER"; do
   if [[ ! -x "$bundle/Contents/MacOS/dicommunication" ]]; then
     echo "frozen launcher missing: $bundle/Contents/MacOS/dicommunication" >&2
     exit 1
@@ -37,7 +38,7 @@ for bundle in "$APP" "$APP_ANALYTICS" "$APP_ANONYMIZER"; do
 done
 "$APP/Contents/MacOS/dicommunication" --help >/dev/null
 
-"$PYTHON" packaging/macos/make_dmg.py "$APP" "$APP_ANALYTICS" "$APP_ANONYMIZER" \
+"$PYTHON" packaging/macos/make_dmg.py "$APP" "$APP_ANALYTICS" "$APP_ANONYMIZER" "$APP_ROUTER" \
   --version "$DICOMM_DMG_VERSION" \
   --arch "$DICOMM_DMG_ARCH" \
   --output dist
