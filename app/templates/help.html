@@ -39,6 +39,7 @@
     <li><a href="#hl7-send">HL7 send</a></li>
     <li><a href="#tag-editor">Tag Editor</a></li>
     <li><a href="#anonymize">Dicom Anonymizer</a></li>
+    <li><a href="#dicom-router">Dicom Router</a></li>
     <li><a href="#reading-results">Reading accepted vs rejected SOP Classes</a></li>
     <li><a href="#data">Where data is stored</a></li>
     <li><a href="#json-api">JSON API</a></li>
@@ -125,6 +126,12 @@
           <td>C-FIND</td>
           <td>Modality Worklist <code>1.2.840.10008.5.1.4.31</code></td>
           <td>Search <em>scheduled procedures</em>, not the archive.</td>
+        </tr>
+        <tr>
+          <td><strong>Dicom Router</strong></td>
+          <td>C-FIND, optional C-MOVE + C-STORE</td>
+          <td>Study Root Query/Retrieve FIND (MOVE/STORE for retrieve-and-forward)</td>
+          <td>Own Start-menu tool from this installer, and also built into the Dicommunication sidebar. Same FIND as Dicomtag Analytics, but scheduled/automatic instead of manual, with an optional automatic retrieve-and-forward to one or more destination nodes.</td>
         </tr>
       </tbody>
     </table>
@@ -520,6 +527,30 @@
   </ul>
 </section>
 
+<section class="panel help-section" id="dicom-router">
+  <header class="panel-head">
+    <h2>Dicom Router</h2>
+  </header>
+  <p>Unlike Dicomtag Analytics and Dicom Anonymizer, Dicom Router is not only a separate product — it also lives inside this Dicommunication window's sidebar, under <strong>Dicom Router</strong>, since it is a background service you manage alongside everything else rather than a one-off query. Both places work off the same rules and the same background scheduler; there is exactly one scheduler per running server, so it makes no difference which window you use it from.</p>
+  <ul>
+    <li>As its own product: open it from the Start menu (Windows), or at <code>http://127.0.0.1:8080/dicom-router/</code> — <code>--profile dicom-router</code> opens it directly. That window has Route rules, Configured nodes, Logs, About, and Help only.</li>
+    <li>Inside this window: the sidebar's Dicom Router branch lists every configured rule with a small status dot — green (active), amber (paused), gray (stopped), pulsing accent while a run is actually executing — visible on every page, the same way Configured nodes always is. Click a rule there to open its own page.</li>
+  </ul>
+  <p>A <strong>route rule</strong> is a scheduled Study Root C-FIND (an interval in minutes, or specific times of day with optional days-of-week) against a configured remote node, filtered by modality, study date scope, and query level (Study, or Series per matching study). The scheduler runs due rules automatically and records what is new since the rule last ran, using the same de-duplication idea as Dicomtag Analytics' SR retrieve — nothing already handled is reported again.</p>
+  <ul>
+    <li>A rule with no destination nodes only tracks new studies (find-only) — nothing is retrieved or moved.</li>
+    <li>Add one or more destination nodes and the scheduler additionally C-MOVEs each new match to this workstation's local Storage SCP — same Accept C-STORE setting Dicomtag Analytics' SR retrieve and Tag Editor Fetch use — and C-STOREs it on to every destination, using the retrieved object's own SOP Class. There is nothing to pre-register per rule.</li>
+    <li>A study is only marked "seen" once it is fully handled (found-only for a find-only rule, forwarded to every destination for one that has them), so a failed retrieve or forward is retried automatically on the next run instead of silently dropped.</li>
+  </ul>
+  <p>Each rule can be <strong>Started</strong>, <strong>Paused</strong>, or <strong>Stopped</strong> independently of its own schedule — click the rule (in the sidebar, or from the route rules list) to reach its actions:</p>
+  <ul>
+    <li><strong>Start</strong> runs the rule immediately and computes a fresh next scheduled time, whether it was paused or stopped before.</li>
+    <li><strong>Pause</strong> and <strong>Stop</strong> both stop the schedule from firing again, and both interrupt a run already in progress — cooperatively, between studies rather than mid-association, so nothing already retrieved or forwarded is ever redone or lost. They differ only in what is left behind: Pause keeps the rule's previously computed next-run time as a record; Stop clears it.</li>
+    <li><strong>Run now</strong> executes a rule immediately without touching its status or schedule — useful for testing a paused or stopped rule.</li>
+  </ul>
+  <p>Manual runs (Run now, and the run Start triggers) execute in a background thread instead of blocking the browser request, which is what makes Pause/Stop clickable while a batch is still going and lets the sidebar show a live "Running" dot. Each rule's own page shows a run history with every match and its status (found / retrieved / forwarded / failed, with the error if any) and whether the run itself completed or was interrupted.</p>
+</section>
+
 <section class="panel help-section" id="reading-results">
   <header class="panel-head">
     <h2>Reading accepted vs rejected SOP Classes</h2>
@@ -562,6 +593,14 @@
         <tr>
           <td><code>hl7_messages.json</code></td>
           <td>Saved HL7 v2 drafts for the sender</td>
+        </tr>
+        <tr>
+          <td><code>route_rules.json</code></td>
+          <td>Dicom Router rule definitions (source PACS, filters, schedule, destinations, status)</td>
+        </tr>
+        <tr>
+          <td><code>route_runs.json</code></td>
+          <td>Dicom Router run history (capped at 500), including matched studies' patient/accession data</td>
         </tr>
         <tr>
           <td><code>dicommunication.log</code></td>
