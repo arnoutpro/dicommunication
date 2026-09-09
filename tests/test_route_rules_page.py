@@ -25,12 +25,21 @@ def _wait_until_idle(app, rule_id: str, timeout: float = 5.0) -> None:
         time.sleep(0.02)
 
 
-def test_router_page_lists_rules(client: TestClient, store: ConfigStore, remote: RemoteNode) -> None:
-    store.add_route_rule(RouteRule(name="Nightly CT", source_remote_id=remote.id, modality="CT"))
+def test_router_page_lists_rules_in_sidebar(client: TestClient, store: ConfigStore, remote: RemoteNode) -> None:
+    rule = store.add_route_rule(RouteRule(name="Nightly CT", source_remote_id=remote.id, modality="CT"))
     response = client.get("/router")
     assert response.status_code == 200
     assert "Nightly CT" in response.text
-    assert "every 15 min" in response.text
+    assert f'href="/router/{rule.id}/runs"' in response.text
+    assert "nav-rule-dot is-active" in response.text
+
+    # The sidebar list is rendered on every page, not just /router.
+    home = client.get("/")
+    assert "Nightly CT" in home.text
+
+    details = client.get(f"/router/{rule.id}/runs")
+    assert details.status_code == 200
+    assert "every 15 min" in details.text
 
 
 def test_add_edit_delete_route_rule(client: TestClient, store: ConfigStore, remote: RemoteNode) -> None:
@@ -99,6 +108,16 @@ def test_add_route_rule_rejects_missing_source(client: TestClient, store: Config
     )
     assert response.status_code == 400
     assert store.list_route_rules() == []
+
+
+def test_rule_detail_page_has_actions(client: TestClient, store: ConfigStore, remote: RemoteNode) -> None:
+    rule = store.add_route_rule(RouteRule(name="Nightly CT", source_remote_id=remote.id))
+    response = client.get(f"/router/{rule.id}/runs")
+    assert response.status_code == 200
+    assert f'href="/router?edit={rule.id}"' in response.text
+    assert f'action="/router/{rule.id}/pause"' in response.text
+    assert f'action="/router/{rule.id}/stop"' in response.text
+    assert f'action="/router/{rule.id}/delete"' in response.text
 
 
 def test_edit_does_not_reset_status(client: TestClient, store: ConfigStore, remote: RemoteNode, app) -> None:
@@ -199,4 +218,7 @@ def test_start_pause_stop_lifecycle(client: TestClient, store: ConfigStore, remo
     assert store.get_route_rule(rule.id).next_run_at is None
 
     page = client.get("/router")
-    assert "Stopped" in page.text
+    assert "nav-rule-dot is-stopped" in page.text
+
+    details = client.get(f"/router/{rule.id}/runs")
+    assert "Stopped" in details.text

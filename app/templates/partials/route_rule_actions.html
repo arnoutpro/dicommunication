@@ -1,0 +1,25 @@
+{% if running %}
+<form method="post" action="{{ href('/router/' ~ rule.id ~ '/pause') }}" class="inline">
+  <button type="submit" class="link-button">Pause</button>
+</form>
+<form method="post" action="{{ href('/router/' ~ rule.id ~ '/stop') }}" class="inline">
+  <button type="submit" class="link-button">Stop</button>
+</form>
+{% else %}
+{% if rule.status != 'active' %}
+<form method="post" action="{{ href('/router/' ~ rule.id ~ '/start') }}" class="inline">
+  <button type="submit" class="link-button">{% if rule.status == 'paused' %}Resume{% else %}Start{% endif %}</button>
+</form>
+{% endif %}
+<form method="post" action="{{ href('/router/' ~ rule.id ~ '/run-now') }}" class="inline">
+  <button type="submit" class="link-button">Run now</button>
+</form>
+{% if rule.status == 'active' %}
+<form method="post" action="{{ href('/router/' ~ rule.id ~ '/pause') }}" class="inline">
+  <button type="submit" class="link-button">Pause</button>
+</form>
+<form method="post" action="{{ href('/router/' ~ rule.id ~ '/stop') }}" class="inline">
+  <button type="submit" class="link-button">Stop</button>
+</form>
+{% endif %}
+{% endif %}

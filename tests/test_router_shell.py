@@ -73,6 +73,16 @@ def test_router_home_is_route_rules_page(client) -> None:
     assert b"topbar" in page.content
 
 
+def test_router_home_sidebar_lists_rules_with_prefixed_links(client, store, remote) -> None:
+    from app.models import RouteRule
+
+    rule = store.add_route_rule(RouteRule(name="Nightly CT", source_remote_id=remote.id))
+    page = client.get("/dicom-router/")
+    assert page.status_code == 200
+    assert "Nightly CT" in page.text
+    assert f'href="/dicom-router/router/{rule.id}/runs"' in page.text
+
+
 def test_router_form_uses_prefixed_action(client, remote) -> None:
     page = client.get("/dicom-router/")
     assert page.status_code == 200
