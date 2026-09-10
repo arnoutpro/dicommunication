@@ -739,6 +739,22 @@ textarea.hl7-body {
   color: var(--primary-fg);
   border-color: transparent;
 }
+/* A bare <details>/<summary> otherwise renders with raw browser UA chrome
+   (default marker, default font) — same problem fieldset/legend had. Give
+   every one in the app a quiet, consistent "expand for more" toggle by
+   default; specific uses (.advanced, .find-assoc) override color/size for
+   emphasis where that's warranted. */
+summary {
+  cursor: pointer;
+  color: var(--muted);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  list-style: none;
+}
+summary::-webkit-details-marker { display: none; }
+summary::before { content: "▸ "; }
+details[open] > summary::before { content: "▾ "; }
+
 .advanced {
   grid-column: 1 / -1;
   border: 1px solid var(--line);
@@ -747,16 +763,10 @@ textarea.hl7-body {
   background: var(--bg-elev);
 }
 .advanced > summary {
-  cursor: pointer;
   color: var(--accent);
-  font-weight: 700;
   font-size: var(--text-md);
   padding: 0.45rem 0;
-  list-style: none;
 }
-.advanced > summary::-webkit-details-marker { display: none; }
-.advanced > summary::before { content: "▸ "; }
-.advanced[open] > summary::before { content: "▾ "; }
 .advanced > .hint {
   display: block;
   margin: 0 0 0.65rem;
@@ -1001,6 +1011,7 @@ label.required.is-optional .req { display: none; }
   border-top: 1px solid var(--line);
 }
 .steps p, .timeline p, .result header p { margin: 0.15rem 0 0; color: var(--muted); }
+.result-assoc { margin: 0.45rem 0 0; }
 
 .log {
   margin: 0.4rem 0 0;
@@ -2002,15 +2013,6 @@ html:not(.light-mode) .find-key:hover { background: rgba(148, 163, 184, 0.08); }
 }
 .find-results .find-assoc {
   margin: 0 0 0.4rem;
-  padding: 0;
-  border: 0;
-  background: transparent;
-}
-.find-results .find-assoc > summary {
-  cursor: pointer;
-  color: var(--muted);
-  font-size: var(--text-xs);
-  font-weight: 700;
 }
 .find-results .find-assoc > p {
   margin: 0.35rem 0 0;
