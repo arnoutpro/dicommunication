@@ -619,6 +619,18 @@ def test_windows_spec_and_wix_use_app_icon() -> None:
     assert 'Arguments="--profile' not in wxs
 
 
+def test_windows_wxs_comments_have_no_double_hyphen() -> None:
+    """WiX (like XML generally) rejects a "--" anywhere inside a <!-- -->
+    comment body, and a comment can't end in "-" either — real failure seen
+    in CI: a comment mentioning a CLI flag like "--profile" broke the build.
+    """
+    wxs = (ROOT / "packaging" / "windows" / "Product.wxs").read_text(encoding="utf-8")
+    for match in re.finditer(r"<!--(.*?)-->", wxs, re.S):
+        body = match.group(1)
+        assert "--" not in body, body
+        assert not body.rstrip().endswith("-"), body
+
+
 def test_windows_wxs_upgrades_replace_a_same_version_install() -> None:
     wxs = (ROOT / "packaging" / "windows" / "Product.wxs").read_text(encoding="utf-8")
     assert 'AllowSameVersionUpgrades="yes"' in wxs
