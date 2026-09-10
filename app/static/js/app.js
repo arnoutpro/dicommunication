@@ -567,9 +567,135 @@ function initAnonymizeForm(scope) {
   });
 }
 
+function initCleanerPreview(scope) {
+  const root = scope instanceof Element ? scope : document;
+  const canvas = root.matches?.("[data-cleaner-preview-canvas]")
+    ? root
+    : root.querySelector?.("[data-cleaner-preview-canvas]");
+  if (!(canvas instanceof HTMLCanvasElement) || canvas.dataset.cleanerPreviewBound === "1") {
+    return;
+  }
+  canvas.dataset.cleanerPreviewBound = "1";
+
+  const form = canvas.closest("form");
+  const xInput = form?.querySelector("#cleaner-region-x");
+  const yInput = form?.querySelector("#cleaner-region-y");
+  const wInput = form?.querySelector("#cleaner-region-width");
+  const hInput = form?.querySelector("#cleaner-region-height");
+  if (!(xInput instanceof HTMLInputElement) || !(yInput instanceof HTMLInputElement)
+      || !(wInput instanceof HTMLInputElement) || !(hInput instanceof HTMLInputElement)) {
+    return;
+  }
+
+  const ctx = canvas.getContext("2d");
+  const origRows = parseFloat(canvas.dataset.origRows || String(canvas.height)) || canvas.height;
+  const origCols = parseFloat(canvas.dataset.origCols || String(canvas.width)) || canvas.width;
+  const scaleX = origCols / canvas.width;
+  const scaleY = origRows / canvas.height;
+
+  const img = new Image();
+  let ready = false;
+
+  function drawBase() {
+    if (!ready) return;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+  }
+
+  function drawRect(x0, y0, x1, y1) {
+    drawBase();
+    const x = Math.min(x0, x1);
+    const y = Math.min(y0, y1);
+    const w = Math.abs(x1 - x0);
+    const h = Math.abs(y1 - y0);
+    ctx.fillStyle = "rgba(220, 38, 38, 0.35)";
+    ctx.fillRect(x, y, w, h);
+    ctx.strokeStyle = "rgba(220, 38, 38, 0.9)";
+    ctx.lineWidth = 1;
+    ctx.strokeRect(x + 0.5, y + 0.5, w, h);
+  }
+
+  function drawExistingRegion() {
+    const x = (parseFloat(xInput.value) || 0) / scaleX;
+    const y = (parseFloat(yInput.value) || 0) / scaleY;
+    const w = (parseFloat(wInput.value) || 0) / scaleX;
+    const h = (parseFloat(hInput.value) || 0) / scaleY;
+    if (w > 0 && h > 0) {
+      drawRect(x, y, x + w, y + h);
+    }
+  }
+
+  img.addEventListener("load", () => {
+    ready = true;
+    drawBase();
+    drawExistingRegion();
+  });
+  img.src = canvas.dataset.imageSrc || "";
+
+  function canvasPoint(event) {
+    const rect = canvas.getBoundingClientRect();
+    const source = event.touches && event.touches.length ? event.touches[0] : event;
+    const x = ((source.clientX - rect.left) / rect.width) * canvas.width;
+    const y = ((source.clientY - rect.top) / rect.height) * canvas.height;
+    return {
+      x: Math.max(0, Math.min(canvas.width, x)),
+      y: Math.max(0, Math.min(canvas.height, y)),
+    };
+  }
+
+  function applyRegion(x0, y0, x1, y1) {
+    const x = Math.round(Math.min(x0, x1) * scaleX);
+    const y = Math.round(Math.min(y0, y1) * scaleY);
+    const w = Math.round(Math.abs(x1 - x0) * scaleX);
+    const h = Math.round(Math.abs(y1 - y0) * scaleY);
+    xInput.value = String(x);
+    yInput.value = String(y);
+    wInput.value = String(w);
+    hInput.value = String(Math.max(1, h));
+  }
+
+  let dragging = false;
+  let start = { x: 0, y: 0 };
+
+  canvas.addEventListener("mousedown", (event) => {
+    dragging = true;
+    start = canvasPoint(event);
+    event.preventDefault();
+  });
+  canvas.addEventListener("mousemove", (event) => {
+    if (!dragging) return;
+    const point = canvasPoint(event);
+    drawRect(start.x, start.y, point.x, point.y);
+  });
+  window.addEventListener("mouseup", (event) => {
+    if (!dragging) return;
+    dragging = false;
+    const point = canvasPoint(event);
+    applyRegion(start.x, start.y, point.x, point.y);
+  });
+  canvas.addEventListener("touchstart", (event) => {
+    dragging = true;
+    start = canvasPoint(event);
+    event.preventDefault();
+  }, { passive: false });
+  canvas.addEventListener("touchmove", (event) => {
+    if (!dragging) return;
+    const point = canvasPoint(event);
+    drawRect(start.x, start.y, point.x, point.y);
+    event.preventDefault();
+  }, { passive: false });
+  canvas.addEventListener("touchend", (event) => {
+    if (!dragging) return;
+    dragging = false;
+    const point = canvasPoint(event);
+    applyRegion(start.x, start.y, point.x, point.y);
+  });
+}
+
 initNavTree();
 initPdfStoreForm(document);
 initAnonymizeForm(document);
+initCleanerPreview(document);
 initThemePreference();
 enhanceSelectMenus();
 
@@ -788,6 +914,7 @@ document.body.addEventListener("htmx:afterSwap", (event) => {
   if (target instanceof HTMLElement) {
     initHl7Editors(target);
     initPdfStoreForm(document);
+    initCleanerPreview(target);
   }
   if (target && target.id === "log-view-panel") {
     const view = document.getElementById("log-view");

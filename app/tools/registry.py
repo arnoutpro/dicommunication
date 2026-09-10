@@ -14,6 +14,7 @@ BUILTIN_TOOL_MODULES = (
     "anon_tags",
     "anonymize",
     "cleaner",
+    "dicom_preview",
     "echo",
     "find",
     "find_advanced",
