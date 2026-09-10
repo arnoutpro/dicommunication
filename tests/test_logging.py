@@ -65,7 +65,8 @@ def test_logs_page_and_settings_form(client, store) -> None:
     )
     assert 'name="color-scheme" content="light"' in html
     assert b'id="log-view"' in page.content
-    assert b'href="/logs"' in client.get("/").content
+    # Logs lives under the Configuration tab now, not the Dicommunication one.
+    assert b'href="/logs"' in client.get("/config").content
 
     saved = client.post(
         "/logs",
