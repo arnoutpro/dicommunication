@@ -258,20 +258,28 @@ def _retrieve_many(
             assoc.release()
             return [], rejected or "Study Root Query/Retrieve MOVE was not accepted.", contexts
         for entity in entities:
-            identifier = _move_identifier(entity)
-            for status, _remaining in assoc.send_c_move(
-                identifier, dest_ae, StudyRootQueryRetrieveInformationModelMove
-            ):
-                if not status:
-                    error = "No C-MOVE response (timeout, abort, or invalid PDU)."
-                    break
-                code = int(status.Status)
-                if code in PENDING:
-                    continue
-                if code != 0x0000:
-                    error = f"C-MOVE status 0x{code:04X}"
+            if not getattr(assoc, "is_established", False):
+                error = error or "Association was closed by the peer before all selections were retrieved."
                 break
-        assoc.release()
+            identifier = _move_identifier(entity)
+            try:
+                for status, _remaining in assoc.send_c_move(
+                    identifier, dest_ae, StudyRootQueryRetrieveInformationModelMove
+                ):
+                    if not status:
+                        error = "No C-MOVE response (timeout, abort, or invalid PDU)."
+                        break
+                    code = int(status.Status)
+                    if code in PENDING:
+                        continue
+                    if code != 0x0000:
+                        error = f"C-MOVE status 0x{code:04X}"
+                    break
+            except Exception as exc:  # noqa: BLE001 — a dropped association must not crash the request
+                error = f"{type(exc).__name__}: {exc}"
+                break
+        if getattr(assoc, "is_established", False):
+            assoc.release()
         time.sleep(0.05)
         return STORAGE_INBOX.finish(), error, contexts
     finally:

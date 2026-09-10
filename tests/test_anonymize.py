@@ -354,3 +354,37 @@ def test_anonymize_run_requires_selection_and_output_dir() -> None:
     )
     assert not no_mode.ok
     assert "mode" in no_mode.summary.lower()
+
+
+def test_retrieve_many_survives_association_dropped_before_first_move(monkeypatch) -> None:
+    """Regression: a peer that accepts the association then drops it before
+    the first C-MOVE goes out must fail gracefully, not crash the request —
+    pynetdicom's send_c_move raises RuntimeError in exactly that case.
+    """
+    from app.tools import anonymize as anonymize_module
+
+    class _FakeAssoc:
+        is_established = True
+        accepted_contexts = [object()]
+
+        def send_c_move(self, *args, **kwargs):
+            raise RuntimeError(
+                "The association with a peer SCP must be established before sending a C-MOVE request"
+            )
+
+        def release(self):
+            pass
+
+        def abort(self):
+            pass
+
+    def fake_associate(local, remote, abstract_syntaxes, transfer_syntaxes=None):
+        return object(), _FakeAssoc()
+
+    monkeypatch.setattr(anonymize_module, "associate", fake_associate)
+
+    local = LocalAE(ae_title="DICOMM")
+    remote = RemoteNode(name="pacs", ae_title="QR_SCP", host="127.0.0.1", port=104)
+    datasets, error, _contexts = anonymize_module._retrieve_many(local, remote, [{"study_uid": "1.2.3"}], "DICOMM")
+    assert datasets == []
+    assert error is not None and "RuntimeError" in error
