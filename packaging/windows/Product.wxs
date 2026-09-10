@@ -39,13 +39,14 @@
     <StandardDirectory Id="DesktopFolder" />
 
     <!--
-      All four apps run from the same frozen dicommunication.exe (Dicomtag
-      Analytics, Dicom Anonymizer, and Dicom Router just pass their own
-      profile flag), so AppFiles is one shared ComponentGroup referenced by
-      all four Features below rather than installed four times. Unchecking
-      one app in the feature tree only removes that app's shortcuts; the
-      shared files stay until all four are unchecked (Windows Installer
-      reference-counts a component against every Feature that lists it).
+      All five apps run from the same frozen dicommunication.exe (Dicomtag
+      Analytics, Dicom Anonymizer, Dicom Router, and Dicom Cleaner just pass
+      their own profile flag), so AppFiles is one shared ComponentGroup
+      referenced by all five Features below rather than installed five
+      times. Unchecking one app in the feature tree only removes that app's
+      shortcuts; the shared files stay until all five are unchecked
+      (Windows Installer reference-counts a component against every Feature
+      that lists it).
     -->
     <ComponentGroup Id="Shortcuts" Directory="ApplicationProgramsFolder">
       <Component Id="StartMenuShortcut" Guid="c4e91b07-2f6a-4d8e-9b31-7a5c0e12d844">
@@ -139,6 +140,25 @@
             Value="1"
             KeyPath="yes" />
       </Component>
+      <Component Id="CleanerShortcut" Guid="f69c3bb1-1e07-4111-8580-03bf5c547ce6">
+        <Shortcut
+            Id="CleanerShortcutFile"
+            Name="Dicom Cleaner"
+            Description="Open Dicom Cleaner (query, retrieve, redact pixels, send back)"
+            Target="[INSTALLFOLDER]dicommunication.exe"
+            Arguments="--profile dicom-cleaner"
+            WorkingDirectory="INSTALLFOLDER"
+            Icon="AppIcon" />
+        <!-- Same reasoning as DicomtagAnalyticsShortcut's RemoveFolder above. -->
+        <RemoveFolder Id="RemoveApplicationProgramsFolder5" On="uninstall" />
+        <RegistryValue
+            Root="HKCU"
+            Key="Software\Arnout.pro\Dicommunication"
+            Name="cleaner"
+            Type="integer"
+            Value="1"
+            KeyPath="yes" />
+      </Component>
     </ComponentGroup>
 
     <!--
@@ -214,6 +234,23 @@
             Value="1"
             KeyPath="yes" />
       </Component>
+      <Component Id="DesktopShortcutCleaner" Guid="af9e138b-d3f5-4812-afce-908d0bda604d">
+        <Shortcut
+            Id="DesktopCleanerShortcut"
+            Name="Dicom Cleaner"
+            Description="Open Dicom Cleaner (query, retrieve, redact pixels, send back)"
+            Target="[INSTALLFOLDER]dicommunication.exe"
+            Arguments="--profile dicom-cleaner"
+            WorkingDirectory="INSTALLFOLDER"
+            Icon="AppIcon" />
+        <RegistryValue
+            Root="HKCU"
+            Key="Software\Arnout.pro\Dicommunication"
+            Name="desktop_shortcut_cleaner"
+            Type="integer"
+            Value="1"
+            KeyPath="yes" />
+      </Component>
     </ComponentGroup>
 
     <Feature Id="Dicommunication" Title="Dicommunication" Level="1"
@@ -252,6 +289,15 @@
         <ComponentRef Id="DesktopShortcutRouter" />
       </Feature>
     </Feature>
+    <Feature Id="DicomCleaner" Title="Dicom Cleaner" Level="1"
+        Description="Query, retrieve, redact a rectangle of burned-in pixel data, and send back over C-STORE.">
+      <ComponentGroupRef Id="AppFiles" />
+      <ComponentRef Id="CleanerShortcut" />
+      <Feature Id="DicomCleanerDesktop" Title="Desktop shortcut" Level="1000"
+          Description="Add a Dicom Cleaner shortcut on the Desktop, in addition to the Start Menu.">
+        <ComponentRef Id="DesktopShortcutCleaner" />
+      </Feature>
+    </Feature>
 
     <!--
       The data directory (config, recent results, worklist) lives under
@@ -278,11 +324,11 @@
     </InstallExecuteSequence>
 
     <!--
-      FeatureTree (not InstallDir): lets the setup wizard show the eight
+      FeatureTree (not InstallDir): lets the setup wizard show the ten
       features above as a checkbox tree (Dicommunication / Dicomtag
-      Analytics / Dicom Anonymizer / Dicom Router, each with a Desktop
-      shortcut sub-feature) via CustomizeDlg, which also has its own Browse
-      button for INSTALLFOLDER.
+      Analytics / Dicom Anonymizer / Dicom Router / Dicom Cleaner, each with
+      a Desktop shortcut sub-feature) via CustomizeDlg, which also has its
+      own Browse button for INSTALLFOLDER.
     -->
     <Property Id="WIXUI_INSTALLDIR" Value="INSTALLFOLDER" />
     <ui:WixUI Id="WixUI_FeatureTree" />

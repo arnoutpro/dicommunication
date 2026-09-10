@@ -16,21 +16,26 @@ from app.applog import configure as configure_logging, log, should_skip_http_log
 from app.mwl_scp import WorklistSCP
 from app.paths import package_dir
 from app.router_scheduler import RouterScheduler
-from app.routes import anonymize, api, config, echo_board, logs, misc, route_rules, testbench, tools, worklist
+from app.routes import anonymize, api, cleaner, config, echo_board, logs, misc, route_rules, testbench, tools, worklist
 from app.shell import (
     ANONYMIZE_PREFIX,
+    CLEANER_PREFIX,
     ROUTER_PREFIX,
     SHELL_ANONYMIZE,
+    SHELL_CLEANER,
     SHELL_DICOMM,
     SHELL_ROUTER,
     SHELL_VUE,
     anonymize_path_allowed,
+    cleaner_path_allowed,
     is_anonymize_public_path,
+    is_cleaner_public_path,
     is_router_public_path,
     is_vue_public_path,
     prefix_redirect_location,
     router_path_allowed,
     strip_anonymize_prefix,
+    strip_cleaner_prefix,
     strip_router_prefix,
     strip_vue_prefix,
     vue_path_allowed,
@@ -155,6 +160,19 @@ def create_app(store: ConfigStore | None = None) -> FastAPI:
             if location:
                 response.headers["location"] = prefix_redirect_location(location, prefix=ROUTER_PREFIX)
             return response
+        if is_cleaner_public_path(original):
+            request.state.shell = SHELL_CLEANER
+            new_path = strip_cleaner_prefix(original)
+            request.scope["path"] = new_path
+            request.scope["raw_path"] = new_path.encode("utf-8")
+            if not cleaner_path_allowed(new_path):
+                response = RedirectResponse("/", status_code=303)
+            else:
+                response = await call_next(request)
+            location = response.headers.get("location")
+            if location:
+                response.headers["location"] = prefix_redirect_location(location, prefix=CLEANER_PREFIX)
+            return response
         request.state.shell = SHELL_DICOMM
         return await call_next(request)
 
@@ -190,11 +208,12 @@ def create_app(store: ConfigStore | None = None) -> FastAPI:
     app.include_router(testbench.router)
     app.include_router(worklist.router)
     app.include_router(route_rules.router)
-    # anonymize.router's specific POST /tools/anonymize/run must be registered
-    # before tools.router's generic POST /tools/{tool_id}/run catch-all, or the
-    # catch-all matches first and swallows every anonymize request without any
-    # of the options this tool actually needs.
+    # anonymize.router's and cleaner.router's specific POST /tools/<id>/run
+    # routes must be registered before tools.router's generic
+    # POST /tools/{tool_id}/run catch-all, or the catch-all matches first and
+    # swallows every request without any of the options these tools need.
     app.include_router(anonymize.router)
+    app.include_router(cleaner.router)
     app.include_router(tools.router)
     app.include_router(api.router)
 

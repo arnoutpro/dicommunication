@@ -53,5 +53,6 @@ def test_tools_grouped_by_category() -> None:
         "mwl-find",
         "tag-editor",
         "anonymize",
+        "dicom-cleaner",
     ]
     assert [tool.id for tool in groups["HL7"]] == ["hl7-send"]
