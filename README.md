@@ -16,7 +16,7 @@ Open [http://127.0.0.1:8080](http://127.0.0.1:8080).
 
 ## Screenshots
 
-Synthetic lab studies (not clinical data). Light theme, v0.4.0. The theme switcher (top right) also has dark and professional-dark modes — same layout, same tab-color-into-page-background treatment, different accent.
+Synthetic lab studies (not clinical data). Light theme, v0.5.0. The theme switcher (top right) also has dark and professional-dark modes — same layout, same tab-color-into-page-background treatment, different accent.
 
 **Dicommunication** — workstation dashboard, remotes, Test tools.
 
