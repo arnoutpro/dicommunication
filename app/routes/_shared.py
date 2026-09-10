@@ -97,7 +97,7 @@ def execute_tool(
         local = config.calling_ae(identity_id or None)
     except KeyError as exc:
         raise HTTPException(status_code=400, detail="Virtual local AE not found") from exc
-    if tool_id in ("c-find-advanced", "tag-editor", "anonymize"):
+    if tool_id in ("c-find-advanced", "tag-editor", "anonymize", "dicom-cleaner"):
         options = dict(options or {})
         scp = getattr(app.state, "mwl_scp", None)
         options.setdefault("_listen_ae", config.local.ae_title)
@@ -107,6 +107,9 @@ def execute_tool(
             bool(scp and scp.running and config.local.storage_scp_enabled),
         )
         options.setdefault("_storage_error", getattr(scp, "last_error", None) if scp else None)
+    if tool_id == "dicom-cleaner":
+        options = dict(options or {})
+        options.setdefault("_remotes", {node.id: node for node in config.remotes})
     result = tool.run(local, remote, options)
     if tool.id != "hl7-send":
         result.calling_ae = local.ae_title

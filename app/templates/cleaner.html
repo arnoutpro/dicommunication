@@ -1,0 +1,198 @@
+{% extends "base.html" %}
+{% block title %}{{ tool.name }} · {{ product_name }}{% endblock %}
+{% block content %}
+<header class="page-head">
+  <div>
+    <p class="eyebrow">{{ tool.category }}</p>
+    <h1>{{ tool.name }}</h1>
+    <p class="lede">{{ tool.description }}</p>
+  </div>
+</header>
+
+<section class="panel">
+  <header class="panel-head">
+    <h2>Query</h2>
+    <span class="muted">
+      Calling AE {{ config.local.ae_title }}
+      · Local Storage SCP {{ "listening" if storage_scp_running else "not listening" }}
+      {% if not config.local.storage_scp_enabled %}(Accept C-STORE is off){% endif %}
+    </span>
+  </header>
+
+  {% if config.remotes %}
+  <form class="form-grid" method="post" action="{{ href('/tools/dicom-cleaner/run') }}">
+    <label>
+      Remote node
+      <select name="remote_id" required>
+        {% for remote in config.remotes %}
+        <option value="{{ remote.id }}" {% if remote.id == remote_id %}selected{% endif %}>
+          {{ remote.name }} — {{ remote.ae_title }} @ {{ remote.connect_host }}:{{ remote.port }}
+        </option>
+        {% endfor %}
+      </select>
+      <span class="hint">Studies are queried and retrieved from here, and — unless you pick a different destination below — sent back here too.</span>
+    </label>
+    {% include "partials/identity_select.html" %}
+
+    <label>
+      Patient ID <span class="muted">(optional)</span>
+      <input type="text" name="patient_id" placeholder="12345">
+    </label>
+    <label>
+      Accession Number <span class="muted">(optional)</span>
+      <input type="text" name="accession_number" placeholder="ACC1">
+    </label>
+    <label>
+      Study Date <span class="muted">(required)</span>
+      <input type="date" name="study_date" required>
+    </label>
+    <label>
+      Modalities <span class="muted">(optional — leave all unchecked to match any)</span>
+      <div class="find-modality-chips">
+        {% for code in ["CR", "CT", "DX", "MG", "MR", "NM", "OT", "PT", "RF", "SC", "SR", "US", "XA"] %}
+        <label class="find-modality-chip">
+          <input type="checkbox" name="modality" value="{{ code }}">
+          <span>{{ code }}</span>
+        </label>
+        {% endfor %}
+      </div>
+    </label>
+
+    <div class="form-actions">
+      <button class="button primary" type="submit" name="action" value="query">Run query</button>
+      <span class="hint">Study-level C-FIND, same as Dicomtag Analytics.</span>
+    </div>
+
+    {% if action == "query" and result and result.ok and result.records %}
+    <div class="form-row-wide">
+      <h3 class="result-subhead">Studies found — select what to clean</h3>
+      <div class="table-wrap">
+        <table class="find-table">
+          <thead>
+            <tr>
+              <th></th>
+              {% for key in result.records[0].keys() %}
+              <th>{{ key.replace("_", " ") }}</th>
+              {% endfor %}
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in result.records %}
+            <tr>
+              <td><input type="checkbox" name="study_uid" value="{{ row.StudyInstanceUID }}"></td>
+              {% for value in row.values() %}
+              <td>{{ value }}</td>
+              {% endfor %}
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      <fieldset class="find-level-field">
+        <legend>Retrieve at</legend>
+        <div class="find-level-tabs" role="radiogroup" aria-label="Level">
+          <label class="find-level-tab">
+            <input type="radio" name="level" value="STUDY" {% if level == "STUDY" %}checked{% endif %}>
+            <span>Study</span>
+          </label>
+          <label class="find-level-tab">
+            <input type="radio" name="level" value="SERIES" {% if level == "SERIES" %}checked{% endif %}>
+            <span>Series</span>
+          </label>
+          <label class="find-level-tab">
+            <input type="radio" name="level" value="IMAGE" {% if level == "IMAGE" %}checked{% endif %}>
+            <span>Image</span>
+          </label>
+        </div>
+        <p class="hint">
+          Study cleans every image in exactly the checked studies. Series or Image walks down to
+          <strong>every</strong> series or image inside the checked studies first — there is no
+          per-series/per-image picker yet, so check only the studies you actually want.
+        </p>
+      </fieldset>
+
+      <fieldset>
+        <legend>Redact region (pixels, top-left origin)</legend>
+        <div class="form-grid">
+          <label>
+            X
+            <input type="number" name="region_x" min="0" value="0">
+          </label>
+          <label>
+            Y
+            <input type="number" name="region_y" min="0" value="0">
+          </label>
+          <label>
+            Width
+            <input type="number" name="region_width" min="0" value="0">
+            <span class="hint">0 = full width.</span>
+          </label>
+          <label>
+            Height
+            <input type="number" name="region_height" min="1" value="100">
+          </label>
+        </div>
+        <p class="hint">
+          Blacked out on every retrieved image — the default (full-width, top 100px) covers a
+          burned-in header band; adjust to match where your modality actually burns in text.
+          Non-image instances (SR, PR, ...) are skipped and reported as failed, not sent.
+        </p>
+      </fieldset>
+
+      <fieldset>
+        <legend>Send back as</legend>
+        <div class="find-level-tabs" role="radiogroup" aria-label="SOP Instance UID">
+          <label class="find-level-tab">
+            <input type="radio" name="uid_mode" value="new" checked>
+            <span>New UID (safe — original stays too)</span>
+          </label>
+          <label class="find-level-tab">
+            <input type="radio" name="uid_mode" value="same">
+            <span>Same UID (attempt overwrite)</span>
+          </label>
+        </div>
+        <p class="hint">
+          <strong>New UID</strong> C-STOREs the cleaned image with a fresh SOP Instance UID in the
+          same study/series — always succeeds as a plain store; the original un-redacted image
+          is still on the archive until removed separately.
+          <strong>Same UID</strong> keeps the original identifiers. Whether that actually replaces
+          the object, is rejected, or creates a conflict depends entirely on the destination PACS —
+          not something this tool controls.
+        </p>
+      </fieldset>
+
+      <label>
+        Send to
+        <select name="destination_remote_id">
+          <option value="">Same as source node above</option>
+          {% for node in config.remotes %}
+          <option value="{{ node.id }}">{{ node.name }} — {{ node.ae_title }} @ {{ node.connect_host }}:{{ node.port }}</option>
+          {% endfor %}
+        </select>
+      </label>
+
+      <div class="form-actions">
+        <button class="button primary" type="submit" name="action" value="run"
+                onclick="return confirm('Retrieve, redact, and C-STORE the checked studies back to a PACS? This changes pixel data on real images.');">
+          Clean selected
+        </button>
+      </div>
+    </div>
+    {% endif %}
+  </form>
+  {% else %}
+  <div class="empty">
+    <strong>No remote node configured</strong>
+    <p>Add a PACS or modality first, then come back to run {{ tool.name }}.</p>
+    <a class="button" href="{{ href('/config/remotes') }}">Open configuration</a>
+  </div>
+  {% endif %}
+</section>
+
+<div id="result">
+  {% if result and not (action == "query" and result.ok and result.records) %}
+    {% include "partials/result.html" %}
+  {% endif %}
+</div>
+{% endblock %}
