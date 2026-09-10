@@ -1,8 +1,6 @@
 """Dicom Anonymizer page and run route.
 
-Reached at ``/anonymize/`` (see app.shell); the middleware strips that
-prefix, so this module — like tag_editor's routes — just handles the plain
-``/tools/anonymize`` and ``/tools/anonymize/run`` paths underneath it.
+Reached at ``/tools/anonymize``, same as any other tool page.
 
 One combined form drives both actions: "query" runs the Study-level C-FIND
 and re-renders the page with a checkable study table; "run" reads the

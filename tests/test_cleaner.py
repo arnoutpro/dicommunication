@@ -16,20 +16,6 @@ from pynetdicom.sop_class import (
 
 from app.main import create_app
 from app.models import LocalAE, RemoteNode
-from app.shell import (
-    CLEANER_PREFIX,
-    PROFILE_CLEANER,
-    PRODUCT_NAMES,
-    SHELL_CLEANER,
-    cleaner_path_allowed,
-    is_cleaner_profile,
-    is_cleaner_public_path,
-    profile_start_path,
-    profile_window_title,
-    public_href,
-    tools_exclude,
-    tools_for_shell,
-)
 from app.store import ConfigStore
 from app.tools.dicom_preview import MAX_PREVIEW_DIM, PreviewError, render_preview_png
 from app.tools.redact_engine import RedactionError, parse_region, redact_pixels
@@ -90,50 +76,19 @@ def _make_instance(
 
 
 # ---------------------------------------------------------------------------
-# Shell
+# Now reached at its plain path, alongside every other tool in the same
+# window's navigation — see tests/test_single_app.py for the merged-app
+# behavior shared with Dicomtag Analytics/Dicom Anonymizer/Dicom Router.
 # ---------------------------------------------------------------------------
 
 
-def test_cleaner_shell_constants() -> None:
-    assert PRODUCT_NAMES[SHELL_CLEANER] == "Dicom Cleaner"
-    assert is_cleaner_profile(PROFILE_CLEANER)
-    assert not is_cleaner_profile("dicommunication")
-    assert profile_start_path(PROFILE_CLEANER) == "/cleaner/"
-    assert profile_window_title(PROFILE_CLEANER) == "Dicom Cleaner"
-
-
-def test_cleaner_path_helpers() -> None:
-    assert is_cleaner_public_path("/cleaner")
-    assert is_cleaner_public_path("/cleaner/config/remotes")
-    assert not is_cleaner_public_path("/vue")
-    assert public_href("/", shell=SHELL_CLEANER) == "/cleaner/"
-    assert public_href("/config/remotes", shell=SHELL_CLEANER) == "/cleaner/config/remotes"
-    assert public_href("/static/css/app.css", shell=SHELL_CLEANER) == "/static/css/app.css"
-    assert cleaner_path_allowed("/")
-    assert cleaner_path_allowed("/tools/dicom-cleaner/run")
-    assert cleaner_path_allowed("/help")
-    assert not cleaner_path_allowed("/testbench")
-    assert not cleaner_path_allowed("/tools/c-echo")
-
-
-def test_cleaner_tool_hidden_from_other_shells() -> None:
-    from app.shell import SHELL_DICOMM, SHELL_VUE
-
-    assert "dicom-cleaner" not in tools_exclude(SHELL_CLEANER)
-    assert "dicom-cleaner" in tools_exclude(SHELL_DICOMM)
-    assert "dicom-cleaner" in tools_exclude(SHELL_VUE)
-    ids = {tool.id for tool in tools_for_shell(SHELL_CLEANER)}
-    assert ids == {"dicom-cleaner"}
-
-
-def test_cleaner_shell_sidebar_has_no_test_tools(client) -> None:
-    response = client.get("/cleaner/")
+def test_cleaner_sidebar_shows_full_nav(client) -> None:
+    response = client.get("/tools/dicom-cleaner")
     assert response.status_code == 200
     body = response.text
-    assert "Testbench" not in body
-    assert "C-ECHO board" not in body
-    assert "Worklist" not in body
-    assert "Configured nodes" in body
+    assert "Testbench" in body
+    assert "C-ECHO board" in body
+    assert "Worklist" in body
     assert "Dicom Cleaner" in body
 
 
@@ -275,14 +230,14 @@ def test_cleaner_query_then_run_redacts_and_sends_back(tmp_path) -> None:
     try:
         with TestClient(app) as client:
             query = client.post(
-                f"{CLEANER_PREFIX}/tools/dicom-cleaner/run",
+                "/tools/dicom-cleaner/run",
                 data={"action": "query", "remote_id": remote.id, "study_date": "2026-01-01"},
             )
             assert query.status_code == 200
             assert "DOE^JANE" in query.text
 
             run = client.post(
-                f"{CLEANER_PREFIX}/tools/dicom-cleaner/run",
+                "/tools/dicom-cleaner/run",
                 data={
                     "action": "run",
                     "remote_id": remote.id,
@@ -328,7 +283,7 @@ def test_cleaner_run_same_uid_mode_keeps_original_sop_instance_uid(tmp_path) -> 
     try:
         with TestClient(app) as client:
             run = client.post(
-                f"{CLEANER_PREFIX}/tools/dicom-cleaner/run",
+                "/tools/dicom-cleaner/run",
                 data={
                     "action": "run",
                     "remote_id": remote.id,
@@ -482,7 +437,7 @@ def test_cleaner_preview_images_requires_a_checked_study(tmp_path) -> None:
     app = create_app(store)
     with TestClient(app) as client:
         response = client.post(
-            f"{CLEANER_PREFIX}/tools/dicom-cleaner/preview-images",
+            "/tools/dicom-cleaner/preview-images",
             data={"remote_id": remote.id},
         )
         assert response.status_code == 200
@@ -507,7 +462,7 @@ def test_cleaner_preview_browse_then_load_image(tmp_path) -> None:
     try:
         with TestClient(app) as client:
             images = client.post(
-                f"{CLEANER_PREFIX}/tools/dicom-cleaner/preview-images",
+                "/tools/dicom-cleaner/preview-images",
                 data={"remote_id": remote.id, "study_uid": [study_uid]},
             )
             assert images.status_code == 200
@@ -515,7 +470,7 @@ def test_cleaner_preview_browse_then_load_image(tmp_path) -> None:
             assert "Load image" in images.text
 
             preview = client.post(
-                f"{CLEANER_PREFIX}/tools/dicom-cleaner/preview-image",
+                "/tools/dicom-cleaner/preview-image",
                 data={
                     "remote_id": remote.id,
                     "study_uid": study_uid,
@@ -539,7 +494,7 @@ def test_cleaner_preview_image_requires_a_picked_image(tmp_path) -> None:
     app = create_app(store)
     with TestClient(app) as client:
         response = client.post(
-            f"{CLEANER_PREFIX}/tools/dicom-cleaner/preview-image",
+            "/tools/dicom-cleaner/preview-image",
             data={"remote_id": remote.id, "study_uid": "1.2.3"},
         )
         assert response.status_code == 200

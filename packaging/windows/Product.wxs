@@ -39,14 +39,12 @@
     <StandardDirectory Id="DesktopFolder" />
 
     <!--
-      All five apps run from the same frozen dicommunication.exe (Dicomtag
-      Analytics, Dicom Anonymizer, Dicom Router, and Dicom Cleaner just pass
-      their own profile flag), so AppFiles is one shared ComponentGroup
-      referenced by all five Features below rather than installed five
-      times. Unchecking one app in the feature tree only removes that app's
-      shortcuts; the shared files stay until all five are unchecked
-      (Windows Installer reference-counts a component against every Feature
-      that lists it).
+      One product, one shortcut: Dicomtag Analytics, Dicom Anonymizer, Dicom
+      Router, and Dicom Cleaner used to be separate Start-menu tools that
+      passed their own --profile to this same frozen dicommunication.exe and
+      opened their own window at their own URL prefix. They're now reachable
+      from this single window's own navigation instead, so there's only ever
+      one shortcut to install.
     -->
     <ComponentGroup Id="Shortcuts" Directory="ApplicationProgramsFolder">
       <Component Id="StartMenuShortcut" Guid="c4e91b07-2f6a-4d8e-9b31-7a5c0e12d844">
@@ -58,6 +56,18 @@
             WorkingDirectory="INSTALLFOLDER"
             Icon="AppIcon" />
         <RemoveFolder Id="RemoveApplicationProgramsFolder" On="uninstall" />
+        <!--
+          Explicit cleanup, independent of AllowSameVersionUpgrades above:
+          delete every shortcut a pre-merge install could have left behind
+          (including this tool's own former "Vue PACS Database Analytics"
+          name) on every (re)install, so upgrading from a multi-shortcut
+          version doesn't leave stale .lnk files pointing at a dead profile.
+        -->
+        <RemoveFile Id="RemoveStaleVueAnalyticsShortcut" Name="Vue PACS Database Analytics.lnk" On="install" />
+        <RemoveFile Id="RemoveStaleDicomtagAnalyticsShortcut" Name="Dicomtag Analytics.lnk" On="install" />
+        <RemoveFile Id="RemoveStaleAnonymizerShortcut" Name="Dicom Anonymizer.lnk" On="install" />
+        <RemoveFile Id="RemoveStaleRouterShortcut" Name="Dicom Router.lnk" On="install" />
+        <RemoveFile Id="RemoveStaleCleanerShortcut" Name="Dicom Cleaner.lnk" On="install" />
         <RegistryValue
             Root="HKCU"
             Key="Software\Arnout.pro\Dicommunication"
@@ -66,105 +76,12 @@
             Value="1"
             KeyPath="yes" />
       </Component>
-      <Component Id="DicomtagAnalyticsShortcut" Guid="872d86b2-9e7d-4ffa-bc2e-f2c97a7c1e9c">
-        <Shortcut
-            Id="VueAnalyticsShortcut"
-            Name="Dicomtag Analytics"
-            Description="Open Dicomtag Analytics (Study Root C-FIND)"
-            Target="[INSTALLFOLDER]dicommunication.exe"
-            Arguments="--profile dicomtag-analytics"
-            WorkingDirectory="INSTALLFOLDER"
-            Icon="AppIcon" />
-        <!--
-          Each app is now a separately selectable Feature, so this can be
-          the only shortcut in ApplicationProgramsFolder (Dicommunication
-          unchecked). RemoveFolder only deletes an empty folder, so this is
-          safe alongside StartMenuShortcut's own RemoveFolder above when
-          both are installed.
-        -->
-        <RemoveFolder Id="RemoveApplicationProgramsFolder2" On="uninstall" />
-        <!--
-          Explicit cleanup, independent of AllowSameVersionUpgrades above:
-          this tool was named "Vue PACS Database Analytics" before it was
-          Dicomtag Analytics. Delete that stale .lnk on every (re)install so
-          side-by-side installs already on a machine get cleaned up too, not
-          just future ones.
-        -->
-        <RemoveFile
-            Id="RemoveStaleVueAnalyticsShortcut"
-            Name="Vue PACS Database Analytics.lnk"
-            On="install" />
-        <RegistryValue
-            Root="HKCU"
-            Key="Software\Arnout.pro\Dicommunication"
-            Name="vue_analytics"
-            Type="integer"
-            Value="1"
-            KeyPath="yes" />
-      </Component>
-      <Component Id="AnonymizerShortcut" Guid="976af402-7bfa-4f91-8aae-f14686772159">
-        <Shortcut
-            Id="AnonymizerShortcutFile"
-            Name="Dicom Anonymizer"
-            Description="Open Dicom Anonymizer (query, retrieve, and anonymize studies)"
-            Target="[INSTALLFOLDER]dicommunication.exe"
-            Arguments="--profile dicom-anonymizer"
-            WorkingDirectory="INSTALLFOLDER"
-            Icon="AppIcon" />
-        <!-- Same reasoning as DicomtagAnalyticsShortcut's RemoveFolder above. -->
-        <RemoveFolder Id="RemoveApplicationProgramsFolder3" On="uninstall" />
-        <RegistryValue
-            Root="HKCU"
-            Key="Software\Arnout.pro\Dicommunication"
-            Name="anonymizer"
-            Type="integer"
-            Value="1"
-            KeyPath="yes" />
-      </Component>
-      <Component Id="RouterShortcut" Guid="749ffd04-ad42-4074-87f0-56e31d83f040">
-        <Shortcut
-            Id="RouterShortcutFile"
-            Name="Dicom Router"
-            Description="Open Dicom Router (scheduled C-FIND, retrieve/forward)"
-            Target="[INSTALLFOLDER]dicommunication.exe"
-            Arguments="--profile dicom-router"
-            WorkingDirectory="INSTALLFOLDER"
-            Icon="AppIcon" />
-        <!-- Same reasoning as DicomtagAnalyticsShortcut's RemoveFolder above. -->
-        <RemoveFolder Id="RemoveApplicationProgramsFolder4" On="uninstall" />
-        <RegistryValue
-            Root="HKCU"
-            Key="Software\Arnout.pro\Dicommunication"
-            Name="router"
-            Type="integer"
-            Value="1"
-            KeyPath="yes" />
-      </Component>
-      <Component Id="CleanerShortcut" Guid="f69c3bb1-1e07-4111-8580-03bf5c547ce6">
-        <Shortcut
-            Id="CleanerShortcutFile"
-            Name="Dicom Cleaner"
-            Description="Open Dicom Cleaner (query, retrieve, redact pixels, send back)"
-            Target="[INSTALLFOLDER]dicommunication.exe"
-            Arguments="--profile dicom-cleaner"
-            WorkingDirectory="INSTALLFOLDER"
-            Icon="AppIcon" />
-        <!-- Same reasoning as DicomtagAnalyticsShortcut's RemoveFolder above. -->
-        <RemoveFolder Id="RemoveApplicationProgramsFolder5" On="uninstall" />
-        <RegistryValue
-            Root="HKCU"
-            Key="Software\Arnout.pro\Dicommunication"
-            Name="cleaner"
-            Type="integer"
-            Value="1"
-            KeyPath="yes" />
-      </Component>
     </ComponentGroup>
 
     <!--
       Off by default (Level 1000, above the default INSTALLLEVEL of 1) but
-      selectable in the feature tree — the Start Menu shortcuts above already
-      cover the common case, so a desktop shortcut is opt-in clutter.
+      selectable in the feature tree — the Start Menu shortcut above already
+      covers the common case, so a desktop shortcut is opt-in clutter.
     -->
     <ComponentGroup Id="DesktopShortcuts" Directory="DesktopFolder">
       <Component Id="DesktopShortcutDicommunication" Guid="262bd9d7-9290-4214-8ec5-c4e8b9977ce9">
@@ -175,6 +92,10 @@
             Target="[INSTALLFOLDER]dicommunication.exe"
             WorkingDirectory="INSTALLFOLDER"
             Icon="AppIcon" />
+        <RemoveFile Id="RemoveStaleDesktopVueAnalyticsShortcut" Name="Dicomtag Analytics.lnk" On="install" />
+        <RemoveFile Id="RemoveStaleDesktopAnonymizerShortcut" Name="Dicom Anonymizer.lnk" On="install" />
+        <RemoveFile Id="RemoveStaleDesktopRouterShortcut" Name="Dicom Router.lnk" On="install" />
+        <RemoveFile Id="RemoveStaleDesktopCleanerShortcut" Name="Dicom Cleaner.lnk" On="install" />
         <RegistryValue
             Root="HKCU"
             Key="Software\Arnout.pro\Dicommunication"
@@ -183,119 +104,15 @@
             Value="1"
             KeyPath="yes" />
       </Component>
-      <Component Id="DesktopShortcutDicomtagAnalytics" Guid="2d141871-208c-417e-8779-c87fd52d32fc">
-        <Shortcut
-            Id="DesktopVueAnalyticsShortcut"
-            Name="Dicomtag Analytics"
-            Description="Open Dicomtag Analytics (Study Root C-FIND)"
-            Target="[INSTALLFOLDER]dicommunication.exe"
-            Arguments="--profile dicomtag-analytics"
-            WorkingDirectory="INSTALLFOLDER"
-            Icon="AppIcon" />
-        <RegistryValue
-            Root="HKCU"
-            Key="Software\Arnout.pro\Dicommunication"
-            Name="desktop_shortcut_vue_analytics"
-            Type="integer"
-            Value="1"
-            KeyPath="yes" />
-      </Component>
-      <Component Id="DesktopShortcutAnonymizer" Guid="949654d0-ef89-4118-a1a2-5fa05c3b99c4">
-        <Shortcut
-            Id="DesktopAnonymizerShortcut"
-            Name="Dicom Anonymizer"
-            Description="Open Dicom Anonymizer (query, retrieve, and anonymize studies)"
-            Target="[INSTALLFOLDER]dicommunication.exe"
-            Arguments="--profile dicom-anonymizer"
-            WorkingDirectory="INSTALLFOLDER"
-            Icon="AppIcon" />
-        <RegistryValue
-            Root="HKCU"
-            Key="Software\Arnout.pro\Dicommunication"
-            Name="desktop_shortcut_anonymizer"
-            Type="integer"
-            Value="1"
-            KeyPath="yes" />
-      </Component>
-      <Component Id="DesktopShortcutRouter" Guid="1ff660d7-6262-41d7-908a-e08d1dc42f29">
-        <Shortcut
-            Id="DesktopRouterShortcut"
-            Name="Dicom Router"
-            Description="Open Dicom Router (scheduled C-FIND, retrieve/forward)"
-            Target="[INSTALLFOLDER]dicommunication.exe"
-            Arguments="--profile dicom-router"
-            WorkingDirectory="INSTALLFOLDER"
-            Icon="AppIcon" />
-        <RegistryValue
-            Root="HKCU"
-            Key="Software\Arnout.pro\Dicommunication"
-            Name="desktop_shortcut_router"
-            Type="integer"
-            Value="1"
-            KeyPath="yes" />
-      </Component>
-      <Component Id="DesktopShortcutCleaner" Guid="af9e138b-d3f5-4812-afce-908d0bda604d">
-        <Shortcut
-            Id="DesktopCleanerShortcut"
-            Name="Dicom Cleaner"
-            Description="Open Dicom Cleaner (query, retrieve, redact pixels, send back)"
-            Target="[INSTALLFOLDER]dicommunication.exe"
-            Arguments="--profile dicom-cleaner"
-            WorkingDirectory="INSTALLFOLDER"
-            Icon="AppIcon" />
-        <RegistryValue
-            Root="HKCU"
-            Key="Software\Arnout.pro\Dicommunication"
-            Name="desktop_shortcut_cleaner"
-            Type="integer"
-            Value="1"
-            KeyPath="yes" />
-      </Component>
     </ComponentGroup>
 
     <Feature Id="Dicommunication" Title="Dicommunication" Level="1"
-        Description="The Dicommunication workstation UI (C-ECHO, C-STORE, C-FIND, worklist, HL7, Tag Editor).">
+        Description="The Dicommunication workstation UI — network/DIMSE/HL7 tools, Dicomtag Analytics, Dicom Anonymizer, Dicom Router, and Dicom Cleaner all in one window.">
       <ComponentGroupRef Id="AppFiles" />
       <ComponentRef Id="StartMenuShortcut" />
       <Feature Id="DicommunicationDesktop" Title="Desktop shortcut" Level="1000"
           Description="Add a Dicommunication shortcut on the Desktop, in addition to the Start Menu.">
         <ComponentRef Id="DesktopShortcutDicommunication" />
-      </Feature>
-    </Feature>
-    <Feature Id="DicomtagAnalytics" Title="Dicomtag Analytics" Level="1"
-        Description="Study Root C-FIND / Vue-Tamar analytics tool (patient counts, report retrieve).">
-      <ComponentGroupRef Id="AppFiles" />
-      <ComponentRef Id="DicomtagAnalyticsShortcut" />
-      <Feature Id="DicomtagAnalyticsDesktop" Title="Desktop shortcut" Level="1000"
-          Description="Add a Dicomtag Analytics shortcut on the Desktop, in addition to the Start Menu.">
-        <ComponentRef Id="DesktopShortcutDicomtagAnalytics" />
-      </Feature>
-    </Feature>
-    <Feature Id="DicomAnonymizer" Title="Dicom Anonymizer" Level="1"
-        Description="Query, retrieve, and anonymize studies, series, or images.">
-      <ComponentGroupRef Id="AppFiles" />
-      <ComponentRef Id="AnonymizerShortcut" />
-      <Feature Id="DicomAnonymizerDesktop" Title="Desktop shortcut" Level="1000"
-          Description="Add a Dicom Anonymizer shortcut on the Desktop, in addition to the Start Menu.">
-        <ComponentRef Id="DesktopShortcutAnonymizer" />
-      </Feature>
-    </Feature>
-    <Feature Id="DicomRouter" Title="Dicom Router" Level="1"
-        Description="Scheduled C-FIND rules, with optional retrieve/forward to a destination node.">
-      <ComponentGroupRef Id="AppFiles" />
-      <ComponentRef Id="RouterShortcut" />
-      <Feature Id="DicomRouterDesktop" Title="Desktop shortcut" Level="1000"
-          Description="Add a Dicom Router shortcut on the Desktop, in addition to the Start Menu.">
-        <ComponentRef Id="DesktopShortcutRouter" />
-      </Feature>
-    </Feature>
-    <Feature Id="DicomCleaner" Title="Dicom Cleaner" Level="1"
-        Description="Query, retrieve, redact a rectangle of burned-in pixel data, and send back over C-STORE.">
-      <ComponentGroupRef Id="AppFiles" />
-      <ComponentRef Id="CleanerShortcut" />
-      <Feature Id="DicomCleanerDesktop" Title="Desktop shortcut" Level="1000"
-          Description="Add a Dicom Cleaner shortcut on the Desktop, in addition to the Start Menu.">
-        <ComponentRef Id="DesktopShortcutCleaner" />
       </Feature>
     </Feature>
 
@@ -324,11 +141,9 @@
     </InstallExecuteSequence>
 
     <!--
-      FeatureTree (not InstallDir): lets the setup wizard show the ten
-      features above as a checkbox tree (Dicommunication / Dicomtag
-      Analytics / Dicom Anonymizer / Dicom Router / Dicom Cleaner, each with
-      a Desktop shortcut sub-feature) via CustomizeDlg, which also has its
-      own Browse button for INSTALLFOLDER.
+      FeatureTree (not InstallDir): lets the setup wizard show Dicommunication
+      and its Desktop-shortcut sub-feature as a checkbox tree via
+      CustomizeDlg, which also has its own Browse button for INSTALLFOLDER.
     -->
     <Property Id="WIXUI_INSTALLDIR" Value="INSTALLFOLDER" />
     <ui:WixUI Id="WixUI_FeatureTree" />

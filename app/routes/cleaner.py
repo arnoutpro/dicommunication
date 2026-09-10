@@ -1,12 +1,10 @@
 """Dicom Cleaner page and run route.
 
-Reached at ``/cleaner/`` (see app.shell); the middleware strips that
-prefix, so this module just handles the plain ``/tools/dicom-cleaner`` and
-``/tools/dicom-cleaner/run`` paths underneath it. Same combined-form shape
-as Dicom Anonymizer: "query" runs the Study-level C-FIND and re-renders the
-page with a checkable study table; "run" reads the checked studies plus
-the redact region / UID mode / destination from the same page and does the
-retrieve + redact + send-back.
+Reached at ``/tools/dicom-cleaner``, same as any other tool page. Same
+combined-form shape as Dicom Anonymizer: "query" runs the Study-level
+C-FIND and re-renders the page with a checkable study table; "run" reads
+the checked studies plus the redact region / UID mode / destination from
+the same page and does the retrieve + redact + send-back.
 """
 
 from __future__ import annotations
@@ -18,8 +16,7 @@ from fastapi.responses import HTMLResponse
 
 from app.fs_dialog import dialogs_available
 from app.models import LocalAE, RemoteNode, ToolResult
-from app.routes._shared import execute_tool, page, templates
-from app.shell import SHELL_DICOMM, public_href
+from app.routes._shared import _href, execute_tool, page, templates
 from app.tools import get_tool
 from app.tools.cleaner import (
     LEVELS,
@@ -38,8 +35,7 @@ def _partial_context(request: Request, **extra: object) -> dict:
     """The bare minimum `page()` provides that these HTMX-fragment partials
     need — just `href`, since they don't render the sidebar/nav chrome.
     """
-    shell = getattr(request.state, "shell", SHELL_DICOMM)
-    return {"request": request, "href": lambda path: public_href(path, shell=shell), **extra}
+    return {"request": request, "href": _href, **extra}
 
 
 def _resolve_local_remote(request: Request, remote_id: str, identity_id: str) -> tuple[LocalAE, RemoteNode] | str:
