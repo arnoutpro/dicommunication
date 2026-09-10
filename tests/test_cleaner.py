@@ -544,3 +544,37 @@ def test_cleaner_preview_image_requires_a_picked_image(tmp_path) -> None:
         )
         assert response.status_code == 200
         assert "Pick an image" in response.text
+
+
+def test_retrieve_many_survives_association_dropped_before_first_move(monkeypatch) -> None:
+    """Regression: a peer that accepts the association then drops it before
+    the first C-MOVE goes out must fail gracefully, not crash the request —
+    pynetdicom's send_c_move raises RuntimeError in exactly that case.
+    """
+    from app.tools import cleaner as cleaner_module
+
+    class _FakeAssoc:
+        is_established = True
+        accepted_contexts = [object()]
+
+        def send_c_move(self, *args, **kwargs):
+            raise RuntimeError(
+                "The association with a peer SCP must be established before sending a C-MOVE request"
+            )
+
+        def release(self):
+            pass
+
+        def abort(self):
+            pass
+
+    def fake_associate(local, remote, abstract_syntaxes, transfer_syntaxes=None):
+        return object(), _FakeAssoc()
+
+    monkeypatch.setattr(cleaner_module, "associate", fake_associate)
+
+    local = LocalAE(ae_title="DICOMM")
+    remote = RemoteNode(name="pacs", ae_title="QR_SCP", host="127.0.0.1", port=104)
+    datasets, error, _contexts = cleaner_module._retrieve_many(local, remote, [{"study_uid": "1.2.3"}], "DICOMM")
+    assert datasets == []
+    assert error is not None and "RuntimeError" in error
