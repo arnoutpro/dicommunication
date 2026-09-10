@@ -113,30 +113,54 @@
       </fieldset>
 
       <fieldset>
+        <legend>Preview &amp; pick region (optional)</legend>
+        <p class="hint">
+          Load one image from the first checked study above and drag a rectangle on it — easier
+          than typing pixel coordinates blind. Needs a checked study and Accept C-STORE on, same
+          as the actual retrieve below.
+        </p>
+        <div class="form-actions">
+          <button type="button" class="button"
+                  hx-post="{{ href('/tools/dicom-cleaner/preview-images') }}"
+                  hx-vals='js:{remote_id: document.querySelector("[name=remote_id]")?.value || "", identity_id: document.querySelector("[name=identity_id]")?.value || "", study_uid: document.querySelector("[name=study_uid]:checked")?.value || ""}'
+                  hx-target="#cleaner-preview-picker"
+                  hx-swap="innerHTML"
+                  hx-indicator="#cleaner-preview-browse-busy">
+            Browse images in first checked study
+          </button>
+          <span id="cleaner-preview-browse-busy" class="htmx-indicator hint">Querying…</span>
+        </div>
+        <div id="cleaner-preview-picker"></div>
+        <div id="cleaner-preview-canvas-wrap"></div>
+      </fieldset>
+
+      <fieldset>
         <legend>Redact region (pixels, top-left origin)</legend>
         <div class="form-grid">
           <label>
             X
-            <input type="number" name="region_x" min="0" value="0">
+            <input type="number" id="cleaner-region-x" name="region_x" min="0" value="0">
           </label>
           <label>
             Y
-            <input type="number" name="region_y" min="0" value="0">
+            <input type="number" id="cleaner-region-y" name="region_y" min="0" value="0">
           </label>
           <label>
             Width
-            <input type="number" name="region_width" min="0" value="0">
+            <input type="number" id="cleaner-region-width" name="region_width" min="0" value="0">
             <span class="hint">0 = full width.</span>
           </label>
           <label>
             Height
-            <input type="number" name="region_height" min="1" value="100">
+            <input type="number" id="cleaner-region-height" name="region_height" min="1" value="100">
           </label>
         </div>
         <p class="hint">
-          Blacked out on every retrieved image — the default (full-width, top 100px) covers a
-          burned-in header band; adjust to match where your modality actually burns in text.
-          Non-image instances (SR, PR, ...) are skipped and reported as failed, not sent.
+          Blacked out on every retrieved image in this run — one rectangle is applied to every
+          instance, so it doubles as "copy this redaction to every image in the study/series".
+          The default (full-width, top 100px) covers a burned-in header band; adjust to match
+          where your modality actually burns in text, or use the preview above. Non-image
+          instances (SR, PR, ...) are skipped and reported as failed, not sent.
         </p>
       </fieldset>
 
@@ -173,7 +197,7 @@
       </label>
 
       <div class="form-actions">
-        <button class="button primary" type="submit" name="action" value="run"
+        <button class="button primary" type="submit" name="action" value="run" formnovalidate
                 onclick="return confirm('Retrieve, redact, and C-STORE the checked studies back to a PACS? This changes pixel data on real images.');">
           Clean selected
         </button>
