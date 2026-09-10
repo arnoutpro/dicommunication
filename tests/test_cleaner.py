@@ -82,14 +82,14 @@ def _make_instance(
 # ---------------------------------------------------------------------------
 
 
-def test_cleaner_sidebar_shows_full_nav(client) -> None:
+def test_cleaner_has_its_own_tab(client) -> None:
     response = client.get("/tools/dicom-cleaner")
     assert response.status_code == 200
     body = response.text
-    assert "Testbench" in body
-    assert "C-ECHO board" in body
-    assert "Worklist" in body
     assert "Dicom Cleaner" in body
+    assert 'class="tab-item active"' in body
+    # Testbench etc. live under the Dicommunication tab, not this one.
+    assert "Testbench" not in body
 
 
 # ---------------------------------------------------------------------------

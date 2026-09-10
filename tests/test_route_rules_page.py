@@ -33,9 +33,10 @@ def test_router_page_lists_rules_in_sidebar(client: TestClient, store: ConfigSto
     assert f'href="/router/{rule.id}/runs"' in response.text
     assert "nav-rule-dot is-active" in response.text
 
-    # The sidebar list is rendered on every page, not just /router.
-    home = client.get("/")
-    assert "Nightly CT" in home.text
+    # The Dicom Router tab's own sidebar lists rules on every page under
+    # that tab, not just /router itself.
+    run_page = client.get(f"/router/{rule.id}/runs")
+    assert "Nightly CT" in run_page.text
 
     details = client.get(f"/router/{rule.id}/runs")
     assert details.status_code == 200

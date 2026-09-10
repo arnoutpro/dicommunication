@@ -1,10 +1,10 @@
 {% extends "base.html" %}
-{% block title %}{{ product_name }}{% endblock %}
+{% block title %}{{ tool.name }} · {{ product_name }}{% endblock %}
 {% block body_class %} page-find{% endblock %}
 {% block content %}
 <header class="page-head find-head">
   <div>
-    <h1>{{ product_name }}</h1>
+    <h1>{{ tool.name }}</h1>
   </div>
 </header>
 
