@@ -213,3 +213,26 @@ app_router = BUNDLE(
         "LSEnvironment": {"DICOMM_PROFILE": "dicom-router"},
     },
 )
+
+# A fifth self-contained bundle, same reasoning as Dicomtag Analytics.app
+# above: shares `coll`, sets its own LSEnvironment profile, independently
+# draggable/movable/deletable.
+app_cleaner = BUNDLE(
+    coll,
+    name="Dicom Cleaner.app",
+    icon=ICON,
+    bundle_identifier="pro.arnout.dicommunication.dicom-cleaner",
+    info_plist={
+        "CFBundleName": "Dicom Cleaner",
+        "CFBundleDisplayName": "Dicom Cleaner",
+        "CFBundleGetInfoString": "Arnout.pro Dicom Cleaner (query, retrieve, redact, send back)",
+        "CFBundleIdentifier": "pro.arnout.dicommunication.dicom-cleaner",
+        "CFBundleShortVersionString": VERSION,
+        "CFBundleVersion": VERSION,
+        "NSHighResolutionCapable": True,
+        "NSPrincipalClass": "NSApplication",
+        "NSSupportsAutomaticGraphicsSwitching": True,
+        "NSAppTransportSecurity": {"NSAllowsLocalNetworking": True},
+        "LSEnvironment": {"DICOMM_PROFILE": "dicom-cleaner"},
+    },
+)

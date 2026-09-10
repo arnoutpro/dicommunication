@@ -8,7 +8,7 @@ A low-code DICOM communication validator and PACS admin toolkit.
 
 Configure this workstation as a DICOM Application Entity, register remote nodes (PACS, Orthanc, RIS/MWL, modalities), impersonate extra calling AE Titles, and run the checks a connectivity ticket actually needs: network PING, C-ECHO, simulated C-STORE, PDF to Encapsulated PDF Storage, Study Root C-FIND (including Study / Series / Image), Modality Worklist C-FIND, and HL7 v2 send over MLLP.
 
-The Windows MSI installs **four Start-menu tools** that share this config: **Dicommunication** (network / DIMSE / HL7 workstation), **Dicomtag Analytics** (Study Root C-FIND, including Vue ELSCINT1 keys, plus listing and retrieving DICOM Structured Reports), **Dicom Anonymizer** (query, retrieve, and anonymize studies/series/images — see below), and **Dicom Router** (scheduled C-FIND rules with optional retrieve/forward — see below).
+The Windows MSI installs **five Start-menu tools** that share this config: **Dicommunication** (network / DIMSE / HL7 workstation), **Dicomtag Analytics** (Study Root C-FIND, including Vue ELSCINT1 keys, plus listing and retrieving DICOM Structured Reports), **Dicom Anonymizer** (query, retrieve, and anonymize studies/series/images — see below), **Dicom Router** (scheduled C-FIND rules with optional retrieve/forward — see below), and **Dicom Cleaner** (query, retrieve, redact a rectangle of burned-in pixel data, and send the result back over C-STORE — see below).
 
 The web UI is FastAPI + HTMX. DICOM uses pynetdicom/pydicom. New test tools are Python plugins: drop a file in `app/tools/` and it appears in the Dicommunication sidebar. The sidebar **About** button shows the running version; **Help** is the in-app administrator guide.
 
@@ -83,6 +83,7 @@ A successful C-ECHO only proves Verification. Orthanc (or any PACS) can accept C
 | Dicomtag Analytics | C-FIND, optional C-MOVE | Study Root Query/Retrieve FIND (and MOVE for SR) | Own Start-menu tool (`/vue/`). Same SOP Class at Study, Series, or Image plus optional Vue ELSCINT1 keys. Hierarchical: Series needs Study Instance UID; Image needs Study and Series Instance UID. **List SR reports** is Series C-FIND with modality `SR` for every study in the table. **Retrieve report text** C-MOVEs each listed SR on its own association and parses the Content Sequence. Results copy / CSV / JSON. |
 | MWL C-FIND / Worklist | C-FIND | Modality Worklist `1.2.840.10008.5.1.4.31` | Search *scheduled procedures*, not the archive. |
 | Dicom Router | C-FIND, optional C-MOVE + C-STORE | Study Root Query/Retrieve FIND (MOVE/STORE for retrieve-and-forward) | Own Start-menu tool (`/dicom-router/`), and its rules also run inside the main Dicommunication window. Same FIND as Dicomtag Analytics, but scheduled/automatic instead of manual, with an optional automatic retrieve-and-forward to one or more destination nodes. |
+| Dicom Cleaner | C-FIND, C-MOVE, C-STORE | Study Root Query/Retrieve FIND/MOVE, then Storage back out | Own Start-menu tool (`/cleaner/`). Study-level C-FIND, C-MOVE retrieve, blacks out one operator-configured rectangle of pixel data on every retrieved instance (PyDicom + numpy), then C-STOREs the cleaned instances back to a PACS. |
 
 **MWL C-FIND and the Worklist page are the same SOP Class.** Study Root C-FIND is not. Orthanc without the worklist plugin typically accepts Verification, Storage, and Q/R, then rejects MWL. The Testbench and Worklist results show accepted vs rejected presentation contexts so that is visible.
 
@@ -194,7 +195,7 @@ dotnet nuget install dicommunication.msi --version 0.3.0 --source github-arnoutp
 
 The already-cut `v0.2.0` MSI can be wrapped without rebuilding: **Actions → Windows MSI → Run workflow** and set `nuget_from_release` to `v0.2.0`.
 
-The setup wizard shows a feature tree: **Dicommunication**, **Dicomtag Analytics**, **Dicom Anonymizer**, and **Dicom Router** are separately checkable (all on by default), each with an off-by-default **Desktop shortcut** sub-feature alongside the Start Menu one they always get. Unchecking one app only skips its own shortcut — the underlying program files are shared, since all four are the same `dicommunication.exe` under a different `--profile`.
+The setup wizard shows a feature tree: **Dicommunication**, **Dicomtag Analytics**, **Dicom Anonymizer**, **Dicom Router**, and **Dicom Cleaner** are separately checkable (all on by default), each with an off-by-default **Desktop shortcut** sub-feature alongside the Start Menu one they always get. Unchecking one app only skips its own shortcut — the underlying program files are shared, since all five are the same `dicommunication.exe` under a different `--profile`.
 
 Install the MSI, start **Dicommunication** or **Dicomtag Analytics** from the Start menu (or the Desktop, if that shortcut was selected). Each UI opens in its own window (Edge WebView2 — not a browser tab). Close that window to stop the server if this shortcut started it. Config lives in `%LOCALAPPDATA%\dicommunication` and survives upgrades; both tools share it. Windows 10/11 already have WebView2; if it is missing the app falls back to the default browser. Uninstalling asks, once, whether to also delete that folder — it can hold patient data from past runs (see [`SECURITY.md`](SECURITY.md#patient-data-on-disk)); answering No (the default) leaves it in place, same as before.
 
@@ -202,7 +203,7 @@ Unsigned builds trigger SmartScreen until a code-signing certificate is used. If
 
 ## macOS DMG
 
-Same idea as the MSI: the browser does **not** need Python. The DMG freezes a private runtime into four independent, self-contained app bundles — `Dicommunication.app`, `Dicomtag Analytics.app`, `Dicom Anonymizer.app`, and `Dicom Router.app` — so any of them can be dragged out on its own. You should not install Python yourself on a locked-down PACS Mac. Docker does the same thing inside the image.
+Same idea as the MSI: the browser does **not** need Python. The DMG freezes a private runtime into five independent, self-contained app bundles — `Dicommunication.app`, `Dicomtag Analytics.app`, `Dicom Anonymizer.app`, `Dicom Router.app`, and `Dicom Cleaner.app` — so any of them can be dragged out on its own. You should not install Python yourself on a locked-down PACS Mac. Docker does the same thing inside the image.
 
 **Those components cannot be installed from this app’s webpage.** The UI is served *by* the Python process, so the page only exists after the backend is already running. Ship the DMG through IT (or a USB stick), not through a button on localhost.
 
@@ -210,7 +211,7 @@ CI builds `dicommunication-<version>-macos-arm64.dmg` on `macos-latest` (workflo
 
 The already-cut `v0.2.0` release can get a DMG without a new version tag: **Actions → macOS DMG → Run workflow** and set `release_tag` to `v0.2.0`.
 
-Open the DMG, drag whichever app(s) you want to Applications (or straight to the Desktop for a shortcut) — **Dicommunication**, **Dicomtag Analytics**, **Dicom Anonymizer**, **Dicom Router**, or any combination, independently. Right-click and choose **Open** the first time (unsigned builds trip Gatekeeper). The Dock icon is the arnout.pro brand mark. Each UI opens in its own window (not a Safari tab). They share one background server, so opening another while the first is already running just adds a window. Close a window or quit from the Dock to stop the server. Config lives in `~/.dicommunication` and survives upgrades.
+Open the DMG, drag whichever app(s) you want to Applications (or straight to the Desktop for a shortcut) — **Dicommunication**, **Dicomtag Analytics**, **Dicom Anonymizer**, **Dicom Router**, **Dicom Cleaner**, or any combination, independently. Right-click and choose **Open** the first time (unsigned builds trip Gatekeeper). The Dock icon is the arnout.pro brand mark. Each UI opens in its own window (not a Safari tab). They share one background server, so opening another while the first is already running just adds a window. Close a window or quit from the Dock to stop the server. Config lives in `~/.dicommunication` and survives upgrades.
 
 Apple Silicon only for now. Intel Macs keep using Docker Compose. If a modality must C-FIND this workstation, allow incoming TCP for **Dicommunication** (listen port 11112). Details: [`packaging/macos/README.md`](packaging/macos/README.md).
 
@@ -372,6 +373,16 @@ Each rule can be **Started**, **Paused**, or **Stopped** independently of its ow
 - **Run now** executes a rule immediately without touching its status or schedule at all — useful for testing a paused or stopped rule.
 
 Manual runs (**Run now**, and the run **Start** triggers) execute in a background thread rather than blocking the browser request, which is what makes Pause/Stop clickable while a batch is still going and lets the sidebar show a live "Running" dot. Each rule's own page shows a run history with every match and its status (found / retrieved / forwarded / failed, with the error if any) and whether the run itself completed or was interrupted.
+
+### Dicom Cleaner (`/cleaner/`)
+
+A fifth product, `python -m app --profile dicom-cleaner` — own Start Menu / Desktop shortcut in the Windows MSI and its own `Dicom Cleaner.app` bundle in the macOS DMG, same as Dicomtag Analytics. Study-level C-FIND on Patient ID / Accession Number / Study Date (required) / Modality, same fields and rules as Dicomtag Analytics and Dicom Anonymizer. Pick studies from the result table and a level — **Study**, **Series**, or **Image** C-MOVEs the matching instances to this workstation's local Storage SCP.
+
+Each retrieved instance's pixel data (PyDicom + numpy) has one operator-configured rectangle — **X**, **Y**, **Width**, **Height** in pixels, top-left origin, width/height `0` meaning "to the edge" — blacked out to zero, for redacting burned-in patient info or device overlays that live in the image itself rather than in DICOM tags. It works from the pixel geometry the dataset's own tags describe (`NumberOfFrames`, `SamplesPerPixel`), not the array shape alone, so a multi-frame grayscale cine and a single-frame color image are never confused with each other. Compressed Transfer Syntaxes (JPEG Baseline/Lossless, RLE, …) are decompressed first; that needs `pylibjpeg` or `gdcm` installed, same as any other pydicom `pixel_array` read of those syntaxes. Burned-In Annotation (0028,0301) is set to `NO` on every cleaned instance. Dicom Cleaner only touches pixel data and that one tag — it does not scrub PatientName/PatientID/other tags the way Dicom Anonymizer's modes do; combine the two tools if a study needs both.
+
+The cleaned instances are then C-STOREd back out, by default to the same PACS the study was retrieved from — override this with the **Send to** destination picker if it should go somewhere else instead. **Send back as** chooses between a fresh SOP Instance UID (default; the cleaned image lands as a new object next to the original, which stays untouched on the PACS) or the original SOP Instance UID (the PACS is expected to overwrite the existing instance — only do this against a PACS that actually replaces on a duplicate SOP Instance UID C-STORE, rather than rejecting or duplicating it).
+
+This window has Query, Configured nodes, Logs, About, and Help only.
 
 ### PDF to DICOM (`/tools/pdf-store`)
 

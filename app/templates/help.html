@@ -40,6 +40,7 @@
     <li><a href="#tag-editor">Tag Editor</a></li>
     <li><a href="#anonymize">Dicom Anonymizer</a></li>
     <li><a href="#dicom-router">Dicom Router</a></li>
+    <li><a href="#dicom-cleaner">Dicom Cleaner</a></li>
     <li><a href="#reading-results">Reading accepted vs rejected SOP Classes</a></li>
     <li><a href="#data">Where data is stored</a></li>
     <li><a href="#json-api">JSON API</a></li>
@@ -132,6 +133,12 @@
           <td>C-FIND, optional C-MOVE + C-STORE</td>
           <td>Study Root Query/Retrieve FIND (MOVE/STORE for retrieve-and-forward)</td>
           <td>Own Start-menu tool from this installer, and also built into the Dicommunication sidebar. Same FIND as Dicomtag Analytics, but scheduled/automatic instead of manual, with an optional automatic retrieve-and-forward to one or more destination nodes.</td>
+        </tr>
+        <tr>
+          <td><strong>Dicom Cleaner</strong></td>
+          <td>C-FIND, C-MOVE, C-STORE</td>
+          <td>Study Root Query/Retrieve FIND/MOVE, then Storage back out</td>
+          <td>Own Start-menu tool from this installer. Study-level C-FIND, C-MOVE retrieve, blacks out one operator-configured rectangle of pixel data on every retrieved instance, then C-STOREs the cleaned instances back to a PACS. Not in the Dicommunication sidebar.</td>
         </tr>
       </tbody>
     </table>
@@ -549,6 +556,22 @@
     <li><strong>Run now</strong> executes a rule immediately without touching its status or schedule — useful for testing a paused or stopped rule.</li>
   </ul>
   <p>Manual runs (Run now, and the run Start triggers) execute in a background thread instead of blocking the browser request, which is what makes Pause/Stop clickable while a batch is still going and lets the sidebar show a live "Running" dot. Each rule's own page shows a run history with every match and its status (found / retrieved / forwarded / failed, with the error if any) and whether the run itself completed or was interrupted.</p>
+</section>
+
+<section class="panel help-section" id="dicom-cleaner">
+  <header class="panel-head">
+    <h2>Dicom Cleaner</h2>
+  </header>
+  <p>This installer ships a fifth tool, <strong>Dicom Cleaner</strong>, that is not in the Test tools list. Open it from the Start menu (Windows), or at <code>http://127.0.0.1:8080/cleaner/</code> — <code>--profile dicom-cleaner</code> opens it directly. It shares this workstation's calling AE and remote nodes.</p>
+  <ul>
+    <li><strong>Query</strong> is a Study-level C-FIND on Patient ID, Accession Number, Study Date (required), and Modality — the same fields and rules as Dicomtag Analytics and Dicom Anonymizer. The result is a checkbox table; check the studies you want to clean.</li>
+    <li><strong>Level</strong> chooses the granularity, same as Dicom Anonymizer: Study, Series, or Image.</li>
+    <li><strong>Redact region</strong> is one rectangle — <strong>X</strong>, <strong>Y</strong>, <strong>Width</strong>, <strong>Height</strong> in pixels, top-left origin — blacked out to zero on every retrieved instance's pixel data. Width or Height of <code>0</code> means "to the edge" in that direction. It uses each dataset's own tags (number of frames, samples per pixel) to redact the right axes, so single-frame color and multi-frame grayscale images are never confused. Compressed Transfer Syntaxes need <code>pylibjpeg</code> or <code>gdcm</code> installed to decode, same as any other pydicom pixel read. Burned-In Annotation <code>(0028,0301)</code> is set to <code>NO</code> on every cleaned instance.</li>
+    <li>Dicom Cleaner only touches pixel data and Burned-In Annotation — it does not scrub PatientName, PatientID, or any other tag the way Dicom Anonymizer's modes do. Run both tools on a study that needs both kinds of cleanup.</li>
+    <li><strong>Send back as</strong> chooses the SOP Instance UID strategy for the C-STORE back to PACS: <strong>New UID</strong> (default) sends the cleaned image as a new object, leaving the original untouched on the PACS; <strong>Same UID</strong> reuses the original SOP Instance UID, which only replaces the stored instance if the destination PACS actually overwrites on a duplicate — check that behavior before relying on it.</li>
+    <li><strong>Send to</strong> defaults to the same node the study was retrieved from; pick a different configured remote node to send the cleaned instances somewhere else instead.</li>
+    <li>Retrieve needs Accept C-STORE on and this AE listed as a C-MOVE destination, same as Dicomtag Analytics and Dicom Anonymizer retrieve.</li>
+  </ul>
 </section>
 
 <section class="panel help-section" id="reading-results">

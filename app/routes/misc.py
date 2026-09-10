@@ -9,9 +9,10 @@ from app import __version__
 from app.echo_board import snapshot as echo_board_snapshot
 from app.routes._shared import page, templates
 from app.routes.anonymize import _anonymize_page
+from app.routes.cleaner import _cleaner_page
 from app.routes.route_rules import _router_view
 from app.routes.tools import _c_find_advanced_page
-from app.shell import SHELL_ANONYMIZE, SHELL_DICOMM, SHELL_ROUTER, SHELL_VUE
+from app.shell import SHELL_ANONYMIZE, SHELL_CLEANER, SHELL_DICOMM, SHELL_ROUTER, SHELL_VUE
 
 router = APIRouter()
 
@@ -30,6 +31,8 @@ def dashboard(request: Request) -> HTMLResponse:
         return _anonymize_page(request, nav="home")
     if shell == SHELL_ROUTER:
         return _router_view(request, nav="home")
+    if shell == SHELL_CLEANER:
+        return _cleaner_page(request, nav="home")
     return templates.TemplateResponse(
         request,
         "index.html",
