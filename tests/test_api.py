@@ -127,7 +127,7 @@ def test_shared_layout_is_dense() -> None:
     assert "h1 { margin: 0 0 0.1rem; font-size: var(--text-base);" in css
     assert "gap: 0.5rem 0.75rem;" in css
     assert ".nav-fold-check:not(:checked) ~ .nav-children {\n  display: none;\n}" in css
-    assert ".doc-actions {\n  display: flex;\n  flex-direction: row;" in css
+    assert ".topbar-actions {\n  display: flex;\n  align-items: center;" in css
 
 
 def test_save_local_ae_and_remote_via_forms(client) -> None:

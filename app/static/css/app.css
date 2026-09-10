@@ -103,6 +103,20 @@ h1, h2, h3, h4 {
   border-bottom: 1px solid var(--line);
   z-index: 2;
 }
+.topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.topbar-actions .button {
+  padding: 0.45rem 0.7rem;
+  font-size: var(--text-sm);
+}
+.topbar-actions .button.is-active {
+  color: var(--nav-active);
+  background: var(--accent-dim);
+  border-color: color-mix(in srgb, var(--accent) 45%, transparent);
+}
 
 .tab-row {
   grid-column: 1 / -1;
@@ -400,26 +414,6 @@ nav > .nav-branch { margin-top: 0.35rem; }
   color: var(--muted);
   font-size: var(--text-sm);
   margin-top: 1rem;
-}
-.doc-actions {
-  display: flex;
-  flex-direction: row;
-  align-items: stretch;
-  gap: 0.35rem;
-  margin-bottom: 0.35rem;
-}
-.doc-actions .button {
-  flex: 1;
-  width: auto;
-  min-width: 0;
-  padding: 0.28rem 0.4rem;
-  font-size: var(--text-xs);
-  letter-spacing: 0.04em;
-}
-.doc-actions .button.is-active {
-  color: var(--nav-active);
-  background: var(--accent-dim);
-  border-color: color-mix(in srgb, var(--accent) 45%, transparent);
 }
 .ae-chip {
   display: inline-block;
@@ -1202,7 +1196,11 @@ label.checkbox input { width: auto; accent-color: var(--accent); }
   .logs-settings .form-actions { grid-column: 1 / -1; }
   .logs-view-head { flex-wrap: wrap; }
   .main { padding: 1.2rem; }
-  h1 { font-size: 1.5rem; }
+}
+
+@media (max-width: 480px) {
+  .topbar { flex-wrap: wrap; row-gap: 0.4rem; }
+  .topbar-actions { flex-wrap: wrap; justify-content: flex-end; }
 }
 
 .hidden { display: none !important; }
@@ -1383,7 +1381,7 @@ html.light-mode .nav-twist:hover {
   background: rgba(15, 23, 42, 0.05);
 }
 html.light-mode nav a.active,
-html.light-mode .doc-actions .button.is-active {
+html.light-mode .topbar-actions .button.is-active {
   color: #d97706;
   background: rgba(245, 158, 11, 0.12);
   border-color: rgba(245, 158, 11, 0.25);

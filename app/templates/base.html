@@ -43,7 +43,10 @@
           <small>{{ product_name }}</small>
         </span>
       </a>
-      <div class="theme-menu-root" id="theme-menu">
+      <div class="topbar-actions">
+        <a href="{{ href('/about') }}" class="button{% if nav == 'about' %} is-active{% endif %}">About</a>
+        <a href="{{ href('/help') }}" class="button{% if nav == 'help' %} is-active{% endif %}">Help</a>
+        <div class="theme-menu-root" id="theme-menu">
         <button
           type="button"
           id="theme-toggle"
@@ -101,6 +104,7 @@
               <span>Professional dark</span>
             </button>
           </div>
+        </div>
         </div>
       </div>
     </header>
@@ -166,10 +170,6 @@
         {% endif %}
       </nav>
       <div class="sidebar-foot">
-        <div class="doc-actions">
-          <a href="{{ href('/about') }}" class="button{% if nav == 'about' %} is-active{% endif %}">About</a>
-          <a href="{{ href('/help') }}" class="button{% if nav == 'help' %} is-active{% endif %}">Help</a>
-        </div>
         <code class="ae-chip" title="Local AE Title">{{ config.local.ae_title }}</code>
         <span>Calling AE · listen {{ config.local.port }}{% if config.identities %} · {{ config.identities | length }} virtual{% endif %}</span>
         <span class="muted">v{{ app_version }}</span>
