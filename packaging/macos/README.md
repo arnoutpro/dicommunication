@@ -1,17 +1,15 @@
 # macOS DMG
 
-Hospital Macs often cannot run Docker. This folder freezes the FastAPI app with PyInstaller into four self-contained app bundles — `Dicommunication.app`, `Dicomtag Analytics.app`, `Dicom Anonymizer.app`, and `Dicom Router.app`, all built from the same `coll` in `dicommunication.spec` — and wraps them in a drag-to-Applications DMG.
+Hospital Macs often cannot run Docker. This folder freezes the FastAPI app with PyInstaller into a single self-contained `Dicommunication.app` bundle and wraps it in a drag-to-Applications DMG. Dicomtag Analytics, Dicom Anonymizer, Dicom Router, and Dicom Cleaner are reachable from this one app's own navigation, not separate bundles.
 
-They are not a thin wrapper quartet: each is a full independent copy of the frozen runtime, so any of them can be dragged out, moved, or deleted on its own. Dicomtag Analytics, Dicom Anonymizer, and Dicom Router each set their own `LSEnvironment: DICOMM_PROFILE=...` in their `Info.plist` so a plain Finder double-click opens the right profile — `app/launcher.py`'s `--profile` flag already falls back to that env var. All four share one background server once any is running (see `main()`'s "Already running" path), so opening another while the first is up just adds a window.
-
-The DMG **bundles a private Python runtime**. The UI opens in the app’s own window. They do not install Python from python.org.
+The DMG **bundles a private Python runtime**. The UI opens in the app’s own window. It does not install Python from python.org.
 
 The installer cannot live *inside* this app’s webpage. That page is served by the already-running Python server. Ship the DMG through IT (or a USB stick), not through a button on localhost.
 
 ## What the user does
 
 1. Open `dicommunication-<version>-macos-arm64.dmg`.
-2. Drag whichever app(s) they want onto **Applications** — or straight onto the Desktop for a quick-launch icon. Each is independent, so dragging only one is fine.
+2. Drag `Dicommunication.app` onto **Applications** — or straight onto the Desktop for a quick-launch icon.
 3. The first time, right-click the app and choose **Open** (unsigned builds trip Gatekeeper). The Dock icon is the arnout.pro brand mark, not PyInstaller’s floppy disk.
 4. The UI opens in its own window (not a Safari tab). If the Dock icon is live but no window appears, quit from the Dock and check `~/.dicommunication/launch.log`. Rebuild the DMG without PyInstaller argv emulation.
 5. Close the window or quit from the Dock to stop the server.

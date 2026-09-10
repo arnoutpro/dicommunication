@@ -33,7 +33,7 @@ from app.mwl_scp import STORAGE_INBOX
 from app.tools.base import BaseTool, elapsed_ms
 from app.tools.find_advanced import retrieve_storage_gate_message
 from app.tools.find_keys import build_identifier, normalize_da, record_from_dataset
-from app.tools.redact_engine import RedactionError, RedactRegion, parse_region, redact_pixels
+from app.tools.redact_engine import RedactionError, parse_region, redact_pixels
 from app.tools.registry import register
 
 PENDING = {0xFF00, 0xFF01}

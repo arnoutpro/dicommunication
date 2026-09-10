@@ -8,7 +8,6 @@ from contextlib import asynccontextmanager
 from time import perf_counter
 
 from fastapi import FastAPI, Request
-from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
 from app import __version__
@@ -17,29 +16,6 @@ from app.mwl_scp import WorklistSCP
 from app.paths import package_dir
 from app.router_scheduler import RouterScheduler
 from app.routes import anonymize, api, cleaner, config, echo_board, logs, misc, route_rules, testbench, tools, worklist
-from app.shell import (
-    ANONYMIZE_PREFIX,
-    CLEANER_PREFIX,
-    ROUTER_PREFIX,
-    SHELL_ANONYMIZE,
-    SHELL_CLEANER,
-    SHELL_DICOMM,
-    SHELL_ROUTER,
-    SHELL_VUE,
-    anonymize_path_allowed,
-    cleaner_path_allowed,
-    is_anonymize_public_path,
-    is_cleaner_public_path,
-    is_router_public_path,
-    is_vue_public_path,
-    prefix_redirect_location,
-    router_path_allowed,
-    strip_anonymize_prefix,
-    strip_cleaner_prefix,
-    strip_router_prefix,
-    strip_vue_prefix,
-    vue_path_allowed,
-)
 from app.store import ConfigStore
 
 BASE_DIR = package_dir()
@@ -117,64 +93,6 @@ def create_app(store: ConfigStore | None = None) -> FastAPI:
     static_dir = BASE_DIR / "static"
     if static_dir.exists():
         app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
-
-    @app.middleware("http")
-    async def shell_middleware(request: Request, call_next):
-        original = request.scope.get("path") or "/"
-        if is_vue_public_path(original):
-            request.state.shell = SHELL_VUE
-            new_path = strip_vue_prefix(original)
-            request.scope["path"] = new_path
-            request.scope["raw_path"] = new_path.encode("utf-8")
-            if not vue_path_allowed(new_path):
-                response = RedirectResponse("/", status_code=303)
-            else:
-                response = await call_next(request)
-            location = response.headers.get("location")
-            if location:
-                response.headers["location"] = prefix_redirect_location(location)
-            return response
-        if is_anonymize_public_path(original):
-            request.state.shell = SHELL_ANONYMIZE
-            new_path = strip_anonymize_prefix(original)
-            request.scope["path"] = new_path
-            request.scope["raw_path"] = new_path.encode("utf-8")
-            if not anonymize_path_allowed(new_path):
-                response = RedirectResponse("/", status_code=303)
-            else:
-                response = await call_next(request)
-            location = response.headers.get("location")
-            if location:
-                response.headers["location"] = prefix_redirect_location(location, prefix=ANONYMIZE_PREFIX)
-            return response
-        if is_router_public_path(original):
-            request.state.shell = SHELL_ROUTER
-            new_path = strip_router_prefix(original)
-            request.scope["path"] = new_path
-            request.scope["raw_path"] = new_path.encode("utf-8")
-            if not router_path_allowed(new_path):
-                response = RedirectResponse("/", status_code=303)
-            else:
-                response = await call_next(request)
-            location = response.headers.get("location")
-            if location:
-                response.headers["location"] = prefix_redirect_location(location, prefix=ROUTER_PREFIX)
-            return response
-        if is_cleaner_public_path(original):
-            request.state.shell = SHELL_CLEANER
-            new_path = strip_cleaner_prefix(original)
-            request.scope["path"] = new_path
-            request.scope["raw_path"] = new_path.encode("utf-8")
-            if not cleaner_path_allowed(new_path):
-                response = RedirectResponse("/", status_code=303)
-            else:
-                response = await call_next(request)
-            location = response.headers.get("location")
-            if location:
-                response.headers["location"] = prefix_redirect_location(location, prefix=CLEANER_PREFIX)
-            return response
-        request.state.shell = SHELL_DICOMM
-        return await call_next(request)
 
     @app.middleware("http")
     async def log_requests(request: Request, call_next):

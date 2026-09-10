@@ -33,8 +33,8 @@ def test_health_and_pages(client) -> None:
     assert b"Connectivity" in home.content
     assert b"<details" not in home.content
     assert b"C-FIND Advanced" not in home.content
-    assert b"Dicomtag Analytics" not in home.content
-    assert b'href="/tools/c-find-advanced"' not in home.content
+    assert b"Dicomtag Analytics" in home.content
+    assert b'href="/tools/c-find-advanced"' in home.content
     assert b"C-ECHO all nodes" not in home.content
     assert b"Open worklist" not in home.content
     assert b"Open configuration" not in home.content
@@ -107,16 +107,13 @@ def test_health_and_pages(client) -> None:
     assert b'class="req"' in pdf_store.content
     assert b"Generate Patient Name" in pdf_store.content
     advanced = client.get("/tools/c-find-advanced", follow_redirects=False)
-    assert advanced.status_code == 303
-    assert advanced.headers["location"] == "/vue/"
-    vue_home = client.get("/vue/")
-    assert vue_home.status_code == 200
-    assert b"Dicomtag Analytics" in vue_home.content
-    assert b"find-workspace" in vue_home.content
-    assert b"No remote node configured" in vue_home.content
-    assert b"Test tools" not in vue_home.content
-    assert b"HL7 send" not in vue_home.content
-    assert b'data-nav-id="test-tools"' not in vue_home.content
+    assert advanced.status_code == 200
+    assert b"Dicomtag Analytics" in advanced.content
+    assert b"find-workspace" in advanced.content
+    assert b"No remote node configured" in advanced.content
+    assert b"Test tools" in advanced.content
+    assert b"HL7 send" in advanced.content
+    assert b'data-nav-id="test-tools"' in advanced.content
     assert b"Unique patient per PDF" in pdf_store.content
     assert b'nav-branch is-open" data-nav-id="test-tools"' in pdf_store.content
     assert b'id="nav-fold-test-tools" checked' in pdf_store.content

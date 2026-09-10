@@ -16,20 +16,6 @@ from pynetdicom.sop_class import (
 
 from app.main import create_app
 from app.models import LocalAE, RemoteNode
-from app.shell import (
-    ANONYMIZE_PREFIX,
-    PROFILE_ANONYMIZER,
-    PRODUCT_NAMES,
-    SHELL_ANONYMIZE,
-    anonymize_path_allowed,
-    is_anonymize_public_path,
-    is_anonymizer_profile,
-    profile_start_path,
-    profile_window_title,
-    public_href,
-    tools_exclude,
-    tools_for_shell,
-)
 from app.store import ConfigStore
 from app.tools.anon_engine import AnonBatch
 
@@ -69,55 +55,19 @@ def _make_instance(study_uid: str, series_uid: str, sop_uid: str) -> Dataset:
 
 
 # ---------------------------------------------------------------------------
-# Shell
+# Now reached at its plain path, alongside every other tool in the same
+# window's navigation — see tests/test_single_app.py for the merged-app
+# behavior shared with Dicomtag Analytics/Dicom Cleaner/Dicom Router.
 # ---------------------------------------------------------------------------
 
 
-def test_anonymize_shell_constants() -> None:
-    assert PRODUCT_NAMES[SHELL_ANONYMIZE] == "Dicom Anonymizer"
-    assert is_anonymizer_profile(PROFILE_ANONYMIZER)
-    assert not is_anonymizer_profile("dicommunication")
-    assert profile_start_path(PROFILE_ANONYMIZER) == "/anonymize/"
-    assert profile_window_title(PROFILE_ANONYMIZER) == "Dicom Anonymizer"
-
-
-def test_anonymize_path_helpers() -> None:
-    assert is_anonymize_public_path("/anonymize")
-    assert is_anonymize_public_path("/anonymize/config/remotes")
-    assert not is_anonymize_public_path("/vue")
-    assert public_href("/", shell=SHELL_ANONYMIZE) == "/anonymize/"
-    assert public_href("/config/remotes", shell=SHELL_ANONYMIZE) == "/anonymize/config/remotes"
-    assert public_href("/static/css/app.css", shell=SHELL_ANONYMIZE) == "/static/css/app.css"
-    assert anonymize_path_allowed("/")
-    assert anonymize_path_allowed("/tools/anonymize/run")
-    assert anonymize_path_allowed("/help")
-    assert not anonymize_path_allowed("/testbench")
-    assert not anonymize_path_allowed("/tools/c-echo")
-
-
-def test_anonymize_tool_hidden_from_other_shells() -> None:
-    from app.shell import SHELL_DICOMM, SHELL_VUE
-
-    assert "anonymize" not in tools_exclude(SHELL_ANONYMIZE)
-    assert "anonymize" in tools_exclude(SHELL_DICOMM)
-    assert "anonymize" in tools_exclude(SHELL_VUE)
-    ids = {tool.id for tool in tools_for_shell(SHELL_ANONYMIZE)}
-    assert ids == {"anonymize"}
-
-
-def test_anonymize_shell_sidebar_has_no_test_tools(client) -> None:
-    """The sidebar's Test tools branch (Testbench, C-ECHO board, Worklist, the
-    full tool list) is for the main Dicommunication shell only — a single-tool
-    shell like Dicom Anonymizer gets the slim sidebar (its own page, Configured
-    nodes, Logs), same as Dicomtag Analytics already did.
-    """
-    response = client.get("/anonymize/")
+def test_anonymize_sidebar_shows_full_nav(client) -> None:
+    response = client.get("/tools/anonymize")
     assert response.status_code == 200
     body = response.text
-    assert "Testbench" not in body
-    assert "C-ECHO board" not in body
-    assert "Worklist" not in body
-    assert "Configured nodes" in body
+    assert "Testbench" in body
+    assert "C-ECHO board" in body
+    assert "Worklist" in body
     assert "Dicom Anonymizer" in body
 
 
@@ -251,7 +201,7 @@ def test_anonymize_query_then_run_end_to_end(tmp_path) -> None:
     try:
         with TestClient(app) as client:
             query = client.post(
-                f"{ANONYMIZE_PREFIX}/tools/anonymize/run",
+                "/tools/anonymize/run",
                 data={"action": "query", "remote_id": remote.id, "study_date": "2026-01-01"},
             )
             assert query.status_code == 200
@@ -260,7 +210,7 @@ def test_anonymize_query_then_run_end_to_end(tmp_path) -> None:
 
             out_dir = tmp_path / "anon_out"
             run = client.post(
-                f"{ANONYMIZE_PREFIX}/tools/anonymize/run",
+                "/tools/anonymize/run",
                 data={
                     "action": "run",
                     "remote_id": remote.id,
@@ -304,7 +254,7 @@ def test_anonymize_zip_archive_contains_the_output(tmp_path) -> None:
         with TestClient(app) as client:
             out_dir = tmp_path / "anon_out_zip"
             run = client.post(
-                f"{ANONYMIZE_PREFIX}/tools/anonymize/run",
+                "/tools/anonymize/run",
                 data={
                     "action": "run",
                     "remote_id": remote.id,
