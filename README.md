@@ -10,13 +10,13 @@ Configure this workstation as a DICOM Application Entity, register remote nodes 
 
 Dicommunication is **one application**, with a top tab row for each product and a shared **Configuration** tab: **Dicommunication** (the network/DIMSE/HL7 workstation tools), **Dicomtag Analytics** (Study Root C-FIND, including Vue ELSCINT1 keys, plus listing and retrieving DICOM Structured Reports), **Dicom Anonymizer** (query, retrieve, and anonymize studies/series/images — see below), **Dicom Router** (scheduled C-FIND rules with optional retrieve/forward — see below), and **Dicom Cleaner** (query, retrieve, redact a rectangle of burned-in pixel data, and send the result back over C-STORE — see below). Each tab's content area has its own left sidebar with that product's own pages. Local AE, virtual identities, remote nodes, and logs are configured once, under the Configuration tab, and shared by every product. The Windows MSI and macOS DMG each install a single shortcut / app.
 
-The web UI is FastAPI + HTMX. DICOM uses pynetdicom/pydicom. New test tools are Python plugins: drop a file in `app/tools/` and it appears in the Dicommunication sidebar. The sidebar **About** button shows the running version; **Help** is the in-app administrator guide.
+The web UI is FastAPI + HTMX. DICOM uses pynetdicom/pydicom. New test tools are Python plugins: drop a file in `app/tools/` and it appears in the Dicommunication sidebar. The top bar's **About** button shows the running version; **Help** is the in-app administrator guide.
 
 Open [http://127.0.0.1:8080](http://127.0.0.1:8080).
 
 ## Screenshots
 
-Synthetic lab studies (not clinical data). Light theme, v0.3.0.
+Synthetic lab studies (not clinical data). Light theme, v0.4.0. The theme switcher (top right) also has dark and professional-dark modes — same layout, same tab-color-into-page-background treatment, different accent.
 
 **Dicommunication** — workstation dashboard, remotes, Test tools.
 
