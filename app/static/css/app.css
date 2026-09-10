@@ -152,7 +152,7 @@ h1, h2, h3, h4 {
   color: var(--text);
   background: rgba(148, 163, 184, 0.16);
 }
-.tab-item.active {
+.tab-row .tab-item.active {
   color: var(--nav-active);
   background: var(--content-bg);
   border-color: var(--line);
