@@ -133,13 +133,7 @@ def main(argv: list[str] | None = None) -> int:
         "--profile",
         choices=PROFILES,
         default=os.environ.get("DICOMM_PROFILE", PROFILE_DICOMM),
-        help=(
-            "dicommunication is the workstation. dicomtag-analytics opens "
-            "Dicomtag Analytics (Study Root C-FIND). vue-analytics is the "
-            "previous name for that profile. dicom-anonymizer opens Dicom "
-            "Anonymizer. dicom-router opens Dicom Router (scheduled C-FIND, "
-            "retrieve/forward)."
-        ),
+        help=argparse.SUPPRESS,  # Accepted for old shortcuts/scripts; every profile opens the same window now.
     )
     parser.add_argument("--host", default=os.environ.get("DICOMM_HOST", DEFAULT_HOST))
     parser.add_argument(

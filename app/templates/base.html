@@ -28,7 +28,7 @@
   <link rel="stylesheet" href="/static/css/app.css">
   <script src="/static/vendor/htmx-2.0.4.min.js" defer></script>
 </head>
-<body class="{% block body_class %}{% endblock %}{% if shell == 'vue' %} shell-vue{% endif %}" data-product-name="{{ product_name }}">
+<body class="{% block body_class %}{% endblock %}" data-product-name="{{ product_name }}">
   <div class="shell">
     <header class="topbar">
       <a class="brand" href="{{ href('/') }}" title="© 2026 arnout.pro">
@@ -106,44 +106,6 @@
     </header>
     <aside class="sidebar">
       <nav>
-        {% if shell != 'dicommunication' %}
-        {% if shell == 'router' %}
-        <div class="nav-branch is-open" data-nav-id="router-rules">
-          <div class="nav-row">
-            <a href="{{ href('/') }}" class="{% if nav in ['home', 'router'] %}active{% endif %}">Route rules</a>
-          </div>
-          <div class="nav-children" id="nav-router-rules-kids">
-            {% for r in route_rules %}
-            <a href="{{ href('/router/' ~ r.id ~ '/runs') }}" class="nav-rule-link{% if rule is defined and rule.id == r.id %} active{% endif %}">
-              <span class="nav-rule-dot {% if r.id in running_route_rule_ids %}is-running{% elif r.status == 'active' %}is-active{% elif r.status == 'paused' %}is-paused{% else %}is-stopped{% endif %}" aria-hidden="true"></span>
-              <span class="name">{{ r.name }}</span>
-            </a>
-            {% endfor %}
-            {% if not route_rules %}
-            <span class="nav-empty muted small">No route rules yet</span>
-            {% endif %}
-          </div>
-        </div>
-        {% else %}
-        <a href="{{ href('/') }}" class="{% if nav == 'home' %}active{% endif %}">Query</a>
-        {% endif %}
-
-        {% set config_open = nav.startswith('config') %}
-        <div class="nav-branch{% if config_open %} is-open{% endif %}" data-nav-id="config">
-          <input type="checkbox" class="nav-fold-check" id="nav-fold-config"{% if config_open %} checked{% endif %} aria-controls="nav-config-kids">
-          <div class="nav-row">
-            <label class="nav-twist" for="nav-fold-config" aria-label="Configured nodes"></label>
-            <a href="{{ href('/config') }}" class="{% if nav == 'config' %}active{% endif %}">Configured nodes</a>
-          </div>
-          <div class="nav-children" id="nav-config-kids">
-            <a href="{{ href('/config/local') }}" class="{% if nav == 'config-local' %}active{% endif %}">Local DICOM AE</a>
-            <a href="{{ href('/config/identities') }}" class="{% if nav == 'config-identities' %}active{% endif %}">Virtual AEs</a>
-            <a href="{{ href('/config/remotes') }}" class="{% if nav == 'config-remotes' %}active{% endif %}">Remote nodes</a>
-          </div>
-        </div>
-
-        <a href="{{ href('/logs') }}" class="{% if nav == 'logs' %}active{% endif %}">Logs</a>
-        {% else %}
         <a href="{{ href('/') }}" class="{% if nav == 'home' %}active{% endif %}">Dashboard</a>
 
         {% set config_open = nav.startswith('config') %}
@@ -211,7 +173,6 @@
             {% endfor %}
           </div>
         </div>
-        {% endif %}
       </nav>
       <div class="sidebar-foot">
         <div class="doc-actions">

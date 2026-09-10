@@ -262,7 +262,7 @@ def test_c_find_advanced_page_and_api(client, store) -> None:
         time.sleep(0.05)
         remote = RemoteNode(name="pacs", ae_title="QR_SCP", host="127.0.0.1", port=port)
         store.add_remote(remote)
-        page = client.get("/vue/")
+        page = client.get("/tools/c-find-advanced")
         assert page.status_code == 200
         assert b"Dicomtag Analytics" in page.content
         assert b'data-find-advanced' in page.content
@@ -658,7 +658,7 @@ def test_retrieve_sr_form_links_local_ae(client, remote, store) -> None:
     identity = VirtualAE(name="MicroDicom", ae_title="MicroDicom")
     store.add_identity(identity)
     html = client.post(
-        "/vue/tools/c-find-advanced/run",
+        "/tools/c-find-advanced/run",
         data={
             "remote_id": remote.id,
             "identity_id": identity.id,
@@ -672,7 +672,7 @@ def test_retrieve_sr_form_links_local_ae(client, remote, store) -> None:
     assert b"DICOMM" in html.content
     assert b"MicroDicom" in html.content
     assert b"Open Local DICOM AE" in html.content
-    assert b'href="/vue/config/local"' in html.content
+    assert b'href="/config/local"' in html.content
 
 
 def test_retrieve_sr_parses_content_sequence(store) -> None:
@@ -1002,7 +1002,7 @@ def test_retrieve_sr_html_shows_findings_cards(client, store, app) -> None:
         remote = RemoteNode(name="pacs", ae_title="QR_SCP", host="127.0.0.1", port=move_port)
         store.add_remote(remote)
         html = client.post(
-            "/vue/tools/c-find-advanced/run",
+            "/tools/c-find-advanced/run",
             data={
                 "remote_id": remote.id,
                 "follow": "retrieve_sr",
@@ -1068,7 +1068,7 @@ def test_retrieve_sr_findings_and_impression_are_individually_selectable(client,
         remote = RemoteNode(name="pacs", ae_title="QR_SCP", host="127.0.0.1", port=move_port)
         store.add_remote(remote)
         html = client.post(
-            "/vue/tools/c-find-advanced/run",
+            "/tools/c-find-advanced/run",
             data={
                 "remote_id": remote.id,
                 "follow": "retrieve_sr",
