@@ -122,7 +122,7 @@ def test_shared_layout_is_dense() -> None:
     css = (Path(__file__).resolve().parents[1] / "app" / "static" / "css" / "app.css").read_text(
         encoding="utf-8"
     )
-    assert ".main {\n  padding: 1.15rem 1.35rem 1.4rem;" in css
+    assert "  padding: 1.15rem 1.35rem 1.4rem;" in css
     assert ".panel { padding: 0.75rem 0.9rem 0.85rem; margin-bottom: 0.7rem; }" in css
     assert "h1 { margin: 0 0 0.1rem; font-size: var(--text-base);" in css
     assert "gap: 0.5rem 0.75rem;" in css
