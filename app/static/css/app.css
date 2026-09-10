@@ -130,15 +130,21 @@ h1, h2, h3, h4 {
   gap: 0.3rem;
   padding: 0.5rem 0.9rem 0;
   background: var(--bg-elev);
-  border-bottom: 1px solid var(--line);
   overflow-x: auto;
   z-index: 2;
 }
+/* No row-level border-bottom: each tab draws its own complete outline
+   (below), so there is nothing separate for the active tab to line up
+   against and erase. A "erase the line under the active tab" trick built
+   on two different elements' borders landing on the same device pixel
+   proved fragile in practice — it depends on the rendering engine's
+   sub-pixel rounding (verified fine in Chromium, still visible in the
+   WKWebView the packaged macOS app actually uses) — so instead there is
+   simply no second line to begin with. */
 .tab-item {
   display: inline-flex;
   align-items: center;
   padding: 0.5rem 1.05rem;
-  margin-bottom: -1px;
   font-size: var(--text-sm);
   font-weight: 700;
   color: var(--muted);
@@ -146,36 +152,21 @@ h1, h2, h3, h4 {
   white-space: nowrap;
   background: rgba(148, 163, 184, 0.08);
   border: 1px solid var(--line);
-  border-bottom-color: var(--line);
 }
 .tab-item:hover {
   color: var(--text);
   background: rgba(148, 163, 184, 0.16);
 }
 .tab-row .tab-item.active {
-  position: relative;
   color: var(--nav-active);
   background: var(--content-bg);
   border-color: var(--line);
-  border-bottom-color: var(--content-bg);
+  /* Transparent, not "none": keeps the same 1px box height as every other
+     tab (so tops stay aligned), while the tab's own background — already
+     the exact color of the page below — paints through where the border
+     would have been, since background-clip defaults to border-box. */
+  border-bottom-color: transparent;
   box-shadow: inset 0 2px 0 var(--accent);
-}
-/* Border-on-border overlap (matching .tab-row's border-bottom color/width)
-   depends on both edges rounding to the same device pixel, which varies by
-   rendering engine (Chromium vs. WKWebView in the packaged desktop app) and
-   by display scale — any mismatch leaves a hairline of .tab-row's own
-   background showing through. A generously oversized, absolutely
-   positioned patch can't suffer that: it isn't derived from any border-box
-   edge arithmetic, so it always fully covers the seam regardless of engine
-   or scale factor. */
-.tab-row .tab-item.active::after {
-  content: "";
-  position: absolute;
-  left: -1px;
-  right: -1px;
-  bottom: -6px;
-  height: 8px;
-  background: var(--content-bg);
 }
 
 .sidebar {
