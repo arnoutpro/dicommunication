@@ -447,19 +447,21 @@ nav > .nav-branch { margin-top: 0.35rem; }
   justify-content: space-between;
   gap: 0.75rem;
   align-items: flex-start;
-  margin-bottom: 0.75rem;
+  margin-bottom: 0.65rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--line);
 }
 .eyebrow {
-  margin: 0 0 0.15rem;
-  color: var(--accent);
-  letter-spacing: 0.14em;
+  margin: 0 0 0.1rem;
+  color: var(--muted);
+  letter-spacing: 0.08em;
   text-transform: uppercase;
-  font-size: var(--text-xs);
-  font-weight: 800;
+  font-size: var(--text-2xs);
+  font-weight: 700;
 }
-h1 { margin: 0 0 0.15rem; font-size: var(--text-xl); letter-spacing: -0.03em; font-weight: 800; }
-h2 { margin: 0; font-size: var(--text-lg); letter-spacing: -0.02em; }
-.lede { margin: 0; color: var(--muted); max-width: 46rem; font-size: var(--text-sm); line-height: 1.4; }
+h1 { margin: 0 0 0.1rem; font-size: var(--text-base); letter-spacing: 0; font-weight: 700; }
+h2 { margin: 0; font-size: var(--text-md); font-weight: 700; letter-spacing: 0; }
+.lede { margin: 0; color: var(--muted); max-width: 46rem; font-size: var(--text-xs); line-height: 1.4; }
 
 .grid-3 {
   display: grid;
@@ -1611,9 +1613,6 @@ body.page-find .main {
 }
 body.page-find .find-head {
   margin-bottom: 0.4rem;
-}
-body.page-find .find-head h1 {
-  font-size: var(--text-lg);
 }
 .find-workspace {
   display: grid;
