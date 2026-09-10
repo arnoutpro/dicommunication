@@ -1,19 +1,22 @@
-"""Four products from one process: Dicommunication, Dicomtag Analytics,
-Dicom Anonymizer, and Dicom Router.
+"""Five products from one process: Dicommunication, Dicomtag Analytics,
+Dicom Anonymizer, Dicom Router, and Dicom Cleaner.
 
 The MSI / DMG still freeze a single executable. Dicommunication is the
 workstation (PING, DIMSE, HL7, worklist). Dicomtag Analytics is the
 Study Root C-FIND UI that used to live under Test tools as C-FIND Advanced.
 Dicom Anonymizer queries, retrieves, and anonymizes studies/series/images.
 Dicom Router runs scheduled C-FIND rules and optionally retrieves/forwards
-new matches (app/router_scheduler.py); unlike the other two single-tool
+new matches (app/router_scheduler.py); unlike the other single-tool
 products it isn't a `BaseTool` from the tools registry, just its own page.
+Dicom Cleaner queries, retrieves, blacks out a configured rectangle of
+burned-in pixel data, and C-STOREs the result back to a PACS.
 
-All four share config, logs, and the local server. Dicomtag Analytics is
-mounted at ``/vue/``, Dicom Anonymizer at ``/anonymize/``, and Dicom Router
-at ``/dicom-router/`` so every window can stay open against one uvicorn.
-Each Start-menu shortcut passes its own ``--profile``. ``vue-analytics`` is
-still accepted as Dicomtag Analytics' previous profile name.
+All five share config, logs, and the local server. Dicomtag Analytics is
+mounted at ``/vue/``, Dicom Anonymizer at ``/anonymize/``, Dicom Router at
+``/dicom-router/``, and Dicom Cleaner at ``/cleaner/`` so every window can
+stay open against one uvicorn. Each Start-menu shortcut passes its own
+``--profile``. ``vue-analytics`` is still accepted as Dicomtag Analytics'
+previous profile name.
 """
 
 from __future__ import annotations
@@ -27,35 +30,48 @@ SHELL_DICOMM = "dicommunication"
 SHELL_VUE = "vue"
 SHELL_ANONYMIZE = "anonymize"
 SHELL_ROUTER = "router"
+SHELL_CLEANER = "cleaner"
 
 PRODUCT_DICOMM = "Dicommunication"
 PRODUCT_ANALYTICS = "Dicomtag Analytics"
 PRODUCT_ANONYMIZER = "Dicom Anonymizer"
 PRODUCT_ROUTER = "Dicom Router"
+PRODUCT_CLEANER = "Dicom Cleaner"
 
 PROFILE_DICOMM = "dicommunication"
 PROFILE_VUE = "dicomtag-analytics"
 PROFILE_VUE_LEGACY = "vue-analytics"
 PROFILE_ANONYMIZER = "dicom-anonymizer"
 PROFILE_ROUTER = "dicom-router"
-PROFILES = (PROFILE_DICOMM, PROFILE_VUE, PROFILE_VUE_LEGACY, PROFILE_ANONYMIZER, PROFILE_ROUTER)
+PROFILE_CLEANER = "dicom-cleaner"
+PROFILES = (
+    PROFILE_DICOMM,
+    PROFILE_VUE,
+    PROFILE_VUE_LEGACY,
+    PROFILE_ANONYMIZER,
+    PROFILE_ROUTER,
+    PROFILE_CLEANER,
+)
 
 VUE_PREFIX = "/vue"
 VUE_TOOL_ID = "c-find-advanced"
 ANONYMIZE_PREFIX = "/anonymize"
 ANONYMIZE_TOOL_ID = "anonymize"
 ROUTER_PREFIX = "/dicom-router"
+CLEANER_PREFIX = "/cleaner"
+CLEANER_TOOL_ID = "dicom-cleaner"
 
 # Every tool that gets its own single-tool shell/prefix — hidden from the
 # main Dicommunication shell's own tool list, same as it always hid c-find-advanced.
 # Dicom Router isn't in here: it isn't a tools-registry BaseTool at all.
-SINGLE_TOOL_IDS = frozenset({VUE_TOOL_ID, ANONYMIZE_TOOL_ID})
+SINGLE_TOOL_IDS = frozenset({VUE_TOOL_ID, ANONYMIZE_TOOL_ID, CLEANER_TOOL_ID})
 
 PRODUCT_NAMES = {
     SHELL_DICOMM: PRODUCT_DICOMM,
     SHELL_VUE: PRODUCT_ANALYTICS,
     SHELL_ANONYMIZE: PRODUCT_ANONYMIZER,
     SHELL_ROUTER: PRODUCT_ROUTER,
+    SHELL_CLEANER: PRODUCT_CLEANER,
 }
 
 WINDOW_TITLES = {
@@ -64,6 +80,7 @@ WINDOW_TITLES = {
     PROFILE_VUE_LEGACY: PRODUCT_ANALYTICS,
     PROFILE_ANONYMIZER: PRODUCT_ANONYMIZER,
     PROFILE_ROUTER: PRODUCT_ROUTER,
+    PROFILE_CLEANER: PRODUCT_CLEANER,
 }
 
 
@@ -77,6 +94,10 @@ def is_anonymizer_profile(profile: str) -> bool:
 
 def is_router_profile(profile: str) -> bool:
     return profile == PROFILE_ROUTER
+
+
+def is_cleaner_profile(profile: str) -> bool:
+    return profile == PROFILE_CLEANER
 
 
 LEGACY_ANALYTICS_NAMES = frozenset(
@@ -101,6 +122,8 @@ def profile_start_path(profile: str) -> str:
         return ANONYMIZE_PREFIX + "/"
     if is_router_profile(profile):
         return ROUTER_PREFIX + "/"
+    if is_cleaner_profile(profile):
+        return CLEANER_PREFIX + "/"
     return "/"
 
 
@@ -144,6 +167,24 @@ def anonymize_path_allowed(path: str) -> bool:
     return _single_tool_path_allowed(path, ANONYMIZE_TOOL_ID)
 
 
+def is_cleaner_public_path(path: str) -> bool:
+    return path == CLEANER_PREFIX or path.startswith(CLEANER_PREFIX + "/")
+
+
+def strip_cleaner_prefix(path: str) -> str:
+    if path == CLEANER_PREFIX:
+        return "/"
+    if path.startswith(CLEANER_PREFIX + "/"):
+        stripped = path[len(CLEANER_PREFIX) :]
+        return stripped or "/"
+    return path
+
+
+def cleaner_path_allowed(path: str) -> bool:
+    """Pages the Dicom Cleaner product may show after the /cleaner prefix is stripped."""
+    return _single_tool_path_allowed(path, CLEANER_TOOL_ID)
+
+
 def is_router_public_path(path: str) -> bool:
     return path == ROUTER_PREFIX or path.startswith(ROUTER_PREFIX + "/")
 
@@ -184,7 +225,12 @@ def _single_tool_path_allowed(path: str, tool_id: str) -> bool:
     return path.startswith("/tools/" + tool_id)
 
 
-_SHELL_PREFIXES = {SHELL_VUE: VUE_PREFIX, SHELL_ANONYMIZE: ANONYMIZE_PREFIX, SHELL_ROUTER: ROUTER_PREFIX}
+_SHELL_PREFIXES = {
+    SHELL_VUE: VUE_PREFIX,
+    SHELL_ANONYMIZE: ANONYMIZE_PREFIX,
+    SHELL_ROUTER: ROUTER_PREFIX,
+    SHELL_CLEANER: CLEANER_PREFIX,
+}
 
 
 def public_href(path: str, *, shell: str) -> str:
@@ -221,6 +267,8 @@ def tools_exclude(shell: str) -> frozenset[str]:
         return frozenset(tool.id for tool in list_tools() if tool.id != VUE_TOOL_ID)
     if shell == SHELL_ANONYMIZE:
         return frozenset(tool.id for tool in list_tools() if tool.id != ANONYMIZE_TOOL_ID)
+    if shell == SHELL_CLEANER:
+        return frozenset(tool.id for tool in list_tools() if tool.id != CLEANER_TOOL_ID)
     if shell == SHELL_ROUTER:
         return frozenset(tool.id for tool in list_tools())
     return SINGLE_TOOL_IDS

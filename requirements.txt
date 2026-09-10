@@ -5,3 +5,7 @@ python-multipart>=0.0.32
 pydantic>=2.13.4
 pynetdicom>=3.0.4
 pydicom>=3.0.2
+numpy>=1.26
+pylibjpeg>=2.0.1
+pylibjpeg-libjpeg>=2.3.0
+pylibjpeg-openjpeg>=2.4.0

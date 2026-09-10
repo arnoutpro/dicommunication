@@ -13,6 +13,7 @@ BUILTIN_TOOL_MODULES = (
     "anon_engine",
     "anon_tags",
     "anonymize",
+    "cleaner",
     "echo",
     "find",
     "find_advanced",
@@ -21,6 +22,7 @@ BUILTIN_TOOL_MODULES = (
     "mwl",
     "pdf_store",
     "ping",
+    "redact_engine",
     "store",
     "tag_editor",
 )
@@ -69,6 +71,7 @@ TOOL_ORDER = (
     "hl7-send",
     "tag-editor",
     "anonymize",
+    "dicom-cleaner",
 )
 
 
