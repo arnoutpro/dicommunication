@@ -31,6 +31,7 @@ from app.shell import (
     tools_for_shell,
 )
 from app.store import ConfigStore
+from app.tools.dicom_preview import MAX_PREVIEW_DIM, PreviewError, render_preview_png
 from app.tools.redact_engine import RedactionError, parse_region, redact_pixels
 
 
@@ -359,3 +360,187 @@ def test_cleaner_run_requires_study_selection() -> None:
     result = tool.run(local, remote, {"action": "run", "study_uids": []})
     assert not result.ok
     assert "select" in result.summary.lower()
+
+
+# ---------------------------------------------------------------------------
+# Preview PNG rendering
+# ---------------------------------------------------------------------------
+
+
+def test_render_preview_png_requires_pixel_data() -> None:
+    with pytest.raises(PreviewError):
+        render_preview_png(Dataset())
+
+
+def test_render_preview_png_gray_2d_matches_original_dims() -> None:
+    ds = _make_instance("1.2.3", "1.2.3.4", "1.2.3.4.20", rows=12, cols=8, samples_per_pixel=1)
+    png_bytes, orig_rows, orig_cols, png_rows, png_cols = render_preview_png(ds)
+    assert png_bytes[:8] == b"\x89PNG\r\n\x1a\n"
+    assert (orig_rows, orig_cols) == (12, 8)
+    assert (png_rows, png_cols) == (12, 8)
+
+
+def test_render_preview_png_color_2d() -> None:
+    ds = _make_instance("1.2.3", "1.2.3.4", "1.2.3.4.21", rows=10, cols=10, samples_per_pixel=3)
+    png_bytes, orig_rows, orig_cols, png_rows, png_cols = render_preview_png(ds)
+    assert png_bytes[:8] == b"\x89PNG\r\n\x1a\n"
+    assert (orig_rows, orig_cols) == (10, 10)
+    assert (png_rows, png_cols) == (10, 10)
+
+
+def test_render_preview_png_multiframe_uses_first_frame() -> None:
+    ds = _make_instance("1.2.3", "1.2.3.4", "1.2.3.4.22", rows=6, cols=6, frames=3, samples_per_pixel=1)
+    png_bytes, orig_rows, orig_cols, png_rows, png_cols = render_preview_png(ds)
+    assert png_bytes[:8] == b"\x89PNG\r\n\x1a\n"
+    assert (orig_rows, orig_cols) == (6, 6)
+    assert (png_rows, png_cols) == (6, 6)
+
+
+def test_render_preview_png_downscales_large_images() -> None:
+    ds = _make_instance("1.2.3", "1.2.3.4", "1.2.3.4.23", rows=2000, cols=1500, samples_per_pixel=1)
+    _png_bytes, orig_rows, orig_cols, png_rows, png_cols = render_preview_png(ds)
+    assert (orig_rows, orig_cols) == (2000, 1500)
+    assert max(png_rows, png_cols) <= MAX_PREVIEW_DIM
+
+
+# ---------------------------------------------------------------------------
+# Preview routes: browse images, then load one as a PNG
+# ---------------------------------------------------------------------------
+
+
+def _start_browsable_scp(find_port: int, storage_port: int, study_uid: str, instance: Dataset):
+    series_uid = str(instance.SeriesInstanceUID)
+    sop_uid = str(instance.SOPInstanceUID)
+    received: list[Dataset] = []
+
+    def handle_find(event):
+        identifier = event.identifier
+        level = str(getattr(identifier, "QueryRetrieveLevel", "STUDY"))
+        if level == "STUDY":
+            ds = Dataset()
+            ds.QueryRetrieveLevel = "STUDY"
+            ds.PatientName = "DOE^JANE"
+            ds.PatientID = "12345"
+            ds.StudyDate = "20260101"
+            ds.AccessionNumber = "ACC1"
+            ds.StudyDescription = "US ABDOMEN"
+            ds.ModalitiesInStudy = "US"
+            ds.StudyInstanceUID = study_uid
+            yield 0xFF00, ds
+        elif level == "SERIES":
+            ds = Dataset()
+            ds.QueryRetrieveLevel = "SERIES"
+            ds.StudyInstanceUID = study_uid
+            ds.SeriesInstanceUID = series_uid
+            ds.Modality = "US"
+            ds.SeriesNumber = "1"
+            ds.SeriesDescription = "Test series"
+            ds.NumberOfSeriesRelatedInstances = "1"
+            yield 0xFF00, ds
+        elif level == "IMAGE":
+            ds = Dataset()
+            ds.QueryRetrieveLevel = "IMAGE"
+            ds.StudyInstanceUID = study_uid
+            ds.SeriesInstanceUID = series_uid
+            ds.SOPInstanceUID = sop_uid
+            ds.InstanceNumber = "1"
+            yield 0xFF00, ds
+        yield 0x0000, None
+
+    def handle_move(event):
+        yield "127.0.0.1", storage_port, {"contexts": [build_context(str(instance.SOPClassUID))]}
+        yield 1
+        yield 0xFF00, instance
+
+    def handle_store(event):
+        ds = event.dataset
+        ds.file_meta = event.file_meta
+        received.append(ds)
+        return 0x0000
+
+    ae = AE(ae_title="QR_SCP")
+    ae.add_supported_context(StudyRootQueryRetrieveInformationModelFind)
+    ae.add_supported_context(StudyRootQueryRetrieveInformationModelMove)
+    ae.add_supported_context(str(instance.SOPClassUID))
+    server = ae.start_server(
+        ("127.0.0.1", find_port),
+        block=False,
+        evt_handlers=[
+            (evt.EVT_C_FIND, handle_find),
+            (evt.EVT_C_MOVE, handle_move),
+            (evt.EVT_C_STORE, handle_store),
+        ],
+    )
+    return server, received
+
+
+def test_cleaner_preview_images_requires_a_checked_study(tmp_path) -> None:
+    store = ConfigStore(tmp_path / "config")
+    store.save_local(LocalAE(ae_title="DICOMM", host="127.0.0.1", port=_free_port(), storage_scp_enabled=True))
+    remote = RemoteNode(name="pacs", ae_title="QR_SCP", host="127.0.0.1", port=_free_port())
+    store.add_remote(remote)
+    app = create_app(store)
+    with TestClient(app) as client:
+        response = client.post(
+            f"{CLEANER_PREFIX}/tools/dicom-cleaner/preview-images",
+            data={"remote_id": remote.id},
+        )
+        assert response.status_code == 200
+        assert "Check a study" in response.text
+
+
+def test_cleaner_preview_browse_then_load_image(tmp_path) -> None:
+    find_port = _free_port()
+    local_port = _free_port()
+    study_uid = "1.2.826.0.1.3680043.8.498.51223344"
+    series_uid = "1.2.826.0.1.3680043.8.498.51223345"
+    sop_uid = "1.2.826.0.1.3680043.8.498.51223346"
+    instance = _make_instance(study_uid, series_uid, sop_uid, rows=8, cols=6, samples_per_pixel=1)
+    server, _received = _start_browsable_scp(find_port, local_port, study_uid, instance)
+
+    store = ConfigStore(tmp_path / "config")
+    store.save_local(LocalAE(ae_title="DICOMM", host="127.0.0.1", port=local_port, storage_scp_enabled=True))
+    remote = RemoteNode(name="pacs", ae_title="QR_SCP", host="127.0.0.1", port=find_port)
+    store.add_remote(remote)
+    app = create_app(store)
+
+    try:
+        with TestClient(app) as client:
+            images = client.post(
+                f"{CLEANER_PREFIX}/tools/dicom-cleaner/preview-images",
+                data={"remote_id": remote.id, "study_uid": [study_uid]},
+            )
+            assert images.status_code == 200
+            assert f"{series_uid}|{sop_uid}" in images.text
+            assert "Load image" in images.text
+
+            preview = client.post(
+                f"{CLEANER_PREFIX}/tools/dicom-cleaner/preview-image",
+                data={
+                    "remote_id": remote.id,
+                    "study_uid": study_uid,
+                    "image": f"{series_uid}|{sop_uid}",
+                },
+            )
+            assert preview.status_code == 200
+            assert "data-cleaner-preview-canvas" in preview.text
+            assert 'data-orig-rows="8"' in preview.text
+            assert 'data-orig-cols="6"' in preview.text
+            assert "data:image/png;base64," in preview.text
+    finally:
+        server.shutdown()
+
+
+def test_cleaner_preview_image_requires_a_picked_image(tmp_path) -> None:
+    store = ConfigStore(tmp_path / "config")
+    store.save_local(LocalAE(ae_title="DICOMM", host="127.0.0.1", port=_free_port(), storage_scp_enabled=True))
+    remote = RemoteNode(name="pacs", ae_title="QR_SCP", host="127.0.0.1", port=_free_port())
+    store.add_remote(remote)
+    app = create_app(store)
+    with TestClient(app) as client:
+        response = client.post(
+            f"{CLEANER_PREFIX}/tools/dicom-cleaner/preview-image",
+            data={"remote_id": remote.id, "study_uid": "1.2.3"},
+        )
+        assert response.status_code == 200
+        assert "Pick an image" in response.text

@@ -239,6 +239,34 @@ def _retrieve_many(local: LocalAE, remote: RemoteNode, entities: list[dict[str, 
         STORAGE_INBOX.finish()
 
 
+def browse_study_images(local: LocalAE, remote: RemoteNode, study_uid: str):
+    """List every image in one study, for the region-preview picker."""
+    return _browse(local, remote, [study_uid], "IMAGE")
+
+
+def retrieve_preview_instance(
+    local: LocalAE, remote: RemoteNode, study_uid: str, series_uid: str, sop_uid: str, dest_ae: str
+) -> tuple[Dataset | None, str | None]:
+    """Retrieve exactly one instance, for rendering a region-picker preview."""
+    entity = {"study_uid": study_uid, "series_uid": series_uid, "sop_instance_uid": sop_uid}
+    datasets, error, _contexts = _retrieve_many(local, remote, [entity], dest_ae)
+    if not datasets:
+        return None, error or "Nothing was retrieved."
+    return datasets[0], error
+
+
+def storage_gate_message(local: LocalAE, options: dict[str, Any]) -> str | None:
+    """Same Accept-C-STORE / listener gate the run step checks, reused before a preview retrieve."""
+    dest_ae = str(options.get("_listen_ae") or local.ae_title).strip() or local.ae_title
+    storage_enabled = bool(options.get("_storage_enabled", getattr(local, "storage_scp_enabled", False)))
+    storage_running = bool(options.get("_storage_running", False))
+    storage_error = str(options.get("_storage_error") or "").strip()
+    return retrieve_storage_gate_message(
+        dest_ae=dest_ae, port=int(local.port), calling_ae=local.ae_title,
+        enabled=storage_enabled, running=storage_running, storage_error=storage_error,
+    )
+
+
 def _renumber_for_new_uid(ds: Dataset) -> None:
     """Fresh SOPInstanceUID so the PACS accepts the cleaned image as a new
     object rather than colliding with the original; Study/Series UID are

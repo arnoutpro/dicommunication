@@ -1,0 +1,14 @@
+{% if error %}
+<p class="hint fail-text">{{ error }}</p>
+{% else %}
+<div class="cleaner-preview-frame">
+  <canvas
+      data-cleaner-preview-canvas
+      data-orig-rows="{{ orig_rows }}"
+      data-orig-cols="{{ orig_cols }}"
+      data-image-src="data:image/png;base64,{{ png_b64 }}"
+      width="{{ png_cols }}"
+      height="{{ png_rows }}"></canvas>
+  <p class="hint">Drag a rectangle on the image to fill in the redact region below.</p>
+</div>
+{% endif %}
