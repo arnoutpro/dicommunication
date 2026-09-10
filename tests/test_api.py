@@ -13,14 +13,11 @@ def test_health_and_pages(client) -> None:
     assert b"Arnout.pro Dicommunication Tool" in home.content
     assert f"v{__version__}".encode() in home.content
     assert b"nav-children" in home.content
-    assert b'data-nav-id="test-tools"' in home.content
     assert b'data-nav-id="connectivity"' in home.content
-    assert b'id="nav-fold-test-tools"' in home.content
-    assert b'for="nav-fold-test-tools"' in home.content
-    assert b'nav-branch is-open" data-nav-id="test-tools"' not in home.content
-    assert b'id="nav-fold-test-tools" checked' not in home.content
     assert b"sidebar" in home.content
     assert b"topbar" in home.content
+    assert b'class="tab-row"' in home.content
+    assert b'class="tab-item active"' in home.content
     assert b'id="theme-toggle"' in home.content
     assert b'data-theme-option="light"' in home.content
     assert b'data-theme-option="dark"' in home.content
@@ -28,7 +25,8 @@ def test_health_and_pages(client) -> None:
     assert b'data-theme-option="professional"' in home.content
     assert b"site-brand-mark-img" in home.content
     assert b"site-brand-copy" in home.content
-    assert b'href="/logs"' in home.content
+    # Configured nodes and Logs now live under the Configuration tab only.
+    assert b'href="/logs"' not in home.content
     assert b"DIMSE" in home.content
     assert b"Connectivity" in home.content
     assert b"<details" not in home.content
@@ -111,12 +109,12 @@ def test_health_and_pages(client) -> None:
     assert b"Dicomtag Analytics" in advanced.content
     assert b"find-workspace" in advanced.content
     assert b"No remote node configured" in advanced.content
-    assert b"Test tools" in advanced.content
-    assert b"HL7 send" in advanced.content
-    assert b'data-nav-id="test-tools"' in advanced.content
+    # The Dicomtag Analytics tab's own sidebar is just its Query link — the
+    # rest of the workstation's tools live under the Dicommunication tab.
+    assert b"Test tools" not in advanced.content
+    assert b"HL7 send" not in advanced.content
+    assert b'class="tab-item active"' in advanced.content
     assert b"Unique patient per PDF" in pdf_store.content
-    assert b'nav-branch is-open" data-nav-id="test-tools"' in pdf_store.content
-    assert b'id="nav-fold-test-tools" checked' in pdf_store.content
     assert b'data-nav-id="dimse"' in pdf_store.content
 
 
