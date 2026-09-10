@@ -153,17 +153,29 @@ h1, h2, h3, h4 {
   background: rgba(148, 163, 184, 0.16);
 }
 .tab-row .tab-item.active {
+  position: relative;
   color: var(--nav-active);
   background: var(--content-bg);
   border-color: var(--line);
   border-bottom-color: var(--content-bg);
-  /* A 1px overlap can land on a different device pixel than .tab-row's own
-     border-bottom at fractional CSS heights / high-DPI zoom, leaving a
-     hairline of .tab-row's background showing through. Overlap generously
-     instead of relying on both edges rounding identically. */
-  border-bottom-width: 3px;
-  margin-bottom: -3px;
   box-shadow: inset 0 2px 0 var(--accent);
+}
+/* Border-on-border overlap (matching .tab-row's border-bottom color/width)
+   depends on both edges rounding to the same device pixel, which varies by
+   rendering engine (Chromium vs. WKWebView in the packaged desktop app) and
+   by display scale — any mismatch leaves a hairline of .tab-row's own
+   background showing through. A generously oversized, absolutely
+   positioned patch can't suffer that: it isn't derived from any border-box
+   edge arithmetic, so it always fully covers the seam regardless of engine
+   or scale factor. */
+.tab-row .tab-item.active::after {
+  content: "";
+  position: absolute;
+  left: -1px;
+  right: -1px;
+  bottom: -6px;
+  height: 8px;
+  background: var(--content-bg);
 }
 
 .sidebar {
