@@ -17,7 +17,15 @@ from app import __version__
 from app.applog import configure as configure_logging, log
 from app.models import LoggingSettings, ToolResult
 from app.paths import package_dir
-from app.shell import PRODUCT_DICOMM, display_tool_name
+from app.shell import (
+    PROMOTED_TAB_TOOL_IDS,
+    PRODUCT_DICOMM,
+    TAB_HREFS,
+    TAB_LABELS,
+    TAB_ORDER,
+    active_tab,
+    display_tool_name,
+)
 from app.tools import get_tool, list_tools, list_tools_by_category
 
 BASE_DIR = package_dir()
@@ -51,14 +59,20 @@ def page(request: Request, **extra: object) -> dict:
     # Loaded on every page (not just /router) so the sidebar can list route
     # rules with a live status dot, same as config.remotes already is.
     route_rules = app.state.store.list_route_rules()
+    tool_id = extra.get("tool_id")
+    tab = active_tab(str(extra.get("nav") or ""), tool_id if isinstance(tool_id, str) else None)
     return {
         "request": request,
         "config": config,
         "product_name": PRODUCT_DICOMM,
         "href": _href,
         "display_tool_name": display_tool_name,
-        "tools": list_tools(),
-        "tool_groups": list_tools_by_category(),
+        "tab": tab,
+        "tabs": TAB_ORDER,
+        "tab_labels": TAB_LABELS,
+        "tab_hrefs": TAB_HREFS,
+        "tools": list_tools(exclude=PROMOTED_TAB_TOOL_IDS),
+        "tool_groups": list_tools_by_category(exclude=PROMOTED_TAB_TOOL_IDS),
         "results": app.state.store.list_results(10),
         "mwl_scp_running": bool(scp and scp.running and config.local.mwl_scp_enabled),
         "mwl_scp_error": getattr(scp, "last_error", None) if scp else None,

@@ -332,7 +332,7 @@ def _c_find_advanced_page(
     identity_id: str = "",
     level: str = "STUDY",
     status_code: int = 200,
-    nav: str = "home",
+    nav: str = "tools",
 ):
     tool = get_tool("c-find-advanced")
     return templates.TemplateResponse(

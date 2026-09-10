@@ -71,8 +71,7 @@
   <header class="panel-head">
     <h2>The user interface</h2>
   </header>
-  <p>The left sidebar stays open. Nested groups are a two-level tree: <strong>Test tools → Connectivity</strong> (and DIMSE, HL7), <strong>Configured nodes →</strong> Local AE / Virtual AEs / Remote nodes. Groups start folded. Open a chevron to expand; the section that contains the current page stays open. Your open/closed state is remembered in this browser. <strong>Dashboard</strong> is the home page. <strong>Logs</strong> is the live application log.</p>
-  <p>The top bar holds the arnout.pro A mark, the product name, and the theme control. The left menu is Dashboard, Configured nodes, Logs, Dicom Router, and Test tools. At the bottom of the sidebar, <strong>About</strong> and <strong>Help</strong> sit on one row and open these documentation pages. The theme control switches Light, Dark, Follows device setting, or Professional dark. New installs open in Light. The AE chip is this workstation’s calling AE Title; the line under it is the listen port and how many virtual identities you have saved.</p>
+  <p>The top bar holds the arnout.pro A mark, the product name, and the theme control. Below it, a row of tabs — like folders in a cabinet — picks the product: <strong>Dicommunication</strong>, <strong>Dicomtag Analytics</strong>, <strong>Dicom Anonymizer</strong>, <strong>Dicom Router</strong>, <strong>Dicom Cleaner</strong>, and <strong>Configuration</strong>. Whichever tab is open owns the left sidebar underneath it, with that product's own sub-menu — the Dicommunication tab's sidebar has Dashboard, Testbench, C-ECHO board, Worklist, and the DIMSE/HL7/Connectivity tool groups; the Configuration tab's sidebar has Configured nodes, Local AE, Virtual AEs, Remote nodes, and Logs, shared by every other tab so it's set up once. Nested groups inside a tab's sidebar are foldable: open a chevron to expand; the group containing the current page stays open, and your open/closed state is remembered in this browser. At the bottom of the sidebar, <strong>About</strong> and <strong>Help</strong> sit on one row and open these documentation pages. The theme control switches Light, Dark, Follows device setting, or Professional dark. New installs open in Light. The AE chip is this workstation’s calling AE Title; the line under it is the listen port and how many virtual identities you have saved.</p>
   <p>Most tool pages use HTMX: the form posts without a full page reload, and the result panel updates in place. Long DIMSE operations can take tens of seconds; wait for the result rather than clicking again.</p>
 </section>
 
@@ -538,9 +537,9 @@
   <header class="panel-head">
     <h2>Dicom Router</h2>
   </header>
-  <p>Dicom Router lives inside this Dicommunication window's sidebar, under <strong>Dicom Router</strong>, since it is a background service you manage alongside everything else rather than a one-off query.</p>
+  <p>Dicom Router has its own tab, since it is a background service you manage alongside everything else rather than a one-off query.</p>
   <ul>
-    <li>Inside this window: the sidebar's Dicom Router branch lists every configured rule with a small status dot — green (active), amber (paused), gray (stopped), pulsing accent while a run is actually executing — visible on every page, the same way Configured nodes always is. Click a rule there to open its own page.</li>
+    <li>That tab's own left sidebar lists every configured rule with a small status dot — green (active), amber (paused), gray (stopped), pulsing accent while a run is actually executing — visible on every page under this tab, the same way the Configuration tab's own sidebar always is. Click a rule there to open its own page.</li>
   </ul>
   <p>A <strong>route rule</strong> is a scheduled Study Root C-FIND (an interval in minutes, or specific times of day with optional days-of-week) against a configured remote node, filtered by modality, study date scope, and query level (Study, or Series per matching study). The scheduler runs due rules automatically and records what is new since the rule last ran, using the same de-duplication idea as Dicomtag Analytics' SR retrieve — nothing already handled is reported again.</p>
   <ul>
