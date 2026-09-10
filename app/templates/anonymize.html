@@ -58,7 +58,7 @@
     </label>
 
     <div class="form-actions">
-      <button class="button primary" type="submit" name="action" value="query">Run query</button>
+      <button class="button primary" type="submit" name="action" value="query" data-busy-text="Querying…">Run query</button>
       <span class="hint">Study-level C-FIND, same as Dicomtag Analytics.</span>
     </div>
 
@@ -197,6 +197,7 @@
 
       <div class="form-actions">
         <button class="button primary" type="submit" name="action" value="run" formnovalidate
+                data-busy-text="Retrieving &amp; anonymizing…"
                 onclick="return confirm('Retrieve and anonymize the checked studies? This C-MOVEs real data off the PACS.');">
           Anonymize selected
         </button>

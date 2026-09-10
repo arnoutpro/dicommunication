@@ -707,7 +707,29 @@ document.addEventListener("submit", (event) => {
   const message = form.dataset.confirm;
   if (message && !window.confirm(message)) {
     event.preventDefault();
+    return;
   }
+  // Plain (non-htmx) forms navigate the whole page away on submit, which
+  // can take a while for a C-FIND/C-MOVE/C-STORE run — disable the button
+  // and swap in a busy label so the click has visible feedback instead of
+  // looking like nothing happened. htmx forms manage their own
+  // hx-indicator, so leave those alone.
+  if (form.hasAttribute("hx-post") || form.hasAttribute("hx-get")) {
+    return;
+  }
+  const submitter = event.submitter;
+  // Deferred: disabling the submitter synchronously in this handler drops
+  // its name=value pair from the submitted form data (the browser decides
+  // which fields to include before the submit event finishes), so the
+  // button must stay enabled until the browser has already captured it.
+  window.setTimeout(() => {
+    form.querySelectorAll('button[type="submit"]').forEach((button) => {
+      button.disabled = true;
+    });
+    if (submitter instanceof HTMLButtonElement) {
+      submitter.textContent = submitter.dataset.busyText || "Working…";
+    }
+  }, 0);
 });
 
 document.querySelectorAll("[data-autohide]").forEach((node) => {
