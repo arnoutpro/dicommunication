@@ -17,15 +17,8 @@ from app import __version__
 from app.applog import configure as configure_logging, log
 from app.models import LoggingSettings, ToolResult
 from app.paths import package_dir
-from app.shell import (
-    PRODUCT_NAMES,
-    SHELL_DICOMM,
-    display_tool_name,
-    public_href,
-    tool_groups_for_shell,
-    tools_for_shell,
-)
-from app.tools import get_tool
+from app.shell import PRODUCT_DICOMM, display_tool_name
+from app.tools import get_tool, list_tools, list_tools_by_category
 
 BASE_DIR = package_dir()
 
@@ -46,24 +39,26 @@ def _as_bool(value: str | None) -> bool:
     return (value or "").lower() in {"on", "true", "1", "yes"}
 
 
+def _href(path: str) -> str:
+    return path if path.startswith("/") else "/" + path
+
+
 def page(request: Request, **extra: object) -> dict:
     app = request.app
     config = app.state.store.load()
     scp = getattr(app.state, "mwl_scp", None)
     router_scheduler = getattr(app.state, "router_scheduler", None)
-    shell = getattr(request.state, "shell", SHELL_DICOMM)
     # Loaded on every page (not just /router) so the sidebar can list route
     # rules with a live status dot, same as config.remotes already is.
     route_rules = app.state.store.list_route_rules()
     return {
         "request": request,
         "config": config,
-        "shell": shell,
-        "product_name": PRODUCT_NAMES[shell],
-        "href": lambda path: public_href(path, shell=shell),
+        "product_name": PRODUCT_DICOMM,
+        "href": _href,
         "display_tool_name": display_tool_name,
-        "tools": tools_for_shell(shell),
-        "tool_groups": tool_groups_for_shell(shell),
+        "tools": list_tools(),
+        "tool_groups": list_tools_by_category(),
         "results": app.state.store.list_results(10),
         "mwl_scp_running": bool(scp and scp.running and config.local.mwl_scp_enabled),
         "mwl_scp_error": getattr(scp, "last_error", None) if scp else None,

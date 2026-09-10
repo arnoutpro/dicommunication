@@ -8,11 +8,6 @@ from fastapi.responses import HTMLResponse
 from app import __version__
 from app.echo_board import snapshot as echo_board_snapshot
 from app.routes._shared import page, templates
-from app.routes.anonymize import _anonymize_page
-from app.routes.cleaner import _cleaner_page
-from app.routes.route_rules import _router_view
-from app.routes.tools import _c_find_advanced_page
-from app.shell import SHELL_ANONYMIZE, SHELL_CLEANER, SHELL_DICOMM, SHELL_ROUTER, SHELL_VUE
 
 router = APIRouter()
 
@@ -24,15 +19,6 @@ def health() -> dict[str, str]:
 
 @router.get("/", response_class=HTMLResponse)
 def dashboard(request: Request) -> HTMLResponse:
-    shell = getattr(request.state, "shell", SHELL_DICOMM)
-    if shell == SHELL_VUE:
-        return _c_find_advanced_page(request, nav="home")
-    if shell == SHELL_ANONYMIZE:
-        return _anonymize_page(request, nav="home")
-    if shell == SHELL_ROUTER:
-        return _router_view(request, nav="home")
-    if shell == SHELL_CLEANER:
-        return _cleaner_page(request, nav="home")
     return templates.TemplateResponse(
         request,
         "index.html",
@@ -42,19 +28,17 @@ def dashboard(request: Request) -> HTMLResponse:
 
 @router.get("/about", response_class=HTMLResponse)
 def about_page(request: Request) -> HTMLResponse:
-    vue = getattr(request.state, "shell", SHELL_DICOMM) == SHELL_VUE
     return templates.TemplateResponse(
         request,
-        "about_vue.html" if vue else "about.html",
+        "about.html",
         page(request, nav="about", data_dir=str(request.app.state.store.data_dir)),
     )
 
 
 @router.get("/help", response_class=HTMLResponse)
 def help_page(request: Request) -> HTMLResponse:
-    vue = getattr(request.state, "shell", SHELL_DICOMM) == SHELL_VUE
     return templates.TemplateResponse(
         request,
-        "help_vue.html" if vue else "help.html",
+        "help.html",
         page(request, nav="help", data_dir=str(request.app.state.store.data_dir)),
     )

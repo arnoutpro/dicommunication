@@ -8,9 +8,9 @@ The installer cannot live *inside* this app’s webpage. That page is served by 
 
 ## What the user does
 
-1. Install `dicommunication-<version>-win64.msi` (admin rights; lands in `Program Files\Dicommunication`). The setup wizard shows a feature tree: **Dicommunication**, **Dicomtag Analytics**, **Dicom Anonymizer**, and **Dicom Router** each have their own checkbox (all on by default — uncheck one to skip its Start Menu shortcut, though the shared program files still install if another stays checked) and their own **Desktop shortcut** sub-feature (off by default; check it to also get an icon on the Desktop, not just the Start Menu).
-2. Start **Dicommunication**, **Dicomtag Analytics**, **Dicom Anonymizer**, or **Dicom Router** from the Start menu (or the Desktop, if that shortcut was selected) — arnout.pro brand mark icon, same as the watermark.
-3. Each UI opens in its own window (Edge WebView2, not a browser tab). Close that window to stop the server if it started it. All four tools share `%LOCALAPPDATA%\dicommunication` — they are shortcuts onto the same installed program, not separate copies.
+1. Install `dicommunication-<version>-win64.msi` (admin rights; lands in `Program Files\Dicommunication`). The setup wizard shows a single **Dicommunication** feature (on by default) with an off-by-default **Desktop shortcut** sub-feature (check it to also get an icon on the Desktop, not just the Start Menu). Upgrading from an older, multi-shortcut install removes the old Dicomtag Analytics / Dicom Anonymizer / Dicom Router / Dicom Cleaner shortcuts automatically.
+2. Start **Dicommunication** from the Start menu (or the Desktop, if that shortcut was selected) — arnout.pro brand mark icon, same as the watermark. Dicomtag Analytics, Dicom Anonymizer, Dicom Router, and Dicom Cleaner are all reachable from this one window's own navigation, not separate shortcuts.
+3. The UI opens in its own window (Edge WebView2, not a browser tab). Close that window to stop the server if it started it. Config lives in `%LOCALAPPDATA%\dicommunication`.
 
 `ping.exe` is already on Windows. ICMP uses `-n` / `-w`; TCP to the DICOM port is still the useful check on clinical networks.
 

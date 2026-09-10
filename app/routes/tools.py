@@ -22,7 +22,8 @@ from app.pdf_dicom import (
 )
 from app.routes._shared import _as_bool, _first_error, _hx, execute_tool, page, templates
 from app.routes.anonymize import _anonymize_page
-from app.shell import SHELL_ANONYMIZE, SHELL_DICOMM, SHELL_VUE, display_tool_name
+from app.routes.cleaner import _cleaner_page
+from app.shell import display_tool_name
 from app.tools import get_tool
 from app.tools.find_advanced import COUNT_MAX_RECORDS
 from app.tools.find_keys import catalog_payload, column_labels, options_from_form
@@ -568,13 +569,11 @@ def tool_page(
     if tool_id == "pdf-store":
         return _pdf_store_page(request)
     if tool_id == "c-find-advanced":
-        if getattr(request.state, "shell", SHELL_DICOMM) != SHELL_VUE:
-            return RedirectResponse("/vue/", status_code=303)
         return _c_find_advanced_page(request)
     if tool_id == "anonymize":
-        if getattr(request.state, "shell", SHELL_DICOMM) != SHELL_ANONYMIZE:
-            return RedirectResponse("/anonymize/", status_code=303)
         return _anonymize_page(request)
+    if tool_id == "dicom-cleaner":
+        return _cleaner_page(request)
     return templates.TemplateResponse(
         request,
         tool.template,

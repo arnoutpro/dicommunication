@@ -72,7 +72,7 @@
     <h2>The user interface</h2>
   </header>
   <p>The left sidebar stays open. Nested groups are a two-level tree: <strong>Test tools → Connectivity</strong> (and DIMSE, HL7), <strong>Configured nodes →</strong> Local AE / Virtual AEs / Remote nodes. Groups start folded. Open a chevron to expand; the section that contains the current page stays open. Your open/closed state is remembered in this browser. <strong>Dashboard</strong> is the home page. <strong>Logs</strong> is the live application log.</p>
-  <p>The top bar holds the arnout.pro A mark, the product name, and the theme control. The left menu is Dashboard (or Query in Dicomtag Analytics), configured nodes, logs, and — in Dicommunication — Test tools. At the bottom of the sidebar, <strong>About</strong> and <strong>Help</strong> sit on one row and open these documentation pages. The theme control switches Light, Dark, Follows device setting, or Professional dark. New installs open in Light. The AE chip is this workstation’s calling AE Title; the line under it is the listen port and how many virtual identities you have saved.</p>
+  <p>The top bar holds the arnout.pro A mark, the product name, and the theme control. The left menu is Dashboard, Configured nodes, Logs, Dicom Router, and Test tools. At the bottom of the sidebar, <strong>About</strong> and <strong>Help</strong> sit on one row and open these documentation pages. The theme control switches Light, Dark, Follows device setting, or Professional dark. New installs open in Light. The AE chip is this workstation’s calling AE Title; the line under it is the listen port and how many virtual identities you have saved.</p>
   <p>Most tool pages use HTMX: the form posts without a full page reload, and the result panel updates in place. Long DIMSE operations can take tens of seconds; wait for the result rather than clicking again.</p>
 </section>
 
@@ -120,7 +120,7 @@
           <td><strong>Dicomtag Analytics</strong></td>
           <td>C-FIND</td>
           <td>Study Root Query/Retrieve FIND</td>
-          <td>Own Start-menu tool from this installer (formerly C-FIND Advanced). Study, Series, or Image plus Vue ELSCINT1 keys. List SR series from Study results; optional C-MOVE of those reports onto this AE. Not in the Dicommunication sidebar.</td>
+          <td>Reached at <code>/tools/c-find-advanced</code> in the sidebar (formerly C-FIND Advanced). Study, Series, or Image plus Vue ELSCINT1 keys. List SR series from Study results; optional C-MOVE of those reports onto this AE.</td>
         </tr>
         <tr>
           <td><strong>MWL C-FIND / Worklist</strong></td>
@@ -132,13 +132,13 @@
           <td><strong>Dicom Router</strong></td>
           <td>C-FIND, optional C-MOVE + C-STORE</td>
           <td>Study Root Query/Retrieve FIND (MOVE/STORE for retrieve-and-forward)</td>
-          <td>Own Start-menu tool from this installer, and also built into the Dicommunication sidebar. Same FIND as Dicomtag Analytics, but scheduled/automatic instead of manual, with an optional automatic retrieve-and-forward to one or more destination nodes.</td>
+          <td>Reached at <code>/router</code> in the sidebar. Same FIND as Dicomtag Analytics, but scheduled/automatic instead of manual, with an optional automatic retrieve-and-forward to one or more destination nodes.</td>
         </tr>
         <tr>
           <td><strong>Dicom Cleaner</strong></td>
           <td>C-FIND, C-MOVE, C-STORE</td>
           <td>Study Root Query/Retrieve FIND/MOVE, then Storage back out</td>
-          <td>Own Start-menu tool from this installer. Study-level C-FIND, C-MOVE retrieve, blacks out one operator-configured rectangle of pixel data on every retrieved instance, then C-STOREs the cleaned instances back to a PACS. Not in the Dicommunication sidebar.</td>
+          <td>Reached at <code>/tools/dicom-cleaner</code> in the sidebar. Study-level C-FIND, C-MOVE retrieve, blacks out one operator-configured rectangle of pixel data on every retrieved instance, then C-STOREs the cleaned instances back to a PACS.</td>
         </tr>
       </tbody>
     </table>
@@ -445,14 +445,14 @@
     <a href="/tools/c-find">Open</a>
   </header>
   <p>Query/Retrieve Study Root FIND — search <em>stored studies</em> in a PACS archive. This is not Modality Worklist. Leave filters empty for a broad STUDY-level query. Optional filters: patient name, patient ID, accession, study date, modality in study.</p>
-  <p>Zero matches with a Pass still means the SOP Class was accepted and the query succeeded. If C-ECHO works and Study Root C-FIND fails, the peer is not a Q/R SCP (or that information model is not offered). Use Worklist / MWL C-FIND for scheduled procedures. For Series or Image keys, or Vue Tamar tags, open <strong>Dicomtag Analytics</strong> from the Start menu (or <code>/vue/</code>).</p>
+  <p>Zero matches with a Pass still means the SOP Class was accepted and the query succeeded. If C-ECHO works and Study Root C-FIND fails, the peer is not a Q/R SCP (or that information model is not offered). Use Worklist / MWL C-FIND for scheduled procedures. For Series or Image keys, or Vue Tamar tags, open <strong>Dicomtag Analytics</strong> from the sidebar (<code>/tools/c-find-advanced</code>).</p>
 </section>
 
 <section class="panel help-section" id="c-find-advanced">
   <header class="panel-head">
     <h2>Dicomtag Analytics</h2>
   </header>
-  <p>This installer ships a second tool, <strong>Dicomtag Analytics</strong>, that used to live here as C-FIND Advanced. It is not in the Dicommunication Test tools list. Open it from the Start menu (Windows) or at <code>http://127.0.0.1:8080/vue/</code>. It shares this workstation’s calling AE and remote nodes. The analytics window has Query, Configured nodes, Logs, About, and Help — no PING, C-STORE, HL7, or worklist.</p>
+  <p><strong>Dicomtag Analytics</strong> used to live here as C-FIND Advanced. It is reached at <code>http://127.0.0.1:8080/tools/c-find-advanced</code>, under Test tools → DIMSE in the sidebar. It shares this workstation’s calling AE and remote nodes.</p>
   <p>Study Root FIND at Study, Series, or Image, including optional Tamar / ELSCINT1 keys. Hierarchical FIND: Series needs Study Instance UID; Image needs Study and Series Instance UID. <strong>Tamar Assign To Doctor</strong> <code>(07a1,1042)</code> is a confirmed matching key on Vue 12.2.8 (used with Modalities in Study, for example <code>CT</code>). Study Date is required at Study level — click a preset (Today, Last 7 days, Last 30 days, This month) or pick From/To dates instead of typing <code>YYYYMMDD</code> by hand; the raw text field underneath still shows the exact value being sent and still accepts manual DICOM date syntax (a single day, or an open-ended range like <code>-20260101</code>). Modalities in Study is a set of toggle chips for the common codes (CR, CT, DX, MG, MR, NM, OT, PT, RF, SC, SR, US, XA) — pick several (for example CR and DX) to match any of them; typing an uncommon code directly into the field still works and is kept alongside whatever chips are checked. After a Study query, <strong>List SR reports</strong> runs Series C-FIND with modality SR for every study in the table. <strong>Retrieve report text</strong> C-MOVEs each listed report on its own association onto this AE (when Accept C-STORE is on) and parses the DICOM Content Sequence — no language model, and no C-GET. JSON/CSV export includes Findings and Impression as columns plus the full report text. The Query page is a compact key tree on the left and the result table on the right.</p>
   <p>There is no separate Patient-level query — Patient Name, Modality, Study Date, and <strong>Tamar Practice Settings Code</strong> <code>(07a3,105c)</code> (the radiology department) are all already Study-level keys, so filter on those at Study level and use them together in one query. A Study result table that includes Patient Name shows a <strong>Count patients by name</strong> button: it groups the rows by the first letter of the patient's family name (for example "A: 500, B: 1300, ...", with <code>#</code> for anything that isn't a letter), counting each distinct patient once — deduplicated by Patient ID, or by Patient Name when Patient ID is blank — not once per study, so a patient with several studies in range is not over-counted. It shows an approximate count immediately from the table already on screen. If that table was capped at 2000 studies, it automatically re-runs the same query in the background — asking only for Patient Name and Patient ID, with the cap raised to 50000 — and swaps in the exact count once that returns; nothing to click, nothing to narrow by hand. Only past 50000 matching studies does it give up and ask you to narrow Study Date (or another filter) yourself.</p>
 </section>
@@ -520,7 +520,7 @@
   <header class="panel-head">
     <h2>Dicom Anonymizer</h2>
   </header>
-  <p>This installer ships a third tool, <strong>Dicom Anonymizer</strong>, that is not in the Test tools list. Open it from the Start menu (Windows, once wired into the installer), or at <code>http://127.0.0.1:8080/anonymize/</code> — <code>--profile dicom-anonymizer</code> opens it directly. It shares this workstation's calling AE and remote nodes.</p>
+  <p><strong>Dicom Anonymizer</strong> is reached at <code>http://127.0.0.1:8080/tools/anonymize</code>, under Test tools → DIMSE in the sidebar. It shares this workstation's calling AE and remote nodes.</p>
   <ul>
     <li><strong>Query</strong> is a Study-level C-FIND on Patient ID, Accession Number, Study Date (required), and Modality — the same fields and rules as Dicomtag Analytics. The result is a checkbox table; check the studies you want to anonymize.</li>
     <li><strong>Anonymize at</strong> chooses the granularity. <strong>Study</strong> retrieves and anonymizes exactly the checked studies. <strong>Series</strong> or <strong>Image</strong> first walks down from each checked study (an internal C-FIND to every series, and for Image every image in every series) and anonymizes <em>all</em> of them — there is no per-series or per-image picker yet, so at those levels check only the studies you actually want processed.</li>
@@ -538,9 +538,8 @@
   <header class="panel-head">
     <h2>Dicom Router</h2>
   </header>
-  <p>Unlike Dicomtag Analytics and Dicom Anonymizer, Dicom Router is not only a separate product — it also lives inside this Dicommunication window's sidebar, under <strong>Dicom Router</strong>, since it is a background service you manage alongside everything else rather than a one-off query. Both places work off the same rules and the same background scheduler; there is exactly one scheduler per running server, so it makes no difference which window you use it from.</p>
+  <p>Dicom Router lives inside this Dicommunication window's sidebar, under <strong>Dicom Router</strong>, since it is a background service you manage alongside everything else rather than a one-off query.</p>
   <ul>
-    <li>As its own product: open it from the Start menu (Windows), or at <code>http://127.0.0.1:8080/dicom-router/</code> — <code>--profile dicom-router</code> opens it directly. That window has Route rules, Configured nodes, Logs, About, and Help only.</li>
     <li>Inside this window: the sidebar's Dicom Router branch lists every configured rule with a small status dot — green (active), amber (paused), gray (stopped), pulsing accent while a run is actually executing — visible on every page, the same way Configured nodes always is. Click a rule there to open its own page.</li>
   </ul>
   <p>A <strong>route rule</strong> is a scheduled Study Root C-FIND (an interval in minutes, or specific times of day with optional days-of-week) against a configured remote node, filtered by modality, study date scope, and query level (Study, or Series per matching study). The scheduler runs due rules automatically and records what is new since the rule last ran, using the same de-duplication idea as Dicomtag Analytics' SR retrieve — nothing already handled is reported again.</p>
@@ -562,7 +561,7 @@
   <header class="panel-head">
     <h2>Dicom Cleaner</h2>
   </header>
-  <p>This installer ships a fifth tool, <strong>Dicom Cleaner</strong>, that is not in the Test tools list. Open it from the Start menu (Windows), or at <code>http://127.0.0.1:8080/cleaner/</code> — <code>--profile dicom-cleaner</code> opens it directly. It shares this workstation's calling AE and remote nodes.</p>
+  <p><strong>Dicom Cleaner</strong> is reached at <code>http://127.0.0.1:8080/tools/dicom-cleaner</code>, under Test tools → DIMSE in the sidebar. It shares this workstation's calling AE and remote nodes.</p>
   <ul>
     <li><strong>Query</strong> is a Study-level C-FIND on Patient ID, Accession Number, Study Date (required), and Modality — the same fields and rules as Dicomtag Analytics and Dicom Anonymizer. The result is a checkbox table; check the studies you want to clean.</li>
     <li><strong>Level</strong> chooses the granularity, same as Dicom Anonymizer: Study, Series, or Image.</li>
