@@ -28,6 +28,22 @@ Synthetic lab studies (not clinical data). Light theme, v0.4.0. The theme switch
 
 ![Five Structured Reports with Findings, Impression, and export](docs/screenshots/vue-sr-reports.webp)
 
+**Dicom Anonymizer** — query, pick studies, choose a mode (Nuke / Fuzz / Remove patient info / Custom), export.
+
+![Dicom Anonymizer query results and anonymization mode](docs/screenshots/anonymizer.webp)
+
+**Dicom Cleaner** — query, pick studies, set the redact rectangle, send the cleaned instances back.
+
+![Dicom Cleaner query results and redact-region fields](docs/screenshots/cleaner.webp)
+
+**Dicom Router** — scheduled route rules with a live status dot per rule in the sidebar.
+
+![Dicom Router rule list and add-rule form](docs/screenshots/router.webp)
+
+**Configuration** — Local DICOM AE, virtual identities, and remote nodes, shared by every tab above.
+
+![Configuration overview with local AE and two remote nodes](docs/screenshots/configuration.webp)
+
 ## Contents
 
 - [Screenshots](#screenshots)
