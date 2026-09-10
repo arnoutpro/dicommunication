@@ -22,6 +22,7 @@
   --radius-sm: 0;
   --nav-active: #ecfeff;
   --nav-parent: #cbd5e1;
+  --content-bg: color-mix(in srgb, var(--accent) 10%, var(--bg));
   --wordmark-name: rgb(34 211 238 / 0.9);
   --wordmark-tld: rgb(226 232 240 / 0.9);
   --wordmark-name-hover: #22d3ee;
@@ -93,6 +94,7 @@ h1, h2, h3, h4 {
 
 .topbar {
   grid-column: 1 / -1;
+  grid-row: 1;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -119,7 +121,8 @@ h1, h2, h3, h4 {
 }
 
 .tab-row {
-  grid-column: 1 / -1;
+  grid-column: 2;
+  grid-row: 2;
   display: flex;
   flex-direction: row;
   flex: none;
@@ -151,13 +154,15 @@ h1, h2, h3, h4 {
 }
 .tab-item.active {
   color: var(--nav-active);
-  background: var(--bg);
+  background: var(--content-bg);
   border-color: var(--line);
-  border-bottom-color: var(--bg);
+  border-bottom-color: var(--content-bg);
   box-shadow: inset 0 2px 0 var(--accent);
 }
 
 .sidebar {
+  grid-column: 1;
+  grid-row: 2 / 4;
   display: flex;
   flex-direction: column;
   min-height: 0;
@@ -429,11 +434,14 @@ nav > .nav-branch { margin-top: 0.35rem; }
 }
 
 .main {
+  grid-column: 2;
+  grid-row: 3;
   padding: 1.15rem 1.35rem 1.4rem;
   max-width: 1600px;
   min-width: 0;
   min-height: 0;
   overflow: auto;
+  background: var(--content-bg);
 }
 
 .hero, .page-head {
@@ -1180,14 +1188,17 @@ label.checkbox input { width: auto; accent-color: var(--accent); }
     height: auto;
     overflow: visible;
   }
-  .topbar { grid-column: 1; }
-  .tab-row { grid-column: 1; }
+  .topbar { grid-column: 1; grid-row: 1; }
+  .tab-row { grid-column: 1; grid-row: 2; }
   .sidebar {
+    grid-column: 1;
+    grid-row: 3;
     position: relative;
     height: auto;
     border-right: 0;
     border-bottom: 1px solid var(--line);
   }
+  .main { grid-column: 1; grid-row: 4; }
   .grid-3, .grid-4, .form-grid { grid-template-columns: 1fr; }
   .logs-settings {
     grid-template-columns: 1fr 1fr;
@@ -1348,6 +1359,7 @@ html.light-mode {
   --glass-shadow: none;
   --nav-active: #d97706;
   --nav-parent: #334155;
+  --content-bg: color-mix(in srgb, var(--accent) 10%, var(--bg));
   --wordmark-name: #0f172a;
   --wordmark-tld: #64748b;
   --wordmark-name-hover: #a16207;
@@ -1493,6 +1505,7 @@ html.professional-mode {
   --glass-shadow: none;
   --nav-active: #fef3c7;
   --nav-parent: #d6d3d1;
+  --content-bg: color-mix(in srgb, var(--accent) 12%, var(--bg));
   --wordmark-name: #fbbf24;
   --wordmark-tld: #a8a29e;
   --wordmark-name-hover: #fcd34d;
