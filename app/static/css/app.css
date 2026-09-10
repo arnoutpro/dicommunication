@@ -157,6 +157,12 @@ h1, h2, h3, h4 {
   background: var(--content-bg);
   border-color: var(--line);
   border-bottom-color: var(--content-bg);
+  /* A 1px overlap can land on a different device pixel than .tab-row's own
+     border-bottom at fractional CSS heights / high-DPI zoom, leaving a
+     hairline of .tab-row's background showing through. Overlap generously
+     instead of relying on both edges rounding identically. */
+  border-bottom-width: 3px;
+  margin-bottom: -3px;
   box-shadow: inset 0 2px 0 var(--accent);
 }
 
