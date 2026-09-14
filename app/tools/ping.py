@@ -9,7 +9,7 @@ import time
 from typing import Any
 
 from app.models import LocalAE, RemoteNode, ToolResult, ToolStep
-from app.paths import runtime_os_name
+from app.paths import no_console_kwargs, runtime_os_name
 from app.tools.base import BaseTool, elapsed_ms
 from app.tools.registry import register
 
@@ -124,6 +124,7 @@ class PingTool(BaseTool):
                 text=True,
                 timeout=wait_s * count + 2,
                 check=False,
+                **no_console_kwargs(),
             )
         except subprocess.TimeoutExpired:
             return ToolStep(
