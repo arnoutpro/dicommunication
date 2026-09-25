@@ -16,7 +16,7 @@ Open [http://127.0.0.1:8080](http://127.0.0.1:8080).
 
 ## Screenshots
 
-Synthetic lab studies (not clinical data). Light theme, v0.4.0, in the arnout.pro "Reading Room" design shared with the browser tools (see [DESIGN.md](DESIGN.md)). The theme switcher (top right) also has dark and professional-dark modes: same layout, different palette.
+Synthetic lab studies (not clinical data). Light theme, v0.5.0, in the arnout.pro "Reading Room" design shared with the browser tools (see [DESIGN.md](DESIGN.md)). The theme switcher (top right) also has dark and professional-dark modes: same layout, different palette.
 
 **Dicommunication** — dashboard: this workstation, each remote node's last C-ECHO in words, a one-click C-ECHO of every node, and a suggested next step.
 
