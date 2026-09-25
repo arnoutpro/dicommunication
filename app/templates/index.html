@@ -53,11 +53,11 @@
           <td><code>{{ row.remote.connect_host }}:{{ row.remote.port }}</code></td>
           <td class="actions">
             {% if row.status == "pass" %}
-            <span class="badge ok">Echo</span>
+            <span class="badge ok">Echo OK</span>
             {% elif row.status == "fail" %}
-            <span class="badge fail">Echo</span>
+            <span class="badge fail">Echo failed</span>
             {% endif %}
-            {% if row.remote.provides_mwl %}<span class="badge ok">MWL</span>{% endif %}
+            {% if row.remote.provides_mwl %}<span class="badge">MWL</span>{% endif %}
             <a href="/testbench">Testbench</a>
             <a href="/tools/ping">PING</a>
             <a href="/tools/c-echo">C-ECHO</a>
