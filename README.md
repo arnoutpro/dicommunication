@@ -16,9 +16,9 @@ Open [http://127.0.0.1:8080](http://127.0.0.1:8080).
 
 ## Screenshots
 
-Synthetic lab studies (not clinical data). Light theme, v0.4.0. The theme switcher (top right) also has dark and professional-dark modes — same layout, same tab-color-into-page-background treatment, different accent.
+Synthetic lab studies (not clinical data). Light theme, v0.4.0, in the arnout.pro "Reading Room" design shared with the browser tools (see [DESIGN.md](DESIGN.md)). The theme switcher (top right) also has dark and professional-dark modes: same layout, different palette.
 
-**Dicommunication** — workstation dashboard, remotes, Test tools.
+**Dicommunication** — dashboard: this workstation, each remote node's last C-ECHO in words, a one-click C-ECHO of every node, and a suggested next step.
 
 ![Dicommunication dashboard](docs/screenshots/dicommunication-dashboard.webp)
 
@@ -28,15 +28,15 @@ Synthetic lab studies (not clinical data). Light theme, v0.4.0. The theme switch
 
 ![Five Structured Reports with Findings, Impression, and export](docs/screenshots/vue-sr-reports.webp)
 
-**Dicom Anonymizer** — query, pick studies, choose a mode (Nuke / Fuzz / Remove patient info / Custom), export.
+**Dicom Anonymizer** — four numbered steps: find studies, choose studies, choose how (Nuke / Fuzz / Remove patient info / Custom), export.
 
-![Dicom Anonymizer query results and anonymization mode](docs/screenshots/anonymizer.webp)
+![Dicom Anonymizer steps with two of five studies selected](docs/screenshots/anonymizer.webp)
 
-**Dicom Cleaner** — query, pick studies, set the redact rectangle, send the cleaned instances back.
+**Dicom Cleaner** — the same steps: find studies, choose studies, set the redact rectangle, send the cleaned instances back.
 
-![Dicom Cleaner query results and redact-region fields](docs/screenshots/cleaner.webp)
+![Dicom Cleaner steps with redact-region fields and send-back options](docs/screenshots/cleaner.webp)
 
-**Dicom Router** — scheduled route rules with a live status dot per rule in the sidebar.
+**Dicom Router** — scheduled route rules with a status dot per rule in the sidebar (active, paused).
 
 ![Dicom Router rule list and add-rule form](docs/screenshots/router.webp)
 
