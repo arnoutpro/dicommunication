@@ -29,18 +29,24 @@
 <body class="{% block body_class %}{% endblock %}" data-product-name="{{ product_name }}">
   <div class="shell">
     <header class="topbar">
-      <a class="brand" href="{{ href('/') }}" title="© 2026 arnout.pro">
-        <span class="site-brand-lockup">
-          <span class="site-brand-mark-slot" aria-hidden="true">
-            <img class="site-brand-mark-img" src="/static/favicon.svg" alt="">
+      <div class="topbar-title">
+        <a class="brand" href="{{ href('/') }}" title="© 2026 arnout.pro">
+          <span class="site-brand-lockup">
+            <span class="site-brand-mark-slot" aria-hidden="true">
+              <img class="site-brand-mark-img" src="/static/favicon.svg" alt="">
+            </span>
+            <span class="site-brand-copy" aria-hidden="true">©</span>
           </span>
-          <span class="site-brand-copy" aria-hidden="true">©</span>
-        </span>
-        <span class="brand-copy">
-          <strong class="logo-font"><span class="logo-wordmark-name">ARNOUT</span><span class="logo-wordmark-tld">.PRO</span></strong>
-          <small>{{ product_name }}</small>
-        </span>
-      </a>
+          <span class="visually-hidden">arnout.pro {{ product_name }}, home</span>
+        </a>
+        <p class="app-title">
+          <span>{{ product_name }}</span>
+          {%- if tab == 'dicommunication' and tool is defined %}
+          <span class="crumb-sep" aria-hidden="true">/</span>
+          <span class="crumb-trail">{{ category_label(tool.category) }}</span>
+          {%- endif %}
+        </p>
+      </div>
       <div class="topbar-actions">
         <a href="{{ href('/about') }}" class="button{% if nav == 'about' %} is-active{% endif %}">About</a>
         <a href="{{ href('/help') }}" class="button{% if nav == 'help' %} is-active{% endif %}">Help</a>
@@ -150,8 +156,10 @@
         <div class="nav-children" style="margin-left: 0; padding-left: 0; border-left: none;">
           {% for r in route_rules %}
           <a href="{{ href('/router/' ~ r.id ~ '/runs') }}" class="nav-rule-link{% if rule is defined and rule.id == r.id %} active{% endif %}">
-            <span class="nav-rule-dot {% if r.id in running_route_rule_ids %}is-running{% elif r.status == 'active' %}is-active{% elif r.status == 'paused' %}is-paused{% else %}is-stopped{% endif %}" aria-hidden="true"></span>
+            {% set rule_state = 'Running' if r.id in running_route_rule_ids else r.status | capitalize %}
+            <span class="nav-rule-dot is-{{ rule_state | lower }}" title="{{ rule_state }}" aria-hidden="true"></span>
             <span class="name">{{ r.name }}</span>
+            <span class="visually-hidden">({{ rule_state }})</span>
           </a>
           {% endfor %}
           {% if not route_rules %}

@@ -1,7 +1,7 @@
 """Tool plugins. Add a new file in this package, subclass BaseTool, and call register()."""
 
-from app.tools.registry import discover, get_tool, list_tools, list_tools_by_category, register
+from app.tools.registry import category_label, discover, get_tool, list_tools, list_tools_by_category, register
 
 discover()
 
-__all__ = ["discover", "get_tool", "list_tools", "list_tools_by_category", "register"]
+__all__ = ["category_label", "discover", "get_tool", "list_tools", "list_tools_by_category", "register"]

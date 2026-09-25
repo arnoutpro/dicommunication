@@ -26,7 +26,7 @@ from app.shell import (
     active_tab,
     display_tool_name,
 )
-from app.tools import get_tool, list_tools, list_tools_by_category
+from app.tools import category_label, get_tool, list_tools, list_tools_by_category
 
 BASE_DIR = package_dir()
 
@@ -67,6 +67,7 @@ def page(request: Request, **extra: object) -> dict:
         "product_name": PRODUCT_DICOMM,
         "href": _href,
         "display_tool_name": display_tool_name,
+        "category_label": category_label,
         "tab": tab,
         "tabs": TAB_ORDER,
         "tab_labels": TAB_LABELS,
