@@ -1,0 +1,12 @@
+{# The steps that come after "Find studies", shown dimmed until a query
+   returns studies, so the page says up front where it is going. Expects
+   `pending_steps`, a list of step titles starting at step 2. #}
+<ol class="pending-steps" aria-label="Next steps">
+  {% for title in pending_steps %}
+  <li class="step is-pending">
+    <span class="step-num" aria-hidden="true">{{ loop.index + 1 }}</span>
+    <span>{{ title }}</span>
+    {% if loop.first %}<span class="hint">After you find studies</span>{% endif %}
+  </li>
+  {% endfor %}
+</ol>

@@ -3,7 +3,6 @@
 {% block content %}
 <header class="page-head">
   <div>
-    <p class="eyebrow">Dicom Router</p>
     <h1>
       {{ rule.name }}
       {% if running %}
@@ -59,8 +58,10 @@
   <div class="panel" style="margin-bottom: 1rem;">
     <header class="panel-head">
       <h3>
-        <span class="badge {% if run.ok %}ok{% else %}fail{% endif %}">{{ run.started_at.strftime('%Y-%m-%d %H:%M:%S') }} UTC</span>
-        {% if run.status == 'interrupted' %}<span class="badge">interrupted</span>{% endif %}
+        {% if not run.ok %}<span class="badge fail">Failed</span>
+        {% elif run.status == 'interrupted' %}<span class="badge">Interrupted</span>
+        {% else %}<span class="badge ok">Completed</span>{% endif %}
+        {{ run.started_at.strftime('%Y-%m-%d %H:%M:%S') }} UTC ·
         {{ run.matched_count }} matched · {{ run.new_count }} new
       </h3>
       <span class="muted small">{{ "%.0f"|format(run.duration_ms) }} ms</span>
@@ -88,7 +89,7 @@
             <td>{{ match.modality }}</td>
             <td><code class="small">{{ match.series_instance_uid or match.study_instance_uid }}</code></td>
             <td>
-              <span class="badge {% if match.status == 'forwarded' %}ok{% elif match.status == 'failed' %}fail{% endif %}">{{ match.status }}</span>
+              <span class="badge {% if match.status == 'forwarded' %}ok{% elif match.status == 'failed' %}fail{% endif %}">{{ match.status | capitalize }}</span>
               {% if match.error %}<div class="muted small">{{ match.error }}</div>{% endif %}
             </td>
           </tr>

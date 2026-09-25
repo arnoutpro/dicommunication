@@ -3,34 +3,83 @@
 {% block content %}
 <section class="hero">
   <div>
-    <p class="eyebrow">Arnout.pro</p>
-    <h1>Arnout.pro Dicommunication Tool</h1>
-    <p class="lede">Configure this workstation and remote DICOM nodes, then run connectivity checks from Test tools.</p>
+    <h1>Dashboard</h1>
+    <p class="lede">This workstation, the nodes it talks to, and what they answered last.</p>
   </div>
 </section>
 
-<div class="grid-3">
+{% set failing = echo_board.rows | selectattr("status", "equalto", "fail") | list %}
+<div class="grid-3 dash-cards">
   <article class="card">
-    <p class="card-label">Local AE</p>
-    <h2>{{ config.local.ae_title }}</h2>
-    <p class="muted">{{ config.local.host }}:{{ config.local.port }} · timeout {{ config.local.timeout_seconds | int }}s{% if config.identities %} · {{ config.identities | length }} virtual AE{% if config.identities | length != 1 %}s{% endif %}{% endif %}</p>
+    <header class="card-head">
+      <p class="card-label">This workstation</p>
+      <a class="card-link" href="{{ href('/config/local') }}">Edit</a>
+    </header>
+    <h2><code>{{ config.local.ae_title }}</code></h2>
+    <p class="muted">Listening on {{ config.local.host }}:{{ config.local.port }} · timeout {{ config.local.timeout_seconds | int }}s{% if config.identities %} · {{ config.identities | length }} virtual AE{% if config.identities | length != 1 %}s{% endif %}{% endif %}</p>
+    <ul class="status-list">
+      <li>
+        <span>Accept C-STORE</span>
+        {% if storage_scp_running %}<span class="badge ok">Listening</span>
+        {% elif config.local.storage_scp_enabled %}<span class="badge fail">Not listening</span>
+        {% else %}<span class="badge">Off</span>{% endif %}
+      </li>
+      <li>
+        <span>Worklist SCP</span>
+        {% if mwl_scp_running %}<span class="badge ok">Listening</span>
+        {% elif config.local.mwl_scp_enabled %}<span class="badge fail">Not listening</span>
+        {% else %}<span class="badge">Off</span>{% endif %}
+      </li>
+    </ul>
   </article>
+
   <article class="card">
-    <p class="card-label">Remote nodes</p>
-    <h2>{{ config.remotes | length }}</h2>
-    <p class="muted">{% if config.remotes %}Ready for Testbench, PING, and C-ECHO{% else %}Add a PACS, modality, or test SCP{% endif %}</p>
+    <header class="card-head">
+      <p class="card-label">Remote nodes</p>
+      <a class="card-link" href="{{ href('/config/remotes') }}">Manage</a>
+    </header>
+    <h2>{{ echo_board.total }}</h2>
+    {% if config.remotes %}
+    <p class="muted">
+      {{ echo_board.passed }} answering · {{ echo_board.failed }} not answering · {{ echo_board.unknown }} not checked
+    </p>
+    <form method="post" action="{{ href('/echo-board/run') }}?return=home" class="card-action">
+      <button class="button primary" type="submit" data-busy-text="Running C-ECHO…">C-ECHO all nodes</button>
+    </form>
+    {% else %}
+    <p class="muted">None yet.</p>
+    {% endif %}
   </article>
+
   <article class="card">
-    <p class="card-label">Registered tools</p>
-    <h2>{{ tools | length }}</h2>
-    <p class="muted">{% for item in tools %}{{ item.name }}{% if not loop.last %} · {% endif %}{% endfor %}</p>
+    <header class="card-head">
+      <p class="card-label">Next step</p>
+    </header>
+    {% if not config.remotes %}
+    <p class="next-step">Add the PACS, modality or test SCP you want to reach: its AE Title, host and port.</p>
+    <a class="button primary card-action" href="{{ href('/config/remotes') }}">Add a remote node</a>
+    {% elif failing %}
+    <p class="next-step">
+      {{ failing | length }} {{ "node doesn't" if failing | length == 1 else "nodes don't" }} answer C-ECHO.
+      Check the host is reachable with Network PING, then compare the Called AE and port with the remote side.
+    </p>
+    <a class="button card-action" href="{{ href('/tools/ping') }}?remote_id={{ failing[0].remote.id }}">Network PING {{ failing[0].remote.name }}</a>
+    {% elif echo_board.unknown %}
+    <p class="next-step">
+      {{ echo_board.unknown }} {{ "node hasn't" if echo_board.unknown == 1 else "nodes haven't" }} been checked yet.
+      Run C-ECHO on all nodes to see which ones answer.
+    </p>
+    {% else %}
+    <p class="next-step">Every node answers C-ECHO. Go further with a C-FIND or C-STORE in the Testbench.</p>
+    <a class="button card-action" href="{{ href('/testbench') }}">Open Testbench</a>
+    {% endif %}
   </article>
 </div>
 
 <section class="panel">
   <header class="panel-head">
     <h2>Remote DICOM nodes</h2>
-    <a href="/config">Manage</a>
+    <a href="{{ href('/echo-board') }}">C-ECHO board</a>
   </header>
   {% if config.remotes %}
   <div class="table-wrap">
@@ -40,7 +89,8 @@
           <th>Name</th>
           <th>Called AE</th>
           <th>Endpoint</th>
-          <th></th>
+          <th>Last C-ECHO</th>
+          <th><span class="visually-hidden">Actions</span></th>
         </tr>
       </thead>
       <tbody>
@@ -48,20 +98,25 @@
         <tr>
           <td>
             <strong>{{ row.remote.name }}</strong>
+            {% if row.remote.provides_mwl %}<span class="badge">MWL</span>{% endif %}
             {% if row.remote.notes %}<div class="muted small">{{ row.remote.notes }}</div>{% endif %}
           </td>
           <td><code>{{ row.remote.ae_title }}</code></td>
           <td><code>{{ row.remote.connect_host }}:{{ row.remote.port }}</code></td>
-          <td class="actions">
+          <td>
             {% if row.status == "pass" %}
-            <span class="badge ok">Echo</span>
+            <span class="badge ok">Echo OK</span>
             {% elif row.status == "fail" %}
-            <span class="badge fail">Echo</span>
+            <span class="badge fail">Echo failed</span>
+            {% else %}
+            <span class="badge">Not checked</span>
             {% endif %}
-            {% if row.remote.provides_mwl %}<span class="badge ok">MWL</span>{% endif %}
-            <a href="/testbench">Testbench</a>
-            <a href="/tools/ping">PING</a>
-            <a href="/tools/c-echo">C-ECHO</a>
+            {% if row.result %}<span class="muted small">{{ row.result.started_at.strftime("%H:%M:%S") }}</span>{% endif %}
+          </td>
+          <td class="actions">
+            <a href="{{ href('/tools/ping') }}?remote_id={{ row.remote.id }}">PING</a>
+            <a href="{{ href('/tools/c-echo') }}?remote_id={{ row.remote.id }}">C-ECHO</a>
+            <a href="{{ href('/testbench') }}?remote_id={{ row.remote.id }}">Testbench</a>
           </td>
         </tr>
         {% endfor %}
@@ -72,7 +127,6 @@
   <div class="empty">
     <strong>No remote nodes yet</strong>
     <p>Add the PACS or modality AE Title, host, and port on the configuration screen.</p>
-    <a class="button" href="/config/remotes">Add a remote node</a>
   </div>
   {% endif %}
 </section>
@@ -85,7 +139,7 @@
   <ul class="timeline">
     {% for item in results %}
     <li>
-      <span class="dot {% if item.ok %}ok{% else %}fail{% endif %}"></span>
+      <span class="badge {% if item.ok %}ok{% else %}fail{% endif %}">{% if item.ok %}Pass{% else %}Fail{% endif %}</span>
       <div>
         <strong>{{ display_tool_name(item.tool_name) }}</strong>
         {% if item.remote_name %}<span class="muted">→ {{ item.remote_name }}</span>{% endif %}

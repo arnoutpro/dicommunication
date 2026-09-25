@@ -76,6 +76,11 @@ TOOL_ORDER = (
 )
 
 
+def category_label(category: str) -> str:
+    """Display label for a tool category id ("dimse" -> "DIMSE")."""
+    return CATEGORY_LABELS.get(category, category.replace("_", " ").title())
+
+
 def list_tools_by_category(
     *, exclude: frozenset[str] | set[str] | None = None
 ) -> list[tuple[str, list[BaseTool]]]:
@@ -93,15 +98,12 @@ def list_tools_by_category(
     seen: set[str] = set()
     for category in CATEGORY_ORDER:
         if category in buckets:
-            groups.append(
-                (CATEGORY_LABELS.get(category, category), sorted(buckets[category], key=_tool_sort))
-            )
+            groups.append((category_label(category), sorted(buckets[category], key=_tool_sort)))
             seen.add(category)
     for category in sorted(buckets):
         if category in seen:
             continue
-        label = CATEGORY_LABELS.get(category, category.replace("_", " ").title())
-        groups.append((label, sorted(buckets[category], key=_tool_sort)))
+        groups.append((category_label(category), sorted(buckets[category], key=_tool_sort)))
     return groups
 
 
