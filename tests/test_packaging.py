@@ -827,6 +827,51 @@ def test_confirm_purge_data_defaults_to_keep_when_dialog_unavailable(monkeypatch
     assert uninstall.confirm_purge_data() is False
 
 
+def _fake_windows_console_flag(monkeypatch) -> int:
+    """Make no_console_kwargs() behave as on Windows, on any OS."""
+    import subprocess
+
+    monkeypatch.setattr("app.paths.runtime_os_name", lambda: "nt")
+    monkeypatch.setattr(subprocess, "CREATE_NO_WINDOW", 0x08000000, raising=False)
+    return 0x08000000
+
+
+def test_uninstall_prompt_suppresses_powershell_console_on_windows(monkeypatch) -> None:
+    """The MSI custom action has no console, so powershell would flash an empty one."""
+    import subprocess
+
+    from app import uninstall
+
+    flag = _fake_windows_console_flag(monkeypatch)
+    captured = {}
+
+    def fake_run(argv, **kwargs):
+        captured.update(kwargs)
+        return subprocess.CompletedProcess(argv, 0)
+
+    monkeypatch.setattr("app.uninstall.subprocess.run", fake_run)
+    assert uninstall._confirm_via_powershell() is True
+    assert captured.get("creationflags") == flag
+
+
+def test_folder_picker_suppresses_powershell_console_on_windows(monkeypatch) -> None:
+    """Browse… runs powershell from the console-less desktop app; no empty window."""
+    import subprocess
+
+    from app import fs_dialog
+
+    flag = _fake_windows_console_flag(monkeypatch)
+    captured = {}
+
+    def fake_run(argv, **kwargs):
+        captured.update(kwargs)
+        return subprocess.CompletedProcess(argv, 0, stdout="C:\\Anonymized\n", stderr="")
+
+    monkeypatch.setattr("app.fs_dialog.subprocess.run", fake_run)
+    assert fs_dialog._windows_folder() == "C:\\Anonymized"
+    assert captured.get("creationflags") == flag
+
+
 def test_purge_data_dir_removes_the_windows_data_dir(monkeypatch, tmp_path) -> None:
     from app import uninstall
 
