@@ -549,6 +549,33 @@ legend {
   border-color: var(--line-strong);
 }
 .card-label, .muted { color: var(--muted); }
+/* Dashboard cards: label + quiet link on one line, then the value. */
+.card { display: flex; flex-direction: column; }
+.card-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.5rem;
+}
+.card-link { color: var(--accent); font-size: var(--text-sm); font-weight: 700; text-decoration: none; }
+.card-link:hover { color: var(--accent-hover); text-decoration: underline; }
+.card .muted, .card .next-step { margin: 0.25rem 0 0; }
+.next-step { color: var(--subtle); font-size: var(--text-sm); line-height: 1.45; }
+.card-action { margin-top: auto; padding-top: 0.75rem; align-self: flex-start; }
+a.card-action { margin-top: auto; }
+.status-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  margin: 0.65rem 0 0;
+  padding: 0.55rem 0 0;
+  list-style: none;
+  border-top: 1px solid var(--line);
+  font-size: var(--text-sm);
+  color: var(--subtle);
+}
+.status-list li { display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; }
+td .badge + .muted.small { margin-left: 0.35rem; }
 /* Labels are mixed case at 12px (DESIGN.md "In the tools"); no small caps. */
 .card-label {
   margin: 0;
@@ -1124,6 +1151,9 @@ label.required.is-optional .req { display: none; }
   border-top: 1px solid var(--line);
 }
 .steps p, .timeline p, .result header p { margin: 0.15rem 0 0; color: var(--muted); }
+.steps li > .badge, .timeline li > .badge { align-self: start; margin-top: 0.1rem; }
+.timeline li { font-size: var(--text-md); align-items: start; }
+.timeline time { color: var(--muted); font-size: var(--text-sm); font-variant-numeric: tabular-nums; }
 .result-assoc { margin: 0.45rem 0 0; }
 
 .log {

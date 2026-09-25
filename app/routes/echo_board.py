@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, Request
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, RedirectResponse
 
 from app.applog import log
 from app.echo_board import run_all as run_echo_board
@@ -36,6 +36,10 @@ def echo_board_run(request: Request):
         board.unknown,
         board.total,
     )
+    if request.query_params.get("return") == "home" and not _hx(request):
+        # "C-ECHO all nodes" on the dashboard: run, then show the dashboard
+        # again with each node's fresh status instead of leaving for the board.
+        return RedirectResponse("/", status_code=303)
     if _hx(request):
         return templates.TemplateResponse(
             request,
