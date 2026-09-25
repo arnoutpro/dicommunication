@@ -6,7 +6,7 @@ import os
 import subprocess
 import sys
 
-from app.paths import runtime_os_name
+from app.paths import no_console_kwargs, runtime_os_name
 
 
 def dialogs_available() -> bool:
@@ -25,6 +25,7 @@ def _run(argv: list[str], timeout: float = 180) -> str | None:
             capture_output=True,
             text=True,
             timeout=timeout,
+            **no_console_kwargs(),
         )
     except (FileNotFoundError, subprocess.TimeoutExpired, OSError):
         return None

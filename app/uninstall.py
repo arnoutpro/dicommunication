@@ -17,7 +17,7 @@ import shutil
 import subprocess
 
 from app.launcher import windows_data_dir
-from app.paths import runtime_os_name
+from app.paths import no_console_kwargs, runtime_os_name
 
 CONFIRM_TITLE = "Dicommunication"
 CONFIRM_MESSAGE = (
@@ -44,6 +44,7 @@ def _confirm_via_powershell() -> bool | None:
             ["powershell", "-NoProfile", "-STA", "-Command", script],
             check=False,
             timeout=300,
+            **no_console_kwargs(),
         )
     except (FileNotFoundError, subprocess.TimeoutExpired, OSError):
         return None
