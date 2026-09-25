@@ -57,7 +57,9 @@
     </label>
 
     <div class="form-actions">
-      <button class="button primary" type="submit" name="action" value="query" data-busy-text="Querying…">Run query</button>
+      {# One filled button per column (DESIGN.md): once studies are listed, the job is the run button below, so the query button steps back. #}
+      {% set has_studies = action == "query" and result and result.ok and result.records %}
+      <button class="button{% if not has_studies %} primary{% endif %}" type="submit" name="action" value="query" data-busy-text="Querying…">Run query</button>
       <span class="hint">Study-level C-FIND, same as Dicomtag Analytics.</span>
     </div>
 
