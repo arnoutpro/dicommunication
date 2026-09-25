@@ -577,7 +577,12 @@ def tool_page(
     return templates.TemplateResponse(
         request,
         tool.template,
-        page(request, nav="tools", tool=tool, tool_id=tool.id, result=None),
+        page(
+            request, nav="tools", tool=tool, tool_id=tool.id, result=None,
+            # Links such as the dashboard's per-node PING / C-ECHO open the tool
+            # with that node already selected.
+            remote_id=request.query_params.get("remote_id", ""),
+        ),
     )
 
 

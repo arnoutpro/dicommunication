@@ -56,7 +56,10 @@ def testbench_page(request: Request) -> HTMLResponse:
     return templates.TemplateResponse(
         request,
         "testbench.html",
-        page(request, nav="testbench", result=None, service="c-echo"),
+        page(
+            request, nav="testbench", result=None, service="c-echo",
+            remote_id=request.query_params.get("remote_id", ""),
+        ),
     )
 
 
