@@ -1,0 +1,51 @@
+{# Checkable study table plus the level choice, shared by Dicom Anonymizer and
+   Dicom Cleaner. Expects `result` (the Study-level C-FIND), `level`, and
+   `level_legend` ("Anonymize at" / "Retrieve at"). app.js wires the
+   select-all box and the live count ([data-study-pick]). #}
+<div class="study-pick" data-study-pick>
+  <div class="study-pick-head">
+    <p class="study-pick-count" data-study-pick-count aria-live="polite">
+      {{ result.records | length }} {{ "study" if result.records | length == 1 else "studies" }} found · none selected
+    </p>
+  </div>
+  <div class="table-wrap">
+    <table class="find-table">
+      <thead>
+        <tr>
+          <th class="pick-col">
+            <input type="checkbox" data-study-pick-all aria-label="Select all studies">
+          </th>
+          {% for key in result.records[0].keys() %}
+          <th>{{ key.replace("_", " ") }}</th>
+          {% endfor %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in result.records %}
+        <tr>
+          <td class="pick-col">
+            <input type="checkbox" name="study_uid" value="{{ row.StudyInstanceUID }}"
+                   aria-label="Select {{ row.PatientName or row.StudyInstanceUID }}{% if row.StudyDate %}, {{ row.StudyDate }}{% endif %}">
+          </td>
+          {% for value in row.values() %}
+          <td>{{ value }}</td>
+          {% endfor %}
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<fieldset class="find-level-field">
+  <legend>{{ level_legend }}</legend>
+  <div class="find-level-tabs" role="radiogroup" aria-label="Level">
+    {% for value, label in [("STUDY", "Study"), ("SERIES", "Series"), ("IMAGE", "Image")] %}
+    <label class="find-level-tab">
+      <input type="radio" name="level" value="{{ value }}" {% if level == value %}checked{% endif %}>
+      <span>{{ label }}</span>
+    </label>
+    {% endfor %}
+  </div>
+  <p class="hint">Series and Image take <strong>every</strong> series or image in the checked studies; there is no per-series picker yet.</p>
+</fieldset>

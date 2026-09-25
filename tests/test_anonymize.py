@@ -202,11 +202,20 @@ def test_anonymize_query_then_run_end_to_end(tmp_path) -> None:
         with TestClient(app) as client:
             query = client.post(
                 "/tools/anonymize/run",
-                data={"action": "query", "remote_id": remote.id, "study_date": "2026-01-01"},
+                data={
+                    "action": "query", "remote_id": remote.id, "study_date": "2026-01-01",
+                    "patient_id": "100234", "modality": ["CT", "MR"],
+                },
             )
             assert query.status_code == 200
             assert "DOE^JANE" in query.text
             assert "Anonymize at" in query.text
+            # The query fields keep what was submitted instead of clearing.
+            assert 'name="study_date" value="2026-01-01"' in query.text
+            assert 'name="patient_id" value="100234"' in query.text
+            assert 'value="CT" checked' in query.text
+            assert 'value="MR" checked' in query.text
+            assert 'value="US" checked' not in query.text
 
             out_dir = tmp_path / "anon_out"
             run = client.post(

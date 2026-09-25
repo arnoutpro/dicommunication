@@ -1,0 +1,46 @@
+{# Study-level query fields shared by Dicom Anonymizer and Dicom Cleaner.
+   Expects `query` (what was last submitted, so a query or run doesn't clear
+   the form) and `has_studies` (the query button steps back to a ghost button
+   once there are studies to act on: one filled button per column). #}
+<label>
+  Remote node
+  <select name="remote_id" required>
+    {% for remote in config.remotes %}
+    <option value="{{ remote.id }}" {% if remote.id == remote_id %}selected{% endif %}>
+      {{ remote.name }} — {{ remote.ae_title }} @ {{ remote.connect_host }}:{{ remote.port }}
+    </option>
+    {% endfor %}
+  </select>
+  {% if query_remote_hint is defined %}<span class="hint">{{ query_remote_hint }}</span>{% endif %}
+</label>
+{% include "partials/identity_select.html" %}
+
+<label class="required">
+  <span class="label-line">Study Date <abbr class="req" title="Required">*</abbr></span>
+  <input type="date" name="study_date" value="{{ query.study_date or '' }}" required>
+</label>
+<label>
+  Patient ID
+  <input type="text" name="patient_id" value="{{ query.patient_id or '' }}" placeholder="12345">
+</label>
+<label>
+  Accession Number
+  <input type="text" name="accession_number" value="{{ query.accession_number or '' }}" placeholder="ACC1">
+</label>
+<fieldset class="modality-field">
+  <legend>Modalities</legend>
+  <div class="find-modality-chips">
+    {% for code in ["CR", "CT", "DX", "MG", "MR", "NM", "OT", "PT", "RF", "SC", "SR", "US", "XA"] %}
+    <label class="find-modality-chip">
+      <input type="checkbox" name="modality" value="{{ code }}" {% if code in (query.modalities or []) %}checked{% endif %}>
+      <span>{{ code }}</span>
+    </label>
+    {% endfor %}
+  </div>
+  <span class="hint">None selected matches any modality.</span>
+</fieldset>
+
+<div class="form-actions">
+  <button class="button{% if not has_studies %} primary{% endif %}" type="submit" name="action" value="query" data-busy-text="Querying…">Find studies</button>
+  <span class="hint">Study-level C-FIND, same as Dicomtag Analytics.</span>
+</div>

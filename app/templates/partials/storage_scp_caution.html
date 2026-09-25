@@ -1,0 +1,13 @@
+{# Retrieving (C-MOVE) needs this workstation's Storage SCP to receive the
+   images. When it can't, say so where the run button is: a caution that
+   changes what the user does next (DESIGN.md: amber means caution). #}
+{% if not storage_scp_running %}
+<p class="caution" role="note">
+  {% if not config.local.storage_scp_enabled %}
+  <strong>Accept C-STORE is off</strong>, so the PACS can't send the studies to this workstation and the run will fail.
+  {% else %}
+  <strong>The local Storage SCP isn't listening</strong>, so the PACS can't send the studies to this workstation and the run will fail.
+  {% endif %}
+  <a href="{{ href('/config/local') }}">Open Local DICOM AE</a>
+</p>
+{% endif %}
