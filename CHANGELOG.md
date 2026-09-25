@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Security and robustness
+
+- **Windows**: Network PING, the **Browse…** folder picker (Dicom Anonymizer, PDF to DICOM) and the uninstall confirmation each started a console program (`ping.exe`, `powershell`) without suppressing its console window. The desktop app has no console of its own, so Windows opened a new, empty one that flashed on screen next to the app (the output goes into a pipe the app reads, not to that window). All three now pass `no_console_kwargs()` (`app/paths.py`, `CREATE_NO_WINDOW` on Windows, a no-op elsewhere), so no extra window appears; the ping output still shows inside the app under the result's **Show details**.
+
 ## 0.5.0
 
 A redesign in the arnout.pro "Reading Room" style shared with the browser tools, the five separate apps merged into one application with a tab per product, and everything built since 0.3.0: Dicom Router, Dicom Anonymizer, Dicom Cleaner, Dicomtag Analytics, Tag Editor and PDF to DICOM. This is the first published release after 0.3.0; 0.4.0 was only used for unpublished manual builds.

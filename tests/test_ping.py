@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import socket
+import subprocess
 
 import pytest
 
@@ -53,6 +54,33 @@ def test_ping_reaches_loopback_over_icmp(store) -> None:
         pytest.skip(f"this host does not allow ICMP echo: {icmp.details.get('output', '')}")
 
     assert icmp.ok
+
+
+def test_icmp_ping_suppresses_console_window_on_windows(monkeypatch) -> None:
+    """A frozen Windows build has no console of its own, so spawning ping.exe
+    would otherwise flash an empty console window (its captured output never
+    reaches that window — it goes straight into the pipe we already read and
+    show inside the app). CREATE_NO_WINDOW stops that window from appearing.
+    """
+    monkeypatch.setattr("app.paths.runtime_os_name", lambda: "nt")
+    monkeypatch.setattr("app.tools.ping.runtime_os_name", lambda: "nt")
+    monkeypatch.setattr(subprocess, "CREATE_NO_WINDOW", 0x08000000, raising=False)
+    monkeypatch.setattr("app.tools.ping.shutil.which", lambda name: "ping.exe")
+
+    captured = {}
+
+    def fake_run(command, **kwargs):
+        captured.update(kwargs)
+        return subprocess.CompletedProcess(command, 0, stdout="Reply from 1.2.3.4\n", stderr="")
+
+    monkeypatch.setattr("app.tools.ping.subprocess.run", fake_run)
+
+    remote = RemoteNode(name="pacs", ae_title="PACS", host="1.2.3.4", port=104)
+    step = PingTool()._icmp(remote, timeout=2)
+
+    assert captured.get("creationflags") == 0x08000000
+    assert step.ok
+    assert "Reply from 1.2.3.4" in step.details["output"]
 
 
 def test_ping_open_tcp_port() -> None:
