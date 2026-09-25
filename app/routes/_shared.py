@@ -26,7 +26,7 @@ from app.shell import (
     active_tab,
     display_tool_name,
 )
-from app.tools import get_tool, list_tools, list_tools_by_category
+from app.tools import category_label, get_tool, list_tools, list_tools_by_category
 
 BASE_DIR = package_dir()
 
@@ -67,6 +67,7 @@ def page(request: Request, **extra: object) -> dict:
         "product_name": PRODUCT_DICOMM,
         "href": _href,
         "display_tool_name": display_tool_name,
+        "category_label": category_label,
         "tab": tab,
         "tabs": TAB_ORDER,
         "tab_labels": TAB_LABELS,
@@ -83,6 +84,20 @@ def page(request: Request, **extra: object) -> dict:
         },
         "app_version": __version__,
         **extra,
+    }
+
+
+def study_query_from_form(form: Any) -> dict[str, Any]:
+    """The Study-level query fields shared by Dicom Anonymizer and Dicom Cleaner.
+
+    Returned as the user typed them, so the page can put them back into the
+    form after a query or a run instead of clearing them.
+    """
+    return {
+        "patient_id": str(form.get("patient_id") or "").strip(),
+        "accession_number": str(form.get("accession_number") or "").strip(),
+        "study_date": str(form.get("study_date") or "").strip(),
+        "modalities": [v for v in form.getlist("modality") if v],
     }
 
 

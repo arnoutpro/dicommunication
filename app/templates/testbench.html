@@ -3,7 +3,6 @@
 {% block content %}
 <header class="page-head">
   <div>
-    <p class="eyebrow">DICOM DIMSE</p>
     <h1>Testbench</h1>
     <p class="lede">
       Send a simulated C-ECHO, C-STORE, Study Root C-FIND, or Modality Worklist C-FIND
@@ -73,7 +72,7 @@
       Remote node
       <select name="remote_id" required>
         {% for remote in config.remotes %}
-        <option value="{{ remote.id }}">{{ remote.name }} — {{ remote.ae_title }} @ {{ remote.connect_host }}:{{ remote.port }}{% if remote.provides_mwl %} (DMWL){% endif %}</option>
+        <option value="{{ remote.id }}" {% if remote.id == remote_id %}selected{% endif %}>{{ remote.name }} — {{ remote.ae_title }} @ {{ remote.connect_host }}:{{ remote.port }}{% if remote.provides_mwl %} (DMWL){% endif %}</option>
         {% endfor %}
       </select>
     </label>
