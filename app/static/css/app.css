@@ -703,6 +703,10 @@ th {
   letter-spacing: 0.01em;
 }
 .actions { display: flex; gap: 0.7rem; justify-content: flex-end; flex-wrap: wrap; }
+/* In a table the actions cell must stay a table cell: display:flex on a <td>
+   takes it out of the row, so its border and height drift from the rest. */
+td.actions { display: table-cell; text-align: right; white-space: nowrap; }
+td.actions > * + * { margin-left: 0.7rem; }
 .actions a, .link-button {
   color: var(--accent);
   background: none;
@@ -897,6 +901,7 @@ details[open] > summary::before { transform: rotate(45deg); }
   padding: 0 0.75rem 0.65rem;
   background: var(--glass);
 }
+.advanced:not([open]) { padding-bottom: 0; }
 .advanced > summary {
   color: var(--subtle);
   font-size: var(--text-md);
