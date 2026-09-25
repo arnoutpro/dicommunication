@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Security and robustness
+
+- **Windows**: Network PING, the **Browse…** folder picker (Dicom Anonymizer, PDF to DICOM) and the uninstall confirmation each started a console program (`ping.exe`, `powershell`) without suppressing its console window. The desktop app has no console of its own, so Windows opened a new, empty one that flashed on screen next to the app (the output goes into a pipe the app reads, not to that window). All three now pass `no_console_kwargs()` (`app/paths.py`, `CREATE_NO_WINDOW` on Windows, a no-op elsewhere), so no extra window appears; the ping output still shows inside the app under the result's **Show details**.
+
 ## 0.5.0
 
 A redesign in the arnout.pro "Reading Room" style shared with the browser tools, the five separate apps merged into one application with a tab per product, and everything built since 0.3.0: Dicom Router, Dicom Anonymizer, Dicom Cleaner, Dicomtag Analytics, Tag Editor and PDF to DICOM. This is the first published release after 0.3.0; 0.4.0 was only used for unpublished manual builds.
@@ -23,7 +29,6 @@ The design system is in [`DESIGN.md`](DESIGN.md). It replaces the earlier chrome
 
 ### Security and robustness
 
-- **Network PING**: on Windows, the ICMP step spawned `ping.exe` without suppressing its console window — since the frozen desktop app has no console of its own, Windows opened a new one for it, which flashed on screen empty (the command's actual output was captured into a pipe for the app to show, not written to that console). Added `no_console_kwargs()` (`app/paths.py`) and pass it to the `ping.exe` subprocess call, so no separate window appears at all; the full ping output (round-trip times, packet-loss summary) already renders inside the app under the result's "Show details" — that was working, it was just hidden behind the confusing empty window popping up alongside it.
 - Running any tool (C-ECHO, C-STORE, C-FIND, MWL C-FIND, HL7 send, PDF to DICOM, testbench) from the browser crashed with `display_tool_name is undefined` instead of showing the result. The HTMX partial that renders results needed it and three routes were passing it a minimal template context that didn't include it.
 - **Dicom Anonymizer**: the sidebar was showing the full Dicommunication navigation — Testbench, C-ECHO board, Worklist, every test tool — instead of the slim single-tool sidebar Dicomtag Analytics gets (its own page, Configured nodes, Logs). `base.html` only special-cased `shell == "vue"` for the slim sidebar; every other shell, Dicom Anonymizer included, fell through to the full one. Generalized to `shell != "dicommunication"`, so any future single-tool shell gets the slim sidebar automatically too.
 - **Windows uninstall**: MSI uninstall only removes what it installed under Program Files, never `%LOCALAPPDATA%\dicommunication` — the running app writes there itself, so it survived uninstall silently. Uninstall now asks once whether to also delete it, since it can hold patient data (see `SECURITY.md#patient-data-on-disk`); the default answer keeps it, same as before this prompt existed. Never fires during an upgrade (only a genuine uninstall) or a silent/unattended one.
