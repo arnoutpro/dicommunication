@@ -17,7 +17,7 @@ from fastapi.responses import HTMLResponse
 
 from app.fs_dialog import dialogs_available
 from app.models import ToolResult
-from app.routes._shared import execute_tool, page, templates
+from app.routes._shared import execute_tool, page, study_query_from_form, templates
 from app.tools import get_tool
 from app.tools.anon_engine import MODE_LABELS, MODES
 from app.tools.anon_tags import tags_by_category
@@ -37,6 +37,7 @@ def _anonymize_page(
     status_code: int = 200,
     remote_id: str = "",
     identity_id: str = "",
+    query: dict[str, Any] | None = None,
 ) -> HTMLResponse:
     return templates.TemplateResponse(
         request,
@@ -51,6 +52,7 @@ def _anonymize_page(
             action=action,
             remote_id=remote_id,
             identity_id=identity_id,
+            query=query or {},
             dialogs_available=dialogs_available(),
             anon_modes=MODES,
             anon_mode_labels=MODE_LABELS,
@@ -90,6 +92,9 @@ async def anonymize_run(request: Request) -> HTMLResponse:
     level = str(form.get("level") or "STUDY").strip().upper()
     if level not in LEVELS:
         level = "STUDY"
+    # The query fields sit in the same form as the run options, so they are
+    # posted with either action and can be put back into the page afterwards.
+    query = study_query_from_form(form)
 
     options: dict[str, Any] = {"action": action, "level": level}
     if action == "run":
@@ -100,10 +105,10 @@ async def anonymize_run(request: Request) -> HTMLResponse:
         options["archive"] = str(form.get("archive") or "none")
         options["custom_actions_json"] = _custom_actions_from_form(form)
     else:
-        options["patient_id"] = str(form.get("patient_id") or "")
-        options["accession_number"] = str(form.get("accession_number") or "")
-        options["study_date"] = normalize_da(str(form.get("study_date") or ""))
-        options["modality"] = "\\".join(v for v in form.getlist("modality") if v)
+        options["patient_id"] = query["patient_id"]
+        options["accession_number"] = query["accession_number"]
+        options["study_date"] = normalize_da(query["study_date"])
+        options["modality"] = "\\".join(query["modalities"])
 
     try:
         result = execute_tool(request, "anonymize", remote_id or None, options, identity_id or None)
@@ -116,9 +121,9 @@ async def anonymize_run(request: Request) -> HTMLResponse:
         )
         return _anonymize_page(
             request, result=failure, level=level, action=action, status_code=exc.status_code,
-            remote_id=remote_id, identity_id=identity_id,
+            remote_id=remote_id, identity_id=identity_id, query=query,
         )
     return _anonymize_page(
         request, result=result, level=level, action=action,
-        remote_id=remote_id, identity_id=identity_id,
+        remote_id=remote_id, identity_id=identity_id, query=query,
     )

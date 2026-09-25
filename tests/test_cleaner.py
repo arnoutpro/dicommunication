@@ -235,6 +235,7 @@ def test_cleaner_query_then_run_redacts_and_sends_back(tmp_path) -> None:
             )
             assert query.status_code == 200
             assert "DOE^JANE" in query.text
+            assert 'name="study_date" value="2026-01-01"' in query.text
 
             run = client.post(
                 "/tools/dicom-cleaner/run",

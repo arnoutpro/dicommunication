@@ -567,6 +567,72 @@ function initAnonymizeForm(scope) {
   });
 }
 
+// Study table on Dicom Anonymizer / Dicom Cleaner: a select-all box, a live
+// "N of M selected" line, and a run button that says what it will do
+// ("Anonymize 2 studies") and stays disabled until something is checked.
+function initStudyPick(scope) {
+  const root = scope instanceof Element ? scope : document;
+  root.querySelectorAll("[data-study-pick]").forEach((pick) => {
+    if (pick.dataset.studyPickReady === "1") {
+      return;
+    }
+    pick.dataset.studyPickReady = "1";
+    const form = pick.closest("form");
+    const boxes = [...pick.querySelectorAll('input[name="study_uid"]')];
+    const all = pick.querySelector("[data-study-pick-all]");
+    const count = pick.querySelector("[data-study-pick-count]");
+    const run = form?.querySelector("[data-study-pick-run]");
+    const noun = (n) => (n === 1 ? "study" : "studies");
+
+    function sync() {
+      const checked = boxes.filter((box) => box.checked).length;
+      if (all instanceof HTMLInputElement) {
+        all.checked = checked > 0 && checked === boxes.length;
+        all.indeterminate = checked > 0 && checked < boxes.length;
+      }
+      if (count) {
+        const found = `${boxes.length} ${noun(boxes.length)} found`;
+        count.textContent = checked ? `${found} · ${checked} selected` : `${found} · none selected`;
+      }
+      if (run instanceof HTMLButtonElement) {
+        const verb = run.dataset.runVerb || "Run";
+        run.disabled = checked === 0;
+        run.textContent = checked ? `${verb} ${checked} ${noun(checked)}` : `${verb} selected`;
+      }
+    }
+    all?.addEventListener("change", () => {
+      boxes.forEach((box) => {
+        box.checked = all.checked;
+      });
+      sync();
+    });
+    boxes.forEach((box) => box.addEventListener("change", sync));
+    sync();
+  });
+}
+
+// A choice with one short explanation per option: show only the selected
+// option's line ([data-choice-hints] > [data-hint-for="value"]). Without JS
+// every line stays visible.
+function initChoiceHints(scope) {
+  const root = scope instanceof Element ? scope : document;
+  root.querySelectorAll("[data-choice-hints]").forEach((group) => {
+    if (group.dataset.choiceHintsReady === "1") {
+      return;
+    }
+    group.dataset.choiceHintsReady = "1";
+    const radios = [...group.querySelectorAll('input[type="radio"]')];
+    function sync() {
+      const value = radios.find((radio) => radio.checked)?.value || "";
+      group.querySelectorAll("[data-hint-for]").forEach((hint) => {
+        hint.hidden = hint.getAttribute("data-hint-for") !== value;
+      });
+    }
+    radios.forEach((radio) => radio.addEventListener("change", sync));
+    sync();
+  });
+}
+
 function initCleanerPreview(scope) {
   const root = scope instanceof Element ? scope : document;
   const canvas = root.matches?.("[data-cleaner-preview-canvas]")
@@ -695,6 +761,8 @@ function initCleanerPreview(scope) {
 initNavTree();
 initPdfStoreForm(document);
 initAnonymizeForm(document);
+initStudyPick(document);
+initChoiceHints(document);
 initCleanerPreview(document);
 initThemePreference();
 enhanceSelectMenus();
