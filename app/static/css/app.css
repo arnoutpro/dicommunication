@@ -73,6 +73,9 @@
 }
 
 * { box-sizing: border-box; }
+/* Components that set display (form-grid labels are flex) would otherwise
+   override the hidden attribute. */
+[hidden] { display: none !important; }
 html, body { margin: 0; height: 100%; }
 html {
   overflow: hidden;
@@ -438,6 +441,16 @@ h1, h2, h3, h4 {
   white-space: nowrap;
   min-width: 0;
 }
+.nav-rules { margin-left: 0; padding-left: 0; border-left: none; }
+/* Words before colour: the dot only reinforces the state named here. */
+.nav-rule-state {
+  margin-left: auto;
+  flex-shrink: 0;
+  color: var(--muted);
+  font-size: var(--text-xs);
+  font-weight: 600;
+}
+.nav-rule-link.active .nav-rule-state { color: inherit; }
 .nav-rule-dot {
   flex-shrink: 0;
   width: 0.55rem;
@@ -719,6 +732,14 @@ td.actions > * + * { margin-left: 0.7rem; }
 }
 .link-button.danger { color: var(--fail); }
 .inline { display: inline; }
+.rule-actions { justify-content: flex-start; }
+.route-run { margin-bottom: 1rem; }
+.nowrap { white-space: nowrap; }
+@media (max-width: 760px) {
+  .route-rules td.actions { white-space: normal; }
+}
+.route-rule-name { color: var(--text); font-weight: 700; text-decoration: none; }
+.route-rule-name:hover, .route-rule-name:focus-visible { color: var(--accent); text-decoration: underline; }
 
 .form-grid {
   display: grid;
@@ -1008,6 +1029,10 @@ input:focus, select:focus, textarea:focus, .choice-toggle:focus-visible, .choice
   pointer-events: auto;
   transform: none;
 }
+/* A save error sits under the field it's about; the words carry it, the
+   red border only points to it. */
+.field-error { color: var(--fail); font-size: var(--text-xs); font-weight: 600; line-height: 1.35; }
+[aria-invalid="true"] { border-color: var(--fail) !important; }
 .panel > .hint, .hint { margin: 0; color: var(--muted); font-size: var(--text-xs); font-weight: 500; line-height: 1.35; }
 .panel .form-grid + .table-wrap { margin-top: 0.65rem; }
 .form-actions {

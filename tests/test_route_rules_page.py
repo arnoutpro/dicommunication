@@ -43,6 +43,41 @@ def test_router_page_lists_rules_in_sidebar(client: TestClient, store: ConfigSto
     assert "every 15 min" in details.text
 
 
+def test_router_page_lists_rules_and_hides_form(client: TestClient, store: ConfigStore, remote: RemoteNode) -> None:
+    rule = store.add_route_rule(RouteRule(name="Nightly CT", source_remote_id=remote.id, status="paused"))
+    page = client.get("/router").text
+    assert 'class="route-rules"' in page
+    assert f'action="/router/{rule.id}/start"' in page  # Resume, from the list
+    assert '<span class="badge">Paused</span>' in page
+    assert 'id="rule-form"' not in page
+    assert 'href="/router?new=1"' in page
+    # The sidebar says the state in words, not only with the dot's colour.
+    assert '<span class="nav-rule-state">Paused</span>' in page
+
+    adding = client.get("/router?new=1").text
+    assert 'id="rule-form"' in adding
+    assert 'href="/router?new=1"' not in adding
+
+
+def test_router_page_shows_form_when_empty(client: TestClient, remote: RemoteNode) -> None:
+    page = client.get("/router").text
+    assert 'id="rule-form"' in page
+    assert 'class="route-rules"' not in page
+
+
+def test_rule_form_hides_fields_that_do_not_apply(client: TestClient, store: ConfigStore, remote: RemoteNode) -> None:
+    page = client.get("/router").text
+    assert '<label data-reveal-when="date_scope=last_n_days" hidden>' in page
+    assert '<label data-reveal-when="level=SERIES" hidden>' in page
+
+    rule = store.add_route_rule(
+        RouteRule(name="Series", source_remote_id=remote.id, level="SERIES", date_scope="last_n_days")
+    )
+    editing = client.get(f"/router?edit={rule.id}").text
+    assert '<label data-reveal-when="date_scope=last_n_days">' in editing
+    assert '<label data-reveal-when="level=SERIES">' in editing
+
+
 def test_add_edit_delete_route_rule(client: TestClient, store: ConfigStore, remote: RemoteNode) -> None:
     response = client.post(
         "/router",
@@ -223,3 +258,52 @@ def test_start_pause_stop_lifecycle(client: TestClient, store: ConfigStore, remo
 
     details = client.get(f"/router/{rule.id}/runs")
     assert "Stopped" in details.text
+
+
+def test_daily_schedule_without_times_keeps_the_form(client: TestClient, store: ConfigStore, remote: RemoteNode) -> None:
+    response = client.post(
+        "/router",
+        data={
+            "name": "Morning MR",
+            "source_remote_id": remote.id,
+            "modality": "MR",
+            "schedule_mode": "daily",
+            "daily_times": "",
+            "days_of_week": ["0"],
+        },
+    )
+    assert response.status_code == 400
+    assert store.list_route_rules() == []
+    page = response.text
+    # What was typed comes back, with the error under the field it's about.
+    assert 'value="Morning MR"' in page
+    assert '<option value="daily" selected>' in page
+    assert 'value="0" checked' in page
+    assert '<details class="advanced" open>' in page
+    assert 'aria-describedby="error-daily_times"' in page
+    assert '<span class="field-error" id="error-daily_times">Add at least one time of day for a daily schedule</span>' in page
+    assert "Value error" not in page
+    # And the browser is told the field is required, so it can catch this first.
+    assert "data-required-when-daily" in page
+
+
+def test_invalid_time_on_edit_keeps_the_rule(client: TestClient, store: ConfigStore, remote: RemoteNode) -> None:
+    rule = store.add_route_rule(RouteRule(name="Nightly CT", source_remote_id=remote.id))
+    response = client.post(
+        "/router",
+        data={
+            "rule_id": rule.id,
+            "name": "Nightly CT renamed",
+            "source_remote_id": remote.id,
+            "schedule_mode": "daily",
+            "daily_times": "25:00",
+        },
+    )
+    assert response.status_code == 400
+    assert store.get_route_rule(rule.id).name == "Nightly CT"
+    page = response.text
+    assert "Edit route rule" in page
+    assert f'name="rule_id" value="{rule.id}"' in page
+    assert 'value="Nightly CT renamed"' in page
+    assert 'value="25:00"' in page
+    assert 'id="error-daily_times">Invalid time' in page

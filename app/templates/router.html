@@ -1,11 +1,16 @@
 {% extends "base.html" %}
 {% block title %}Dicom Router · {{ product_name }}{% endblock %}
 {% block content %}
+{% macro invalid(name) %}{% if error_field == name %} aria-invalid="true" aria-describedby="error-{{ name }}" autofocus{% endif %}{% endmacro %}
+{% macro field_error(name) %}{% if error_field == name %}<span class="field-error" id="error-{{ name }}">{{ error }}</span>{% endif %}{% endmacro %}
 <header class="page-head">
   <div>
-    <h1>Scheduled routing rules</h1>
+    <h1>Route rules</h1>
     <p class="lede">Each rule runs a C-FIND against a PACS on a timer or daily schedule. Add destination nodes to also C-MOVE new matches here and C-STORE them onward; leave destinations empty to just track new studies.</p>
   </div>
+  {% if route_rules and not show_form and config.remotes %}
+  <a class="button primary nowrap" href="{{ href('/router?new=1') }}">Add route rule</a>
+  {% endif %}
 </header>
 
 {% if saved %}
@@ -18,17 +23,18 @@
   {% else %}Saved.{% endif %}
 </div>
 {% endif %}
-{% if error %}
+{% if error and not error_field %}
 <div class="flash fail">{{ error }}</div>
 {% endif %}
 
-<section class="panel">
+{% if show_form %}
+<section class="panel" id="rule-form">
   <header class="panel-head">
     <h2>{% if editing %}Edit route rule{% else %}Add route rule{% endif %}</h2>
-    {% if editing %}<a href="{{ href('/router') }}">Cancel</a>{% endif %}
+    {% if editing or route_rules %}<a href="{{ href('/router') }}">Cancel</a>{% endif %}
   </header>
   {% if editing %}
-  <p class="muted small" style="padding: 0 1.25rem;">Start / Pause / Stop are on the rule's own page (open it from the sidebar) — editing here never changes a rule's running state.</p>
+  <p class="muted small">Saving never changes whether the rule is running; use Start, Pause and Stop in the list or on the rule's page.</p>
   {% endif %}
   {% if not config.remotes %}
   <div class="empty">
@@ -42,26 +48,29 @@
     {% endif %}
     <label>
       Name
-      <input name="name" required placeholder="Nightly CT from PACS" value="{{ editing.name if editing else '' }}">
+      <input name="name"{{ invalid("name") }} required placeholder="Nightly CT from PACS" value="{{ values.name if values else '' }}">
+      {{ field_error("name") }}
     </label>
     <label>
       Source PACS
-      <select name="source_remote_id" required>
+      <select name="source_remote_id"{{ invalid("source_remote_id") }} required>
         <option value="">Select a remote node…</option>
         {% for node in config.remotes %}
-        <option value="{{ node.id }}" {% if editing and editing.source_remote_id == node.id %}selected{% endif %}>{{ node.name }} ({{ node.ae_title }})</option>
+        <option value="{{ node.id }}" {% if values and values.source_remote_id == node.id %}selected{% endif %}>{{ node.name }} ({{ node.ae_title }})</option>
         {% endfor %}
       </select>
+      {{ field_error("source_remote_id") }}
     </label>
     <label>
       Modality
-      <input name="modality" placeholder="CT,MR" value="{{ editing.modality if editing else '' }}">
+      <input name="modality"{{ invalid("modality") }} placeholder="CT,MR" value="{{ values.modality if values else '' }}">
+      {{ field_error("modality") }}
       <span class="hint">Comma-separated. Leave blank to match any modality.</span>
     </label>
     <label>
       Query level
       <select name="level">
-        {% set level = editing.level if editing else 'STUDY' %}
+        {% set level = values.level if values else 'STUDY' %}
         <option value="STUDY" {% if level == 'STUDY' %}selected{% endif %}>Study</option>
         <option value="SERIES" {% if level == 'SERIES' %}selected{% endif %}>Series (per matching study)</option>
       </select>
@@ -70,49 +79,53 @@
     <label>
       Study date
       <select name="date_scope">
-        {% set date_scope = editing.date_scope if editing else 'today' %}
+        {% set date_scope = values.date_scope if values else 'today' %}
         <option value="today" {% if date_scope == 'today' %}selected{% endif %}>Today</option>
         <option value="yesterday" {% if date_scope == 'yesterday' %}selected{% endif %}>Yesterday</option>
         <option value="last_n_days" {% if date_scope == 'last_n_days' %}selected{% endif %}>Last N days</option>
         <option value="all" {% if date_scope == 'all' %}selected{% endif %}>Any date</option>
       </select>
     </label>
-    <label>
-      N days
-      <input type="number" name="date_last_n_days" min="1" max="365" value="{{ editing.date_last_n_days if editing else 1 }}">
-      <span class="hint">Only used when Study date is "Last N days".</span>
+    <label data-reveal-when="date_scope=last_n_days"{% if date_scope != 'last_n_days' %} hidden{% endif %}>
+      Number of days
+      <input type="number" name="date_last_n_days"{{ invalid("date_last_n_days") }} min="1" max="365" value="{{ values.date_last_n_days if values else 1 }}">
+      {{ field_error("date_last_n_days") }}
+      <span class="hint">Today plus the days before it.</span>
     </label>
-    <label>
+    <label data-reveal-when="level=SERIES"{% if level != 'SERIES' %} hidden{% endif %}>
       Station Name filter
-      <input name="station_ae_title" maxlength="16" placeholder="CT-ROOM1" value="{{ editing.station_ae_title if editing else '' }}">
-      <span class="hint">Optional. Only applied at the Series query level (Station Name isn't a Study-level DICOM matching key).</span>
+      <input name="station_ae_title"{{ invalid("station_ae_title") }} maxlength="16" placeholder="CT-ROOM1" value="{{ values.station_ae_title if values else '' }}">
+      {{ field_error("station_ae_title") }}
+      <span class="hint">Optional. Matches each series' Station Name.</span>
     </label>
 
-    <details class="advanced" {% if editing %}open{% endif %}>
+    <details class="advanced" {% if editing or error_field in ('interval_minutes', 'daily_times', 'days_of_week') %}open{% endif %}>
       <summary>Schedule</summary>
       <div class="form-grid">
         <label>
           Schedule type
           <select name="schedule_mode" data-schedule-mode>
-            {% set schedule_mode = editing.schedule_mode if editing else 'interval' %}
+            {% set schedule_mode = values.schedule_mode if values else 'interval' %}
             <option value="interval" {% if schedule_mode == 'interval' %}selected{% endif %}>Every N minutes</option>
             <option value="daily" {% if schedule_mode == 'daily' %}selected{% endif %}>Time(s) of day</option>
           </select>
         </label>
         <label data-schedule-interval>
           Interval (minutes)
-          <input type="number" name="interval_minutes" min="1" max="10080" value="{{ editing.interval_minutes if editing else 15 }}">
+          <input type="number" name="interval_minutes"{{ invalid("interval_minutes") }} min="1" max="10080" value="{{ values.interval_minutes if values else 15 }}">
+          {{ field_error("interval_minutes") }}
         </label>
         <label class="span-2" data-schedule-daily>
           Times of day
-          <input name="daily_times" placeholder="08:00, 20:00" value="{{ editing.daily_times | join(', ') if editing else '' }}">
+          <input name="daily_times"{{ invalid("daily_times") }}{% if schedule_mode == 'daily' %} required{% endif %} data-required-when-daily placeholder="08:00, 20:00" value="{{ values.daily_times | join(', ') if values else '' }}">
+          {{ field_error("daily_times") }}
           <span class="hint">24h HH:MM, comma-separated.</span>
         </label>
         <label class="span-2" data-schedule-daily>
           Days of week
           <div class="find-modality-chips">
             {% set day_labels = [('0', 'Mon'), ('1', 'Tue'), ('2', 'Wed'), ('3', 'Thu'), ('4', 'Fri'), ('5', 'Sat'), ('6', 'Sun')] %}
-            {% set selected_days = (editing.days_of_week if editing else []) | map('string') | list %}
+            {% set selected_days = (values.days_of_week if values else []) | map('string') | list %}
             {% for value, label in day_labels %}
             <label class="find-modality-chip">
               <input type="checkbox" name="days_of_week" value="{{ value }}" {% if value in selected_days %}checked{% endif %}>
@@ -125,13 +138,13 @@
       </div>
     </details>
 
-    <details class="advanced" {% if editing and editing.destination_remote_ids %}open{% endif %}>
+    <details class="advanced" {% if values and values.destination_remote_ids %}open{% endif %}>
       <summary>Forwarding (optional)</summary>
       <div class="form-grid">
         <label class="span-2">
           Destination node(s)
           <div class="find-modality-chips">
-            {% set selected_destinations = editing.destination_remote_ids if editing else [] %}
+            {% set selected_destinations = values.destination_remote_ids if values else [] %}
             {% for node in config.remotes %}
             <label class="find-modality-chip">
               <input type="checkbox" name="destination_remote_ids" value="{{ node.id }}" {% if node.id in selected_destinations %}checked{% endif %}>
@@ -150,20 +163,95 @@
   </form>
   {% endif %}
 </section>
+{% endif %}
 
 {% if route_rules %}
-<p class="muted small">Configured route rules are listed in the sidebar under <strong>Dicom Router</strong> — click one to see its status, history, and Start / Pause / Stop / Run now.</p>
+<section class="panel">
+  <header class="panel-head">
+    <h2>Rules</h2>
+    <span class="muted">{{ route_rules | length }} rule{% if route_rules | length != 1 %}s{% endif %}</span>
+  </header>
+  <div class="table-wrap">
+    <table class="route-rules">
+      <thead>
+        <tr>
+          <th>Rule</th>
+          <th>State</th>
+          <th>Schedule</th>
+          <th>Last run</th>
+          <th>Next run</th>
+          <th><span class="visually-hidden">Actions</span></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in route_rules %}
+        {% set source = config.get_remote(r.source_remote_id) %}
+        {% set is_running = r.id in running_route_rule_ids %}
+        <tr>
+          <td>
+            <a class="route-rule-name" href="{{ href('/router/' ~ r.id ~ '/runs') }}">{{ r.name }}</a>
+            <div class="muted small">
+              {{ source.name if source else 'Source node missing' }}
+              {% if r.destination_remote_ids %}
+              &rarr; {% for dest_id in r.destination_remote_ids %}{% set dest = config.get_remote(dest_id) %}{{ dest.name if dest else 'missing node' }}{% if not loop.last %}, {% endif %}{% endfor %}
+              {% else %}
+              · track only
+              {% endif %}
+            </div>
+          </td>
+          <td>
+            {% if is_running %}<span class="badge ok">Running</span>
+            {% elif r.status == 'active' %}<span class="badge ok">Active</span>
+            {% elif r.status == 'paused' %}<span class="badge">Paused</span>
+            {% else %}<span class="badge">Stopped</span>{% endif %}
+          </td>
+          <td>{{ r.schedule_label[:1] | upper }}{{ r.schedule_label[1:] }}</td>
+          <td>
+            {% if r.last_run_at %}
+            {% if r.last_run_ok %}<span class="badge ok">OK</span>{% else %}<span class="badge fail">Failed</span>{% endif %}
+            <div class="muted small nowrap">{{ r.last_run_at.strftime('%Y-%m-%d %H:%M') }} UTC</div>
+            {% else %}
+            <span class="muted">Not run yet</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if r.status == 'active' and r.next_run_at %}<span class="nowrap">{{ r.next_run_at.strftime('%Y-%m-%d %H:%M') }} UTC</span>
+            {% elif r.status == 'active' %}<span class="muted">Due now</span>
+            {% else %}<span class="muted">Not scheduled</span>{% endif %}
+          </td>
+          <td class="actions">
+            {% with rule=r, running=is_running %}{% include "partials/route_rule_actions.html" %}{% endwith %}
+            <a href="{{ href('/router?edit=' ~ r.id) }}">Edit</a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
 {% endif %}
+
 <script>
 (function () {
-  var select = document.querySelector('[data-schedule-mode]');
-  if (!select) return;
+  var form = document.querySelector('#rule-form form');
+  if (!form) return;
   function sync() {
-    var daily = select.value === 'daily';
-    document.querySelectorAll('[data-schedule-daily]').forEach(function (el) { el.style.display = daily ? '' : 'none'; });
-    document.querySelectorAll('[data-schedule-interval]').forEach(function (el) { el.style.display = daily ? 'none' : ''; });
+    var daily = form.querySelector('[data-schedule-mode]').value === 'daily';
+    form.querySelectorAll('[data-schedule-daily]').forEach(function (el) { el.hidden = !daily; });
+    form.querySelectorAll('[data-schedule-interval]').forEach(function (el) { el.hidden = daily; });
+    form.querySelectorAll('[data-required-when-daily]').forEach(function (el) { el.required = daily; });
+    form.querySelectorAll('[data-reveal-when]').forEach(function (el) {
+      var rule = el.getAttribute('data-reveal-when').split('=');
+      el.hidden = form.querySelector('[name="' + rule[0] + '"]').value !== rule[1];
+    });
   }
-  select.addEventListener('change', sync);
+  form.addEventListener('change', sync);
+  // A required field inside a closed <details> can't be focused, so the
+  // browser would refuse to submit without saying why. Open it first.
+  form.addEventListener('invalid', function (event) {
+    var section = event.target.closest('details');
+    if (section) section.open = true;
+  }, true);
   sync();
 })();
 </script>

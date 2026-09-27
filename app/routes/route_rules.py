@@ -8,7 +8,7 @@ from pydantic import ValidationError
 
 from app.applog import log
 from app.models import RouteRule
-from app.routes._shared import _first_error, page, templates
+from app.routes._shared import page, templates
 
 router = APIRouter()
 
@@ -17,11 +17,17 @@ def _router_view(
     request: Request,
     *,
     editing: RouteRule | None = None,
+    adding: bool = False,
+    draft: RouteRule | None = None,
+    error_field: str | None = None,
     saved: str | None = None,
     error: str | None = None,
     nav: str = "router",
     status_code: int = 200,
 ) -> HTMLResponse:
+    # The page leads with the rule list; the form shows only when asked for,
+    # when a save failed, or when there are no rules yet to list.
+    show_form = bool(editing or adding or error or not request.app.state.store.list_route_rules())
     return templates.TemplateResponse(
         request,
         "router.html",
@@ -29,6 +35,9 @@ def _router_view(
             request,
             nav=nav,
             editing=editing,
+            show_form=show_form,
+            values=draft or editing,
+            error_field=error_field,
             saved=saved,
             error=error,
         ),
@@ -37,9 +46,11 @@ def _router_view(
 
 
 @router.get("/router", response_class=HTMLResponse)
-def router_page(request: Request, edit: str | None = None, saved: str | None = None) -> HTMLResponse:
+def router_page(
+    request: Request, edit: str | None = None, new: str | None = None, saved: str | None = None
+) -> HTMLResponse:
     editing = request.app.state.store.get_route_rule(edit) if edit else None
-    return _router_view(request, editing=editing, saved=saved)
+    return _router_view(request, editing=editing, adding=bool(new), saved=saved)
 
 
 @router.get("/router/{rule_id}/runs", response_class=HTMLResponse)
@@ -63,36 +74,65 @@ def router_runs_page(request: Request, rule_id: str, saved: str | None = None) -
     )
 
 
+def _int_or_raw(value: object, default: int) -> int | str:
+    text = str(value or "").strip()
+    if not text:
+        return default
+    try:
+        return int(text)
+    except ValueError:
+        return text
+
+
+def _rule_error(exc: ValueError, fields: dict) -> tuple[str, str | None]:
+    """The message to show and the form field it belongs to (None: the whole form)."""
+    if not isinstance(exc, ValidationError):
+        return str(exc), None
+    error = exc.errors()[0]
+    message = str(error.get("msg") or "Invalid value").removeprefix("Value error, ")
+    loc = error.get("loc") or ()
+    if loc:
+        return message, str(loc[0])
+    # The only whole-model check is a daily schedule without times.
+    return message, "daily_times" if fields.get("schedule_mode") == "daily" else None
+
+
 @router.post("/router")
 async def add_or_update_route_rule(request: Request):
     form = await request.form()
     rule_id = str(form.get("rule_id") or "")
-    daily_times = [
-        part.strip() for part in str(form.get("daily_times") or "").split(",") if part.strip()
-    ]
-    days_of_week = [int(value) for value in form.getlist("days_of_week")]
-    destination_remote_ids = [value for value in form.getlist("destination_remote_ids") if value]
+    fields = {
+        "name": str(form.get("name") or ""),
+        "source_remote_id": str(form.get("source_remote_id") or ""),
+        "level": str(form.get("level") or "STUDY"),
+        "modality": str(form.get("modality") or ""),
+        "date_scope": str(form.get("date_scope") or "today"),
+        "date_last_n_days": _int_or_raw(form.get("date_last_n_days"), 1),
+        "station_ae_title": str(form.get("station_ae_title") or ""),
+        "schedule_mode": str(form.get("schedule_mode") or "interval"),
+        "interval_minutes": _int_or_raw(form.get("interval_minutes"), 15),
+        "daily_times": [part.strip() for part in str(form.get("daily_times") or "").split(",") if part.strip()],
+        "days_of_week": [_int_or_raw(value, 0) for value in form.getlist("days_of_week")],
+        "destination_remote_ids": [value for value in form.getlist("destination_remote_ids") if value],
+    }
 
     try:
-        rule = RouteRule(
-            name=str(form.get("name") or ""),
-            source_remote_id=str(form.get("source_remote_id") or ""),
-            level=str(form.get("level") or "STUDY"),  # type: ignore[arg-type]
-            modality=str(form.get("modality") or ""),
-            date_scope=str(form.get("date_scope") or "today"),  # type: ignore[arg-type]
-            date_last_n_days=int(form.get("date_last_n_days") or 1),
-            station_ae_title=str(form.get("station_ae_title") or ""),
-            schedule_mode=str(form.get("schedule_mode") or "interval"),  # type: ignore[arg-type]
-            interval_minutes=int(form.get("interval_minutes") or 15),
-            daily_times=daily_times,
-            days_of_week=days_of_week,
-            destination_remote_ids=destination_remote_ids,
-        )
+        rule = RouteRule(**fields)
     except (ValidationError, ValueError) as exc:
-        store = request.app.state.store
-        editing = store.get_route_rule(rule_id) if rule_id else None
-        message = _first_error(exc) if isinstance(exc, ValidationError) else str(exc)
-        return _router_view(request, editing=editing, error=message, status_code=400)
+        message, error_field = _rule_error(exc, fields)
+        # Put back what was typed, unvalidated, so a mistake costs one field
+        # rather than the whole form.
+        draft = RouteRule.model_construct(**fields)
+        if rule_id:
+            draft.id = rule_id
+        return _router_view(
+            request,
+            editing=draft if rule_id else None,
+            draft=draft,
+            error=message,
+            error_field=error_field,
+            status_code=400,
+        )
 
     if rule_id:
         try:

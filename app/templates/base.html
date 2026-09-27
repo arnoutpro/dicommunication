@@ -153,13 +153,13 @@
 
         {% elif tab == 'router' %}
         <a href="{{ href('/router') }}" class="{% if nav == 'router' and rule is not defined %}active{% endif %}">Route rules</a>
-        <div class="nav-children" style="margin-left: 0; padding-left: 0; border-left: none;">
+        <div class="nav-children nav-rules">
           {% for r in route_rules %}
           <a href="{{ href('/router/' ~ r.id ~ '/runs') }}" class="nav-rule-link{% if rule is defined and rule.id == r.id %} active{% endif %}">
             {% set rule_state = 'Running' if r.id in running_route_rule_ids else r.status | capitalize %}
-            <span class="nav-rule-dot is-{{ rule_state | lower }}" title="{{ rule_state }}" aria-hidden="true"></span>
+            <span class="nav-rule-dot is-{{ rule_state | lower }}" aria-hidden="true"></span>
             <span class="name">{{ r.name }}</span>
-            <span class="visually-hidden">({{ rule_state }})</span>
+            <span class="nav-rule-state">{{ rule_state }}</span>
           </a>
           {% endfor %}
           {% if not route_rules %}

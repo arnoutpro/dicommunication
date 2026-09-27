@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+### Dicom Router
+
+- **Route rules page leads with the rules**: `/router` now opens on a table of every rule: name, source and destinations, state in words (Active, Paused, Stopped, Running), schedule, last run (**OK** / **Failed** and when) and next run, with Start / Resume, Run now, Pause, Stop and Edit on each row. Before, the page was the add form, and the rules were reachable only from the sidebar. **Add route rule** in the page header opens the form above the list (`/router?new=1`); the form still shows straight away when there are no rules yet, when a save fails, and when editing.
+- **Rule states in words in the sidebar**: each rule in the Dicom Router sidebar now shows its state as text next to the coloured dot, instead of the colour alone, per DESIGN.md's Words Before Colour rule.
+- **Rule form errors show up where you are**: saving a daily schedule with no times of day failed with a 400, but the page came back as an empty form with Schedule folded and the message ("config: Value error, …") at the top, so it looked as if nothing happened. **Times of day** is now required in the browser while "Time(s) of day" is selected (a folded Schedule opens so the browser can point at it). If the server still rejects a save, the form keeps everything typed, opens the section with the problem, and shows the message under that field.
+- **Rule form shows only fields that apply**: **Number of days** appears only when Study date is "Last N days", and **Station Name filter** only at the Series query level.
+
 ### Security and robustness
 
 - **Windows**: Network PING, the **Browse…** folder picker (Dicom Anonymizer, PDF to DICOM) and the uninstall confirmation each started a console program (`ping.exe`, `powershell`) without suppressing its console window. The desktop app has no console of its own, so Windows opened a new, empty one that flashed on screen next to the app (the output goes into a pipe the app reads, not to that window). All three now pass `no_console_kwargs()` (`app/paths.py`, `CREATE_NO_WINDOW` on Windows, a no-op elsewhere), so no extra window appears; the ping output still shows inside the app under the result's **Show details**.

@@ -538,7 +538,8 @@
   </header>
   <p>Dicom Router has its own tab, since it is a background service you manage alongside everything else rather than a one-off query.</p>
   <ul>
-    <li>That tab's own left sidebar lists every configured rule with a small status dot — green (active), amber (paused), gray (stopped), pulsing accent while a run is actually executing — visible on every page under this tab, the same way the Configuration tab's own sidebar always is. Click a rule there to open its own page.</li>
+    <li>The <strong>Route rules</strong> page lists every rule with its state, schedule, source and destinations, last run (OK or Failed) and next run, with Start / Resume, Run now, Pause, Stop and Edit on each row. <strong>Add route rule</strong> opens the form; when there are no rules yet, the form is shown straight away.</li>
+    <li>The tab's left sidebar lists the same rules on every page under this tab, each with its state in words (Active, Paused, Stopped, Running) and a matching dot. Click a rule in either place to open its own page with the run history.</li>
   </ul>
   <p>A <strong>route rule</strong> is a scheduled Study Root C-FIND (an interval in minutes, or specific times of day with optional days-of-week) against a configured remote node, filtered by modality, study date scope, and query level (Study, or Series per matching study). The scheduler runs due rules automatically and records what is new since the rule last ran, using the same de-duplication idea as Dicomtag Analytics' SR retrieve — nothing already handled is reported again.</p>
   <ul>
@@ -546,7 +547,7 @@
     <li>Add one or more destination nodes and the scheduler additionally C-MOVEs each new match to this workstation's local Storage SCP — same Accept C-STORE setting Dicomtag Analytics' SR retrieve and Tag Editor Fetch use — and C-STOREs it on to every destination, using the retrieved object's own SOP Class. There is nothing to pre-register per rule.</li>
     <li>A study is only marked "seen" once it is fully handled (found-only for a find-only rule, forwarded to every destination for one that has them), so a failed retrieve or forward is retried automatically on the next run instead of silently dropped.</li>
   </ul>
-  <p>Each rule can be <strong>Started</strong>, <strong>Paused</strong>, or <strong>Stopped</strong> independently of its own schedule — click the rule (in the sidebar, or from the route rules list) to reach its actions:</p>
+  <p>Each rule can be <strong>Started</strong>, <strong>Paused</strong>, or <strong>Stopped</strong> independently of its own schedule — from the route rules list, or on the rule's own page:</p>
   <ul>
     <li><strong>Start</strong> runs the rule immediately and computes a fresh next scheduled time, whether it was paused or stopped before.</li>
     <li><strong>Pause</strong> and <strong>Stop</strong> both stop the schedule from firing again, and both interrupt a run already in progress — cooperatively, between studies rather than mid-association, so nothing already retrieved or forwarded is ever redone or lost. They differ only in what is left behind: Pause keeps the rule's previously computed next-run time as a record; Stop clears it.</li>
