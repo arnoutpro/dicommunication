@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from typing import Any
+from urllib.parse import urlencode
 
 from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import HTMLResponse, RedirectResponse
@@ -122,11 +123,16 @@ def _hl7_page(
     mllp: bool = True,
     save_name: str = "",
     remote_id: str = "",
-    new_control_id: bool = True,
-    change_order: bool = True,
-    obr_reason_ce: bool = True,
-    obr_in_progress: bool = True,
+    # Off by default: each one rewrites the message, so it's a deliberate choice.
+    new_control_id: bool = False,
+    change_order: bool = False,
+    obr_reason_ce: bool = False,
+    obr_in_progress: bool = False,
     orc_control: str = "SC",
+    obr_status: str = "SC",
+    orc_status: str = "",
+    obr_reason_code: str = "",
+    obr_reason_text: str = "",
     status_code: int = 200,
 ):
     tool = get_tool("hl7-send")
@@ -156,6 +162,10 @@ def _hl7_page(
             hl7_obr_reason_ce=obr_reason_ce,
             hl7_obr_in_progress=obr_in_progress,
             hl7_orc_control=orc_control,
+            hl7_obr_status=obr_status,
+            hl7_orc_status=orc_status,
+            hl7_obr_reason_code=obr_reason_code,
+            hl7_obr_reason_text=obr_reason_text,
             remote_id=remote_id,
         ),
         status_code=status_code,
@@ -176,6 +186,10 @@ def hl7_send_run(
     obr_reason_ce: str | None = Form(None),
     obr_in_progress: str | None = Form(None),
     orc_control: str = Form("SC"),
+    obr_status: str = Form("SC"),
+    orc_status: str = Form(""),
+    obr_reason_code: str = Form(""),
+    obr_reason_text: str = Form(""),
 ):
     options = {
         "host": host,
@@ -187,6 +201,10 @@ def hl7_send_run(
         "obr_reason_ce": _as_bool(obr_reason_ce),
         "obr_in_progress": _as_bool(obr_in_progress),
         "orc_control": orc_control,
+        "obr_status": obr_status,
+        "orc_status": orc_status,
+        "obr_reason_code": obr_reason_code,
+        "obr_reason_text": obr_reason_text,
     }
     try:
         result = execute_tool(request, "hl7-send", remote_id or None, options)
@@ -218,6 +236,10 @@ def hl7_send_run(
             obr_reason_ce=_as_bool(obr_reason_ce),
             obr_in_progress=_as_bool(obr_in_progress),
             orc_control=orc_control,
+            obr_status=obr_status,
+            orc_status=orc_status,
+            obr_reason_code=obr_reason_code,
+            obr_reason_text=obr_reason_text,
             status_code=exc.status_code,
         )
     if _hx(request):
@@ -240,6 +262,10 @@ def hl7_send_run(
         obr_reason_ce=_as_bool(obr_reason_ce),
         obr_in_progress=_as_bool(obr_in_progress),
         orc_control=orc_control,
+        obr_status=obr_status,
+        orc_status=orc_status,
+        obr_reason_code=obr_reason_code,
+        obr_reason_text=obr_reason_text,
     )
 
 
@@ -269,7 +295,11 @@ def save_hl7_message(
         )
     saved = request.app.state.store.add_hl7_message(entry)
     log.info("Saved HL7 draft %s", saved.name)
-    return RedirectResponse(f"/tools/hl7-send?load={saved.id}&saved=1", status_code=303)
+    # Keep the destination too, not just the message.
+    query = urlencode(
+        {"load": saved.id, "saved": 1, "host": host, "port": port, "mllp": mllp, "remote_id": remote_id}
+    )
+    return RedirectResponse(f"/tools/hl7-send?{query}", status_code=303)
 
 
 @router.post("/tools/hl7-send/messages/{message_id}/delete")

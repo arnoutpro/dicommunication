@@ -8,6 +8,9 @@ from typing import Any
 from app.hl7 import (
     DEFAULT_PORT,
     MAX_MESSAGE_CHARS,
+    OBR_STATUS_CODES,
+    ORC_CONTROL_CODES,
+    ORC_STATUS_CODES,
     display_hl7,
     latin1_replaced,
     msh_control_id,
@@ -22,7 +25,7 @@ from app.hl7 import (
     send_hl7,
     send_wire_hints,
     stamp_new_control_id,
-    stamp_obr_reason_ce_text,
+    stamp_obr_reason,
     stamp_obr_status,
     stamp_orc_status,
     stamp_orc_transaction_time,
@@ -122,8 +125,17 @@ class Hl7SendTool(BaseTool):
         obr_reason_ce = _flag(options.get("obr_reason_ce"), default=False)
         obr_in_progress = _flag(options.get("obr_in_progress"), default=False)
         orc_control = str(options.get("orc_control") or "XO").strip().upper()
-        if orc_control not in {"XO", "SC", "XX", "CA"}:
+        if orc_control not in ORC_CONTROL_CODES:
             orc_control = "XO"
+        obr_status_code = str(options.get("obr_status") or "SC").strip().upper()
+        if obr_status_code not in OBR_STATUS_CODES:
+            obr_status_code = "SC"
+        # Empty (the default) leaves ORC-5 alone; so does an unknown value.
+        orc_status_code = str(options.get("orc_status") or "").strip().upper()
+        if orc_status_code not in ORC_STATUS_CODES:
+            orc_status_code = ""
+        obr_reason_code = str(options.get("obr_reason_code") or "")
+        obr_reason_text = str(options.get("obr_reason_text") or "")
 
         if not host:
             return ToolResult(
@@ -163,10 +175,11 @@ class Hl7SendTool(BaseTool):
             normalized = stamp_order_control(normalized, orc_control)
             normalized = stamp_orc_transaction_time(normalized)
         if obr_reason_ce:
-            normalized = stamp_obr_reason_ce_text(normalized)
+            normalized = stamp_obr_reason(normalized, obr_reason_code, obr_reason_text)
         if obr_in_progress:
-            normalized = stamp_obr_status(normalized, "SC")
-            normalized = stamp_orc_status(normalized, "IP")
+            normalized = stamp_obr_status(normalized, obr_status_code)
+            if orc_status_code:
+                normalized = stamp_orc_status(normalized, orc_status_code)
 
         steps: list[ToolStep] = []
         connect_started = time.perf_counter()

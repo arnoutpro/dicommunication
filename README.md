@@ -428,12 +428,12 @@ Add scheduled procedures here. If **Serve the web worklist over DICOM** is on, a
 - **Framing** — MLLP (`0x0B` … `0x1C 0x0D`) is the default. Raw TCP is there for engines that do not wrap.
 - **Message** — HL7 v2 starting with `MSH`. The editor shows one segment per row (toggle **Raw** for the full paste). Long pipe-delimited lines wrap. Newlines become CR on the wire.
 - **ACK** — if the peer replies, the result shows the raw ACK, MSA-1 (`AA` / `AE` / `AR`), and ACK **MSH-3** (who answered). An ACK is not a promise that PACS applied an order update.
-- **Advanced troubleshooting** — collapsed by default. Optional stamps applied to the paste before send (they do not invent missing ORC/OBR segments):
-  - **New MSH-10** — on by default in the UI. The same Message Control ID is often ACKed and ignored.
-  - **Change existing order** — on by default. Stamps **ORC-1** (see the control next to it) and **ORC-9**. Philips Vue / IS Link uses **SC** to update an order (`NW` new, `CA` cancel). **XO** is generic HL7 change; Vue often ignores it while Mirth still ACKs.
-  - **ORC-1 on change** — UI default is **SC** (Vue). JSON API still stamps `XO` unless you pass `"orc_control": "SC"`.
-  - **OBR-31 as CE text** — on by default in the UI. Reason for Study is `id^text`. A spaced identifier becomes `firstword^full text`. `^text` (empty id) is filled from the text. Vue maps OBR-31 to DICOM `(0040,2010)`, which may not be the study description you see in the Vue UI (that is often OBR-4.2 / C-STORE).
-  - **Set OBR-25 to SC (in progress)** — on by default, test only. That is **result status**, not Vue’s ORC-1 SC. Also sets ORC-5 to `IP`.
+- **Adjust before sending** — step 3, folded by default; its heading lists which rewrites are on. All four are off by default. Optional stamps applied to the paste before send (they do not invent missing ORC/OBR segments):
+  - **New MSH-10** — the same Message Control ID is often ACKed and ignored.
+  - **Change existing order** — stamps **ORC-1** (with the chosen order control) and **ORC-9**. Philips Vue / IS Link uses **SC** to update an order (`NW` new, `CA` cancel). **XO** is generic HL7 change; Vue often ignores it while Mirth still ACKs.
+  - **ORC-1 order control** — `SC`, `NW`, `CA` (the three the IS Link spec defines), `XO`, `XX`. UI default is **SC** (Vue). IS Link replaces the whole segment on an update, so a field left empty is deleted: send the complete ORC and OBR. JSON API still stamps `XO` unless you pass `"orc_control": "SC"`.
+  - **Reason for Study (OBR-31)** — sets OBR-31 to `code^text` from the Code and Text fields (JSON: `obr_reason_code`, `obr_reason_text`; a missing code is the text's first word). With both empty it only reformats the existing value: a spaced identifier becomes `firstword^full text`. `^text` (empty id) is filled from the text. The IS Link spec lists `(0040,2010)` for OBR-31, but that DICOM tag is Order Callback Phone Number (likely a documentation error); the reason usually lands in `(0040,1002)` or `(0032,1030)`, not confirmed for Vue. It may not be the study description you see in the Vue UI (that is often OBR-4.2 / C-STORE).
+  - **Set exam status (OBR-25 and ORC-5)** — test only. OBR-25 result status from HL7 table 0123 (`O I S A P R F C M N X`), plus `SC` as the earlier Vue test (JSON `obr_status`, default `SC`; `SC` is not a table-0123 code). ORC-5 order status from table 0038 (`SC`, `CA` as documented by IS Link, and `IP`, `CM`, `HD`, `DC`; JSON `orc_status`, default empty = leave ORC-5 as it is). OBR-25 is **result status**, not Vue’s ORC-1 SC.
 - The Send result repeats MSH-10, MSH-5/MSH-6, ORC-1, OBR-25, and OBR-31 as they went on the wire, plus a Hint when the ACK is likely not a PACS update.
 - Saved drafts live in `hl7_messages.json` next to config.
 
@@ -452,8 +452,18 @@ The ACK you see is from **whoever answers on Host/Port**. **IS Link Configuratio
 4. You do not need Mirth for that test. If you later get Mirth access: Message Browser received → transformed → **sent** to this IS Link Host IP:Port.
 5. Vue IS Link order control is **NW** (new), **SC** (update), **CA** (cancel). **XO is not in that table.**
 6. Match the accession Vue already has: **ORC-3 / OBR-3** (filler / order number) and often **OBR-18**.
-7. Vue maps **OBR-31** to DICOM Reason for Requested Procedure `(0040,2010)`. The text you stare at in Vue is often **Study Description** from the images (C-STORE) or **OBR-4.2**, not OBR-31.
+7. **OBR-31** is the reason for the study: DICOM `(0040,1002)` Reason for the Requested Procedure or `(0032,1030)` Reason for Study (the IS Link spec's `(0040,2010)` is Order Callback Phone Number in DICOM, likely a documentation error). The text you stare at in Vue is often **Study Description** from the images (C-STORE) or **OBR-4.2**, not OBR-31.
 8. Updating an existing study may also need Vue’s **ZDS** Study Instance UID. **HL7-PACS Field Mapping** in this same tree decides which ORM fields actually overwrite.
+
+### To verify
+
+The HL7 send options were checked against the HL7 v2 code tables (0119, 0038, 0123) and Philips' *Vue PACS 12.2.8 HL7 Interface Specifications* (HA1669), but not yet against a live IS Link server. Test these on a real IS Link, and update the page, Help and this README with what you find:
+
+- [ ] **ORC-1 `SC` updates an existing order**, and an ORM with **`XO`** is ignored (ACKed but not applied). Check in Queues & Notifications and in Vue.
+- [ ] **Empty fields are deleted on an update.** HA1669 says IS Link replaces the whole segment, so a field that had a value and is empty in a later message is removed. Send an `SC` update with one OBR field left empty and see whether Vue loses it.
+- [ ] **Where OBR-31 lands in DICOM:** `(0040,1002)` Reason for the Requested Procedure, `(0032,1030)` Reason for Study, or `(0040,2010)` as HA1669 lists (which is Order Callback Phone Number in DICOM).
+- [ ] **What Vue does with OBR-25 `SC`** (not an HL7 result status) compared with a table-0123 code such as `P` or `F`, and whether it shows up in Interpretation Status ID `(4008,0212)`.
+- [ ] **The site-specific IS Link notes:** listener Port Number `10010`, Control Port `2112` not being MLLP, and Encoding `Cp1252`. These come from one site's configuration, not from the specification.
 
 ```bash
 curl -s -X POST http://127.0.0.1:8080/api/tools/hl7-send/run \
@@ -599,7 +609,7 @@ The data directory is not encrypted, and `results.json` keeps the last 200 tool 
 | Empty MWL / C-FIND table but Pass | The SOP Class was accepted and the query succeeded with zero matches. Check station AE, date, and **Present as**. |
 | HL7 send times out / no ACK | Peer is not listening, or that port is DICOM not MLLP. HL7 engines are often `2575` or `6661`, not `104`/`4242`. |
 | HL7 ACK AA to 10010 but Vue IS Link “empty” | **Listeners** is settings, not the queue. Look at **Queues & Notifications**. Send to Listener **Host IP**:10010, not Control Port **2112**. Confirm the Listener process is started. ACK **MSH-3** is who answered. |
-| HL7 ACK AA, IS Link queued, Vue UI unchanged | Vue updates with **ORC-1 SC**, not XO. Accession must match ORC-3/OBR-3 (and often OBR-18). OBR-31 is `(0040,2010)`; the Vue UI may show Study Description from C-STORE instead. |
+| HL7 ACK AA, IS Link queued, Vue UI unchanged | Vue updates with **ORC-1 SC**, not XO. Accession must match ORC-3/OBR-3 (and often OBR-18). OBR-31 is the reason for the study, not what the Vue UI shows as the description; that is often Study Description from C-STORE. |
 | PING ICMP fails, TCP succeeds | Normal on locked-down clinical networks. Trust TCP to the DICOM port. |
 | `docker compose --build` fails at `apt-get` with exit 100 | Debian mirrors were unreachable from the Docker builder. Current images copy a static `ping` and do not run apt. Pull/rebuild from this change. |
 | Cannot reach Orthanc from Docker | Use `host.docker.internal` (same Mac/host) or the LAN IP; publish/check `4242`. |

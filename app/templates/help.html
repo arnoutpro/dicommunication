@@ -479,14 +479,15 @@
     <li><strong>ACK</strong> — if the peer replies, the result shows the raw ACK, MSA-1 (<code>AA</code> / <code>AE</code> / <code>AR</code>), and ACK <strong>MSH-3</strong> (who answered). An ACK is not a promise that PACS applied an order update.</li>
     <li>Saved drafts live in <code>hl7_messages.json</code> next to config.</li>
   </ul>
-  <h3>Advanced troubleshooting</h3>
-  <p>Collapsed by default. Optional stamps applied to the paste before send. They do not invent missing ORC / OBR segments. The UI defaults below still apply if Advanced stays closed.</p>
+  <p>The page runs in four steps: <strong>Destination</strong> (a remote node's host or a typed one, port and framing, with a folded note for Philips IS Link), <strong>Message</strong> (the editor, and Save as / Save message), <strong>Adjust before sending</strong> and <strong>Send</strong>. Saving a message keeps the host, port and framing on the page.</p>
+  <h3>Adjust before sending</h3>
+  <p>Folded by default; its heading lists the rewrites that are on (for example "New MSH-10 · ORC-1 → SC"), so you can see what will change without opening it. Each option has a one-line summary and a Details note. They only rewrite fields the message already has and never invent missing ORC / OBR segments. All four are off by default: each one changes the message, so turn on only what you mean to test. The IS Link details here come from Philips' <em>Vue PACS 12.2.8 HL7 Interface Specifications</em> (HA1669) and the HL7 code tables; they have not yet been checked against a live IS Link server.</p>
   <ul>
-    <li><strong>New Message Control ID (MSH-10)</strong> — on by default in the UI. A new Message Control ID so a resend is not treated as a duplicate. The same MSH-10 is often ACKed and ignored.</li>
-    <li><strong>Change existing order (ORC-1)</strong> — on by default. Overwrites ORC-1 (see the control next to it) and stamps ORC-9. It does not invent an ORC. Repeating <code>NW</code> is usually ACKed and skipped.</li>
-    <li><strong>ORC-1 on change</strong> — Philips Vue / IS Link uses <code>SC</code> to update an order (<code>NW</code> new, <code>CA</code> cancel). <code>XO</code> is generic HL7 change; Vue often ignores it while Mirth still ACKs. This is not OBR-25 SC.</li>
-    <li><strong>OBR-31 as CE text</strong> — on by default. Reason for Study is <code>id^text</code>. Vue maps OBR-31 to DICOM <code>(0040,2010)</code>, which may not be the study description you see in the Vue UI (that is often OBR-4.2 / C-STORE).</li>
-    <li><strong>Set OBR-25 to SC (in progress)</strong> — on by default, test only. That is <strong>result status</strong>, not Vue’s ORC-1 SC. Also sets ORC-5 to <code>IP</code>. An ACK does not rewrite stored images.</li>
+    <li><strong>New Message Control ID (MSH-10)</strong> — a new Message Control ID so a resend is not treated as a duplicate. The same MSH-10 is often ACKed and ignored.</li>
+    <li><strong>Change existing order (ORC-1)</strong> — overwrites ORC-1 with the chosen order control and stamps ORC-9. It does not invent an ORC. Repeating <code>NW</code> is usually ACKed and skipped.</li>
+    <li><strong>ORC-1 order control</strong> — the IS Link specification for Vue 12.2.8 defines only <code>NW</code> (add), <code>SC</code> (update) and <code>CA</code> (cancel). In standard HL7 (table 0119) <code>SC</code> means “status changed” and <code>XO</code> is the change request; Vue often ignores <code>XO</code> while Mirth still ACKs. <code>XX</code> (changed, unsolicited) is also offered. This is not OBR-25 SC. <strong>IS Link replaces the whole segment on an update:</strong> a field that had a value and is empty in a later message is deleted, so send the complete ORC and OBR.</li>
+    <li><strong>Reason for Study (OBR-31)</strong> — sets OBR-31 to <code>code^text</code> from the Code and Text fields (a missing code is the text's first word). With both empty, it keeps the existing reason and only makes it a proper <code>id^text</code> CE. The IS Link specification lists DICOM <code>(0040,2010)</code> for OBR-31, but in DICOM that tag is Order Callback Phone Number, so that looks like an error in the document; the reason usually lands in <code>(0040,1002)</code> Reason for the Requested Procedure or <code>(0032,1030)</code> Reason for Study. Which one Vue fills is not confirmed. It may not be the study description you see in the Vue UI (that is often OBR-4.2 / C-STORE).</li>
+    <li><strong>Set exam status (OBR-25 and ORC-5)</strong> — test only. Choose the OBR-25 result status and the ORC-5 order status. OBR-25 uses HL7 table 0123 (single letters: <code>O I S A P R F C M N X</code>, such as <code>P</code> preliminary, <code>F</code> final); Vue maps it to DICOM Interpretation Status ID <code>(4008,0212)</code>, the same as OBX-11. The default <code>SC</code> is <strong>not</strong> in table 0123 (it is an order status); it is kept as the earlier Vue test. ORC-5 uses table 0038; IS Link documents only <code>SC</code> (scheduled) and <code>CA</code> (cancelled), and it is left as it is unless you choose one. OBR-25 is <strong>result status</strong>, not Vue’s ORC-1 SC. An ACK does not rewrite stored images.</li>
   </ul>
   <p>The Send result repeats MSH-10, MSH-5 / MSH-6, ORC-1, OBR-25, and OBR-31 as they went on the wire, plus a Hint when the ACK is likely not a PACS update.</p>
   <h3>Philips Vue PACS + IS Link</h3>
@@ -728,7 +729,7 @@
         </tr>
         <tr>
           <td>HL7 ACK AA, IS Link queued, Vue UI unchanged</td>
-          <td>Vue updates with ORC-1 SC, not XO. Accession must match ORC-3 / OBR-3 (and often OBR-18). OBR-31 is (0040,2010); the Vue UI may show Study Description from C-STORE instead.</td>
+          <td>Vue updates with ORC-1 SC, not XO. Accession must match ORC-3 / OBR-3 (and often OBR-18). OBR-31 goes to the reason for the study (the IS Link spec's (0040,2010) looks like a documentation error); the Vue UI may show Study Description from C-STORE instead.</td>
         </tr>
         <tr>
           <td>PING ICMP fails, TCP succeeds</td>

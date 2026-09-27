@@ -85,7 +85,7 @@ def test_health_and_pages(client) -> None:
     assert help_page.status_code == 200
     assert b"C-ECHO" in help_page.content
     assert b"Modality Worklist" in help_page.content
-    assert b"Advanced troubleshooting" in help_page.content
+    assert b"Adjust before sending" in help_page.content
     assert b"Dicomtag Analytics" in help_page.content
     assert b"HL7 send" in help_page.content
     assert b"Encapsulated PDF" in help_page.content
@@ -282,3 +282,13 @@ def test_api_create_assigns_its_own_identity_and_worklist_ids(client) -> None:
         "/api/hl7/messages", json={"id": "fixed", "name": "ADT", "body": "MSH|^~\\&|A|B"}
     ).json()
     assert message["id"] != "fixed"
+
+
+def test_script_and_styles_are_versioned_so_edits_are_not_cached(client) -> None:
+    import re
+
+    page = client.get("/").text
+    for path in ("js/app.js", "css/app.css"):
+        match = re.search(rf'/static/{re.escape(path)}\?v=(\d+)"', page)
+        assert match, path
+        assert client.get(f"/static/{path}?v={match.group(1)}").status_code == 200

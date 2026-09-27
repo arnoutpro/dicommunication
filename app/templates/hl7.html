@@ -15,53 +15,71 @@
 <div class="flash fail">{{ error }}</div>
 {% endif %}
 
-<section class="panel">
-  <header class="panel-head">
-    <h2>Send a message</h2>
-    <span class="muted">TCP {{ hl7_port }} · {{ "MLLP" if hl7_mllp else "raw" }}</span>
-  </header>
-  <form
-    class="form-grid"
-    method="post"
-    action="/tools/hl7-send/run"
-    enctype="multipart/form-data"
-    autocomplete="off"
-  >
-    {% if config.remotes %}
-    <label>
-      Host from a remote node
-      <select name="remote_id">
-        <option value="">Type a host below</option>
-        {% for remote in config.remotes %}
-        <option value="{{ remote.id }}" {% if remote_id == remote.id %}selected{% endif %}>
-          {{ remote.name }} — {{ remote.connect_host }} (DICOM {{ remote.port }})
-        </option>
-        {% endfor %}
-      </select>
-      <span class="hint">Uses that node’s host only. HL7 ports are not DICOM ports.</span>
-    </label>
-    {% else %}
-    <input type="hidden" name="remote_id" value="">
-    {% endif %}
-    <label>
-      Host
-      <input name="host" value="{{ hl7_host }}" placeholder="10.0.0.20" {% if not config.remotes %}required{% endif %}>
-      <span class="hint">MLLP listener, not DICOM. Host must be this IS Link server’s Listener Host IP, not a different VIP or Mirth box.</span>
-    </label>
-    <label>
-      Port
-      <input name="port" type="number" min="1" max="65535" value="{{ hl7_port }}" required>
-      <span class="hint">IS Link Configuration → Listeners → Port Number. 10010 can be this bind port. Control Port (2112) is not MLLP. Encoding Cp1252 matches Latin-1 for ASCII HL7.</span>
-    </label>
-    <label>
-      Framing
-      <select name="mllp">
-        <option value="mllp" {% if hl7_mllp %}selected{% endif %}>MLLP (0x0B … 0x1C 0x0D)</option>
-        <option value="raw" {% if not hl7_mllp %}selected{% endif %}>Raw TCP</option>
-      </select>
-    </label>
-    <p class="hint span-2">IS Link Configuration → Listeners is settings, not the inbound queue. After a send to this Port Number, look at Queues &amp; Notifications (and start the Listener process if prompted). Host must be that listener’s Host IP. ACK MSH-3 is who answered. Do not send to Control Port 2112.</p>
-    <div class="span-2" data-hl7-editor>
+<form
+  class="step-flow"
+  method="post"
+  action="/tools/hl7-send/run"
+  enctype="multipart/form-data"
+  autocomplete="off"
+  data-hl7-form
+>
+  <section class="panel step">
+    <header class="panel-head">
+      <h2 class="step-title"><span class="step-num" aria-hidden="true">1</span>Destination</h2>
+    </header>
+    <div class="form-grid">
+      {% if config.remotes %}
+      <label class="span-2">
+        Send to
+        <select name="remote_id" data-hl7-remote>
+          <option value="" data-host="">A host I type below</option>
+          {% for remote in config.remotes %}
+          <option value="{{ remote.id }}" data-host="{{ remote.connect_host }}" {% if remote_id == remote.id %}selected{% endif %}>
+            {{ remote.name }} ({{ remote.connect_host }})
+          </option>
+          {% endfor %}
+        </select>
+        <span class="hint">A remote node lends only its host; its DICOM port isn't an HL7 port, so set the port below.</span>
+      </label>
+      {% else %}
+      <input type="hidden" name="remote_id" value="">
+      {% endif %}
+      <label>
+        Host
+        <input name="host" value="{{ hl7_host }}" placeholder="10.0.0.20" data-hl7-host {% if not config.remotes %}required{% endif %}>
+      </label>
+      <div class="form-grid hl7-port-row">
+        <label>
+          Port
+          <input name="port" type="number" min="1" max="65535" value="{{ hl7_port }}" required>
+        </label>
+        <label>
+          Framing
+          <select name="mllp">
+            <option value="mllp" {% if hl7_mllp %}selected{% endif %}>MLLP</option>
+            <option value="raw" {% if not hl7_mllp %}selected{% endif %}>Raw TCP</option>
+          </select>
+        </label>
+      </div>
+    </div>
+    <details class="note">
+      <summary>Sending to Philips IS Link?</summary>
+      <ul>
+        <li>Host and Port are the listener's <strong>Host IP</strong> and <strong>Port Number</strong> under IS Link Configuration → Listeners (often <code>10010</code>). Not a VIP or a Mirth box.</li>
+        <li>The <strong>Control Port</strong> (often <code>2112</code>) is not MLLP; don't send to it.</li>
+        <li>After a send, look in <strong>Queues &amp; Notifications</strong>; the Listeners page is settings, not the queue. Start the Listener process if IS Link asks.</li>
+        <li>The ACK's MSH-3 says who answered. Encoding Cp1252 matches Latin-1 for ASCII HL7.</li>
+      </ul>
+      <p class="hint"><a href="/help#hl7-send">More in Help</a></p>
+    </details>
+  </section>
+
+  <section class="panel step">
+    <header class="panel-head">
+      <h2 class="step-title"><span class="step-num" aria-hidden="true">2</span>Message</h2>
+      {% if messages %}<a href="#saved-messages">Saved messages ({{ messages | length }})</a>{% endif %}
+    </header>
+    <div data-hl7-editor>
       <div class="hl7-editor-head">
         <span>HL7 v2 message</span>
         <span class="hl7-view-toggle" role="group" aria-label="Message view">
@@ -82,55 +100,140 @@
       <div class="hl7-editor-tools" data-hl7-tools>
         <button type="button" class="button compact" data-hl7-add-segment>Add segment</button>
       </div>
-      <span class="hint">One segment per row. Long lines wrap. They are sent with CR separators. This screen does not validate fields.</span>
+      <span class="hint">One segment per row, sent with CR separators. Fields aren't validated.</span>
     </div>
-    <details class="advanced">
-      <summary>Advanced troubleshooting</summary>
-      <p class="hint">Optional stamps applied to the paste before send. They rewrite fields that already exist; they do not invent an ORC or OBR. An ACK still only means the listener accepted the bytes — not that PACS updated an order or a study.</p>
-      <div class="form-grid">
-        <label class="span-2 stamp-field">
-          <span class="stamp-field-title">
-            <input type="checkbox" name="new_control_id" value="on" {% if hl7_new_control_id %}checked{% endif %}>
+    <div class="hl7-save">
+      <label>
+        Save as
+        <input name="name" value="{{ hl7_save_name }}" placeholder="ADT A01 test">
+      </label>
+      <button class="button" type="submit" formaction="/tools/hl7-send/messages" formnovalidate>Save message</button>
+    </div>
+  </section>
+
+  <section class="panel step">
+    <header class="panel-head">
+      <h2 class="step-title"><span class="step-num" aria-hidden="true">3</span>Adjust before sending</h2>
+    </header>
+    <details class="stamps" data-hl7-stamps>
+      <summary>
+        <span class="stamps-summary" data-hl7-stamps-summary>Fields rewritten on send</span>
+      </summary>
+      <p class="hint">These only rewrite fields the message already has; they never add an ORC or OBR.</p>
+      <div class="stamp-list">
+        <div class="stamp">
+          <label class="stamp-field-title">
+            <input type="checkbox" name="new_control_id" value="on" {% if hl7_new_control_id %}checked{% endif %} data-stamp="control">
             New Message Control ID (MSH-10)
-          </span>
-          <span class="hint">MSH-10 is the unique id of this send. Many engines ACK a repeat of the same id and then ignore it (duplicate). Turn this on to stamp a fresh MSH-10 and MSH-7 time so a resend is a new message. It does not change order-control codes. An ACK still does not mean the order was applied.</span>
-        </label>
-        <label class="span-2 stamp-field">
-          <span class="stamp-field-title">
-            <input type="checkbox" name="change_order" value="on" {% if hl7_change_order %}checked{% endif %}>
+          </label>
+          <p class="hint">Stamps a fresh MSH-10 and MSH-7 so a resend counts as a new message.</p>
+          <details class="stamp-more"><summary>Details</summary>
+            <p>MSH-10 is the unique id of this send. Many engines ACK a repeat of the same id and then ignore it as a duplicate. This does not change order-control codes.</p>
+          </details>
+        </div>
+
+        <div class="stamp">
+          <label class="stamp-field-title">
+            <input type="checkbox" name="change_order" value="on" {% if hl7_change_order %}checked{% endif %} data-stamp="order">
             Change existing order (ORC-1)
-          </span>
-          <span class="hint">Overwrites ORC-1 with the code below and stamps ORC-9 (transaction time). Use this when the accession already exists and you want an <em>update</em>, not a new order. It will not add an ORC if the paste has none. Repeating NW (new) is usually ACKed and skipped.</span>
-        </label>
-        <label class="span-2">
-          ORC-1 on change
-          <select name="orc_control">
-            <option value="SC" {% if (hl7_orc_control|default("SC")) == "SC" %}selected{% endif %}>SC — Vue / IS Link update order</option>
-            <option value="XO" {% if (hl7_orc_control|default("SC")) == "XO" %}selected{% endif %}>XO — HL7 change order</option>
-            <option value="CA" {% if (hl7_orc_control|default("SC")) == "CA" %}selected{% endif %}>CA — cancel order</option>
-          </select>
-          <span class="hint">Only used when “Change existing order” is on. Philips Vue / IS Link documents NW = new, SC = update, CA = cancel. XO is generic HL7 change; Vue often ignores XO while Mirth still ACKs. This is not OBR-25 SC (result status). An ACK is not Vue applying the order — check Queues &amp; Notifications.</span>
-        </label>
-        <label class="span-2 stamp-field">
-          <span class="stamp-field-title">
-            <input type="checkbox" name="obr_reason_ce" value="on" {% if hl7_obr_reason_ce %}checked{% endif %}>
-            OBR-31 as CE text
-          </span>
-          <span class="hint">OBR-31 is Reason for Study, a CE of id^text. A space in the identifier, or an empty id (^text), is often ignored. This rewrites OBR-31 to firstword^full text (and fills a missing id). Vue maps OBR-31 to DICOM (0040,2010); the description you see in the Vue UI is often Study Description from the images (C-STORE) or OBR-4.2, not this field.</span>
-        </label>
-        <label class="span-2 stamp-field">
-          <span class="stamp-field-title">
-            <input type="checkbox" name="obr_in_progress" value="on" {% if hl7_obr_in_progress %}checked{% endif %}>
-            Set OBR-25 to SC (in progress)
-          </span>
-          <span class="hint">Test only. Sets OBR-25 (result / exam status) to SC and ORC-5 to IP (in progress). That is not ORC-1 SC (Vue update-order). Use it to see whether Vue is skipping the update because the exam is already complete. An ACK still does not rewrite images already stored in PACS.</span>
-        </label>
+          </label>
+          <p class="hint">Sends an update for an accession that already exists, instead of a new order.</p>
+          <div class="stamp-sub" data-stamp-fields{% if not hl7_change_order %} hidden{% endif %}>
+            <label>
+              ORC-1 order control
+              <select name="orc_control">
+                <optgroup label="Vue / IS Link">
+                  {% for code, label in [("SC", "SC — update order"), ("NW", "NW — new order"), ("CA", "CA — cancel order")] %}
+                  <option value="{{ code }}" {% if (hl7_orc_control|default("SC")) == code %}selected{% endif %}>{{ label }}</option>
+                  {% endfor %}
+                </optgroup>
+                <optgroup label="Other HL7 (table 0119)">
+                  {% for code, label in [("XO", "XO — change order request"), ("XX", "XX — order changed, unsolicited")] %}
+                  <option value="{{ code }}" {% if (hl7_orc_control|default("SC")) == code %}selected{% endif %}>{{ label }}</option>
+                  {% endfor %}
+                </optgroup>
+              </select>
+            </label>
+          </div>
+          <details class="stamp-more"><summary>Details</summary>
+            <p>Overwrites ORC-1 with the code above and stamps ORC-9 (transaction time). It won't add an ORC if the message has none. Repeating NW (new) is usually ACKed and skipped.</p>
+            <p>The IS Link specification for Vue 12.2.8 defines only NW (add), SC (update) and CA (cancel). In standard HL7, SC means "status changed" and XO is the change request; Vue often ignores XO while Mirth still ACKs.</p>
+            <p><strong>IS Link replaces the whole segment on an update:</strong> a field that had a value and is empty in a later message is deleted. Send the complete ORC and OBR, not only the fields you want to change.</p>
+          </details>
+        </div>
+
+        <div class="stamp">
+          <label class="stamp-field-title">
+            <input type="checkbox" name="obr_reason_ce" value="on" {% if hl7_obr_reason_ce %}checked{% endif %} data-stamp="reason">
+            Reason for Study (OBR-31)
+          </label>
+          <p class="hint">Sets OBR-31 to <code>code^text</code>. Leave both empty to keep the current reason and only fix its format.</p>
+          <div class="stamp-sub stamp-sub-pair" data-stamp-fields{% if not hl7_obr_reason_ce %} hidden{% endif %}>
+            <label>
+              Code
+              <input name="obr_reason_code" value="{{ hl7_obr_reason_code|default('') }}" placeholder="First word of the text" maxlength="64" spellcheck="false">
+            </label>
+            <label>
+              Text
+              <input name="obr_reason_text" value="{{ hl7_obr_reason_text|default('') }}" placeholder="Chest pain after fall" maxlength="200">
+            </label>
+          </div>
+          <details class="stamp-more"><summary>Details</summary>
+            <p>OBR-31 is a CE of <code>id^text</code>. A space in the identifier, or an empty id (<code>^text</code>), is often ignored; with both fields empty the existing value is rewritten to <code>firstword^full text</code>. HL7 delimiters (<code>| ^ ~ \ &amp;</code>) typed here become spaces. In HL7 2.3.1, which IS Link uses, OBR-31 is a CE (identifier^text^coding system).</p>
+            <p>The IS Link specification lists DICOM (0040,2010) for OBR-31, but in DICOM that tag is Order Callback Phone Number, so that looks like an error in the document. The reason for a study is (0040,1002) Reason for the Requested Procedure or (0032,1030) Reason for Study; which one Vue fills is not confirmed. The description in the Vue UI is often Study Description from the images (C-STORE) or OBR-4.2, not this field.</p>
+          </details>
+        </div>
+
+        <div class="stamp">
+          <label class="stamp-field-title">
+            <input type="checkbox" name="obr_in_progress" value="on" {% if hl7_obr_in_progress %}checked{% endif %} data-stamp="status">
+            Set exam status (OBR-25 and ORC-5)
+          </label>
+          <p class="hint">Test only. For example, to see whether Vue skips updates to an exam that is already final.</p>
+          <div class="stamp-sub stamp-sub-pair" data-stamp-fields{% if not hl7_obr_in_progress %} hidden{% endif %}>
+            <label>
+              OBR-25 result status
+              <select name="obr_status">
+                <optgroup label="Earlier Vue test (not an HL7 result status)">
+                  <option value="SC" {% if (hl7_obr_status|default("SC")) == "SC" %}selected{% endif %}>SC — in progress</option>
+                </optgroup>
+                <optgroup label="HL7 result status (table 0123)">
+                  {% for code, label in [("O", "O — order received"), ("I", "I — procedure incomplete"), ("S", "S — scheduled, not done"), ("A", "A — some results available"), ("P", "P — preliminary"), ("R", "R — stored, not verified"), ("F", "F — final"), ("C", "C — corrected, final"), ("M", "M — corrected, not final"), ("N", "N — done, results pending"), ("X", "X — order cancelled")] %}
+                  <option value="{{ code }}" {% if (hl7_obr_status|default("SC")) == code %}selected{% endif %}>{{ label }}</option>
+                  {% endfor %}
+                </optgroup>
+              </select>
+            </label>
+            <label>
+              ORC-5 order status
+              <select name="orc_status">
+                <option value="" {% if not hl7_orc_status %}selected{% endif %}>Leave as it is</option>
+                <optgroup label="Vue / IS Link">
+                  {% for code, label in [("SC", "SC — scheduled"), ("CA", "CA — cancelled")] %}
+                  <option value="{{ code }}" {% if hl7_orc_status == code %}selected{% endif %}>{{ label }}</option>
+                  {% endfor %}
+                </optgroup>
+                <optgroup label="Other HL7 (table 0038)">
+                  {% for code, label in [("IP", "IP — in process"), ("CM", "CM — completed"), ("HD", "HD — on hold"), ("DC", "DC — discontinued")] %}
+                  <option value="{{ code }}" {% if hl7_orc_status == code %}selected{% endif %}>{{ label }}</option>
+                  {% endfor %}
+                </optgroup>
+              </select>
+            </label>
+          </div>
+          <details class="stamp-more"><summary>Details</summary>
+            <p>OBR-25 is the result status (HL7 table 0123: single letters such as P preliminary, F final). SC is not in that table; it is an order status and is offered because it is the Vue test this option started as. Vue maps OBR-25 to DICOM Interpretation Status ID (4008,0212), the same as OBX-11.</p>
+            <p>ORC-5 is the order status (table 0038); the IS Link specification lists only SC (scheduled) and CA (cancelled). Neither field is added if the message has no OBR or ORC, and this is not ORC-1 SC (Vue update order). It doesn't rewrite images already stored in the PACS.</p>
+          </details>
+        </div>
       </div>
     </details>
-    <label>
-      Save as
-      <input name="name" value="{{ hl7_save_name }}" placeholder="ADT A01 test">
-    </label>
+  </section>
+
+  <section class="panel step">
+    <header class="panel-head">
+      <h2 class="step-title"><span class="step-num" aria-hidden="true">4</span>Send</h2>
+    </header>
     <div class="form-actions">
       <button
         class="button primary"
@@ -142,11 +245,11 @@
       >
         Send HL7
       </button>
-      <button class="button" type="submit" formaction="/tools/hl7-send/messages">Save message</button>
       <span id="busy" class="htmx-indicator spinner">Sending…</span>
     </div>
-  </form>
-</section>
+    <p class="hint">An ACK means the listener accepted the bytes, not that the PACS applied the order. The result shows the ACK and the fields as sent.</p>
+  </section>
+</form>
 
 <div id="result">
   {% if result %}
@@ -154,7 +257,7 @@
   {% endif %}
 </div>
 
-<section class="panel">
+<section class="panel" id="saved-messages">
   <header class="panel-head">
     <h2>Saved messages</h2>
     <span class="muted">{{ messages | length }} draft{% if messages | length != 1 %}s{% endif %}</span>
@@ -186,7 +289,7 @@
     </table>
   </div>
   {% else %}
-  <p class="muted">No saved drafts yet. Paste a message, give it a name, and click Save message.</p>
+  <p class="muted">No saved messages yet. Give a message a name in step 2 and click Save message.</p>
   {% endif %}
 </section>
 {% endblock %}

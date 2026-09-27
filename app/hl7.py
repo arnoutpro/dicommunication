@@ -220,6 +220,32 @@ def stamp_obr_reason_ce_text(message: str) -> str:
     return "\r".join(segments)
 
 
+# Choices offered for "Set exam status".
+# OBR-25 uses HL7 table 0123 (Result Status), single letters. "SC" is not in
+# that table (it is an order status, table 0038); it stays first because it is
+# the Vue test this tool started with. Vue maps OBR-25 to DICOM Interpretation
+# Status ID (4008,0212), the same as OBX-11 (Philips HA1669).
+OBR_STATUS_CODES = ("SC", "O", "I", "S", "A", "P", "R", "F", "C", "M", "N", "X")
+# ORC-5 uses table 0038 (Order Status). IS Link documents SC and CA only.
+ORC_STATUS_CODES = ("SC", "CA", "IP", "CM", "HD", "DC")
+# ORC-1, table 0119. IS Link documents NW (add), SC (update), CA (cancel).
+ORC_CONTROL_CODES = ("SC", "NW", "CA", "XO", "XX")
+_HL7_DELIMITERS = str.maketrans({char: " " for char in "|^~\\&"})
+
+
+def stamp_obr_reason(message: str, code: str = "", text: str = "") -> str:
+    """Set OBR-31 to code^text. With neither given, keep the existing reason
+    and only make it a proper CE (stamp_obr_reason_ce_text). A missing code is
+    the text's first word. Does not invent an OBR."""
+    code = " ".join((code or "").translate(_HL7_DELIMITERS).split())
+    text = " ".join((text or "").translate(_HL7_DELIMITERS).split())
+    if not code and not text:
+        return stamp_obr_reason_ce_text(message)
+    if not code:
+        code = text.split()[0]
+    return _set_field(message, "OBR|", 31, f"{code}^{text}" if text else code)
+
+
 def _get_field(message: str, prefix: str, index: int) -> str:
     for seg in _segments(message):
         if not seg.startswith(prefix):
@@ -329,17 +355,17 @@ def send_wire_hints(message: str, ack: str = "", port: int | None = None) -> lis
     _, reason = obr_reason(message)
     if reason and " " in reason.split("^", 1)[0] and "^" not in reason:
         hints.append(
-            "OBR-31 has a space and no ^. Reason for Study is a CE (id^text). Turn on OBR-31 as CE text."
+            "OBR-31 has a space and no ^. Reason for Study is a CE (id^text). Turn on Reason for Study (OBR-31) under Adjust before sending."
         )
     elif reason and reason.startswith("^"):
         hints.append(
-            "OBR-31 has an empty identifier (^text). Many PACS read only the id. Turn on OBR-31 as CE text so it becomes id^text."
+            "OBR-31 has an empty identifier (^text). Many PACS read only the id. Turn on Reason for Study (OBR-31) under Adjust before sending so it becomes id^text."
         )
     status = obr_status(message)
     status_id = status.split("^", 1)[0].strip().upper()
     if status_id in {"COMPLETED", "COMPLETE", "CM"}:
         hints.append(
-            f"OBR-25 is {status}. Vue may still skip a finished exam. Set OBR-25 to SC (in progress) as a test — that is not the same as ORC-1 SC."
+            f"OBR-25 is {status}. Vue may still skip a finished exam. Set exam status (OBR-25 to SC) under Adjust before sending as a test — that is not the same as ORC-1 SC."
         )
     return hints
 

@@ -955,6 +955,42 @@ details[open] > summary::before { transform: rotate(45deg); }
   max-width: 44rem;
 }
 .advanced .form-grid { margin-top: 0.2rem; }
+/* HL7 send */
+.hl7-port-row { grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr); gap: 0.75rem; }
+.note { margin-top: 0.75rem; font-size: var(--text-sm); color: var(--muted); }
+.note > summary { font-weight: 700; color: var(--subtle); cursor: pointer; }
+.note ul { margin: 0.45rem 0 0.35rem; padding-left: 1.1rem; line-height: 1.45; }
+.note li + li { margin-top: 0.2rem; }
+.hl7-save { display: flex; align-items: flex-end; gap: 0.5rem 0.75rem; flex-wrap: wrap; }
+.hl7-save label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  flex: 0 1 22rem;
+  color: var(--muted);
+  font-size: var(--text-md);
+  font-weight: 600;
+}
+.stamps > summary { cursor: pointer; font-size: var(--text-md); font-weight: 700; color: var(--subtle); }
+.stamps > .hint { margin: 0.5rem 0 0.75rem; }
+.stamp-list { display: flex; flex-direction: column; }
+.stamp { padding: 0.65rem 0; border-top: 1px solid var(--line); }
+.stamp .hint { margin: 0.2rem 0 0 1.6rem; }
+.stamp-sub { display: grid; gap: 0.5rem 0.75rem; max-width: 24rem; margin: 0.5rem 0 0 1.6rem; }
+.stamp-sub-pair { grid-template-columns: repeat(2, minmax(0, 1fr)); max-width: 40rem; }
+.stamp-sub label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-width: 0;
+  color: var(--muted);
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+@media (max-width: 640px) { .stamp-sub-pair { grid-template-columns: 1fr; } }
+.stamp-more { margin: 0.3rem 0 0 1.6rem; font-size: var(--text-sm); color: var(--muted); }
+.stamp-more > summary { cursor: pointer; font-weight: 600; }
+.stamp-more p { margin: 0.3rem 0 0; max-width: 46rem; line-height: 1.45; }
 .stamp-field-title {
   display: flex;
   align-items: center;
@@ -1028,6 +1064,13 @@ input:focus, select:focus, textarea:focus, .choice-toggle:focus-visible, .choice
   flex-shrink: 0;
   margin-left: 0;
 }
+.theme-menu-group {
+  padding: 0.5rem 0.65rem 0.2rem;
+  color: var(--muted);
+  font-size: var(--text-xs);
+  font-weight: 700;
+}
+.theme-menu-group:not(:first-child) { margin-top: 0.25rem; border-top: 1px solid var(--line); }
 .choice-menu {
   z-index: 40;
   position: absolute;

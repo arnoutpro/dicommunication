@@ -33,6 +33,24 @@ BASE_DIR = package_dir()
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
 
 
+def static_url(path: str) -> str:
+    """A /static URL that changes whenever the file does.
+
+    StaticFiles sends no Cache-Control, so a browser may keep reusing an old
+    app.js or app.css after an edit or an upgrade, and a page then runs
+    against script it doesn't match. The file's modification time in the
+    query string gives each version its own URL.
+    """
+    try:
+        stamp = int((BASE_DIR / "static" / path).stat().st_mtime)
+    except OSError:
+        return f"/static/{path}"
+    return f"/static/{path}?v={stamp}"
+
+
+templates.env.globals["static_url"] = static_url
+
+
 def _first_error(exc: ValidationError) -> str:
     error = exc.errors()[0]
     loc = error.get("loc") or ("config",)

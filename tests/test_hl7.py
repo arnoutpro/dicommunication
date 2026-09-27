@@ -1,11 +1,15 @@
 from __future__ import annotations
 
+import re
 import socket
 import threading
 from pathlib import Path
 
 from app.hl7 import (
     DEFAULT_PORT,
+    OBR_STATUS_CODES,
+    ORC_CONTROL_CODES,
+    ORC_STATUS_CODES,
     display_hl7,
     msh_control_id,
     msh_field,
@@ -20,6 +24,7 @@ from app.hl7 import (
     send_hl7,
     send_wire_hints,
     stamp_new_control_id,
+    stamp_obr_reason,
     stamp_obr_reason_ce_text,
     stamp_obr_status,
     stamp_orc_status,
@@ -486,6 +491,7 @@ def test_hl7_tool_stamps_obr_in_progress_when_requested() -> None:
                 "change_order": True,
                 "obr_reason_ce": True,
                 "obr_in_progress": True,
+                "orc_status": "IP",
             },
         )
         thread.join(timeout=2)
@@ -539,18 +545,22 @@ def test_hl7_page_has_resend_hint(client) -> None:
     assert b'name="change_order"' in page.content
     assert b"Change existing order" in page.content
     assert b'name="orc_control"' in page.content
-    assert b"Vue / IS Link update order" in page.content
+    assert "SC — update order" in page.text and '<optgroup label="Vue / IS Link">' in page.text
     assert b'name="obr_reason_ce"' in page.content
-    assert b"OBR-31 as CE text" in page.content
+    assert b"Reason for Study (OBR-31)" in page.content
     assert b'name="obr_in_progress"' in page.content
-    assert b"Set OBR-25 to SC" in page.content
+    assert b"Set exam status (OBR-25 and ORC-5)" in page.content
     assert b"ORC-1" in page.content
     assert b"OBR-31" in page.content
-    assert b"<details class=\"advanced\">" in page.content
-    assert b"Advanced troubleshooting" in page.content
-    assert b"optional stamps" in page.content.lower() or b"Optional stamps" in page.content
+    # The rewrites live in step 3, folded, with a summary of what's on.
+    assert b"</span>Adjust before sending</h2>" in page.content
+    assert b'<details class="stamps" data-hl7-stamps>' in page.content
+    assert b"data-hl7-stamps-summary" in page.content
+    assert page.content.count(b'<details class="stamp-more">') == 4
+    # Every option is off by default, so their fields start hidden.
+    assert page.content.count(b"data-stamp-fields hidden") == 3
     assert b"Queues" in page.content
-    assert b"ACK MSH-3" in page.content
+    assert b"MSH-3 says who answered" in page.content
     assert b"10010" in page.content
     assert b"2112" in page.content
 
@@ -573,3 +583,117 @@ def test_hl7_page_has_wrapping_segment_editor(client) -> None:
         encoding="utf-8"
     )
     assert "function initHl7Editor" in js
+
+
+def test_hl7_page_is_four_steps(client) -> None:
+    page = client.get("/tools/hl7-send").text
+    titles = ["Destination", "Message", "Adjust before sending", "Send"]
+    positions = [page.index(f"</span>{title}</h2>") for title in titles]
+    assert positions == sorted(positions)
+    # Save belongs to the message; Send is the page's one filled button.
+    assert positions[1] < page.index('formaction="/tools/hl7-send/messages"') < positions[2]
+    assert page.count('class="button primary"') == 1
+    assert '<details class="note">' in page and "Sending to Philips IS Link?" in page
+
+
+def test_saving_a_message_keeps_the_destination(client, store) -> None:
+    response = client.post(
+        "/tools/hl7-send/messages",
+        data={"name": "ORM test", "message": "MSH|^~\\&|A|B|C|D|20260101||ORM^O01|1|P|2.5", "host": "10.1.2.3", "port": "10010", "mllp": "raw"},
+        follow_redirects=False,
+    )
+    assert response.status_code == 303
+    location = response.headers["location"]
+    assert "host=10.1.2.3" in location and "port=10010" in location and "mllp=raw" in location
+    page = client.get(location).text
+    assert 'value="10.1.2.3"' in page
+    assert 'value="10010"' in page
+    assert '<option value="raw" selected>' in page
+    assert "Message saved." in page
+
+
+def test_stamp_obr_reason_sets_or_only_reformats() -> None:
+    message = _orm()
+    _count, before = obr_reason(message)
+    # Code and text: set as code^text.
+    assert obr_reason(stamp_obr_reason(message, "FALL", "Chest pain after fall"))[1] == "FALL^Chest pain after fall"
+    # Text only: the code is its first word.
+    assert obr_reason(stamp_obr_reason(message, "", "Chest pain"))[1] == "Chest^Chest pain"
+    # Code only.
+    assert obr_reason(stamp_obr_reason(message, "R07.4", ""))[1] == "R07.4"
+    # Neither: keep the existing reason, only fix its CE format.
+    assert obr_reason(stamp_obr_reason(message))[1] == obr_reason(stamp_obr_reason_ce_text(message))[1]
+    # HL7 delimiters typed by hand can't split the field.
+    assert obr_reason(stamp_obr_reason(message, "A|B", "x^y~z"))[1] == "A B^x y z"
+    # No OBR: nothing to set.
+    assert stamp_obr_reason("MSH|^~\\&|A|B\rPID|1", "X", "Y") == "MSH|^~\\&|A|B\rPID|1"
+    assert before is not None
+
+
+def test_hl7_tool_sets_chosen_exam_status() -> None:
+    tool = Hl7SendTool()
+    local = LocalAE(timeout_seconds=2)
+    message = _orm()
+    original_orc5 = orc_status(normalize_hl7(message))
+    port, received, thread, server = _serve_mllp_once("MSH|^~\\&|R|F\rMSA|AA|MSG00001")
+    try:
+        result = tool.run(
+            local,
+            None,
+            {
+                "host": "127.0.0.1",
+                "port": port,
+                "message": message,
+                "obr_in_progress": True,
+                "obr_status": "f",
+                "orc_status": "",
+                "obr_reason_ce": True,
+                "obr_reason_text": "Follow-up",
+            },
+        )
+        thread.join(timeout=2)
+        assert result.ok
+        sent = unwrap_mllp(received["raw"]).decode("latin-1")
+        assert obr_status(sent) == "F"
+        assert orc_status(sent) == original_orc5  # "Leave as it is"
+        assert obr_reason(sent)[1] == "Follow-up^Follow-up"
+    finally:
+        server.close()
+
+
+def test_hl7_page_rewrites_are_off_by_default(client) -> None:
+    page = client.get("/tools/hl7-send").text
+    for name in ("new_control_id", "change_order", "obr_reason_ce", "obr_in_progress"):
+        assert re.search(rf'name="{name}" value="on"\s+data-stamp', page), name
+    # OBR-25 defaults to SC (the Vue test), shown apart from the HL7 table-0123
+    # codes; ORC-5 and everything else is left alone unless chosen.
+    assert '<option value="SC" selected>SC — in progress</option>' in page
+    assert '<optgroup label="HL7 result status (table 0123)">' in page
+    assert '<option value="" selected>Leave as it is</option>' in page
+    assert '<option value="NW" >NW — new order</option>' in page
+
+
+def test_hl7_tool_only_writes_codes_from_the_tables() -> None:
+    # OBR-25 is table 0123 (single letters) plus the earlier Vue test value SC.
+    assert set(OBR_STATUS_CODES) - {"SC"} <= set("OISAPRFCMNXYZ")
+    assert "IP" not in OBR_STATUS_CODES and "CM" not in OBR_STATUS_CODES
+    assert {"SC", "CA"} <= set(ORC_STATUS_CODES)
+    assert {"NW", "SC", "CA"} <= set(ORC_CONTROL_CODES)
+
+    tool = Hl7SendTool()
+    message = _orm()
+    original_orc5 = orc_status(normalize_hl7(message))
+    port, received, thread, server = _serve_mllp_once("MSH|^~\\&|R|F\rMSA|AA|MSG00001")
+    try:
+        result = tool.run(
+            LocalAE(timeout_seconds=2),
+            None,
+            {"host": "127.0.0.1", "port": port, "message": message, "obr_in_progress": True, "obr_status": "CM", "orc_status": "ZZ"},
+        )
+        thread.join(timeout=2)
+        assert result.ok
+        sent = unwrap_mllp(received["raw"]).decode("latin-1")
+        assert obr_status(sent) == "SC"  # CM isn't a result status: falls back to the default
+        assert orc_status(sent) == original_orc5  # unknown ORC-5 is left alone
+    finally:
+        server.close()

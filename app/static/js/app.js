@@ -187,7 +187,18 @@ function enhanceSelectMenus(root = document) {
 
     const renderItems = () => {
       panel.replaceChildren();
+      let group = null;
       Array.from(select.options).forEach((option, index) => {
+        // <optgroup> labels become headings, so grouped choices keep their context.
+        const parent = option.parentElement instanceof HTMLOptGroupElement ? option.parentElement : null;
+        if (parent && parent !== group) {
+          const heading = document.createElement("div");
+          heading.className = "theme-menu-group";
+          heading.setAttribute("role", "presentation");
+          heading.textContent = parent.label;
+          panel.appendChild(heading);
+        }
+        group = parent;
         const item = document.createElement("button");
         item.type = "button";
         item.className = "theme-menu-item";
@@ -1038,6 +1049,59 @@ function initHl7Editor(root) {
   setView("segments");
 }
 
+// HL7 send: the host a chosen remote node lends, and a summary of which
+// "Adjust before sending" rewrites are on, so they're visible while folded.
+function initHl7Form(scope) {
+  const root = scope instanceof Element ? scope : document;
+  const form = root.querySelector("[data-hl7-form]");
+  if (!(form instanceof HTMLFormElement) || form.dataset.hl7FormReady === "1") {
+    return;
+  }
+  form.dataset.hl7FormReady = "1";
+  const remote = form.querySelector("[data-hl7-remote]");
+  const host = form.querySelector("[data-hl7-host]");
+  function applyRemote() {
+    if (!(remote instanceof HTMLSelectElement) || !(host instanceof HTMLInputElement)) {
+      return;
+    }
+    const lent = remote.selectedOptions[0]?.getAttribute("data-host") || "";
+    host.placeholder = lent ? `${lent} (from the node; type to override)` : "10.0.0.20";
+  }
+  const summary = form.querySelector("[data-hl7-stamps-summary]");
+  const value = (name) => (form.elements.namedItem(name)?.value || "").trim();
+  // What each rewrite will do, in the words the result uses.
+  const describe = {
+    control: () => "New MSH-10",
+    order: () => `ORC-1 → ${value("orc_control")}`,
+    reason: () => {
+      const text = value("obr_reason_text");
+      const code = value("obr_reason_code") || text.split(/\s+/)[0];
+      return code ? `OBR-31 → ${code}${text ? `^${text}` : ""}` : "OBR-31 as CE";
+    },
+    status: () => `OBR-25 → ${value("obr_status")}${value("orc_status") ? ` · ORC-5 → ${value("orc_status")}` : ""}`,
+  };
+  function applyStamps() {
+    const on = [];
+    form.querySelectorAll("[data-stamp]").forEach((box) => {
+      const fields = box.closest(".stamp")?.querySelector("[data-stamp-fields]");
+      if (fields instanceof HTMLElement) {
+        fields.hidden = !box.checked;
+      }
+      if (box.checked) {
+        on.push(describe[box.getAttribute("data-stamp")]?.() || "");
+      }
+    });
+    if (summary) {
+      summary.textContent = on.length ? `Rewritten on send: ${on.join(" · ")}` : "Nothing is rewritten; the message is sent as it is";
+    }
+  }
+  remote?.addEventListener("change", applyRemote);
+  form.querySelector("[data-hl7-stamps]")?.addEventListener("change", applyStamps);
+  form.querySelector("[data-hl7-stamps]")?.addEventListener("input", applyStamps);
+  applyRemote();
+  applyStamps();
+}
+
 function initHl7Editors(scope) {
   const root = scope instanceof Element ? scope : document;
   if (root instanceof HTMLElement && root.matches("[data-hl7-editor]")) {
@@ -1047,6 +1111,7 @@ function initHl7Editors(scope) {
 }
 
 initHl7Editors(document);
+initHl7Form(document);
 window.addEventListener("resize", () => {
   document.querySelectorAll(".hl7-seg-fields").forEach(resizeHl7Field);
 });

@@ -23,7 +23,7 @@
     })();
   </script>
   <link rel="preload" href="/static/fonts/plus-jakarta-sans-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
-  <link rel="stylesheet" href="/static/css/app.css">
+  <link rel="stylesheet" href="{{ static_url('css/app.css') }}">
   <script src="/static/vendor/htmx-2.0.4.min.js" defer></script>
 </head>
 <body class="{% block body_class %}{% endblock %}" data-product-name="{{ product_name }}">
@@ -187,6 +187,6 @@
       {% block content %}{% endblock %}
     </main>
   </div>
-  <script src="/static/js/app.js"></script>
+  <script src="{{ static_url('js/app.js') }}"></script>
 </body>
 </html>

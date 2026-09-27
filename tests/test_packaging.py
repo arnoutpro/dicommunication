@@ -684,7 +684,9 @@ def test_htmx_is_served_from_this_app_not_a_cdn() -> None:
 
     assert scripts, "base.html should still load htmx"
     for src in scripts:
-        assert src.startswith("/static/"), f"{src} is loaded from a third party"
+        # static_url() always yields /static/<path>?v=..., never another host.
+        local = src.startswith("/static/") or src.startswith("{{ static_url(")
+        assert local, f"{src} is loaded from a third party"
 
     vendored = ROOT / "app" / "static" / "vendor" / "htmx-2.0.4.min.js"
     assert vendored.is_file()
