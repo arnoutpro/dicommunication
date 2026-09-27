@@ -1,10 +1,13 @@
 from __future__ import annotations
 
+import re
+
 import io
 import socket
 import struct
 import time
 import zipfile
+from datetime import date
 from pathlib import Path
 
 import pytest
@@ -22,6 +25,7 @@ from app.pdf_dicom import (
     collect_from_zip,
     collect_pdfs,
     encapsulate_pdf,
+    encapsulate_sources,
     is_pdf,
     iter_directory_pdfs,
     list_directory_pdfs,
@@ -481,3 +485,118 @@ def test_upload_batch_at_the_cap_still_works(client) -> None:
 
     assert response.status_code == 200
     assert b"Too many PDFs" not in response.content
+
+
+def test_pdf_store_page_is_four_steps_with_one_source(client, remote) -> None:
+    page = client.get("/tools/pdf-store").text
+    for title in ("Choose PDFs", "Patient", "Study and document", "Send"):
+        assert f'</span>{title}</h2>' in page
+    # Files is the default source; the other sources' inputs don't submit.
+    assert '<input type="radio" name="source" value="files" checked' in page
+    assert re.search(r'name="pdfs" type="file"[^>]*multiple aria-label="PDF files">', page)
+    assert re.search(r'name="zip_file"[^>]*disabled>', page)
+    assert re.search(r'name="folder"[^>]*disabled>', page)
+    assert re.search(r'name="directory"[^>]*data-directory-input disabled>', page)
+    # The Generate toggle has its own label, so the field label focuses the input.
+    assert '<label class="label-line" for="pdf-patient-name">' in page
+    assert 'id="pdf-patient-name" name="patient_name"' in page
+    assert "Encapsulate &amp; send" in page
+
+
+def test_pdf_store_failed_directory_run_reopens_on_directory(client, tmp_path) -> None:
+    missing = tmp_path / "nope"
+    response = client.post(
+        "/tools/pdf-store/run",
+        data={"directory": str(missing), "patient_name": "DOE^JANE", "patient_id": "1"},
+    )
+    page = response.text
+    assert "Path not found" in page
+    # The path stays visible under the source it belongs to.
+    assert '<input type="radio" name="source" value="directory" checked' in page
+    assert re.search(r'name="directory" value="%s"[^>]*data-directory-input>' % re.escape(str(missing)), page)
+    assert re.search(r'name="pdfs"[^>]*disabled>', page)
+
+
+def _three_pdfs() -> list[PdfSource]:
+    return [PdfSource(name=f"{stem}.pdf", data=MINIMAL_PDF) for stem in ("referral", "discharge", "lab")]
+
+
+def test_typed_values_go_on_every_pdf_as_they_are() -> None:
+    datasets = encapsulate_sources(
+        _three_pdfs(),
+        patient_name="DOE^JANE",
+        patient_id="1001",
+        accession_number="ACC42",
+        study_description="External reports",
+        document_title="Outside letter",
+        same_study=True,
+    )
+    assert {ds.AccessionNumber for ds in datasets} == {"ACC42"}
+    assert {ds.StudyDescription for ds in datasets} == {"External reports"}
+    # No per-file suffix: the title is what was typed.
+    assert {ds.DocumentTitle for ds in datasets} == {"Outside letter"}
+
+
+def test_generated_values_one_study() -> None:
+    datasets = encapsulate_sources(
+        _three_pdfs(),
+        patient_name="DOE^JANE",
+        patient_id="1001",
+        accession_number="ignored",
+        document_title="ignored",
+        same_study=True,
+        generate_accession=True,
+        generate_study_description=True,
+        generate_document_title=True,
+    )
+    accessions = {ds.AccessionNumber for ds in datasets}
+    assert len(accessions) == 1
+    [accession] = accessions
+    assert accession.startswith("ACC") and len(accession) <= 16 and accession != "ignored"
+    assert {ds.StudyDescription for ds in datasets} == {f"PDF import {date.today():%Y-%m-%d}"}
+    assert [ds.DocumentTitle for ds in datasets] == ["referral", "discharge", "lab"]
+
+
+def test_generated_values_one_study_per_pdf() -> None:
+    datasets = encapsulate_sources(
+        _three_pdfs(),
+        patient_name="DOE^JANE",
+        patient_id="1001",
+        same_study=False,
+        generate_accession=True,
+        generate_study_description=True,
+    )
+    assert len({ds.AccessionNumber for ds in datasets}) == 3
+    assert [ds.StudyDescription for ds in datasets] == ["referral", "discharge", "lab"]
+    assert len({ds.StudyInstanceUID for ds in datasets}) == 3
+
+
+def test_form_generate_flags_reach_the_documents(client, tmp_path: Path) -> None:
+    response = client.post(
+        "/tools/pdf-store/run",
+        data={
+            "patient_name": "DOE^JANE",
+            "patient_id": "1001",
+            "same_study": "on",
+            "generate_accession": "on",
+            "document_title": "Scanned letter",
+        },
+        files=[
+            ("pdfs", ("a.pdf", MINIMAL_PDF, "application/pdf")),
+            ("pdfs", ("b.pdf", MINIMAL_PDF, "application/pdf")),
+        ],
+    )
+    assert response.status_code == 200
+    page = response.text
+    # Page comes back with the choices kept.
+    assert re.search(r'name="generate_accession" value="on" checked', page)
+    assert re.search(r'id="pdf-accession_number"[^>]*disabled>', page)
+    assert not re.search(r'name="generate_document_title" value="on" checked', page)
+    assert 'value="Scanned letter"' in page
+
+
+def test_document_title_generates_by_default(client) -> None:
+    page = client.get("/tools/pdf-store").text
+    assert re.search(r'name="generate_document_title" value="on" checked', page)
+    assert re.search(r'id="pdf-document_title"[^>]*disabled>', page)
+    assert not re.search(r'name="generate_accession" value="on" checked', page)

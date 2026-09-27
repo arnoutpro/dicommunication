@@ -8,122 +8,163 @@
   </div>
 </header>
 
-<section class="panel">
-  <header class="panel-head">
-    <h2>Import and encapsulate</h2>
-    <span class="muted">Calling AE {{ config.local.ae_title }}{% if config.identities %} · {{ config.identities | length }} virtual{% endif %}</span>
-  </header>
-  <form
-    class="form-grid"
-    method="post"
-    action="/tools/pdf-store/run"
-    hx-post="/tools/pdf-store/run"
-    hx-target="#result"
-    hx-indicator="#busy"
-    hx-encoding="multipart/form-data"
-    hx-timeout="180000"
-    hx-trigger="submit"
-    autocomplete="off"
-    data-pdf-store
-  >
-    {% if config.remotes %}
-    <label>
-      Remote node
-      <select name="remote_id">
-        {% for remote in config.remotes %}
-        <option value="{{ remote.id }}" {% if remote_id == remote.id %}selected{% endif %}>
-          {{ remote.name }} — {{ remote.ae_title }} @ {{ remote.connect_host }}:{{ remote.port }}
-        </option>
+{% set source = 'directory' if directory else 'files' %}
+<form
+  class="step-flow"
+  method="post"
+  action="/tools/pdf-store/run"
+  hx-post="/tools/pdf-store/run"
+  hx-target="#result"
+  hx-indicator="#busy"
+  hx-encoding="multipart/form-data"
+  hx-timeout="180000"
+  hx-trigger="submit"
+  autocomplete="off"
+  data-pdf-store
+>
+  <section class="panel step">
+    <header class="panel-head">
+      <h2 class="step-title"><span class="step-num" aria-hidden="true">1</span>Choose PDFs</h2>
+    </header>
+    <fieldset data-choice-hints>
+      <legend>Take PDFs from</legend>
+      <div class="find-level-tabs" role="radiogroup" aria-label="Take PDFs from">
+        {% for value, label in [('files', 'Files'), ('zip', 'ZIP'), ('folder', 'Folder'), ('directory', 'Directory on this workstation')] %}
+        <label class="find-level-tab">
+          <input type="radio" name="source" value="{{ value }}" {% if source == value %}checked{% endif %} data-pdf-source>
+          <span>{{ label }}</span>
+        </label>
         {% endfor %}
-      </select>
-      <span class="hint">Storage SCP that accepts Encapsulated PDF Storage. A working C-ECHO is not enough.</span>
-    </label>
-    {% else %}
-    <input type="hidden" name="remote_id" value="">
-    <p class="hint span-2">No remote node configured. You can still encapsulate. <a href="/config/remotes">Add a PACS</a> to C-STORE the DICOM PDFs.</p>
-    {% endif %}
-    {% include "partials/identity_select.html" %}
-    <label class="required" data-patient-field="name">
-      <span class="label-line">Patient Name <abbr class="req" title="Required">*</abbr></span>
-      <input name="patient_name" value="{{ patient_name }}" placeholder="DOE^JANE" data-patient-name>
-      <span class="hint">Required unless you generate it. Checking Generate fills this field.</span>
-    </label>
-    <label class="required" data-patient-field="id">
-      <span class="label-line">Patient ID <abbr class="req" title="Required">*</abbr></span>
-      <input name="patient_id" value="{{ patient_id }}" placeholder="1001" data-patient-id>
-      <span class="hint">Required unless you generate it. Checking Generate fills this field.</span>
-    </label>
-    <label class="checkbox">
-      <input type="checkbox" name="generate_name" value="on" {% if generate_name %}checked{% endif %} data-generate-name>
-      Generate Patient Name
-    </label>
-    <label class="checkbox">
-      <input type="checkbox" name="generate_id" value="on" {% if generate_id %}checked{% endif %} data-generate-id>
-      Generate Patient ID
-    </label>
-    <label class="checkbox span-2">
-      <input type="checkbox" name="unique_patient" value="on" {% if unique_patient %}checked{% endif %} data-unique-patient>
-      Unique patient per PDF (from file name)
-      <span class="hint">For a folder of reports: each PDF gets its own Patient Name / ID so they do not stack as one person on the PACS.</span>
-    </label>
-    <label>
-      Accession Number
-      <input name="accession_number" value="{{ accession_number }}" placeholder="ACC1">
-    </label>
-    <label>
-      Study Description
-      <input name="study_description" value="{{ study_description }}" placeholder="External report">
-    </label>
-    <label class="span-2">
-      Document Title
-      <input name="document_title" value="{{ document_title }}" placeholder="Defaults to the PDF file name">
-      <span class="hint">Written to DICOM Document Title. Empty uses each file’s name.</span>
-    </label>
-    <label class="span-2">
-      PDF files
-      <input name="pdfs" type="file" accept=".pdf,application/pdf" multiple>
-      <span class="hint">One or more <code>.pdf</code> files only. Other types are rejected.</span>
-    </label>
-    <label>
-      ZIP of PDFs
-      <input name="zip_file" type="file" accept=".zip,application/zip">
-      <span class="hint">Only <code>.pdf</code> entries are used. Other file types are skipped.</span>
-    </label>
-    <label>
-      Folder of PDFs
-      <input name="folder" type="file" accept=".pdf,application/pdf" multiple webkitdirectory directory>
-      <span class="hint">Browser folder picker. Only <code>.pdf</code> files are kept; other types are dropped.</span>
-    </label>
-    <div class="span-2 directory-field">
-      <span class="label-line">Directory on this workstation</span>
+      </div>
+      <p class="hint" data-hint-for="files">Pick one or more <code>.pdf</code> files.</p>
+      <p class="hint" data-hint-for="zip">Only the <code>.pdf</code> files inside the ZIP are used.</p>
+      <p class="hint" data-hint-for="folder">Pick a folder in the browser. Only its <code>.pdf</code> files are kept.</p>
+      <p class="hint" data-hint-for="directory">A path this app can read, on the machine it runs on. <strong>…</strong> opens a folder dialog there; Scan lists the PDFs it would take.</p>
+    </fieldset>
+
+    <div data-pdf-source-panel="files"{% if source != 'files' %} hidden{% endif %}>
+      <input name="pdfs" type="file" accept=".pdf,application/pdf" multiple aria-label="PDF files"{% if source != 'files' %} disabled{% endif %}>
+    </div>
+    <div data-pdf-source-panel="zip" hidden>
+      <input name="zip_file" type="file" accept=".zip,application/zip" aria-label="ZIP of PDFs" disabled>
+    </div>
+    <div data-pdf-source-panel="folder" hidden>
+      <input name="folder" type="file" accept=".pdf,application/pdf" multiple webkitdirectory directory aria-label="Folder of PDFs" disabled>
+    </div>
+    <div data-pdf-source-panel="directory"{% if source != 'directory' %} hidden{% endif %}>
       <div class="input-with-action">
-        <input name="directory" value="{{ directory }}" placeholder="/data/reports or C:\reports" spellcheck="false" data-directory-input>
+        <input name="directory" value="{{ directory }}" placeholder="/data/reports or C:\reports" spellcheck="false" aria-label="Directory on this workstation" data-directory-input{% if source != 'directory' %} disabled{% endif %}>
         <button type="button" class="button" data-browse-directory title="Browse for a folder on this workstation" hx-disable>…</button>
         <button type="button" class="button" data-scan-directory hx-disable>Scan</button>
       </div>
-      <span class="hint">Path this process can read. <strong>…</strong> opens the local file explorer on this workstation. Scan lists PDF files only — other types are ignored.</span>
+      <div id="pdf-browse-status" hidden></div>
+      <div id="pdf-scan">
+        {% include "partials/pdf_scan.html" %}
+      </div>
     </div>
-    <div id="pdf-browse-status" class="span-2" hidden></div>
-    <div id="pdf-file-status" class="span-2" hidden></div>
-    <div id="pdf-scan" class="span-2">
-      {% include "partials/pdf_scan.html" %}
+    <div id="pdf-file-status" hidden></div>
+  </section>
+
+  <section class="panel step">
+    <header class="panel-head">
+      <h2 class="step-title"><span class="step-num" aria-hidden="true">2</span>Patient</h2>
+    </header>
+    <div class="form-grid">
+      <div class="field required" data-patient-field="name">
+        <div class="field-head">
+          <label class="label-line" for="pdf-patient-name">Patient Name <abbr class="req" title="Required">*</abbr></label>
+          <label class="field-toggle"><input type="checkbox" name="generate_name" value="on" {% if generate_name %}checked{% endif %} data-generate-name> Generate</label>
+        </div>
+        <input id="pdf-patient-name" name="patient_name" value="{{ patient_name }}" placeholder="DOE^JANE" data-patient-name>
+      </div>
+      <div class="field required" data-patient-field="id">
+        <div class="field-head">
+          <label class="label-line" for="pdf-patient-id">Patient ID <abbr class="req" title="Required">*</abbr></label>
+          <label class="field-toggle"><input type="checkbox" name="generate_id" value="on" {% if generate_id %}checked{% endif %} data-generate-id> Generate</label>
+        </div>
+        <input id="pdf-patient-id" name="patient_id" value="{{ patient_id }}" placeholder="1001" data-patient-id>
+      </div>
+      <label class="checkbox span-2">
+        <input type="checkbox" name="unique_patient" value="on" {% if unique_patient %}checked{% endif %} data-unique-patient>
+        <span>One patient per PDF, named after its file
+          <span class="hint">So a folder of reports doesn't land on the PACS as one person.</span>
+        </span>
+      </label>
     </div>
-    <label class="checkbox span-2">
-      <input type="checkbox" name="same_study" value="on" {% if same_study %}checked{% endif %} data-same-study>
-      Keep PDFs in the same study (one Study / Series Instance UID)
+  </section>
+
+  <section class="panel step">
+    <header class="panel-head">
+      <h2 class="step-title"><span class="step-num" aria-hidden="true">3</span>Study and document</h2>
+    </header>
+    <div class="form-grid">
+      <div class="field">
+        <div class="field-head">
+          <label for="pdf-accession_number">Accession Number</label>
+          <label class="field-toggle"><input type="checkbox" name="generate_accession" value="on" {% if generate_accession %}checked{% endif %} data-pdf-generate="accession_number"> Generate</label>
+        </div>
+        <input id="pdf-accession_number" name="accession_number" value="{{ accession_number }}" placeholder="ACC1" data-placeholder="ACC1" data-generated-placeholder="A new one per study"{% if generate_accession %} disabled{% endif %}>
+      </div>
+      <div class="field">
+        <div class="field-head">
+          <label for="pdf-study_description">Study Description</label>
+          <label class="field-toggle"><input type="checkbox" name="generate_study_description" value="on" {% if generate_study_description %}checked{% endif %} data-pdf-generate="study_description"> Generate</label>
+        </div>
+        <input id="pdf-study_description" name="study_description" value="{{ study_description }}" placeholder="External report" data-placeholder="External report" data-generated-placeholder="Per study: each file's name, or “PDF import” and the date for one study"{% if generate_study_description %} disabled{% endif %}>
+      </div>
+      <div class="field span-2">
+        <div class="field-head">
+          <label for="pdf-document_title">Document Title</label>
+          <label class="field-toggle"><input type="checkbox" name="generate_document_title" value="on" {% if generate_document_title %}checked{% endif %} data-pdf-generate="document_title"> Generate</label>
+        </div>
+        <input id="pdf-document_title" name="document_title" value="{{ document_title }}" placeholder="Referral letter" data-placeholder="Referral letter" data-generated-placeholder="Each PDF’s file name"{% if generate_document_title %} disabled{% endif %}>
+      </div>
+      <p class="hint span-2">A value you type goes on every PDF as it is. Generate makes one per study, or per PDF for the title.</p>
+      <label class="checkbox span-2">
+        <input type="checkbox" name="same_study" value="on" {% if same_study %}checked{% endif %} data-same-study>
+        <span>Keep all PDFs in one study
+          <span class="hint">One Study and Series Instance UID for the whole batch.</span>
+        </span>
+      </label>
+    </div>
+  </section>
+
+  <section class="panel step">
+    <header class="panel-head">
+      <h2 class="step-title"><span class="step-num" aria-hidden="true">4</span>Send</h2>
+      <span class="muted">Calling AE {{ config.local.ae_title }}{% if config.identities %} · {{ config.identities | length }} virtual{% endif %}</span>
+    </header>
+    {% if config.remotes %}
+    <label class="checkbox">
+      <input type="checkbox" name="send" value="on" {% if send %}checked{% endif %} data-pdf-send>
+      <span>Store on a PACS
+        <span class="hint">C-STORE as Encapsulated PDF Storage. Unchecked, the PDFs are only encapsulated and checked, and nothing is sent.</span>
+      </span>
     </label>
-    <label class="checkbox span-2">
-      <input type="checkbox" name="send" value="on" {% if send %}checked{% endif %}>
-      Store on PACS (C-STORE Encapsulated PDF Storage)
-    </label>
+    <div class="form-grid" data-pdf-send-fields{% if not send %} hidden{% endif %}>
+      <label>
+        Remote node
+        <select name="remote_id">
+          {% for remote in config.remotes %}
+          <option value="{{ remote.id }}" {% if remote_id == remote.id %}selected{% endif %}>
+            {{ remote.name }} — {{ remote.ae_title }} @ {{ remote.connect_host }}:{{ remote.port }}
+          </option>
+          {% endfor %}
+        </select>
+        <span class="hint">Must accept Encapsulated PDF Storage; a working C-ECHO is not enough.</span>
+      </label>
+      {% include "partials/identity_select.html" %}
+    </div>
+    {% else %}
+    <input type="hidden" name="remote_id" value="">
+    <p class="hint">No remote node yet, so the PDFs are only encapsulated and checked. <a href="/config/remotes">Add a PACS</a> to C-STORE them.</p>
+    {% endif %}
     <div class="form-actions">
-      <button class="button primary" type="submit">
-        Encapsulate{% if config.remotes %} &amp; send{% endif %}
-      </button>
+      <button class="button primary" type="submit" data-pdf-run>{% if config.remotes and send %}Encapsulate &amp; send{% else %}Encapsulate{% endif %}</button>
       <span id="busy" class="htmx-indicator spinner">Working…</span>
     </div>
-  </form>
-</section>
+  </section>
+</form>
 
 <div id="result">
   {% if result %}

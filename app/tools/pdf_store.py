@@ -181,6 +181,9 @@ class PdfStoreTool(BaseTool):
             document_title=str(options.get("document_title") or ""),
             same_study=same_study,
             identities=identities,
+            generate_accession=_flag(options.get("generate_accession")),
+            generate_study_description=_flag(options.get("generate_study_description")),
+            generate_document_title=_flag(options.get("generate_document_title")),
         )
         steps.append(
             ToolStep(

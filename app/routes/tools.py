@@ -59,6 +59,9 @@ def _pdf_store_options(
     generate_name: bool = False,
     generate_id: bool = False,
     unique_patient: bool = False,
+    generate_accession: bool = False,
+    generate_study_description: bool = False,
+    generate_document_title: bool = False,
 ) -> dict[str, Any]:
     items: list[dict[str, Any]] = []
     accepted = 0
@@ -96,6 +99,9 @@ def _pdf_store_options(
         "generate_name": generate_name,
         "generate_id": generate_id,
         "unique_patient": unique_patient,
+        "generate_accession": generate_accession,
+        "generate_study_description": generate_study_description,
+        "generate_document_title": generate_document_title,
         "pdfs": items,
     }
     zip_bytes = _read_upload(zip_file, MAX_ZIP_BYTES)
@@ -410,6 +416,9 @@ def _pdf_store_page(
     generate_name: bool = False,
     generate_id: bool = False,
     unique_patient: bool = False,
+    generate_accession: bool = False,
+    generate_study_description: bool = False,
+    generate_document_title: bool = True,
     scan: dict | None = None,
     status_code: int = 200,
 ):
@@ -439,6 +448,9 @@ def _pdf_store_page(
             generate_name=generate_name,
             generate_id=generate_id,
             unique_patient=unique_patient,
+            generate_accession=generate_accession,
+            generate_study_description=generate_study_description,
+            generate_document_title=generate_document_title,
             scan=scan,
         ),
         status_code=status_code,
@@ -461,6 +473,9 @@ def pdf_store_run(
     generate_name: str | None = Form(None),
     generate_id: str | None = Form(None),
     unique_patient: str | None = Form(None),
+    generate_accession: str | None = Form(None),
+    generate_study_description: str | None = Form(None),
+    generate_document_title: str | None = Form(None),
     pdfs: list[UploadFile] = File(default=[]),
     zip_file: UploadFile | None = File(default=None),
     folder: list[UploadFile] = File(default=[]),
@@ -477,6 +492,9 @@ def pdf_store_run(
         generate_name=_as_bool(generate_name),
         generate_id=_as_bool(generate_id),
         unique_patient=_as_bool(unique_patient),
+        generate_accession=_as_bool(generate_accession),
+        generate_study_description=_as_bool(generate_study_description),
+        generate_document_title=_as_bool(generate_document_title),
         pdfs=pdfs,
         zip_file=zip_file,
         folder=folder,
@@ -513,6 +531,9 @@ def pdf_store_run(
             generate_name=_as_bool(generate_name),
             generate_id=_as_bool(generate_id),
             unique_patient=_as_bool(unique_patient),
+            generate_accession=_as_bool(generate_accession),
+            generate_study_description=_as_bool(generate_study_description),
+            generate_document_title=_as_bool(generate_document_title),
             status_code=exc.status_code,
         )
     if _hx(request):
@@ -537,6 +558,9 @@ def pdf_store_run(
         generate_name=_as_bool(generate_name),
         generate_id=_as_bool(generate_id),
         unique_patient=_as_bool(unique_patient),
+        generate_accession=_as_bool(generate_accession),
+        generate_study_description=_as_bool(generate_study_description),
+        generate_document_title=_as_bool(generate_document_title),
     )
 
 

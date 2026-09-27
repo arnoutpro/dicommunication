@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+### PDF to DICOM
+
+- **Generate Accession Number, Study Description and Document Title**: like Patient Name and Patient ID, each now has a **Generate** checkbox on its label line. Generated values are made on the server: a new Accession Number per study (`ACC` + ten characters), a Study Description per study (the file name when each PDF is its own study, "PDF import" and the date when the batch is one study), and a Document Title per PDF (its file name, and ticked by default, as before). A typed value now goes on every PDF unchanged; a typed Document Title used to get " — file name" added when there was more than one PDF.
+- **Four steps instead of one crowded form**: the page was a single grid of about seventeen fields in no particular order: the destination came first, all four ways to add PDFs were on screen at once, and hints repeated each other. It now reads as numbered steps in the order the work happens, like Dicom Anonymizer and Dicom Cleaner: **Choose PDFs**, **Patient**, **Study and document**, **Send**. Step 1 takes PDFs from one source at a time (Files, ZIP, Folder, or Directory on this workstation) and shows only that source's input. The other sources' inputs are disabled, so a file picked under one tab isn't sent along with another. **Generate** sits on the Patient Name and Patient ID label lines instead of in separate rows. Remote node and Present as sit under **Store on a PACS** and show only while it's checked, and the button says **Encapsulate** when nothing will be sent.
+
 ### Dicomtag Analytics
 
 - **Saved queries**: after a study, series or image query returns, **Save this query** under the results keeps it under a name: remote node, Present as identity, level, checked columns, filter values and report-text options. The Analytics sidebar now lists them under **Saved queries**, below **New query** (the blank form). Opening one fills the form in; it doesn't run until you press **Run query**. A Study Date that came from a preset stays relative: "Last 7 days" is recomputed each time it's opened, while typed or picked dates stay as saved. Saving under an existing name (any case) replaces that query; an opened query has **Delete**. Follow-up runs (List SR reports, Retrieve report text) don't offer saving. Stored in `saved_queries.json` in the data folder.

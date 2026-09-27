@@ -468,6 +468,58 @@ function initPdfStoreForm(scope) {
     }
   }
 
+  // One source at a time: the others are disabled so a file picked earlier
+  // under another tab isn't quietly sent along.
+  function applySource() {
+    const source = form.querySelector("[data-pdf-source]:checked")?.value || "files";
+    form.querySelectorAll("[data-pdf-source-panel]").forEach((panel) => {
+      const active = panel.getAttribute("data-pdf-source-panel") === source;
+      panel.hidden = !active;
+      panel.querySelectorAll("input").forEach((input) => {
+        input.disabled = !active;
+      });
+    });
+    setFileStatus("");
+  }
+
+  const sendBox = form.querySelector("[data-pdf-send]");
+  const runButton = form.querySelector("[data-pdf-run]");
+  function applySend() {
+    if (!(sendBox instanceof HTMLInputElement)) {
+      return;
+    }
+    const fields = form.querySelector("[data-pdf-send-fields]");
+    if (fields) {
+      fields.hidden = !sendBox.checked;
+    }
+    if (runButton) {
+      runButton.textContent = sendBox.checked ? "Encapsulate & send" : "Encapsulate";
+    }
+  }
+
+  // Accession Number, Study Description and Document Title are generated on
+  // the server (per study or per PDF), so a ticked field is switched off and
+  // says what it will get instead.
+  function applyGenerated(box) {
+    const input = form.querySelector(`[name="${box.getAttribute("data-pdf-generate")}"]`);
+    if (!(input instanceof HTMLInputElement)) {
+      return;
+    }
+    input.disabled = box.checked;
+    input.placeholder = box.checked
+      ? input.getAttribute("data-generated-placeholder") || ""
+      : input.getAttribute("data-placeholder") || "";
+  }
+  form.querySelectorAll("[data-pdf-generate]").forEach((box) => {
+    box.addEventListener("change", () => applyGenerated(box));
+    applyGenerated(box);
+  });
+
+  form.querySelectorAll("[data-pdf-source]").forEach((radio) => radio.addEventListener("change", applySource));
+  sendBox?.addEventListener("change", applySend);
+  applySource();
+  applySend();
+
   [generateName, generateId, uniquePatient].forEach((node) => {
     node?.addEventListener("change", applyPatientMode);
     node?.addEventListener("click", () => {
@@ -502,7 +554,7 @@ function initPdfStoreForm(scope) {
         await scanDirectory();
         return;
       }
-      setBrowseStatus("No folder dialog on this session (needs a desktop display). Type the path, or use Folder of PDFs above.");
+      setBrowseStatus("No folder dialog on this session (needs a desktop display). Type the path, or choose Folder instead.");
     } catch {
       setBrowseStatus("Could not open a folder dialog. Type the path instead.");
     } finally {

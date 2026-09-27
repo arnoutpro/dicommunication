@@ -99,22 +99,22 @@ def test_health_and_pages(client) -> None:
     assert b"data-scan-directory" in pdf_store.content
     assert b'id="pdf-browse-status"' in pdf_store.content
     assert b'id="pdf-file-status"' in pdf_store.content
-    assert b"Checking Generate fills this field" in pdf_store.content
+    assert b"data-generate-name" in pdf_store.content
     assert b'hx-trigger="submit"' in pdf_store.content
     assert b"hx-disable" in pdf_store.content
     assert b'class="req"' in pdf_store.content
-    assert b"Generate Patient Name" in pdf_store.content
+    assert b'<label class="label-line" for="pdf-patient-name">Patient Name' in pdf_store.content
     advanced = client.get("/tools/c-find-advanced", follow_redirects=False)
     assert advanced.status_code == 200
     assert b"Dicomtag Analytics" in advanced.content
     assert b"find-workspace" in advanced.content
     assert b"No remote node configured" in advanced.content
-    # The Dicomtag Analytics tab's own sidebar is just its Query link — the
-    # rest of the workstation's tools live under the Dicommunication tab.
+    # The Dicomtag Analytics tab's own sidebar holds New query and saved
+    # queries; the rest of the workstation's tools live under Dicommunication.
     assert b"Test tools" not in advanced.content
     assert b"HL7 send" not in advanced.content
     assert b'class="tab-item active"' in advanced.content
-    assert b"Unique patient per PDF" in pdf_store.content
+    assert b"One patient per PDF" in pdf_store.content
     assert b'data-nav-id="dimse"' in pdf_store.content
 
 

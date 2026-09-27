@@ -8,7 +8,7 @@ import re
 import uuid
 import zipfile
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from pathlib import Path
 from typing import Any, Iterable
 
@@ -491,6 +491,11 @@ def resolve_patient_identities(
     return [(name, pid) for _ in sources]
 
 
+def generated_accession_number() -> str:
+    """A fresh Accession Number (SH, 16 max) for one generated study."""
+    return f"ACC{uuid.uuid4().hex[:10].upper()}"
+
+
 def encapsulate_sources(
     sources: list[PdfSource],
     *,
@@ -501,26 +506,42 @@ def encapsulate_sources(
     document_title: str = "",
     same_study: bool = True,
     identities: list[tuple[str, str]] | None = None,
+    generate_accession: bool = False,
+    generate_study_description: bool = False,
+    generate_document_title: bool = False,
 ) -> list[Dataset]:
+    """Wrap each PDF. A typed value goes on every document as it is; a
+    generated one is made per study (Accession Number, Study Description) or
+    per document (Document Title, the PDF's file name)."""
     study_uid = generate_uid() if same_study else None
     series_uid = generate_uid() if same_study else None
+    batch_accession = generated_accession_number() if generate_accession and same_study else accession_number
+    batch_description = (
+        f"PDF import {date.today():%Y-%m-%d}" if generate_study_description and same_study else study_description
+    )
     datasets: list[Dataset] = []
     for index, source in enumerate(sources, start=1):
-        title = document_title
-        if title and len(sources) > 1:
-            title = f"{title} — {Path(source.name).stem}"
         if identities:
             name, pid = identities[index - 1]
         else:
             name, pid = patient_name, patient_id
+        accession = batch_accession
+        description = batch_description
+        if not same_study:
+            # Each PDF is its own study, so it gets its own generated values.
+            if generate_accession:
+                accession = generated_accession_number()
+            if generate_study_description:
+                description = Path(source.name).stem
         datasets.append(
             encapsulate_pdf(
                 source,
                 patient_name=name,
                 patient_id=pid,
-                accession_number=accession_number,
-                study_description=study_description,
-                document_title=title,
+                accession_number=accession,
+                study_description=description,
+                # Empty falls back to the file name in encapsulate_pdf.
+                document_title="" if generate_document_title else document_title,
                 study_uid=study_uid,
                 series_uid=series_uid,
                 instance_number=index,
