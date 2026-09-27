@@ -20,6 +20,7 @@ from app.models import (
     RemoteNode,
     RouteRule,
     RouteRun,
+    SavedQuery,
     ToolResult,
     VirtualAE,
     WorklistEntry,
@@ -97,6 +98,7 @@ class ConfigStore:
         self.hl7_path = self.data_dir / "hl7_messages.json"
         self.route_rules_path = self.data_dir / "route_rules.json"
         self.route_runs_path = self.data_dir / "route_runs.json"
+        self.saved_queries_path = self.data_dir / "saved_queries.json"
         self._lock = Lock()
         self._max_results = 200
         self._max_route_runs = 500
@@ -262,6 +264,44 @@ class ConfigStore:
                 if message.id != message_id
             ]
             self._write_json(self.hl7_path, [item.model_dump(mode="json") for item in entries])
+
+    def list_saved_queries(self) -> list[SavedQuery]:
+        with self._lock:
+            queries = _parse_all(SavedQuery, self._load_list_unlocked(self.saved_queries_path))
+            return sorted(queries, key=lambda query: query.name.casefold())
+
+    def get_saved_query(self, query_id: str) -> SavedQuery | None:
+        with self._lock:
+            for query in _parse_all(SavedQuery, self._load_list_unlocked(self.saved_queries_path)):
+                if query.id == query_id:
+                    return query
+            return None
+
+    def save_query(self, query: SavedQuery) -> SavedQuery:
+        """Add a saved query, or replace the one with the same name (any case)."""
+        with self._lock:
+            queries = _parse_all(SavedQuery, self._load_list_unlocked(self.saved_queries_path))
+            for index, existing in enumerate(queries):
+                if existing.name.casefold() == query.name.casefold():
+                    query = query.model_copy(
+                        update={"id": existing.id, "created_at": existing.created_at, "updated_at": utc_now()}
+                    )
+                    queries[index] = query
+                    break
+            else:
+                _ensure_unique_id(query, queries)
+                queries.append(query)
+            self._write_json(self.saved_queries_path, [item.model_dump(mode="json") for item in queries])
+            return query
+
+    def delete_saved_query(self, query_id: str) -> None:
+        with self._lock:
+            queries = [
+                query
+                for query in _parse_all(SavedQuery, self._load_list_unlocked(self.saved_queries_path))
+                if query.id != query_id
+            ]
+            self._write_json(self.saved_queries_path, [item.model_dump(mode="json") for item in queries])
 
     def list_route_rules(self) -> list[RouteRule]:
         with self._lock:

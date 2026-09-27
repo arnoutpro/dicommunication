@@ -544,6 +544,47 @@ class WorklistQueryResult(BaseModel):
     calling_ae: str = ""
 
 
+DATE_PRESETS = ("today", "yesterday", "7", "30", "month")
+
+
+class SavedQuery(BaseModel):
+    """A Dicomtag Analytics query saved after it ran, to fill the form again.
+
+    Holds the form as it was submitted: node, identity, level, the checked
+    return keys and the typed match values. ``date_preset`` names the Study
+    Date preset that produced ``values["StudyDate"]`` ("today", "7"...), so
+    opening the query recomputes the range instead of reusing stale dates.
+    """
+
+    id: str = Field(default_factory=new_record_id)
+    name: str
+    remote_id: str = ""
+    identity_id: str = ""
+    level: Literal["STUDY", "SERIES", "IMAGE"] = "STUDY"
+    include: list[str] = Field(default_factory=list)
+    values: dict[str, str] = Field(default_factory=dict)
+    date_preset: str = ""
+    sr_include_findings: bool = True
+    sr_include_impression: bool = True
+    created_at: datetime = Field(default_factory=utc_now)
+    updated_at: datetime = Field(default_factory=utc_now)
+
+    @field_validator("name")
+    @classmethod
+    def _required_name(cls, value: str) -> str:
+        value = " ".join((value or "").split())
+        if not value:
+            raise ValueError("Give the query a name")
+        if len(value) > 80:
+            raise ValueError("Keep the name under 80 characters")
+        return value
+
+    @field_validator("date_preset")
+    @classmethod
+    def _known_preset(cls, value: str) -> str:
+        return value if value in DATE_PRESETS else ""
+
+
 class Hl7Message(BaseModel):
     """A saved HL7 v2 draft. Stored as text; not parsed."""
 

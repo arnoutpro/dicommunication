@@ -7,14 +7,25 @@
     <h1>{{ tool.name }}</h1>
   </div>
 </header>
+{% if request.query_params.get('deleted') %}
+<div class="flash ok" data-autohide>Saved query deleted.</div>
+{% endif %}
 
 <div class="find-workspace">
   <section class="panel find-query">
     <header class="panel-head">
-      <h2>Query</h2>
+      <h2>{% if saved_query %}{{ saved_query.name }}{% else %}Query{% endif %}</h2>
       <span class="muted">{{ config.local.ae_title }}{% if config.identities %} · {{ config.identities | length }} virtual{% endif %}{% if storage_scp_running %} · SR C-STORE{% else %} · SR C-STORE off{% endif %}</span>
     </header>
 
+    {% if saved_query %}
+    <div class="find-saved-line">
+      <span class="muted small">Saved query, filled in. Check it, then run it.</span>
+      <form method="post" action="{{ href('/tools/c-find-advanced/saved/' ~ saved_query.id ~ '/delete') }}" class="inline" data-confirm="Delete saved query {{ saved_query.name }}?">
+        <button type="submit" class="link-button danger">Delete</button>
+      </form>
+    </div>
+    {% endif %}
     {% if config.remotes %}
     <form
       class="find-advanced-form"
@@ -26,11 +37,14 @@
       hx-timeout="900000"
       hx-disabled-elt="[data-find-run], [data-find-follow]"
       data-find-advanced
+      {% if saved_query and saved_query.date_preset %}data-saved-date-preset="{{ saved_query.date_preset }}"{% endif %}
       autocomplete="off"
     >
       <input type="hidden" name="follow" value="" data-find-follow-field>
       <textarea hidden name="studies_json" data-find-studies-field></textarea>
       <input type="hidden" name="max_records" value="" data-find-cap-field>
+      <input type="hidden" name="date_preset" value="" data-find-date-preset>
+      {% if saved_query %}<input type="hidden" name="saved_query_name" value="{{ saved_query.name }}">{% endif %}
       <div class="find-setup">
         <label>
           Remote
@@ -57,11 +71,11 @@
       <fieldset class="find-sr-fields">
         <legend>Retrieve report text includes</legend>
         <label class="find-sr-field-toggle">
-          <input type="checkbox" name="sr_include_findings" checked>
+          <input type="checkbox" name="sr_include_findings"{% if not saved_query or saved_query.sr_include_findings %} checked{% endif %}>
           Findings
         </label>
         <label class="find-sr-field-toggle">
-          <input type="checkbox" name="sr_include_impression" checked>
+          <input type="checkbox" name="sr_include_impression"{% if not saved_query or saved_query.sr_include_impression %} checked{% endif %}>
           Impression
         </label>
       </fieldset>
@@ -108,7 +122,7 @@
             type="checkbox"
             name="include"
             value="{{ key.keyword }}"
-            {% if key.default_return %}checked{% endif %}
+            {% if saved_query %}{% if key.keyword in saved_query.include %}checked{% endif %}{% elif key.default_return %}checked{% endif %}
             data-find-include
           >
           <span class="find-key-title">{{ key.label }}</span>
@@ -117,7 +131,7 @@
         </span>
         <input
           name="key_{{ key.keyword }}"
-          value=""
+          value="{{ saved_query.values.get(key.keyword, '') if saved_query else '' }}"
           placeholder="{{ key.placeholder }}"
           data-find-value="{{ key.keyword }}"
           spellcheck="false"

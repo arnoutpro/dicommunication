@@ -241,6 +241,7 @@ Linux keeps using Docker Compose.
 | `results.json` | Recent tool runs (capped at 200) |
 | `worklist.json` | Local web worklist entries |
 | `hl7_messages.json` | Saved HL7 v2 drafts for the sender |
+| `saved_queries.json` | Dicomtag Analytics saved queries (node, level, columns, filters, date preset) |
 | `route_rules.json` | Dicom Router rule definitions (source PACS, filters, schedule, destinations, status) |
 | `route_runs.json` | Dicom Router run history (capped at 500), including matched studies' patient/accession data |
 | `dicommunication.log` | Rotating application log (level and size set on **Logs**) |

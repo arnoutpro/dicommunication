@@ -143,7 +143,9 @@
         {% endfor %}
 
         {% elif tab == 'analytics' %}
-        <a href="{{ href('/tools/c-find-advanced') }}" class="active">Query</a>
+        <a href="{{ href('/tools/c-find-advanced') }}" class="{% if not saved_query %}active{% endif %}">New query</a>
+        <span class="nav-section-label">Saved queries</span>
+        {% include "partials/saved_queries_nav.html" %}
 
         {% elif tab == 'anonymizer' %}
         <a href="{{ href('/tools/anonymize') }}" class="active">Query</a>

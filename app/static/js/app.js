@@ -1172,13 +1172,25 @@ function syncDateInputFromPickers(form) {
   }
 }
 
+// Which Study Date preset produced the current date, so a saved query can
+// keep "Today" relative. Typing or picking a date clears it.
+function setFindDatePreset(form, preset) {
+  const field = form.querySelector("[data-find-date-preset]");
+  if (field) {
+    field.value = preset || "";
+  }
+}
+
 function applyDatePreset(form, preset) {
   const from = form.querySelector("[data-date-from]");
   const to = form.querySelector("[data-date-to]");
   if (!from || !to) {
     return;
   }
-  const fmt = (date) => date.toISOString().slice(0, 10);
+  // Local calendar date: toISOString() is UTC, which east of Greenwich turns
+  // local midnight into the previous day.
+  const pad = (number) => String(number).padStart(2, "0");
+  const fmt = (date) => `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   if (preset === "clear") {
@@ -1201,6 +1213,7 @@ function applyDatePreset(form, preset) {
     from.value = fmt(new Date(today.getFullYear(), today.getMonth(), 1));
     to.value = fmt(today);
   }
+  setFindDatePreset(form, preset === "clear" ? "" : preset);
   syncDateInputFromPickers(form);
   syncFindAdvanced(form);
 }
@@ -1296,6 +1309,9 @@ function applyFindSelection(form, mode) {
     const input = node.querySelector("[data-find-value]");
     if (mode === "clear" && input && !input.disabled) {
       input.value = "";
+      if (input.matches('[data-find-value="StudyDate"]')) {
+        setFindDatePreset(form, "");
+      }
     }
     if (!include || include.disabled) {
       return;
@@ -1743,6 +1759,7 @@ function bindFindAdvanced(root) {
         return;
       }
       if (event.target.matches("[data-date-from], [data-date-to]")) {
+        setFindDatePreset(target, "");
         syncDateInputFromPickers(target);
         syncFindAdvanced(target);
         return;
@@ -1752,6 +1769,9 @@ function bindFindAdvanced(root) {
       }
     });
     target.addEventListener("input", (event) => {
+      if (event.target.matches('[data-find-value="StudyDate"]')) {
+        setFindDatePreset(target, "");
+      }
       if (event.target.matches("[data-find-value]")) {
         syncFindAdvanced(target);
       }
@@ -1794,6 +1814,10 @@ function bindFindAdvanced(root) {
       clearFindFollow(target);
     });
     syncFindAdvanced(target);
+    // A saved query with a date preset gets today's range, not the saved one.
+    if (target.dataset.savedDatePreset) {
+      applyDatePreset(target, target.dataset.savedDatePreset);
+    }
   }
 }
 

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from typing import Any
 
 from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile
@@ -11,7 +12,7 @@ from pydantic import ValidationError
 from app.applog import log
 from app.fs_dialog import dialogs_available, pick_directory
 from app.hl7 import DEFAULT_PORT, display_hl7, sample_adt_a01
-from app.models import Hl7Message, ToolResult
+from app.models import Hl7Message, SavedQuery, ToolResult
 from app.pdf_dicom import (
     CollectError,
     MAX_FILES,
@@ -20,7 +21,7 @@ from app.pdf_dicom import (
     is_pdf_filename,
     list_directory_pdfs,
 )
-from app.routes._shared import _as_bool, _first_error, _hx, execute_tool, page, templates
+from app.routes._shared import _as_bool, _first_error, _href, _hx, execute_tool, page, templates
 from app.routes.anonymize import _anonymize_page
 from app.routes.cleaner import _cleaner_page
 from app.shell import display_tool_name
@@ -324,6 +325,42 @@ def _find_advanced_extras(
     }
 
 
+def _query_snapshot(form: Any) -> dict[str, Any] | None:
+    """The submitted Analytics form, as a saved query would keep it.
+
+    None for follow-up runs (SR series, report text): those continue from a
+    result, and the query worth saving is the one that produced it.
+    """
+    if str(form.get("follow") or "").strip():
+        return None
+    values = {
+        key[len("key_"):]: str(value).strip()
+        for key, value in form.multi_items()
+        if key.startswith("key_") and str(value).strip()
+    }
+    preset = str(form.get("date_preset") or "")
+    return {
+        "remote_id": str(form.get("remote_id") or ""),
+        "identity_id": str(form.get("identity_id") or ""),
+        "level": options_from_form(form)["level"],
+        "include": [str(item) for item in form.getlist("include") if item],
+        "values": values,
+        # A preset only counts if the date is still the one it produced.
+        "date_preset": preset if values.get("StudyDate") else "",
+        "sr_include_findings": bool(form.get("sr_include_findings")),
+        "sr_include_impression": bool(form.get("sr_include_impression")),
+        "saved_name": str(form.get("saved_query_name") or ""),
+    }
+
+
+def _save_query_extras(result: ToolResult | None, snapshot: dict[str, Any] | None) -> dict[str, Any]:
+    """What the result's "Save this query" form needs: only after a query that worked."""
+    if not (result and result.ok and snapshot):
+        return {}
+    fields = {key: value for key, value in snapshot.items() if key != "saved_name"}
+    return {"find_query_json": json.dumps(fields), "find_saved_name": snapshot.get("saved_name", "")}
+
+
 def _c_find_advanced_page(
     request: Request,
     *,
@@ -333,6 +370,8 @@ def _c_find_advanced_page(
     level: str = "STUDY",
     status_code: int = 200,
     nav: str = "tools",
+    saved_query: SavedQuery | None = None,
+    query_snapshot: dict[str, Any] | None = None,
 ):
     tool = get_tool("c-find-advanced")
     return templates.TemplateResponse(
@@ -346,7 +385,9 @@ def _c_find_advanced_page(
             result=result,
             remote_id=remote_id,
             identity_id=identity_id,
+            saved_query=saved_query,
             **_find_advanced_extras(request, result, level),
+            **_save_query_extras(result, query_snapshot),
         ),
         status_code=status_code,
     )
@@ -569,7 +610,17 @@ def tool_page(
     if tool_id == "pdf-store":
         return _pdf_store_page(request)
     if tool_id == "c-find-advanced":
-        return _c_find_advanced_page(request)
+        saved_id = request.query_params.get("saved", "")
+        saved_query = request.app.state.store.get_saved_query(saved_id) if saved_id else None
+        if saved_query is None:
+            return _c_find_advanced_page(request)
+        return _c_find_advanced_page(
+            request,
+            remote_id=saved_query.remote_id,
+            identity_id=saved_query.identity_id,
+            level=saved_query.level,
+            saved_query=saved_query,
+        )
     if tool_id == "anonymize":
         return _anonymize_page(request)
     if tool_id == "dicom-cleaner":
@@ -648,11 +699,12 @@ async def c_find_advanced_run(request: Request):
             status_code=exc.status_code,
         )
     extras = _find_advanced_extras(request, result, level)
+    snapshot = _query_snapshot(form)
     if _hx(request):
         return templates.TemplateResponse(
             request,
             "partials/find_advanced_result.html",
-            page(request, result=result, **extras),
+            page(request, result=result, **extras, **_save_query_extras(result, snapshot)),
         )
     return _c_find_advanced_page(
         request,
@@ -660,7 +712,52 @@ async def c_find_advanced_run(request: Request):
         remote_id=remote_id,
         identity_id=identity_id,
         level=level,
+        query_snapshot=snapshot,
     )
+
+
+@router.post("/tools/c-find-advanced/saved")
+async def save_find_query(request: Request):
+    form = await request.form()
+    raw = str(form.get("query_json") or "")
+    name = str(form.get("name") or "")
+    try:
+        fields = json.loads(raw) if raw else {}
+        if not isinstance(fields, dict):
+            raise ValueError("query_json must be an object")
+        query = SavedQuery(**{**fields, "name": name})
+    except ValidationError as exc:
+        error = exc.errors()[0]
+        message = str(error.get("msg") or "Invalid query").removeprefix("Value error, ")
+        return templates.TemplateResponse(
+            request,
+            "partials/find_save_query.html",
+            {"href": _href, "find_query_json": raw, "find_saved_name": name, "save_error": message},
+            status_code=400,
+        )
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Run the query again, then save it") from None
+    saved = request.app.state.store.save_query(query)
+    log.info("Saved Analytics query %s", saved.name)
+    if not _hx(request):
+        return RedirectResponse(f"/tools/c-find-advanced?saved={saved.id}", status_code=303)
+    return templates.TemplateResponse(
+        request,
+        "partials/find_save_query.html",
+        {
+            "href": _href,
+            "saved_query_done": saved,
+            "saved_queries": request.app.state.store.list_saved_queries(),
+            "saved_query": saved,
+        },
+    )
+
+
+@router.post("/tools/c-find-advanced/saved/{query_id}/delete")
+def delete_find_query(request: Request, query_id: str):
+    request.app.state.store.delete_saved_query(query_id)
+    log.info("Deleted Analytics query %s", query_id)
+    return RedirectResponse("/tools/c-find-advanced?deleted=1", status_code=303)
 
 
 def _tag_editor_page(

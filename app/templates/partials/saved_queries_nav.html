@@ -1,0 +1,8 @@
+<div class="nav-children nav-saved-queries" id="saved-queries-nav"{% if oob|default(false) %} hx-swap-oob="true"{% endif %}>
+  {% for q in saved_queries %}
+  <a href="{{ href('/tools/c-find-advanced?saved=' ~ q.id) }}" class="{% if saved_query and saved_query.id == q.id %}active{% endif %}">{{ q.name }}</a>
+  {% endfor %}
+  {% if not saved_queries %}
+  <span class="nav-empty muted small">Run a query, then save it to list it here.</span>
+  {% endif %}
+</div>

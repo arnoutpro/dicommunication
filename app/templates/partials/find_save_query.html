@@ -1,0 +1,36 @@
+{% if saved_query_done is defined and saved_query_done %}
+<p class="find-save-done" id="find-save">
+  Saved as <strong>{{ saved_query_done.name }}</strong>. It's in the sidebar under Saved queries.
+</p>
+{% with oob=true %}{% include "partials/saved_queries_nav.html" %}{% endwith %}
+{% elif find_query_json is defined and find_query_json %}
+<details class="find-save" id="find-save"{% if save_error is defined and save_error %} open{% endif %}>
+  <summary>Save this query</summary>
+  <form
+    method="post"
+    action="{{ href('/tools/c-find-advanced/saved') }}"
+    hx-post="{{ href('/tools/c-find-advanced/saved') }}"
+    hx-target="#find-save"
+    hx-swap="outerHTML"
+    autocomplete="off"
+  >
+    <input type="hidden" name="query_json" value="{{ find_query_json }}">
+    <label>
+      Name
+      <input
+        name="name"
+        required
+        maxlength="80"
+        value="{{ find_saved_name|default('') }}"
+        placeholder="Today's CT on Lab PACS"
+        {% if save_error is defined and save_error %}aria-invalid="true" aria-describedby="find-save-error" autofocus{% endif %}
+      >
+    </label>
+    <button class="button compact" type="submit">Save query</button>
+    {% if save_error is defined and save_error %}
+    <span class="field-error" id="find-save-error">{{ save_error }}</span>
+    {% endif %}
+    <span class="hint">Saves the node, level, columns and filters. A date preset such as Today stays relative. Saving under an existing name replaces that query.</span>
+  </form>
+</details>
+{% endif %}

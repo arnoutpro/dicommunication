@@ -79,6 +79,8 @@ def page(request: Request, **extra: object) -> dict:
         "mwl_scp_error": getattr(scp, "last_error", None) if scp else None,
         "storage_scp_running": bool(scp and scp.running and config.local.storage_scp_enabled),
         "route_rules": route_rules,
+        # The Dicomtag Analytics sidebar lists them.
+        "saved_queries": app.state.store.list_saved_queries() if tab == "analytics" else [],
         "running_route_rule_ids": {
             rule.id for rule in route_rules if router_scheduler and router_scheduler.is_running(rule.id)
         },

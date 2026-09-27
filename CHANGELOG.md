@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+### Dicomtag Analytics
+
+- **Saved queries**: after a study, series or image query returns, **Save this query** under the results keeps it under a name: remote node, Present as identity, level, checked columns, filter values and report-text options. The Analytics sidebar now lists them under **Saved queries**, below **New query** (the blank form). Opening one fills the form in; it doesn't run until you press **Run query**. A Study Date that came from a preset stays relative: "Last 7 days" is recomputed each time it's opened, while typed or picked dates stay as saved. Saving under an existing name (any case) replaces that query; an opened query has **Delete**. Follow-up runs (List SR reports, Retrieve report text) don't offer saving. Stored in `saved_queries.json` in the data folder.
+- **Date presets gave yesterday's date east of UTC**: Today, Yesterday, Last 7/30 days and This month formatted local midnight with `toISOString()`, which is UTC, so in the Netherlands "Today" filled in the previous day. The presets now use the local calendar date.
+
 ### Dicom Router
 
 - **Route rules page leads with the rules**: `/router` now opens on a table of every rule: name, source and destinations, state in words (Active, Paused, Stopped, Running), schedule, last run (**OK** / **Failed** and when) and next run, with Start / Resume, Run now, Pause, Stop and Edit on each row. Before, the page was the add form, and the rules were reachable only from the sidebar. **Add route rule** in the page header opens the form above the list (`/router?new=1`); the form still shows straight away when there are no rules yet, when a save fails, and when editing.
