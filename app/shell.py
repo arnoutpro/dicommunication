@@ -65,7 +65,10 @@ TAB_ROUTER = "router"
 TAB_CLEANER = "cleaner"
 TAB_CONFIG = "config"
 
-TAB_ORDER = (TAB_DICOMM, TAB_ANALYTICS, TAB_ANONYMIZER, TAB_ROUTER, TAB_CLEANER, TAB_CONFIG)
+# The tab row lists the products. Configuration is shared by all of them, so
+# it isn't a tab: it opens from a button in the top bar (DESIGN.md: Help and
+# Config on the right), and its pages still get TAB_CONFIG for their sidebar.
+TAB_ORDER = (TAB_DICOMM, TAB_ANALYTICS, TAB_ANONYMIZER, TAB_ROUTER, TAB_CLEANER)
 
 TAB_LABELS = {
     TAB_DICOMM: PRODUCT_DICOMM,

@@ -1,5 +1,5 @@
-"""Phase 2 of the app overhaul: a top tab row (one tab per product, plus a
-shared Configuration tab) replaces the old always-everything sidebar from
+"""Phase 2 of the app overhaul: a top tab row (one tab per product; the
+shared Configuration opens from a top-bar button) replaces the old always-everything sidebar from
 Phase 1. Each tab's content area still has its own left sidebar with
 sub-menus; Configuration is no longer nested under every product's own page.
 """
@@ -32,12 +32,19 @@ def test_active_tab_maps_nav_and_tool_id() -> None:
 
 
 def test_every_page_shows_the_tab_row_with_one_active_tab(client) -> None:
-    for path in ("/", "/testbench", "/tools/c-find-advanced", "/tools/anonymize", "/router", "/config", "/logs"):
+    for path in ("/", "/testbench", "/tools/c-find-advanced", "/tools/anonymize", "/router"):
         response = client.get(path)
         assert response.status_code == 200, path
         body = response.text
         assert 'class="tab-row"' in body, path
         assert body.count('class="tab-item active"') == 1, path
+
+
+def test_configuration_is_a_top_bar_button_not_a_tab(client) -> None:
+    for path in ("/", "/router", "/help"):
+        body = client.get(path).text
+        assert '<a href="/config" class="tab-item' not in body, path
+        assert '<a href="/config" class="button topbar-config"' in body, path
 
 
 def test_dicommunication_tab_active_on_home(client) -> None:
@@ -77,7 +84,10 @@ def test_router_tab_active_and_isolated(client) -> None:
 def test_config_tab_active_and_holds_logs(client) -> None:
     for path in ("/config", "/config/local", "/config/identities", "/config/remotes", "/logs"):
         body = client.get(path).text
-        assert '<a href="/config" class="tab-item active">Configuration</a>' in body, path
+        # The top-bar button is the selected state; no product tab is.
+        assert '<a href="/config" class="button topbar-config is-active" aria-current="page"' in body, path
+        assert 'class="tab-item active"' not in body, path
+        assert '<span class="crumb-trail">Configuration</span>' in body, path
         assert 'href="/logs"' in body, path
         assert 'href="/config/remotes"' in body, path
 

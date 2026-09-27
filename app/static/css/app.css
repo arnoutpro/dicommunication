@@ -34,12 +34,14 @@
   --subtle: #cbd5e1;
   --muted: #94a3b8;
   --placeholder: #64748b;
-  /* Signal Cyan: things you can act on. */
-  --accent: #22d3ee;
-  --accent-hover: #a5f3fc;
-  --accent-fill: #06b6d4;
-  --accent-fill-hover: #22d3ee;
-  --accent-dim: rgb(34 211 238 / 0.12);
+  /* Signal Indigo: things you can act on. Dicommunication's accent is indigo
+     where the shared arnout.pro system uses cyan (DESIGN.md "In Dicommunication").
+     Text #a5b4fc is 9.2:1 on the navy; the fill #818cf8 takes a dark label at 6.8:1. */
+  --accent: #a5b4fc;
+  --accent-hover: #c7d2fe;
+  --accent-fill: #818cf8;
+  --accent-fill-hover: #a5b4fc;
+  --accent-dim: rgb(129 140 248 / 0.16);
   --primary-fg: #020617;
   /* Status colours always travel with a word. */
   --ok: #34d399;
@@ -52,7 +54,7 @@
   --radius-lg: 1rem;
   --nav-active: var(--accent);
   --nav-parent: var(--subtle);
-  --selection: rgb(34 211 238 / 0.3);
+  --selection: rgb(129 140 248 / 0.35);
   --scrollbar-track: var(--bg);
   --scrollbar-thumb: #334155;
   --scrollbar-thumb-hover: #475569;
@@ -192,6 +194,11 @@ h1, h2, h3, h4 {
   background: var(--accent-dim);
   color: var(--accent);
 }
+.topbar-config svg { width: 1rem; height: 1rem; flex-shrink: 0; }
+/* On narrow screens the gear alone stands for Configuration. */
+@media (max-width: 640px) {
+  .topbar-config-label { display: none; }
+}
 .topbar-actions .button.is-active {
   color: var(--accent);
   background: var(--accent-dim);
@@ -199,7 +206,7 @@ h1, h2, h3, h4 {
 }
 
 /* Product tabs: plain text tabs on a hairline, the selected one in Signal
-   Cyan with a 2px underline. The underline is drawn inside the tab (inset
+   Accent with an underline. The underline is drawn inside the tab (inset
    shadow) and the row keeps its own hairline, so nothing has to line up
    with anything else across elements. */
 .tab-row {
@@ -223,21 +230,27 @@ h1, h2, h3, h4 {
   align-items: center;
   min-height: 2.6rem;
   padding: 0 0.75rem;
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
   font-size: var(--text-sm);
-  font-weight: 700;
+  font-weight: 600;
   color: var(--muted);
   text-decoration: none;
   white-space: nowrap;
-  transition: color 0.15s, box-shadow 0.15s;
+  transition: color 0.15s, background-color 0.15s, box-shadow 0.15s;
 }
 .tab-item:hover {
   color: var(--text);
+  background: var(--glass-strong);
   box-shadow: inset 0 -2px 0 var(--line-strong);
 }
 .tab-item:focus-visible { outline-offset: -2px; }
+/* The selected tab: the same soft accent fill as the selected sidebar
+   item, bolder than its neighbours, on a thicker accent underline. */
 .tab-row .tab-item.active {
   color: var(--accent);
-  box-shadow: inset 0 -2px 0 var(--accent);
+  font-weight: 800;
+  background: var(--accent-dim);
+  box-shadow: inset 0 -3px 0 var(--accent);
 }
 
 .sidebar {
@@ -297,7 +310,7 @@ h1, h2, h3, h4 {
 }
 
 /* Sidebar items (as in the PACS Admin simulator): muted text, a soft
-   rounded pill on hover, Signal Cyan text on a 10% fill when selected. */
+   rounded pill on hover, Signal Indigo text on a soft fill when selected. */
 .sidebar nav { display: flex; flex-direction: column; gap: 0.15rem; flex: 1; }
 .sidebar nav a,
 .sidebar nav .nav-fold {
@@ -1004,8 +1017,8 @@ details[open] > summary::before { transform: rotate(45deg); }
   accent-color: var(--accent);
 }
 
-/* Fields: a flat well with a hairline; hover tints the hairline cyan, focus
-   makes it solid cyan with a soft ring. Same in every theme via tokens. */
+/* Fields: a flat well with a hairline; hover tints the hairline with the
+   accent, focus makes it solid accent with a soft ring. Same in every theme via tokens. */
 input, select, textarea, .choice-toggle {
   background-color: var(--field-bg);
   border: 1px solid var(--line-strong);
@@ -1027,6 +1040,28 @@ input:focus, select:focus, textarea:focus, .choice-toggle:focus-visible, .choice
   outline: none;
   border-color: var(--accent);
   box-shadow: 0 0 0 3px var(--accent-dim);
+}
+/* The field being typed in is the lit thing on the page (DESIGN.md "The
+   Reading Room"): a faint accent tint inside, its label in the accent, and
+   the example text stepping back. Flat, no glow: the ring is the focus ring. */
+input:not([type="checkbox"], [type="radio"], [type="file"]):focus, textarea:focus {
+  background-color: color-mix(in srgb, var(--accent) 6%, var(--field-bg));
+}
+input:focus::placeholder, textarea:focus::placeholder { opacity: 0.55; }
+label:has(> :is(input:not([type="checkbox"], [type="radio"]), select, textarea):focus),
+label:has(> .choice > .choice-toggle:is(:focus-visible, [aria-expanded="true"])),
+label:has(> .input-with-action > input:focus),
+.field:has(> input:focus) > .field-head > label:not(.field-toggle),
+.find-key:has(input[data-find-value]:focus) .find-key-title {
+  color: var(--accent);
+}
+@media (prefers-reduced-motion: no-preference) {
+  /* One short settle as the ring comes in (DESIGN.md: no bounce). */
+  input, select, textarea, .choice-toggle {
+    transition: border-color 0.2s cubic-bezier(0.25, 1, 0.5, 1), box-shadow 0.2s cubic-bezier(0.25, 1, 0.5, 1),
+      background-color 0.2s cubic-bezier(0.25, 1, 0.5, 1);
+  }
+  label, .find-key-title { transition: color 0.2s cubic-bezier(0.25, 1, 0.5, 1); }
 }
 .choice {
   position: relative;
@@ -1183,7 +1218,7 @@ input:focus, select:focus, textarea:focus, .choice-toggle:focus-visible, .choice
 .scan-result p { margin: 0; }
 
 /* Buttons (DESIGN.md "Tool shell"): ghost by default — neutral tint,
-   hairline, subtle ink, turning cyan on hover — and one filled primary per
+   hairline, subtle ink, turning the accent on hover — and one filled primary per
    column, for that column's job. */
 .button {
   display: inline-flex;
@@ -1415,7 +1450,7 @@ body.page-logs .main {
   font-size: var(--text-md);
   font-weight: 700;
 }
-/* Informational badges stay neutral (DESIGN.md): cyan is for actions only. */
+/* Informational badges stay neutral (DESIGN.md): the accent is for actions only. */
 .badge:not(.ok):not(.fail) {
   background: var(--glass);
   color: var(--subtle);
@@ -1641,17 +1676,18 @@ html.light-mode {
   --subtle: #334155;
   --muted: #475569;
   --placeholder: #94a3b8;
-  --accent: #0e7490;
-  --accent-hover: #164e63;
-  --accent-fill: #0e7490;
-  --accent-fill-hover: #155e75;
-  --accent-dim: rgb(14 116 144 / 0.12);
+  /* Indigo-700: 7.9:1 on white as text, 7.6:1 behind a white label. */
+  --accent: #4338ca;
+  --accent-hover: #3730a3;
+  --accent-fill: #4338ca;
+  --accent-fill-hover: #3730a3;
+  --accent-dim: rgb(67 56 202 / 0.1);
   --primary-fg: #f8fafc;
   --ok: #047857;
   --fail: #be123c;
   --on-fail: #ffffff;
   --amber: #b45309;
-  --selection: rgb(14 116 144 / 0.22);
+  --selection: rgb(67 56 202 / 0.2);
   --scrollbar-thumb: #cbd5e1;
   --scrollbar-thumb-hover: #94a3b8;
   --log-bg: #f1f5f9;
@@ -1843,7 +1879,7 @@ body.page-find .find-head {
   width: auto;
 }
 /* Segmented choice (as the tool shell's theme choice): a tinted track with
-   the selected option in cyan text on a soft fill — selected, not a
+   the selected option in accent text on a soft fill — selected, not a
    second primary button. */
 .find-level-tabs {
   display: inline-flex;

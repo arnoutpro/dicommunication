@@ -8,7 +8,7 @@ A low-code DICOM communication validator and PACS admin toolkit.
 
 Configure this workstation as a DICOM Application Entity, register remote nodes (PACS, Orthanc, RIS/MWL, modalities), impersonate extra calling AE Titles, and run the checks a connectivity ticket actually needs: network PING, C-ECHO, simulated C-STORE, PDF to Encapsulated PDF Storage, Study Root C-FIND (including Study / Series / Image), Modality Worklist C-FIND, and HL7 v2 send over MLLP.
 
-Dicommunication is **one application**, with a top tab row for each product and a shared **Configuration** tab: **Dicommunication** (the network/DIMSE/HL7 workstation tools), **Dicomtag Analytics** (Study Root C-FIND, including Vue ELSCINT1 keys, plus listing and retrieving DICOM Structured Reports), **Dicom Anonymizer** (query, retrieve, and anonymize studies/series/images — see below), **Dicom Router** (scheduled C-FIND rules with optional retrieve/forward — see below), and **Dicom Cleaner** (query, retrieve, redact a rectangle of burned-in pixel data, and send the result back over C-STORE — see below). Each tab's content area has its own left sidebar with that product's own pages. Local AE, virtual identities, remote nodes, and logs are configured once, under the Configuration tab, and shared by every product. The Windows MSI and macOS DMG each install a single shortcut / app.
+Dicommunication is **one application**, with a top tab row for each product and a shared **Configuration**, opened from the gear button in the top bar: **Dicommunication** (the network/DIMSE/HL7 workstation tools), **Dicomtag Analytics** (Study Root C-FIND, including Vue ELSCINT1 keys, plus listing and retrieving DICOM Structured Reports), **Dicom Anonymizer** (query, retrieve, and anonymize studies/series/images — see below), **Dicom Router** (scheduled C-FIND rules with optional retrieve/forward — see below), and **Dicom Cleaner** (query, retrieve, redact a rectangle of burned-in pixel data, and send the result back over C-STORE — see below). Each tab's content area has its own left sidebar with that product's own pages. Local AE, virtual identities, remote nodes, and logs are configured once, under Configuration, and shared by every product. The Windows MSI and macOS DMG each install a single shortcut / app.
 
 The web UI is FastAPI + HTMX. DICOM uses pynetdicom/pydicom. New test tools are Python plugins: drop a file in `app/tools/` and it appears in the Dicommunication sidebar. The top bar's **About** button shows the running version; **Help** is the in-app administrator guide.
 
@@ -301,7 +301,7 @@ From Docker, a PACS on the same Mac or Linux host is usually `host.docker.intern
 
 ## Logs
 
-Open **Logs** under the Configuration tab (`/logs`).
+Open **Logs** under Configuration (the gear in the top bar, then Logs; `/logs`).
 
 The page has two parts:
 
@@ -374,7 +374,7 @@ The simple C-FIND tool and Testbench stay STUDY-level with a short filter list.
 
 ### Dicom Router (`/router`)
 
-A background service you manage alongside everything else, not a one-off query form — the Dicom Router tab's own left sidebar lists every configured rule with a small status dot — green (active), amber (paused), gray (stopped), pulsing accent while a run is actually executing — so you can see the state of everything at a glance without opening the page. This list shows on every page under this tab, the same way the Configuration tab's own sidebar always does.
+A background service you manage alongside everything else, not a one-off query form — the Dicom Router tab's own left sidebar lists every configured rule with a small status dot — green (active), amber (paused), gray (stopped), pulsing accent while a run is actually executing — so you can see the state of everything at a glance without opening the page. This list shows on every page under this tab, the same way the Configuration pages' own sidebar always does.
 
 A **route rule** is a scheduled Study Root C-FIND (interval in minutes, or specific times of day with optional days-of-week) against a configured PACS, filtered by modality / study date scope / query level. The scheduler runs due rules automatically and records what's new since the rule last ran.
 

@@ -4,6 +4,14 @@
 
 ### Interface
 
+- **The accent is indigo instead of cyan**: links, the selected tab and sidebar item, focus rings and the filled buttons use Signal Indigo. Dark theme: `#a5b4fc` text and a `#818cf8` fill with a dark label; light theme: `#4338ca`, with a white label on buttons. Every pairing keeps at least 4.5:1 contrast. Professional keeps its amber accent. This departs from the shared arnout.pro design system (Signal Cyan) on purpose and is recorded under "In Dicommunication" in DESIGN.md.
+
+- **The field you're typing in is lit**: a focused field already had a cyan border and ring; now its label turns the accent colour too, the field gets a faint accent tint, and the placeholder steps back. The ring and colours settle in over 0.2s with the design's ease-out curve, and not at all when the system asks for reduced motion. Works for labelled fields, the custom dropdowns, the PDF to DICOM Generate fields and the Analytics key rows.
+
+- **The active tab stands out**: the selected product tab differed from the others only by cyan text and a thin underline, with every tab equally bold. It now gets the same soft accent fill as the selected sidebar item, bolder text and a 3px underline, while the other tabs drop to a lighter weight and hover shows a neutral tint. In Professional the accent is amber, as elsewhere.
+
+- **Configuration moves from the tab row to the top bar**: Configuration was the last tab, next to the products, although every product shares it. It is now a **Configuration** button with a gear in the top bar, next to About and Help, as in the tool shell's "Help and Config on the right" (DESIGN.md). It is highlighted on every configuration page, where the top bar reads "Dicommunication / Configuration" since no product tab is selected, and the pages keep their own sidebar. On phones the button shows just the gear.
+
 - **Pages always load the current script and styles**: `app.js` and `app.css` were linked at fixed URLs, and the static file server sends no caching instructions, so after an edit or an upgrade a browser could keep running the previous script against new pages. On HL7 send that hid the new status and reason fields. Both are now linked with the file's modification time as a version (`app.js?v=…`), so a changed file always gets a new URL.
 
 ### HL7 send
