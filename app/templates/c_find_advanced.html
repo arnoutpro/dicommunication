@@ -115,7 +115,7 @@
         data-role="{{ key.role }}"
         data-default-return="{{ '1' if key.default_return else '0' }}"
         data-match-required="{{ '1' if key.match_required else '0' }}"
-        title="{{ key.tag }}{% if key.hint %} — {{ key.hint }}{% endif %}"
+        title="{{ key.label }} {{ key.tag }}{% if key.hint %} — {{ key.hint }}{% endif %}"
       >
         <span class="find-key-head">
           <input
@@ -125,7 +125,8 @@
             {% if saved_query %}{% if key.keyword in saved_query.include %}checked{% endif %}{% elif key.default_return %}checked{% endif %}
             data-find-include
           >
-          <span class="find-key-title">{{ key.label }}</span>
+          {# The Vue groups' hint already says these are Tamar tags; the full name stays in the tooltip. #}
+          <span class="find-key-title">{{ key.label[6:] if key.group.startswith('vue') and key.label.startswith('Tamar ') else key.label }}</span>
           {% if key.match_required %}<abbr class="req" title="Required">*</abbr>{% endif %}
           <code class="find-key-tag">{{ key.tag }}</code>
         </span>
