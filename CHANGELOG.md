@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Tag Editor
+
+- **Four steps instead of one form**: Tag Editor now follows the same pattern as PDF to DICOM, Dicom Anonymizer and Dicom Cleaner: **Connect**, **Find the study** (Accession Number and Study Date, Find Study Instance UID, then the Study and optional Series UID), **Check current values** (Fetch) and **Push new values**. Each action sits in the step it belongs to, instead of three rows of buttons mixed in with the fields. The "Before you push" notes moved from the top of the page into the Push step, next to the button. When Accept C-STORE is off, the amber caution shows at Fetch, which needs it. **Seed test studies** moved out of the middle of the form into a folded **Practise on test studies** section at the bottom.
+
 ### PDF to DICOM
 
 - **Generate Accession Number, Study Description and Document Title**: like Patient Name and Patient ID, each now has a **Generate** checkbox on its label line. Generated values are made on the server: a new Accession Number per study (`ACC` + ten characters), a Study Description per study (the file name when each PDF is its own study, "PDF import" and the date when the batch is one study), and a Document Title per PDF (its file name, and ticked by default, as before). A typed value now goes on every PDF unchanged; a typed Document Title used to get " — file name" added when there was more than one PDF.

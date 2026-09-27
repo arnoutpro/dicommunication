@@ -466,3 +466,27 @@ def test_fetch_shows_an_absent_tag_distinctly(store) -> None:
     assert result.ok, result.summary
     assert result.records[0]["final_sign_timestamp"] == "(not present)"
     assert result.records[0]["last_composed_by"] == "(not present)"
+
+
+def test_page_is_four_steps_with_practice_folded(client, remote) -> None:
+    page = client.get("/tools/tag-editor").text
+    titles = ["Connect", "Find the study", "Check current values", "Push new values"]
+    positions = [page.index(f"</span>{title}</h2>") for title in titles]
+    assert positions == sorted(positions)
+    # Each action sits in its own step, in the order of the job.
+    lookup = page.index('value="lookup"')
+    fetch = page.index('value="fetch"')
+    push = page.index('value="push"')
+    assert positions[1] < lookup < positions[2] < fetch < positions[3] < push
+    # Push is the page's one filled button; the others are ghost buttons.
+    assert page.count('class="button primary"') == 1
+    assert '<details class="panel practice">' in page
+    assert page.index('<details class="panel practice">') < page.index('value="seed_test"')
+    # Accept C-STORE is off by default, so the caution shows where Fetch is.
+    assert "Accept C-STORE is off" in page
+
+
+def test_page_without_remotes_shows_empty_state(client) -> None:
+    page = client.get("/tools/tag-editor").text
+    assert "No remote node configured" in page
+    assert 'value="push"' not in page

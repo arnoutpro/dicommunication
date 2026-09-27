@@ -507,6 +507,7 @@
     <a href="/tools/tag-editor">Open</a>
   </header>
   <p>Corrects two private ELSCINT1 tags CS PACS REPORT writes onto every instance in a study — <strong>Tamar Report Final Sign Timestamp</strong> <code>(07a3,10fb)</code> and <strong>Tamar Report Study Last Composed By</strong> <code>(07a5,1040)</code> — when a report workflow gets stuck, then C-STOREs the correction back to the PACS.</p>
+  <p>The page runs in four steps: <strong>Connect</strong> (remote node and Present as), <strong>Find the study</strong>, <strong>Check current values</strong> (Fetch) and <strong>Push new values</strong>. Seed test studies is folded away under <strong>Practise on test studies</strong> at the bottom.</p>
   <ul>
     <li><strong>Seed test studies</strong> C-STOREs two throwaway studies (patient <code>ARNPRO^TESTBENCH</code>) — one with both tags present but blank, one with them entirely absent — so Push can be tested against the actual missing-data case without touching a real patient. Needs no Accept C-STORE, same as the C-STORE test tool.</li>
     <li><strong>Find Study Instance UID</strong> resolves it from Accession Number and Study Date (both required) with a plain Study-level C-FIND — no Accept C-STORE needed for this step. Exactly one match fills in Study Instance UID below; more than one lists them so you can pick the right one.</li>

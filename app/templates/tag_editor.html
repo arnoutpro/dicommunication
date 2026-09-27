@@ -8,105 +8,95 @@
   </div>
 </header>
 
-<section class="panel">
-  <header class="panel-head">
-    <h2>Before you push</h2>
-  </header>
-  <p class="hint">
-    This only overwrites a tag that is already present on an instance — it never
-    creates either tag on an instance that never had it. Vue mirrors both tags onto
-    every instance in the study, so <strong>Push edits every instance retrieved</strong>
-    (the whole study, or one series if you give a Series Instance UID).
-  </p>
-  <p class="hint">
-    Whether Vue treats a C-STORE of an already-known SOP Instance UID as replacing
-    the original or as a duplicate is PACS-specific — this tool cannot verify that
-    for you. Fetch first and check the current values before pushing anything.
-  </p>
-</section>
-
-<section class="panel">
-  <header class="panel-head">
-    <h2>Fetch or push</h2>
-    <span class="muted">
-      Calling AE {{ config.local.ae_title }}
-      · Local Storage SCP {{ "listening" if storage_scp_running else "not listening" }}
-      {% if not config.local.storage_scp_enabled %}(Accept C-STORE is off){% endif %}
-    </span>
-  </header>
-
-  {% if config.remotes %}
-  <form class="form-grid" method="post" action="/tools/tag-editor/run">
-    <label>
-      Remote node
-      <select name="remote_id" required>
-        {% for remote in config.remotes %}
-        <option value="{{ remote.id }}" {% if remote.id == remote_id %}selected{% endif %}>
-          {{ remote.name }} — {{ remote.ae_title }} @ {{ remote.connect_host }}:{{ remote.port }}
-        </option>
-        {% endfor %}
-      </select>
-    </label>
-    {% include "partials/identity_select.html" %}
-
-    <div class="form-actions">
-      <button class="button" type="submit" name="action" value="seed_test"
-              hx-post="/tools/tag-editor/run" hx-include="closest form"
-              hx-target="#result" hx-indicator="#busy">
-        Seed test studies (synthetic, safe)
-      </button>
-      <span class="hint">
-        C-STOREs two throwaway studies (patient ARNPRO^TESTBENCH) — one with both
-        tags present but blank, one with them entirely absent — so you can test
-        whether Push actually applies without touching a real patient. Copy either
-        Study Instance UID from the result below.
-      </span>
+{% if config.remotes %}
+<form class="step-flow" method="post" action="/tools/tag-editor/run" autocomplete="off">
+  <section class="panel step">
+    <header class="panel-head">
+      <h2 class="step-title"><span class="step-num" aria-hidden="true">1</span>Connect</h2>
+      <span class="muted">Calling AE {{ config.local.ae_title }}</span>
+    </header>
+    <div class="form-grid">
+      <label>
+        Remote node
+        <select name="remote_id" required>
+          {% for remote in config.remotes %}
+          <option value="{{ remote.id }}" {% if remote.id == remote_id %}selected{% endif %}>
+            {{ remote.name }} — {{ remote.ae_title }} @ {{ remote.connect_host }}:{{ remote.port }}
+          </option>
+          {% endfor %}
+        </select>
+      </label>
+      {% include "partials/identity_select.html" %}
     </div>
+  </section>
 
-    <label>
-      Accession Number
-      <input type="text" name="accession_number" value="{{ accession_number|default('') }}"
-             placeholder="7205719954">
-    </label>
-    <label>
-      Study Date <span class="muted">(both required to find a study)</span>
-      <input type="date" name="study_date" value="{{ study_date|default('') }}">
-    </label>
-    <div class="form-actions">
-      <button class="button" type="submit" name="action" value="lookup">
-        Find Study Instance UID
-      </button>
-      <span class="hint">Looks up the study by C-FIND — does not need Accept C-STORE.</span>
+  <section class="panel step">
+    <header class="panel-head">
+      <h2 class="step-title"><span class="step-num" aria-hidden="true">2</span>Find the study</h2>
+    </header>
+    <div class="form-grid">
+      <label>
+        Accession Number
+        <input type="text" name="accession_number" value="{{ accession_number|default('') }}" placeholder="7205719954">
+      </label>
+      <label>
+        Study Date
+        <input type="date" name="study_date" value="{{ study_date|default('') }}">
+      </label>
     </div>
+    <div class="form-actions">
+      <button class="button" type="submit" name="action" value="lookup">Find Study Instance UID</button>
+      <span class="hint">Needs both fields. A C-FIND only, so Accept C-STORE doesn't have to be on.</span>
+    </div>
+    <div class="form-grid">
+      <label>
+        Study Instance UID
+        <input type="text" name="study_uid" id="tag-editor-study-uid" value="{{ study_uid|default('') }}" placeholder="1.2.840..." spellcheck="false">
+        <span class="hint">Filled in by Find, or paste one.</span>
+      </label>
+      <label>
+        Series Instance UID
+        <input type="text" name="series_uid" value="{{ series_uid|default('') }}" placeholder="1.2.840..." spellcheck="false">
+        <span class="hint">Optional. Leave empty for the whole study.</span>
+      </label>
+    </div>
+  </section>
 
-    <label>
-      Study Instance UID
-      <input type="text" name="study_uid" id="tag-editor-study-uid"
-             value="{{ study_uid|default('') }}" placeholder="1.2.840...">
-    </label>
-    <label>
-      Series Instance UID <span class="muted">(optional — whole study if empty)</span>
-      <input type="text" name="series_uid" value="{{ series_uid|default('') }}"
-             placeholder="1.2.840...">
-    </label>
-
-    <label>
-      Tamar Report Final Sign Timestamp
-      <input type="datetime-local" name="final_sign_timestamp" step="1"
-             value="{{ final_sign_timestamp|default('') }}">
-    </label>
-    <label>
-      Tamar Report Study Last Composed By
-      <input type="text" name="last_composed_by" maxlength="64"
-             value="{{ last_composed_by|default('') }}" placeholder="e.g. 187890@24">
-    </label>
-
+  <section class="panel step">
+    <header class="panel-head">
+      <h2 class="step-title"><span class="step-num" aria-hidden="true">3</span>Check current values</h2>
+    </header>
+    {% include "partials/storage_scp_caution.html" %}
     <div class="form-actions">
       <button class="button" type="submit" name="action" value="fetch"
               hx-post="/tools/tag-editor/run" hx-include="closest form"
               hx-target="#result" hx-indicator="#busy">
         Fetch current values
       </button>
+      <span class="hint">C-MOVEs the study here and shows both tags for every instance. Nothing is changed.</span>
+    </div>
+  </section>
+
+  <section class="panel step">
+    <header class="panel-head">
+      <h2 class="step-title"><span class="step-num" aria-hidden="true">4</span>Push new values</h2>
+    </header>
+    <div class="form-grid">
+      <label>
+        Tamar Report Final Sign Timestamp
+        <input type="datetime-local" name="final_sign_timestamp" step="1" value="{{ final_sign_timestamp|default('') }}">
+      </label>
+      <label>
+        Tamar Report Study Last Composed By
+        <input type="text" name="last_composed_by" maxlength="64" value="{{ last_composed_by|default('') }}" placeholder="187890@24">
+      </label>
+    </div>
+    <ul class="push-notes">
+      <li>Push changes <strong>every instance retrieved</strong>: the whole study, or one series if you gave a Series Instance UID. Vue keeps both tags on every instance.</li>
+      <li>It only overwrites a tag an instance already has; it never adds either tag.</li>
+      <li>Whether Vue treats a C-STORE of a known SOP Instance UID as a replacement or a duplicate depends on the PACS, and this tool can't check it. Fetch first.</li>
+    </ul>
+    <div class="form-actions">
       <button class="button primary" type="submit" name="action" value="push"
               hx-post="/tools/tag-editor/run" hx-include="closest form"
               hx-target="#result" hx-indicator="#busy"
@@ -115,15 +105,29 @@
       </button>
       <span id="busy" class="htmx-indicator spinner">Running…</span>
     </div>
-  </form>
-  {% else %}
+  </section>
+
+  <details class="panel practice">
+    <summary>Practise on test studies</summary>
+    <p class="hint">C-STOREs two throwaway studies for patient <code>ARNPRO^TESTBENCH</code> to the remote node above: one with both tags present but blank, one without them. Copy a Study Instance UID from the result into step 2 to see whether Push takes effect, without touching a real patient.</p>
+    <div class="form-actions">
+      <button class="button" type="submit" name="action" value="seed_test"
+              hx-post="/tools/tag-editor/run" hx-include="closest form"
+              hx-target="#result" hx-indicator="#busy">
+        Seed test studies
+      </button>
+    </div>
+  </details>
+</form>
+{% else %}
+<section class="panel">
   <div class="empty">
     <strong>No remote node configured</strong>
     <p>Add a PACS or modality first, then come back to run {{ tool.name }}.</p>
     <a class="button" href="/config/remotes">Open configuration</a>
   </div>
-  {% endif %}
 </section>
+{% endif %}
 
 <div id="result">
   {% if result %}
