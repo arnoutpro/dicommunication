@@ -71,6 +71,7 @@ Not yet in a release; details in [CHANGELOG.md](CHANGELOG.md) under Unreleased.
 - [Screenshots](#screenshots)
 - [What's new since 0.5.0](#whats-new-since-050)
 - [What this is (and is not)](#what-this-is-and-is-not)
+- [How it's made](#how-its-made)
 - [DICOM services this tool distinguishes](#dicom-services-this-tool-distinguishes)
 - [Run it](#run-it)
 - [Windows MSI](#windows-msi)
@@ -110,6 +111,19 @@ It **does not**:
 - Parse, validate, or map HL7 fields — paste a message and send it
 
 A successful C-ECHO only proves Verification. Orthanc (or any PACS) can accept C-ECHO and still reject Storage, Query/Retrieve, or Modality Worklist. That difference is the point of the Testbench.
+
+## How it's made
+
+Dicommunication is made by one person: me, Arnout van der Elst. I'm not a software team; I bring the clinical, workflow and IT knowledge of working with PACS, RIS, modalities and HL7 interfaces in a hospital. The code is written with the help of AI, mainly **Claude** (Anthropic) and **Cursor**.
+
+In practice the split looks like this:
+
+- **I decide what gets built and why.** The problems come from real connectivity tickets and reading-room workflows: a node that answers C-ECHO but rejects Storage, a report stuck in Vue, a study that needs anonymizing before it leaves the hospital. I set the requirements, the order of the steps on each page, and what counts as safe.
+- **The AI writes most of the code, tests and documentation** under that direction: the FastAPI and HTMX pages, the pynetdicom and pydicom work, the design, this README and the in-app Help.
+- **I review and test it**, and so does the test suite: several hundred automated tests, including ones that talk to small DICOM and HL7 servers running on the same machine. Where it matters, behaviour is checked against the standards themselves, such as the HL7 v2 code tables and the DICOM data dictionary, and against vendor documentation.
+- **Anything not yet proven on a real system says so.** For example, the HL7 send options for Philips IS Link are still on a [To verify](#to-verify) list until they have been tested on a live server.
+
+AI makes it possible for one person with domain knowledge to build a tool like this. It doesn't replace that knowledge, or the testing against real equipment before anything touches clinical data.
 
 ## DICOM services this tool distinguishes
 
