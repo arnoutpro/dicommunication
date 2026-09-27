@@ -16,13 +16,13 @@ Open [http://127.0.0.1:8080](http://127.0.0.1:8080).
 
 ## Screenshots
 
-Synthetic lab studies (not clinical data). Light theme, v0.5.0, in the arnout.pro "Reading Room" design shared with the browser tools (see [DESIGN.md](DESIGN.md)). The theme switcher (top right) also has dark and professional-dark modes: same layout, different palette.
+Synthetic lab studies (not clinical data). Light theme, in the arnout.pro "Reading Room" design shared with the browser tools (see [DESIGN.md](DESIGN.md)), with Dicommunication's indigo accent. The theme switcher (top right) also has dark and professional-dark modes: same layout, different palette. The product tabs sit under the top bar; **Configuration** is the gear button on the right of the top bar.
 
 **Dicommunication** — dashboard: this workstation, each remote node's last C-ECHO in words, a one-click C-ECHO of every node, and a suggested next step.
 
 ![Dicommunication dashboard](docs/screenshots/dicommunication-dashboard.webp)
 
-**Dicomtag Analytics** — Study Root C-FIND, then retrieve Structured Report text (Findings / Impression, Copy / CSV / JSON).
+**Dicomtag Analytics** — Study Root C-FIND, then retrieve Structured Report text (Findings / Impression, Copy / CSV / JSON). A query that ran can be saved and reopened from the sidebar.
 
 ![Dicomtag Analytics query with five studies](docs/screenshots/vue-query.webp)
 
@@ -36,17 +36,40 @@ Synthetic lab studies (not clinical data). Light theme, v0.5.0, in the arnout.pr
 
 ![Dicom Cleaner steps with redact-region fields and send-back options](docs/screenshots/cleaner.webp)
 
-**Dicom Router** — scheduled route rules with a status dot per rule in the sidebar (active, paused).
+**Dicom Router** — the rules list with each rule's state, schedule, last and next run and its actions, and the add-rule form on request; the sidebar names each rule's state next to its dot.
 
 ![Dicom Router rule list and add-rule form](docs/screenshots/router.webp)
 
-**Configuration** — Local DICOM AE, virtual identities, and remote nodes, shared by every tab above.
+**Configuration** — opened from the gear in the top bar: Local DICOM AE, virtual identities, and remote nodes, shared by every tab above.
 
 ![Configuration overview with local AE and two remote nodes](docs/screenshots/configuration.webp)
+
+**PDF to DICOM** — four steps: choose the PDFs (one source at a time), the patient, the study and document (each with **Generate**), and where to send them.
+
+![PDF to DICOM steps with a patient filled in and a generated accession number](docs/screenshots/pdf-to-dicom.webp)
+
+**Tag Editor** — four steps for the two Tamar report tags: connect, find the study, fetch the current values, push new ones.
+
+![Tag Editor steps with a study and new tag values filled in](docs/screenshots/tag-editor.webp)
+
+**HL7 send** — four steps: destination, message (with saved messages), the optional rewrites in "Adjust before sending" (off by default; the heading lists what is on), and send.
+
+![HL7 send with an ORM order update and Change existing order set to SC](docs/screenshots/hl7-send.webp)
+
+## What's new since 0.5.0
+
+Not yet in a release; details in [CHANGELOG.md](CHANGELOG.md) under Unreleased.
+
+- **Dicom Router** opens on a table of rules (state in words, schedule, last and next run, actions per row); the add form shows on request, hides fields that don't apply, and keeps what you typed when a save fails.
+- **Dicomtag Analytics** can save a query after it runs and list it in the sidebar; a Study Date preset stays relative. Long key names (the ELSCINT1 tags) no longer get cut off, and the date presets use the local date.
+- **PDF to DICOM**, **Tag Editor** and **HL7 send** follow the same numbered steps as Dicom Anonymizer and Dicom Cleaner. PDF to DICOM can **Generate** Accession Number, Study Description and Document Title.
+- **HL7 send**: the rewrites are off by default, and their codes come from the HL7 tables and the IS Link specification. **Still to be tested against a live IS Link server**: see [To verify](#to-verify).
+- **Interface**: Configuration is a gear button in the top bar, the active tab and the field you're typing in stand out, the accent is indigo, and browsers always load the current script and styles.
 
 ## Contents
 
 - [Screenshots](#screenshots)
+- [What's new since 0.5.0](#whats-new-since-050)
 - [What this is (and is not)](#what-this-is-and-is-not)
 - [DICOM services this tool distinguishes](#dicom-services-this-tool-distinguishes)
 - [Run it](#run-it)
@@ -257,7 +280,7 @@ Writes are atomic (temp file + replace). Replacing the Docker image does not res
 
 ## Configuration
 
-Open the **Configuration** tab. Child links stay visible in its own left sidebar: Configured nodes, Local DICOM AE, Virtual AEs, Remote nodes, and Logs — shared across every product tab, so it's configured once. The overview (`/config`) lists everything at a glance. Add or edit on the child pages:
+Open **Configuration** with the gear button in the top bar. Child links stay visible in its own left sidebar: Configured nodes, Local DICOM AE, Virtual AEs, Remote nodes, and Logs — shared across every product tab, so it's configured once. The overview (`/config`) lists everything at a glance. Add or edit on the child pages:
 
 - `/config/local` — Local DICOM AE
 - `/config/identities` — virtual local AE titles
@@ -364,6 +387,10 @@ Study Root Query/Retrieve FIND at **Study**, **Series**, or **Image**, with the 
 
 Hierarchical FIND (no relational queries): Series keys unlock after **Study Instance UID** is present; Image keys unlock after **Study Instance UID** and **Series Instance UID**. MR-only keys such as Repetition Time stay locked unless Modality is `MR` or empty. Keys are grouped by Study / Series / Image as a list (not a grid). Collapsed **Vue PACS (ELSCINT1)** lists expose Tamar private study and series tags as optional return/match keys. Vue’s DCS does not list them. **Tamar Assign To Doctor** is a confirmed matching key on Vue 12.2.8 (used with Modalities in Study); other Vue tags may still come back empty. Grid Token sequences are not sent. Results are a column-aligned table. **Copy table** is tab-separated for Excel; **Download CSV** and **Download JSON** export the same rows. Click a result row to copy parent UIDs into the next level.
 
+**Saved queries.** After a Study, Series or Image query returns, **Save this query** under the results keeps it by name: remote node, Present as identity, level, checked columns, filter values and report-text options. The tab's sidebar lists saved queries under **New query**; opening one fills the form in, and it runs only when you press **Run query**. A Study Date set with a preset (Today, Last 7 days, …) stays relative, so "Last 7 days" is recomputed each time; typed or picked dates stay fixed. Saving under an existing name replaces that query. They are kept in `saved_queries.json`.
+
+In the Vue PACS groups the key list drops the repeated "Tamar " prefix (the group says they are Tamar / ELSCINT1 tags; hover shows the full name), and every key name fits on one line.
+
 Radiology reports stored as DICOM SR are a series in the same study (same Study Instance UID, different Series Instance UID, modality `SR`). After a Study query (for example today’s CTs), **List SR reports** runs Series C-FIND with `Modality=SR` for every study in the table (cap 200). **Retrieve report text** C-MOVEs each listed SR on its own association so Vue cannot stop after the first exam. Enable **Accept C-STORE (Structured Reports)** on Local DICOM AE, and register that AE Title (not a virtual Present as title) in Vue as a C-MOVE destination at this host:listen-port. The Content Sequence is flattened into concept / type / value rows — no language model. **Download JSON** (and CSV) include **Findings** and **Impression** as their own fields, plus `sr_text` for the full report. Imaging series are not stored. C-GET is not used.
 
 ### Dicom Anonymizer (`/tools/anonymize`)
@@ -374,13 +401,15 @@ The simple C-FIND tool and Testbench stay STUDY-level with a short filter list.
 
 ### Dicom Router (`/router`)
 
-A background service you manage alongside everything else, not a one-off query form — the Dicom Router tab's own left sidebar lists every configured rule with a small status dot — green (active), amber (paused), gray (stopped), pulsing accent while a run is actually executing — so you can see the state of everything at a glance without opening the page. This list shows on every page under this tab, the same way the Configuration pages' own sidebar always does.
+A background service you manage alongside everything else, not a one-off query form. `/router` opens on a table of every rule: name, source and destinations, state in words (Active, Paused, Stopped, Running), schedule, last run (**OK** / **Failed** and when) and next run, with Start / Resume, Run now, Pause, Stop and Edit on each row. **Add route rule** opens the form above the list; the form shows straight away when there are no rules yet. It shows **Number of days** only for "Last N days" and **Station Name filter** only at Series level, and a save that fails keeps what you typed and shows the message under the field it concerns (a daily schedule needs at least one time of day, which the browser also checks).
+
+The tab's left sidebar lists the same rules on every page under this tab, each with its state in words next to a dot — green (active), amber (paused), gray (stopped), pulsing accent while a run is executing.
 
 A **route rule** is a scheduled Study Root C-FIND (interval in minutes, or specific times of day with optional days-of-week) against a configured PACS, filtered by modality / study date scope / query level. The scheduler runs due rules automatically and records what's new since the rule last ran.
 
 A rule with no destination nodes just tracks new studies (find-only). Add one or more destination nodes and the scheduler additionally C-MOVEs each new match to this workstation's local Storage SCP (same **Accept C-STORE** setting Dicomtag Analytics' SR retrieve uses) and C-STOREs it on to every destination, using the retrieved object's own SOP Class — no need to pre-register storage SOP classes per rule. A study is only marked "seen" once it's fully handled, so a failed retrieve or forward is retried automatically on the next run rather than silently dropped.
 
-Each rule can be **Started**, **Paused**, or **Stopped** independently of its own schedule (click the rule in the sidebar, or open it from the route rules page, to reach these):
+Each rule can be **Started**, **Paused**, or **Stopped** independently of its own schedule (from the rules list, or on the rule's own page):
 
 - **Start** runs the rule immediately and computes a fresh next scheduled time — whether it was paused or stopped before.
 - **Pause** and **Stop** both stop the schedule from firing again, and both interrupt a run that's already in progress — but cooperatively, between studies rather than mid-association, so nothing already retrieved/forwarded is ever redone or lost. They differ only in what's left behind: Pause keeps the rule's previously computed next-run time around as a record, Stop clears it.
@@ -400,9 +429,20 @@ The cleaned instances are then C-STOREd back out, by default to the same PACS th
 
 ### PDF to DICOM (`/tools/pdf-store`)
 
-Four steps: choose the PDFs, the patient, the study and document, and where to send them. PDFs come from one source at a time: files, a ZIP, a browser folder, or a directory path on this workstation (**…** opens a native folder dialog on this machine; **Scan** lists PDF files only). Each PDF is wrapped as Encapsulated PDF Storage (modality `DOC`). **Generate** next to Patient Name or Patient ID fills that field; next to Accession Number, Study Description or Document Title it has one made per study (or per PDF, for the title). A typed value goes on every PDF as it is. **One patient per PDF** derives identities from file names so a directory of reports does not stack as one person. **Store on a PACS** C-STOREs those instances to the selected remote. Uncheck it to encapsulate only. The peer must accept Encapsulated PDF Storage — C-ECHO or the Secondary Capture test image is a different SOP Class.
+Four steps: choose the PDFs, the patient, the study and document, and where to send them. PDFs come from one source at a time: files, a ZIP, a browser folder, or a directory path on this workstation (**…** opens a native folder dialog on this machine; **Scan** lists PDF files only). Each PDF is wrapped as Encapsulated PDF Storage (modality `DOC`). **Generate** next to Patient Name or Patient ID fills that field; next to Accession Number, Study Description or Document Title it has one made per study (or per PDF, for the title). A typed value goes on every PDF as it is. **One patient per PDF** derives identities from file names so a directory of reports does not stack as one person. **Keep all PDFs in one study** (on by default) gives the batch one Study and Series Instance UID. **Store on a PACS** C-STOREs those instances to the selected remote. Uncheck it to encapsulate only. The peer must accept Encapsulated PDF Storage — C-ECHO or the Secondary Capture test image is a different SOP Class.
 
 Caps: 25 MB per PDF, 40 files, 40 MB ZIP. Only `.pdf` files are imported. ZIP entries with `..`, `__MACOSX`, or a non-PDF extension are skipped. The directory path is read by this process; the UI has no login.
+
+### Tag Editor (`/tools/tag-editor`)
+
+Corrects the two private ELSCINT1 tags Vue's CS PACS REPORT writes onto every instance in a study — **Tamar Report Final Sign Timestamp** `(07a3,10fb)` and **Tamar Report Study Last Composed By** `(07a5,1040)` — when a report workflow gets stuck, then C-STOREs the correction back to the PACS. Four steps:
+
+1. **Connect** — remote node and Present as.
+2. **Find the study** — **Find Study Instance UID** resolves it from Accession Number and Study Date (a plain Study-level C-FIND; Accept C-STORE not needed), or paste the UID. Series Instance UID is optional (empty = whole study).
+3. **Check current values** — **Fetch** C-MOVEs the study here and shows both tags per instance. It needs **Accept C-STORE** on Local DICOM AE; an amber caution says so when it is off.
+4. **Push new values** — retrieves fresh, overwrites only the field(s) you filled in, and C-STOREs every retrieved instance back. It only overwrites a tag that is already present; it never adds one. Whether Vue treats a C-STORE of a known SOP Instance UID as a replacement or a duplicate is PACS-specific, so Fetch first.
+
+**Practise on test studies** (folded, at the bottom) seeds two throwaway studies for patient `ARNPRO^TESTBENCH`, one with both tags present but blank and one without them, so Push can be tried without touching a real patient. A first test on a real Vue archive, on an already-complete study, showed C-MOVE and C-STORE succeeding but the stored values unchanged; see the in-app Help for details.
 
 ## Worklist
 
@@ -422,13 +462,15 @@ Add scheduled procedures here. If **Serve the web worklist over DICOM** is on, a
 
 ## HL7 send
 
-`/tools/hl7-send` sends an HL7 v2 message to a TCP endpoint. It is a sender, not an analyzer: paste (or save) the pipe-delimited text and ship it.
+`/tools/hl7-send` sends an HL7 v2 message to a TCP endpoint. It is a sender, not an analyzer: paste (or save) the pipe-delimited text and ship it. The page runs in four steps: **Destination** (a remote node's host or a typed one, port and framing, with a folded "Sending to Philips IS Link?" note), **Message** (the segment editor, Save as / **Save message**, which keeps the host, port and framing), **Adjust before sending** and **Send**.
+
+> **Not yet verified on a live IS Link.** The options below were checked against the HL7 v2 code tables and Philips' Vue PACS 12.2.8 HL7 Interface Specifications (HA1669), not against a real IS Link server. See [To verify](#to-verify) before relying on them.
 
 - **Host / port** — the HL7 **listener**, not the DICOM port. On Philips Vue, **IS Link Configuration → Listeners** shows **Port Number** (often `10010`) and **Host IP**. That Listeners page is settings, not the inbound queue. Send to that Host IP:Port. **Control Port** (often `2112`) is not MLLP. Encoding **Cp1252** matches Latin-1 for ASCII HL7.
 - **Framing** — MLLP (`0x0B` … `0x1C 0x0D`) is the default. Raw TCP is there for engines that do not wrap.
 - **Message** — HL7 v2 starting with `MSH`. The editor shows one segment per row (toggle **Raw** for the full paste). Long pipe-delimited lines wrap. Newlines become CR on the wire.
 - **ACK** — if the peer replies, the result shows the raw ACK, MSA-1 (`AA` / `AE` / `AR`), and ACK **MSH-3** (who answered). An ACK is not a promise that PACS applied an order update.
-- **Adjust before sending** — step 3, folded by default; its heading lists which rewrites are on. All four are off by default. Optional stamps applied to the paste before send (they do not invent missing ORC/OBR segments):
+- **Adjust before sending** — step 3, folded by default; its heading lists which rewrites are on (for example "ORC-1 → SC · OBR-25 → SC"). All four are off by default, and each shows its fields only while ticked, with the full background under **Details**. Optional stamps applied to the paste before send (they do not invent missing ORC/OBR segments):
   - **New MSH-10** — the same Message Control ID is often ACKed and ignored.
   - **Change existing order** — stamps **ORC-1** (with the chosen order control) and **ORC-9**. Philips Vue / IS Link uses **SC** to update an order (`NW` new, `CA` cancel). **XO** is generic HL7 change; Vue often ignores it while Mirth still ACKs.
   - **ORC-1 order control** — `SC`, `NW`, `CA` (the three the IS Link spec defines), `XO`, `XX`. UI default is **SC** (Vue). IS Link replaces the whole segment on an update, so a field left empty is deleted: send the complete ORC and OBR. JSON API still stamps `XO` unless you pass `"orc_control": "SC"`.
