@@ -1,6 +1,8 @@
 # Changelog
 
-## Unreleased
+## 0.5.2
+
+A new app icon: the brand "A" as a sharp vector, on a deep navy tile where its colours glow, so Dicommunication stands out in the Dock, Finder and the Windows Start menu.
 
 ### Interface
 

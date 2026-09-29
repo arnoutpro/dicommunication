@@ -56,9 +56,13 @@ Synthetic lab studies (not clinical data). Light theme, in the arnout.pro "Readi
 
 ![HL7 send with an ORM order update and Change existing order set to SC](docs/screenshots/hl7-send.webp)
 
-## What's new in 0.5.1
+## What's new in 0.5.2
 
-Details in [CHANGELOG.md](CHANGELOG.md#051).
+Details in [CHANGELOG.md](CHANGELOG.md#052).
+
+- **A new app icon** on macOS and Windows: the brand "A", now a sharp vector, on a deep navy tile where its colours glow, so the app stands out in the Dock, Finder and the Start menu.
+
+And in 0.5.1 ([CHANGELOG.md](CHANGELOG.md#051)):
 
 - **Security**: a full review before 0.5.1 closed the ways a web page in another browser tab could drive or read the app, added a strict Content-Security-Policy, and stopped PACS data from ever running as script. What was found, fixed and checked: [SECURITY.md](SECURITY.md#security-review-051-september-2026).
 - **Dicom Router** opens on a table of rules (state in words, schedule, last and next run, actions per row); the add form shows on request, hides fields that don't apply, and keeps what you typed when a save fails.
@@ -70,7 +74,7 @@ Details in [CHANGELOG.md](CHANGELOG.md#051).
 ## Contents
 
 - [Screenshots](#screenshots)
-- [What's new in 0.5.1](#whats-new-in-051)
+- [What's new in 0.5.2](#whats-new-in-052)
 - [What this is (and is not)](#what-this-is-and-is-not)
 - [How it's made](#how-its-made)
 - [DICOM services this tool distinguishes](#dicom-services-this-tool-distinguishes)
