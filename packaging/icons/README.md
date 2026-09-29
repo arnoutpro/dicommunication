@@ -5,9 +5,9 @@ Everything here is vector, so the icons are sharp at every size.
 | File | What it is |
 | --- | --- |
 | `arnoutpro-a.svg` | The arnout.pro brand mark (multicolour "A"), the master for everything below. Also served as the app's favicon and top-bar mark (`app/static/favicon.svg`). |
-| `icon-macos.svg` | macOS icon: the A on a white rounded tile with a soft shadow and a glow in its own colours, on Apple's 824-in-1024 tile grid |
-| `icon-windows.svg` | Windows icon: the same tile filling more of the square, with a clearer edge so it reads on a white taskbar |
-| `icon-small.svg` | 16–32 px on both platforms: the tile edge to edge, and the palest bands swapped for the nearest stronger colour so the A stays whole |
+| `icon-macos.svg` | macOS icon: the A on a deep navy rounded tile with a soft shadow, glowing in its own strong colours (each pale band glows as the colour it is a tint of), on Apple's 824-in-1024 tile grid |
+| `icon-windows.svg` | Windows icon (48 px and up): the same tile and glow filling more of the square, with a light edge so it reads on a dark taskbar |
+| `icon-small.svg` | 16–32 px on both platforms: the tile edge to edge, no glow |
 | `app.ico`, `app.icns`, `app-1024.png` | The rendered icons (committed, so packaging CI needs no renderer) |
 
 ## Where the mark comes from
