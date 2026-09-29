@@ -1,6 +1,8 @@
 # Changelog
 
-## Unreleased
+## 0.5.1
+
+Security fixes from a full review: other websites can no longer drive or read the app, every page carries a strict Content-Security-Policy, and two ways for PACS data to run script are closed (details in [`SECURITY.md`](SECURITY.md#security-review-051-september-2026)). Also: the indigo accent, HL7 send, Tag Editor and PDF to DICOM in four steps, saved queries in Dicomtag Analytics, and a clearer Dicom Router.
 
 ### Security
 
@@ -9,6 +11,7 @@
 - Dicom Cleaner's image picker built one of those `js:` expressions from the StudyInstanceUID it received from the PACS, so a crafted UID could run script in the app. It is now passed as JSON data. A Dicomtag Analytics re-query error could likewise put server-supplied text into the page as HTML; it is now plain text.
 - FastAPI's `/docs`, `/redoc` and `/openapi.json` are no longer served.
 - A remote node's host can no longer start with `-`: Network PING passed it straight to `ping`, which would have read it as an option.
+- **Windows**: Network PING, the **Browse…** folder picker (Dicom Anonymizer, PDF to DICOM) and the uninstall confirmation each started a console program (`ping.exe`, `powershell`) without suppressing its console window. The desktop app has no console of its own, so Windows opened a new, empty one that flashed on screen next to the app (the output goes into a pipe the app reads, not to that window). All three now pass `no_console_kwargs()` (`app/paths.py`, `CREATE_NO_WINDOW` on Windows, a no-op elsewhere), so no extra window appears; the ping output still shows inside the app under the result's **Show details**.
 - `tests/test_security.py` replays each of these attacks.
 
 ### Interface
@@ -53,10 +56,6 @@
 - **Rule states in words in the sidebar**: each rule in the Dicom Router sidebar now shows its state as text next to the coloured dot, instead of the colour alone, per DESIGN.md's Words Before Colour rule.
 - **Rule form errors show up where you are**: saving a daily schedule with no times of day failed with a 400, but the page came back as an empty form with Schedule folded and the message ("config: Value error, …") at the top, so it looked as if nothing happened. **Times of day** is now required in the browser while "Time(s) of day" is selected (a folded Schedule opens so the browser can point at it). If the server still rejects a save, the form keeps everything typed, opens the section with the problem, and shows the message under that field.
 - **Rule form shows only fields that apply**: **Number of days** appears only when Study date is "Last N days", and **Station Name filter** only at the Series query level.
-
-### Security and robustness
-
-- **Windows**: Network PING, the **Browse…** folder picker (Dicom Anonymizer, PDF to DICOM) and the uninstall confirmation each started a console program (`ping.exe`, `powershell`) without suppressing its console window. The desktop app has no console of its own, so Windows opened a new, empty one that flashed on screen next to the app (the output goes into a pipe the app reads, not to that window). All three now pass `no_console_kwargs()` (`app/paths.py`, `CREATE_NO_WINDOW` on Windows, a no-op elsewhere), so no extra window appears; the ping output still shows inside the app under the result's **Show details**.
 
 ## 0.5.0
 

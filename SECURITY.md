@@ -36,6 +36,43 @@ them, and they would map every endpoint for whoever can reach the port.
 
 `tests/test_security.py` replays each of these attacks against the app.
 
+## Security review (0.5.1, September 2026)
+
+Before 0.5.1 the whole project was reviewed with one question in mind: what
+could someone who downloads it find? Everything below was fixed in 0.5.1 and
+each fix has a test.
+
+### What was found and fixed
+
+| Finding | What could happen | Fix | Test |
+| --- | --- | --- | --- |
+| **Cross-site request forgery** | A page open in another tab of the operator's browser could post forms to the app. Shown in the review: it added a remote node called "attacker" and cleared the log. | Requests that change something must come from the app's own pages; others get `403` | `tests/test_security.py` |
+| **DNS rebinding** | A site could point a name it controls at `127.0.0.1` and read the JSON API. Shown in the review: it read the remote nodes and the log path. | The app answers only to `localhost`, `*.localhost`, IP addresses and names in `DICOMM_ALLOWED_HOSTS`; others get `400` | `tests/test_security.py` |
+| **Script from PACS data** (Dicom Cleaner) | The image picker built a JavaScript expression from the StudyInstanceUID the PACS returned, and htmx ran it. A crafted UID could run script in the app. | The UID is passed as JSON data; htmx `js:` expressions are gone | `test_cleaner_preview_study_uid_is_data_not_code` |
+| **Server text as HTML** (Dicomtag Analytics) | A re-query error could put server-supplied text into the page as markup | Inserted as plain text | covered by the CSP test |
+| **No Content-Security-Policy or framing protection** | Any injected script would have run, and the pages could be framed (clickjacking) | Strict CSP (`script-src 'self'`, `frame-ancestors 'none'`) and security headers on every response; inline scripts and `onclick` handlers moved into `/static/js` | `test_security_headers_…`, `test_templates_have_no_inline_script_…` |
+| **API docs exposed** | `/docs`, `/redoc` and `/openapi.json` mapped every endpoint | Switched off | `test_api_docs_are_not_served` |
+| **Option injection in Network PING** | A remote host such as `-f` would have been read by `ping` as an option | Hosts starting with `-` are rejected when a node is saved | `test_remote_host_cannot_look_like_a_ping_option` |
+
+### What was checked and found clean
+
+- **Dependencies:** `pip-audit` found no known advisories in `requirements.txt` or `requirements-desktop.txt`.
+- **Static analysis:** `bandit` reports only the four expected findings described under [Running the checks yourself](#running-the-checks-yourself).
+- **Secrets:** the full Git history was searched for tokens, keys, passwords and private keys. None were found.
+- **Escaping:** templates escape all output by default and use no `|safe` or `Markup`; the JavaScript builds HTML only from fixed text.
+- **Files:** ZIP uploads are read in memory with size limits and never extracted; the log download serves one fixed file.
+- **Leftovers:** no debug code, TODO notes, internal hostnames, hospital names or real IP addresses in the code or its history.
+- **Builds:** the Docker image contains only `app/` (no tests, notes or local data), and the Windows and macOS installers only the app, its templates and static files.
+
+### Personal data in the Git history
+
+The review also found the maintainer's personal email address, local machine
+names and links to private AI coding sessions in commit metadata. On
+2026-09-29 the history was rewritten to remove them; file contents did not
+change. **Every commit ID from before that date changed**, including those of
+the v0.2.0, v0.3.0 and v0.5.0 tags. A clone made before then still has the old
+history: clone again rather than pulling.
+
 ## No protection by design
 
 These are properties of the tool, not defects. Please do not file them as
@@ -112,6 +149,7 @@ Nothing here is privileged; you can reproduce the whole security review:
 ```bash
 pip install -r requirements-dev.txt
 python -m pytest                 # full suite
+python -m pytest tests/test_security.py   # the attacks from the security review
 pip install pip-audit bandit
 pip-audit -r requirements.txt    # known advisories in declared dependencies
 bandit -r app                    # static analysis

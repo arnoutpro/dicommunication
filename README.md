@@ -56,10 +56,11 @@ Synthetic lab studies (not clinical data). Light theme, in the arnout.pro "Readi
 
 ![HL7 send with an ORM order update and Change existing order set to SC](docs/screenshots/hl7-send.webp)
 
-## What's new since 0.5.0
+## What's new in 0.5.1
 
-Not yet in a release; details in [CHANGELOG.md](CHANGELOG.md) under Unreleased.
+Details in [CHANGELOG.md](CHANGELOG.md#051).
 
+- **Security**: a full review before 0.5.1 closed the ways a web page in another browser tab could drive or read the app, added a strict Content-Security-Policy, and stopped PACS data from ever running as script. What was found, fixed and checked: [SECURITY.md](SECURITY.md#security-review-051-september-2026).
 - **Dicom Router** opens on a table of rules (state in words, schedule, last and next run, actions per row); the add form shows on request, hides fields that don't apply, and keeps what you typed when a save fails.
 - **Dicomtag Analytics** can save a query after it runs and list it in the sidebar; a Study Date preset stays relative. Long key names (the ELSCINT1 tags) no longer get cut off, and the date presets use the local date.
 - **PDF to DICOM**, **Tag Editor** and **HL7 send** follow the same numbered steps as Dicom Anonymizer and Dicom Cleaner. PDF to DICOM can **Generate** Accession Number, Study Description and Document Title.
@@ -69,7 +70,7 @@ Not yet in a release; details in [CHANGELOG.md](CHANGELOG.md) under Unreleased.
 ## Contents
 
 - [Screenshots](#screenshots)
-- [What's new since 0.5.0](#whats-new-since-050)
+- [What's new in 0.5.1](#whats-new-in-051)
 - [What this is (and is not)](#what-this-is-and-is-not)
 - [How it's made](#how-its-made)
 - [DICOM services this tool distinguishes](#dicom-services-this-tool-distinguishes)
@@ -547,7 +548,7 @@ If the association is rejected entirely, the calling AE is not in Orthanc’s al
 
 ## JSON API
 
-Same operations as the UI. `GET /health` returns `{"status":"ok","version":"..."}`. Interactive docs: [http://127.0.0.1:8080/docs](http://127.0.0.1:8080/docs).
+Same operations as the UI. `GET /health` returns `{"status":"ok","version":"..."}`. There are no interactive API docs in a shipped build: `/docs` and `/openapi.json` are switched off, and the table below lists every endpoint. Scripts and `curl` on the same machine can call the API; a web page on another site cannot (see [SECURITY.md](SECURITY.md#protection-against-other-websites)).
 
 | Method | Path | Purpose |
 | --- | --- | --- |
@@ -651,6 +652,8 @@ C-ECHO, C-STORE, PDF to DICOM, Study Root C-FIND (including Dicomtag Analytics a
 Full threat model, what has no protection by design, and how patient data is stored on disk: [`SECURITY.md`](SECURITY.md).
 
 This is a trusted-network admin tool. The web UI has no login, so Compose publishes it on `127.0.0.1` only; `DICOMM_HTTP_BIND=0.0.0.0` opens it up and should only be used behind an authenticating reverse proxy. Do not publish port 8080 to the internet without one. Do not point it at production archives unless you intend to send the test C-STORE instance (`ARNPRO^TESTBENCH`) or Encapsulated PDF documents you import. DICOM and HL7 are sent in the clear unless you terminate TLS elsewhere. HL7 send transmits whatever you paste. PDF to DICOM reads uploaded files, ZIP contents, and any workstation path you type.
+
+No login does not mean any website can use it. Since 0.5.1 a page open in another tab of your browser can neither drive the app (cross-site request forgery) nor read it (DNS rebinding), every page carries a strict Content-Security-Policy, and the app only answers to `localhost` and IP addresses unless you add a host name to `DICOMM_ALLOWED_HOSTS`. What the 0.5.1 security review found and fixed, and what it checked: [`SECURITY.md`](SECURITY.md#security-review-051-september-2026).
 
 The data directory is not encrypted, and `results.json` keeps the last 200 tool results — including the body of any HL7 message you sent and the worklist rows a C-FIND returned. Against real systems that means patient identifiers on disk in cleartext. See [`SECURITY.md`](SECURITY.md#patient-data-on-disk).
 
