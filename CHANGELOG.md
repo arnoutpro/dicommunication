@@ -4,7 +4,7 @@
 
 ### Interface
 
-- **A sharper, more finished app icon.** The icon was the brand "A" as a 512 px bitmap, so the 1024 px macOS size was an enlargement and the edges were soft; at 16–32 px its palest bands faded out, and on macOS the bare letter didn't sit on a tile like other Mac apps. The mark is now a vector trace of the same artwork (`packaging/icons/arnoutpro-a.svg`, same 20 colours and bands, exact straight edges), and the icons put it on a white rounded tile with a soft shadow: Apple's tile grid on macOS, a fuller tile with a clear edge on Windows, and at 16–32 px a variant whose palest bands use the nearest stronger colour. The favicon and the top-bar mark use the vector too. `compose.py` and `render.py` in `packaging/icons/` regenerate everything from the vector.
+- **A sharper, more finished app icon.** The icon was the brand "A" as a 512 px bitmap, so the 1024 px macOS size was an enlargement and the edges were soft; at 16–32 px its palest bands faded out, and on macOS the bare letter didn't sit on a tile like other Mac apps. The mark is now a vector trace of the same artwork (`packaging/icons/arnoutpro-a.svg`, same 20 colours and bands, exact straight edges), and the icons put it on a white rounded tile with a soft shadow: Apple's tile grid on macOS, where the A's colours also glow softly onto the tile, a fuller tile with a clear edge on Windows, and at 16–32 px a variant whose palest bands use the nearest stronger colour. The favicon and the top-bar mark use the vector too. `compose.py` and `render.py` in `packaging/icons/` regenerate everything from the vector.
 
 ## 0.5.1
 

@@ -7,6 +7,7 @@
     </linearGradient>
     <filter id="tile-shadow" x="-20%" y="-20%" width="140%" height="150%"><feOffset dx="0" dy="0"/></filter>
     <filter id="a-shadow" x="-10%" y="-10%" width="120%" height="130%"><feOffset dx="0" dy="0"/></filter>
+    <clipPath id="tile-clip"><rect x="12.0" y="12.0" width="1000" height="1000" rx="180"/></clipPath>
     <clipPath id="arnoutpro-a"><path fill-rule="evenodd" d="M214.44 56.75 45.45 455 121.21 455 252.4 132.9 315.01 282.25 234.85 282.25 209.44 346.5 341.83 346.5 387.17 455 466.65 455 294.01 56.75Z"/></clipPath>
   </defs>
   <rect x="12.0" y="12.0" width="1000" height="1000" rx="180" fill="url(#tile)" filter="url(#tile-shadow)"/>

@@ -3,7 +3,7 @@
 A white rounded tile with a little depth, the A on top. Run this after
 changing arnoutpro-a.svg or the layout below, then render.py for the
 .ico / .icns files. Writes, next to this file:
-  icon-macos.svg   1024 canvas, Apple's 824 px tile, soft drop shadow
+  icon-macos.svg   1024 canvas, Apple's 824 px tile, soft drop shadow, colour glow
   icon-windows.svg 1024 canvas, fuller tile, light shadow, hairline border
   icon-small.svg   for 16-32 px: tile edge to edge, palest bands made stronger
 """
@@ -45,10 +45,25 @@ def placed_a(cx: float, cy: float, width: float, body: str) -> str:
 
 
 def icon(*, tile: float, radius: float, a_width: float, shadow: str, a_shadow: str,
-         border: str, body: str, gradient=("#ffffff", "#eef1f6")) -> str:
+         border: str, body: str, gradient=("#ffffff", "#eef1f6"),
+         glow: tuple[float, float, float] | None = None) -> str:
     """One icon on a 1024 canvas: rounded white tile, then the A on top."""
     x = (1024 - tile) / 2
     top, bottom = gradient
+    glow_filter = glow_layer = ""
+    if glow:
+        # A soft halo in the A's own colours, as if they light up the tile a little:
+        # a blurred, slightly more saturated copy of the A behind it, kept on the tile.
+        blur, opacity, saturate = glow
+        glow_filter = f"""
+    <filter id="a-glow" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="{blur}"/>
+      <feColorMatrix type="saturate" values="{saturate}"/>
+      <feComponentTransfer><feFuncA type="linear" slope="{opacity}"/></feComponentTransfer>
+    </filter>"""
+        # Black bands give off no light, so they sit out of the glow (a grey smudge otherwise).
+        glow_body = body.replace('fill="#000000"', 'fill="none"').replace('stroke="#000000"', 'stroke="none"')
+        glow_layer = f'  <g clip-path="url(#tile-clip)"><g filter="url(#a-glow)">{placed_a(512, 512, a_width, glow_body)}</g></g>\n'
     return f"""<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
   <title>Dicommunication</title>
   <defs>
@@ -58,11 +73,12 @@ def icon(*, tile: float, radius: float, a_width: float, shadow: str, a_shadow: s
     </linearGradient>
     <filter id="tile-shadow" x="-20%" y="-20%" width="140%" height="150%">{shadow}</filter>
     <filter id="a-shadow" x="-10%" y="-10%" width="120%" height="130%">{a_shadow}</filter>
+    <clipPath id="tile-clip"><rect x="{x}" y="{x}" width="{tile}" height="{tile}" rx="{radius}"/></clipPath>{glow_filter}
     {A_DEFS}
   </defs>
   <rect x="{x}" y="{x}" width="{tile}" height="{tile}" rx="{radius}" fill="url(#tile)" filter="url(#tile-shadow)"/>
   <rect x="{x + 1}" y="{x + 1}" width="{tile - 2}" height="{tile - 2}" rx="{radius - 1}" fill="none" stroke="{border}" stroke-width="2"/>
-  <g filter="url(#a-shadow)">{placed_a(512, 512, a_width, body)}</g>
+{glow_layer}  <g filter="url(#a-shadow)">{placed_a(512, 512, a_width, body)}</g>
 </svg>
 """
 
@@ -75,11 +91,12 @@ def small_body() -> str:
 
 
 # macOS: Apple's grid, 824 px tile centred in 1024 with room for the shadow.
+# The A's colours glow onto the tile; with that, its own shadow can be lighter.
 MACOS = icon(
     tile=824, radius=185, a_width=680,
     shadow='<feDropShadow dx="0" dy="14" stdDeviation="16" flood-color="#0a1330" flood-opacity="0.28"/>',
-    a_shadow='<feDropShadow dx="0" dy="8" stdDeviation="7" flood-color="#0a1330" flood-opacity="0.22"/>',
-    border="rgba(10,19,48,0.10)", body=A_BODY,
+    a_shadow='<feDropShadow dx="0" dy="6" stdDeviation="6" flood-color="#0a1330" flood-opacity="0.14"/>',
+    border="rgba(10,19,48,0.10)", body=A_BODY, glow=(34, 0.8, 1.5),
 )
 
 # Windows: icons fill more of their square; lighter shadow, clearer edge so a
