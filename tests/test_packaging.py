@@ -593,18 +593,53 @@ def test_windows_spec_hides_console_and_bundles_webview() -> None:
     assert "requirements-desktop.txt" in workflow
 
 
-def test_packaging_icons_match_favicon() -> None:
-    svg = (ROOT / "app" / "static" / "favicon.svg").read_text(encoding="utf-8")
-    assert "arnout.pro" in svg
-    assert "image/png;base64," in svg
-    ico = ROOT / "packaging" / "icons" / "app.ico"
-    icns = ROOT / "packaging" / "icons" / "app.icns"
-    preview = ROOT / "packaging" / "icons" / "app-1024.png"
-    assert ico.read_bytes()[:4] == b"\x00\x00\x01\x00"
-    assert icns.read_bytes()[:4] == b"icns"
-    assert preview.read_bytes()[:8] == b"\x89PNG\r\n\x1a\n"
-    assert ico.stat().st_size > 1024
-    assert icns.stat().st_size > 16_000
+def test_brand_mark_is_vector_everywhere() -> None:
+    """The favicon, top-bar mark and icon designs are vector, not wrapped bitmaps."""
+    icons = ROOT / "packaging" / "icons"
+    for svg_path in (
+        ROOT / "app" / "static" / "favicon.svg",
+        icons / "arnoutpro-a.svg",
+        icons / "icon-macos.svg",
+        icons / "icon-windows.svg",
+        icons / "icon-small.svg",
+    ):
+        svg = svg_path.read_text(encoding="utf-8")
+        assert "base64," not in svg and "<image" not in svg, svg_path.name
+        assert svg.count("<path") >= 20, svg_path.name
+    assert "arnout.pro" in (ROOT / "app" / "static" / "favicon.svg").read_text(encoding="utf-8")
+
+
+def _icns_sizes(data: bytes) -> dict[str, int]:
+    import struct
+
+    sizes, i = {}, 8
+    while i < len(data):
+        kind = data[i : i + 4].decode("ascii")
+        length = struct.unpack(">I", data[i + 4 : i + 8])[0]
+        chunk = data[i + 8 : i + length]
+        assert chunk[:8] == b"\x89PNG\r\n\x1a\n", kind
+        sizes[kind] = struct.unpack(">I", chunk[16:20])[0]  # PNG width
+        i += length
+    return sizes
+
+
+def test_packaging_icons_have_every_size() -> None:
+    import struct
+
+    icons = ROOT / "packaging" / "icons"
+    ico = (icons / "app.ico").read_bytes()
+    assert ico[:4] == b"\x00\x00\x01\x00"
+    count = struct.unpack("<H", ico[4:6])[0]
+    widths = sorted(ico[6 + 16 * n] or 256 for n in range(count))
+    assert widths == [16, 24, 32, 48, 64, 128, 256]
+
+    icns = (icons / "app.icns").read_bytes()
+    assert icns[:4] == b"icns"
+    assert _icns_sizes(icns) == {
+        "icp4": 16, "icp5": 32, "icp6": 64, "ic07": 128, "ic08": 256, "ic09": 512,
+        "ic10": 1024, "ic11": 32, "ic12": 64, "ic13": 256, "ic14": 512,
+    }
+    assert (icons / "app-1024.png").read_bytes()[:8] == b"\x89PNG\r\n\x1a\n"
 
 
 def test_windows_spec_and_wix_use_app_icon() -> None:
