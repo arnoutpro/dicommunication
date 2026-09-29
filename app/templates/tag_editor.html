@@ -100,7 +100,7 @@
       <button class="button primary" type="submit" name="action" value="push"
               hx-post="/tools/tag-editor/run" hx-include="closest form"
               hx-target="#result" hx-indicator="#busy"
-              onclick="return confirm('Push these values to every retrieved instance on the PACS? This cannot be undone.');">
+              hx-confirm="Push these values to every retrieved instance on the PACS? This cannot be undone.">
         Push update
       </button>
       <span id="busy" class="htmx-indicator spinner">Running…</span>

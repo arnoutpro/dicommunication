@@ -176,6 +176,12 @@ The UI has no login, so it is kept on loopback. To reach it from another machine
 DICOMM_HTTP_BIND=0.0.0.0 docker compose up -d
 ```
 
+If the proxy serves the UI under a host name (`https://dicomm.example.org`), add that name to `DICOMM_ALLOWED_HOSTS` (comma-separated). The app only answers to `localhost` and IP addresses by default, so a web page on another site cannot reach it through a DNS trick; see [SECURITY.md](SECURITY.md#protection-against-other-websites):
+
+```bash
+DICOMM_HTTP_BIND=0.0.0.0 DICOMM_ALLOWED_HOSTS=dicomm.example.org docker compose up -d
+```
+
 `DICOMM_DICOM_BIND` pins the MWL SCP to one address (for example `DICOMM_DICOM_BIND=10.0.0.5`) when the host has several NICs and only one faces the modality VLAN.
 
 Startup names the address the UI was published on, so `docker compose logs` answers "why can I not reach this from my laptop":

@@ -164,6 +164,11 @@ class RemoteNode(BaseModel):
             raise ValueError("IP address or hostname is required")
         if not self.host:
             self.host = self.hostname
+        # No host or IP starts with "-". ping would read one as an option
+        # (Network PING passes the host straight into its argv).
+        for value in (self.host, self.hostname):
+            if value.startswith("-"):
+                raise ValueError("Host cannot start with '-'")
         if self.kind == "mwl":
             self.provides_mwl = True
         return self

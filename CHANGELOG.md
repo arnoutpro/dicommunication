@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+### Security
+
+- **Other websites can no longer drive or read the app.** The UI has no login by design, but any page open in the operator's browser could submit forms to `http://127.0.0.1:8080` (add a remote node, push tags, clean pixel data, send HL7, clear the log) and, by pointing a host name it controls at `127.0.0.1` (DNS rebinding), read the JSON API. Requests that change something now have to come from the app's own pages (a cross-site one gets `403`; curl and scripts keep working), and the app only answers to `localhost` and IP addresses. Behind a reverse proxy that uses a host name, list it in the new `DICOMM_ALLOWED_HOSTS` (also passed through by `docker-compose.yml`). New middleware in `app/security.py`; SECURITY.md explains it.
+- **Strict Content-Security-Policy** (`script-src 'self'`) and security headers on every response: pages cannot be framed, and only the app's own scripts run. To make that possible, the inline scripts (theme startup, Dicom Router schedule fields, Testbench service fields) moved into `static/js`, the `confirm()` prompts moved from inline `onclick` to `data-confirm` / `hx-confirm`, and Dicom Cleaner's image picker no longer uses htmx `js:` expressions.
+- Dicom Cleaner's image picker built one of those `js:` expressions from the StudyInstanceUID it received from the PACS, so a crafted UID could run script in the app. It is now passed as JSON data. A Dicomtag Analytics re-query error could likewise put server-supplied text into the page as HTML; it is now plain text.
+- FastAPI's `/docs`, `/redoc` and `/openapi.json` are no longer served.
+- A remote node's host can no longer start with `-`: Network PING passed it straight to `ping`, which would have read it as an option.
+- `tests/test_security.py` replays each of these attacks.
+
 ### Interface
 
 - **The accent is indigo instead of cyan**: links, the selected tab and sidebar item, focus rings and the filled buttons use Signal Indigo. Dark theme: `#a5b4fc` text and a `#818cf8` fill with a dark label; light theme: `#4338ca`, with a white label on buttons. Every pairing keeps at least 4.5:1 contrast. Professional keeps its amber accent. This departs from the shared arnout.pro design system (Signal Cyan) on purpose and is recorded under "In Dicommunication" in DESIGN.md.

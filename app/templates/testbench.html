@@ -138,24 +138,4 @@
     {% include "partials/result.html" %}
   {% endif %}
 </div>
-<script>
-(function () {
-  const service = document.getElementById("service");
-  const qr = document.getElementById("qr-fields");
-  const mwl = document.getElementById("mwl-fields");
-  const studyDate = document.getElementById("study-date-field");
-  function sync() {
-    if (!service) return;
-    const value = service.value;
-    const showFind = value === "c-find" || value === "mwl-find";
-    if (qr) qr.hidden = !showFind;
-    if (mwl) mwl.hidden = value !== "mwl-find";
-    if (studyDate) studyDate.hidden = value !== "c-find";
-  }
-  if (service) {
-    service.addEventListener("change", sync);
-    sync();
-  }
-})();
-</script>
 {% endblock %}

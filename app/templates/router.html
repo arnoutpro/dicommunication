@@ -231,28 +231,4 @@
 </section>
 {% endif %}
 
-<script>
-(function () {
-  var form = document.querySelector('#rule-form form');
-  if (!form) return;
-  function sync() {
-    var daily = form.querySelector('[data-schedule-mode]').value === 'daily';
-    form.querySelectorAll('[data-schedule-daily]').forEach(function (el) { el.hidden = !daily; });
-    form.querySelectorAll('[data-schedule-interval]').forEach(function (el) { el.hidden = daily; });
-    form.querySelectorAll('[data-required-when-daily]').forEach(function (el) { el.required = daily; });
-    form.querySelectorAll('[data-reveal-when]').forEach(function (el) {
-      var rule = el.getAttribute('data-reveal-when').split('=');
-      el.hidden = form.querySelector('[name="' + rule[0] + '"]').value !== rule[1];
-    });
-  }
-  form.addEventListener('change', sync);
-  // A required field inside a closed <details> can't be focused, so the
-  // browser would refuse to submit without saying why. Open it first.
-  form.addEventListener('invalid', function (event) {
-    var section = event.target.closest('details');
-    if (section) section.open = true;
-  }, true);
-  sync();
-})();
-</script>
 {% endblock %}

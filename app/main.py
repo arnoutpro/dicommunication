@@ -16,6 +16,7 @@ from app.mwl_scp import WorklistSCP
 from app.paths import package_dir
 from app.router_scheduler import RouterScheduler
 from app.routes import anonymize, api, cleaner, config, echo_board, logs, misc, route_rules, testbench, tools, worklist
+from app.security import SecurityMiddleware
 from app.store import ConfigStore
 
 BASE_DIR = package_dir()
@@ -86,6 +87,11 @@ def create_app(store: ConfigStore | None = None) -> FastAPI:
         description="Low-code DICOM communication validator and PACS admin toolkit.",
         version=__version__,
         lifespan=lifespan,
+        # No interactive API docs or schema in a shipped build: nothing in the
+        # UI uses them, and they map every endpoint for whoever can reach it.
+        docs_url=None,
+        redoc_url=None,
+        openapi_url=None,
     )
     app.state.store = store
     app.state.mwl_scp = scp
@@ -118,6 +124,11 @@ def create_app(store: ConfigStore | None = None) -> FastAPI:
             else:
                 log.debug(message)
         return response
+
+    # Added last, so it runs first and also covers /static: refuses foreign
+    # Host headers (DNS rebinding) and cross-site form posts (CSRF), and sets
+    # the Content-Security-Policy and other headers. See app/security.py.
+    app.add_middleware(SecurityMiddleware)
 
     app.include_router(misc.router)
     app.include_router(logs.router)

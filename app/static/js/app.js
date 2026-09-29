@@ -821,7 +821,58 @@ function initCleanerPreview(scope) {
   });
 }
 
+// Dicom Router rule form: show the daily or the interval schedule fields, and
+// fields that only apply to one choice ([data-reveal-when="name=value"]).
+function initRouteRuleForm() {
+  const form = document.querySelector("#rule-form form");
+  if (!form) {
+    return;
+  }
+  function sync() {
+    const daily = form.querySelector("[data-schedule-mode]")?.value === "daily";
+    form.querySelectorAll("[data-schedule-daily]").forEach((el) => { el.hidden = !daily; });
+    form.querySelectorAll("[data-schedule-interval]").forEach((el) => { el.hidden = daily; });
+    form.querySelectorAll("[data-required-when-daily]").forEach((el) => { el.required = daily; });
+    form.querySelectorAll("[data-reveal-when]").forEach((el) => {
+      const [name, value] = el.getAttribute("data-reveal-when").split("=");
+      el.hidden = form.querySelector(`[name="${name}"]`)?.value !== value;
+    });
+  }
+  form.addEventListener("change", sync);
+  // A required field inside a closed <details> can't be focused, so the
+  // browser would refuse to submit without saying why. Open it first.
+  form.addEventListener("invalid", (event) => {
+    const section = event.target.closest("details");
+    if (section) {
+      section.open = true;
+    }
+  }, true);
+  sync();
+}
+
+// Testbench: show the Q/R, MWL and Study Date fields only for the services
+// that use them.
+function initTestbenchServiceFields() {
+  const service = document.getElementById("service");
+  if (!service) {
+    return;
+  }
+  const qr = document.getElementById("qr-fields");
+  const mwl = document.getElementById("mwl-fields");
+  const studyDate = document.getElementById("study-date-field");
+  function sync() {
+    const value = service.value;
+    if (qr) qr.hidden = !(value === "c-find" || value === "mwl-find");
+    if (mwl) mwl.hidden = value !== "mwl-find";
+    if (studyDate) studyDate.hidden = value !== "c-find";
+  }
+  service.addEventListener("change", sync);
+  sync();
+}
+
 initNavTree();
+initRouteRuleForm();
+initTestbenchServiceFields();
 initPdfStoreForm(document);
 initAnonymizeForm(document);
 initStudyPick(document);
@@ -835,7 +886,10 @@ document.addEventListener("submit", (event) => {
   if (!(form instanceof HTMLFormElement)) {
     return;
   }
-  const message = form.dataset.confirm;
+  // A confirmation can sit on the form (every submit) or on one submit button
+  // (only that action): data-confirm="…" instead of an inline onclick, so the
+  // Content-Security-Policy can stay script-src 'self'.
+  const message = event.submitter?.dataset?.confirm || form.dataset.confirm;
   if (message && !window.confirm(message)) {
     event.preventDefault();
     return;
@@ -1640,13 +1694,17 @@ async function fetchExactPatientRecords(query) {
   return { records: body.records || [], truncated: stillTruncated };
 }
 
+function appendFindExportError(box, text) {
+  const p = document.createElement("p");
+  p.className = "hint find-export-error";
+  p.textContent = text;
+  box.append(p);
+}
+
 async function recountFindPatientsExact(box, capNote) {
   const query = collectFindQueryPayload();
   if (!query) {
-    box.insertAdjacentHTML(
-      "beforeend",
-      `<p class="hint find-export-error">Could not find the query form to re-run without the row cap — ${capNote}</p>`
-    );
+    appendFindExportError(box, `Could not find the query form to re-run without the row cap — ${capNote}`);
     return;
   }
   const note = document.createElement("p");
@@ -1662,10 +1720,9 @@ async function recountFindPatientsExact(box, capNote) {
     renderFindPatientSummary(box, summary, truncNote);
   } catch (err) {
     note.remove();
-    box.insertAdjacentHTML(
-      "beforeend",
-      `<p class="hint find-export-error">Automatic re-query failed (${err.message}) — ${capNote}</p>`
-    );
+    // err.message can carry the server's summary, which can quote what a PACS
+    // sent back: text, never markup.
+    appendFindExportError(box, `Automatic re-query failed (${err.message}) — ${capNote}`);
   }
 }
 

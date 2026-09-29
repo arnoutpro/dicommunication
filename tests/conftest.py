@@ -1,6 +1,14 @@
 from __future__ import annotations
 
+import os
+
 import pytest
+
+# Starlette's TestClient sends "Host: testserver". The app refuses host names it
+# was not told about (DNS-rebinding protection, app/security.py), so allow this
+# one the same way a deployment behind a reverse proxy would. Set before any
+# app is created.
+os.environ.setdefault("DICOMM_ALLOWED_HOSTS", "testserver")
 from fastapi.testclient import TestClient
 
 from app.main import create_app

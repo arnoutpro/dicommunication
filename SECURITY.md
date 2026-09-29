@@ -19,6 +19,23 @@ If you need it reachable from more than the machine it runs on, put an
 authenticating reverse proxy in front of it and treat that proxy as the security
 boundary.
 
+## Protection against other websites
+
+No login does not mean *anyone* can drive it. The person most likely to reach
+the UI by accident is the operator's own browser, with other sites open in
+other tabs. The app refuses both ways such a page could use it:
+
+| Attack | What a hostile page would do | What stops it |
+| --- | --- | --- |
+| **Cross-site request forgery** | Auto-submit a form to `http://127.0.0.1:8080` to add a remote node, push tags, clean pixel data, send HL7, or clear the log | Every request that changes something (POST, PUT, DELETE) must come from the app's own pages. Browsers label where a request came from (`Sec-Fetch-Site`, `Origin`, `Referer`) and a page cannot forge that; a request from another site gets `403`. Tools without those headers (curl, scripts) are not browsers and keep working. |
+| **DNS rebinding** | Point a host name it controls at `127.0.0.1`, then read the JSON API (remote nodes, results, log paths) as if it were same-origin | The app only answers to `localhost`, `*.localhost` and IP addresses. Any other `Host` gets `400`. Behind a reverse proxy that uses a name, list it in `DICOMM_ALLOWED_HOSTS` (comma-separated; `*` turns the check off). |
+| **Injected script** | Get markup from a PACS, HL7 reply or report text into a page and run it | Every response carries a Content-Security-Policy with `script-src 'self'`: only the app's own `/static` scripts run, never inline or `eval`'d code. Pages cannot be framed (`frame-ancestors 'none'`, `X-Frame-Options: DENY`), and forms and requests can only go back to the app. Templates escape everything by default. |
+
+FastAPI's `/docs`, `/redoc` and `/openapi.json` are switched off: nothing uses
+them, and they would map every endpoint for whoever can reach the port.
+
+`tests/test_security.py` replays each of these attacks against the app.
+
 ## No protection by design
 
 These are properties of the tool, not defects. Please do not file them as
@@ -26,9 +43,9 @@ vulnerabilities — but do factor them into where you deploy it.
 
 | Property | Why | What to do about it |
 | --- | --- | --- |
-| The web UI and JSON API have **no login** | It is a diagnostic console for one operator, like a serial terminal | Docker publishes it on `127.0.0.1` only. Front it with an authenticating proxy to go wider. |
+| The web UI and JSON API have **no login** | It is a diagnostic console for one operator, like a serial terminal | Docker publishes it on `127.0.0.1` only. Front it with an authenticating proxy to go wider. Other websites in the same browser are refused ([above](#protection-against-other-websites)); software already running on the machine is not. |
 | DICOM and HL7 are sent **in the clear** | The protocols are used as the peers speak them; this tool is for reproducing what a modality does | Terminate TLS elsewhere, or stay on the clinical VLAN |
-| **PDF to DICOM** reads any path you type, and `/api/tools/pdf-store/scan` will list any directory | It is a local file picker for the operator's own machine | Do not expose the UI beyond the workstation |
+| **PDF to DICOM** reads any path you type, and `/api/tools/pdf-store/scan` will list any directory | It is a local file picker for the operator's own machine | Do not expose the UI beyond the workstation. A page on another site cannot call it ([above](#protection-against-other-websites)). |
 | `/api/logs` returns absolute host paths | Diagnostic output for the person at the keyboard | Same as above |
 | The MWL SCP listens on all interfaces | A modality has to be able to C-FIND this workstation or the feature is pointless | It only listens once enabled in Configuration. `DICOMM_DICOM_BIND` pins it to one NIC. |
 | **Tag Editor** writes patient study data back to the configured PACS, with no confirmation beyond the browser prompt | It exists specifically to correct stuck report-workflow metadata on a real archive | Only overwrites a tag already present, never invents one. Against a real Vue archive, Push has been observed to report success without the stored object actually changing — Fetch and check the current values before *and after* every Push. Use **Seed test studies** (synthetic `ARNPRO^TESTBENCH` patient, not a real one) to try Push before ever running it against a real study. |

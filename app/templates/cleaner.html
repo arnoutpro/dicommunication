@@ -65,7 +65,7 @@
       <div class="form-actions">
         <button type="button" class="button"
                 hx-post="{{ href('/tools/dicom-cleaner/preview-images') }}"
-                hx-vals='js:{remote_id: document.querySelector("[name=remote_id]")?.value || "", identity_id: document.querySelector("[name=identity_id]")?.value || "", study_uid: document.querySelector("[name=study_uid]:checked")?.value || ""}'
+                {# No hx-vals: inside the form, htmx sends remote_id, identity_id and the checked study_uid itself. #}
                 hx-target="#cleaner-preview-picker"
                 hx-swap="innerHTML"
                 hx-indicator="#cleaner-preview-browse-busy">
@@ -113,7 +113,7 @@
         <button class="button primary" type="submit" name="action" value="run" formnovalidate
                 data-study-pick-run data-run-verb="Clean"
                 data-busy-text="Retrieving &amp; sending…"
-                onclick="return confirm('Retrieve, redact, and C-STORE the checked studies back to a PACS? This changes pixel data on real images.');">
+                data-confirm="Retrieve, redact, and C-STORE the checked studies back to a PACS? This changes pixel data on real images.">
           Clean selected
         </button>
       </div>

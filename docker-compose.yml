@@ -23,6 +23,10 @@ services:
       # which address the UI was published on. Startup logs it, which is where
       # someone looks when the UI will not load from another machine.
       DICOMM_HTTP_BIND: ${DICOMM_HTTP_BIND:-127.0.0.1}
+      # Host names (comma-separated) the UI may be opened by, besides localhost
+      # and IP addresses. Only needed behind a reverse proxy that serves it
+      # under a name; see SECURITY.md.
+      DICOMM_ALLOWED_HOSTS: ${DICOMM_ALLOWED_HOSTS:-}
     extra_hosts:
       - "host.docker.internal:host-gateway"
     restart: unless-stopped

@@ -4,7 +4,7 @@
 <div class="form-grid">
   <label>
     Image
-    <select data-cleaner-preview-select>
+    <select name="image" data-cleaner-preview-select>
       {% for row in images %}
       <option value="{{ row.SeriesInstanceUID }}|{{ row.SOPInstanceUID }}">
         Series {{ row.SeriesInstanceUID[-6:] }} · instance {{ row.InstanceNumber or "?" }}
@@ -15,7 +15,8 @@
   <div class="form-actions">
     <button type="button" class="button"
             hx-post="{{ href('/tools/dicom-cleaner/preview-image') }}"
-            hx-vals='js:{remote_id: document.querySelector("[name=remote_id]")?.value || "", identity_id: document.querySelector("[name=identity_id]")?.value || "", study_uid: "{{ study_uid }}", image: document.querySelector("[data-cleaner-preview-select]")?.value || ""}'
+            hx-include="[data-cleaner-preview-select]"
+            hx-vals='{{ {"study_uid": study_uid} | tojson }}'
             hx-target="#cleaner-preview-canvas-wrap"
             hx-swap="innerHTML"
             hx-indicator="#cleaner-preview-busy">
