@@ -707,14 +707,26 @@ function initCleanerPreview(scope) {
   canvas.dataset.cleanerPreviewBound = "1";
 
   const form = canvas.closest("form");
-  const xInput = form?.querySelector("#cleaner-region-x");
-  const yInput = form?.querySelector("#cleaner-region-y");
-  const wInput = form?.querySelector("#cleaner-region-width");
-  const hInput = form?.querySelector("#cleaner-region-height");
+  const field = (id) => form?.querySelector(`#${id}`);
+  const xInput = field("cleaner-region-x");
+  const yInput = field("cleaner-region-y");
+  const wInput = field("cleaner-region-width");
+  const hInput = field("cleaner-region-height");
   if (!(xInput instanceof HTMLInputElement) || !(yInput instanceof HTMLInputElement)
       || !(wInput instanceof HTMLInputElement) || !(hInput instanceof HTMLInputElement)) {
     return;
   }
+  const regionOn = field("cleaner-region-enabled");
+  const textInput = field("cleaner-text");
+  const textX = field("cleaner-text-x");
+  const textY = field("cleaner-text-y");
+  const textSize = field("cleaner-text-size");
+  const textFamily = field("cleaner-text-family");
+  const textColor = field("cleaner-text-color");
+  const textBackground = field("cleaner-text-background");
+  const textBold = field("cleaner-text-bold");
+  const hasText = [textInput, textX, textY, textSize, textFamily, textColor, textBackground, textBold]
+    .every((el) => el instanceof HTMLElement);
 
   const ctx = canvas.getContext("2d");
   const origRows = parseFloat(canvas.dataset.origRows || String(canvas.height)) || canvas.height;
@@ -722,8 +734,31 @@ function initCleanerPreview(scope) {
   const scaleX = origCols / canvas.width;
   const scaleY = origRows / canvas.height;
 
+  // Same colours the server paints with (redact_engine.TEXT_COLORS).
+  const TEXT_COLORS = {
+    white: "#ffffff", black: "#000000", yellow: "#ffe600",
+    red: "#ff2828", green: "#3cdc5a", cyan: "#00dcff",
+  };
+
+  // A gray image can only hold gray, so the server paints a colour as its
+  // brightness; show the same here (and in MONOCHROME1 it is the other way
+  // round on screen, which this preview does not try to mirror).
+  const isGray = canvas.dataset.gray === "1";
+  function paint(name) {
+    const hex = TEXT_COLORS[name] || "#ffffff";
+    if (!isGray) return hex;
+    const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
+    const level = Math.round(0.299 * r + 0.587 * g + 0.114 * b);
+    return `rgb(${level}, ${level}, ${level})`;
+  }
+
   const img = new Image();
   let ready = false;
+  let dragRect = null; // the rectangle being dragged, in canvas pixels
+
+  function pickTarget() {
+    return form.querySelector('input[name="cleaner_pick_target"]:checked')?.value === "text" ? "text" : "region";
+  }
 
   function drawBase() {
     if (!ready) return;
@@ -731,12 +766,25 @@ function initCleanerPreview(scope) {
     ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
   }
 
-  function drawRect(x0, y0, x1, y1) {
-    drawBase();
-    const x = Math.min(x0, x1);
-    const y = Math.min(y0, y1);
-    const w = Math.abs(x1 - x0);
-    const h = Math.abs(y1 - y0);
+  function drawRegion() {
+    let rect = dragRect;
+    if (!rect && regionOn instanceof HTMLInputElement && regionOn.checked) {
+      // Width or height 0 means "to the edge", as on the server.
+      const x = (parseFloat(xInput.value) || 0) / scaleX;
+      const y = (parseFloat(yInput.value) || 0) / scaleY;
+      const wValue = parseFloat(wInput.value) || 0;
+      const hValue = parseFloat(hInput.value) || 0;
+      const w = wValue > 0 ? wValue / scaleX : canvas.width - x;
+      const h = hValue > 0 ? hValue / scaleY : canvas.height - y;
+      if (w > 0 && h > 0) {
+        rect = { x0: x, y0: y, x1: x + w, y1: y + h };
+      }
+    }
+    if (!rect) return;
+    const x = Math.min(rect.x0, rect.x1);
+    const y = Math.min(rect.y0, rect.y1);
+    const w = Math.abs(rect.x1 - rect.x0);
+    const h = Math.abs(rect.y1 - rect.y0);
     ctx.fillStyle = "rgba(220, 38, 38, 0.35)";
     ctx.fillRect(x, y, w, h);
     ctx.strokeStyle = "rgba(220, 38, 38, 0.9)";
@@ -744,22 +792,73 @@ function initCleanerPreview(scope) {
     ctx.strokeRect(x + 0.5, y + 0.5, w, h);
   }
 
-  function drawExistingRegion() {
-    const x = (parseFloat(xInput.value) || 0) / scaleX;
-    const y = (parseFloat(yInput.value) || 0) / scaleY;
-    const w = (parseFloat(wInput.value) || 0) / scaleX;
-    const h = (parseFloat(hInput.value) || 0) / scaleY;
-    if (w > 0 && h > 0) {
-      drawRect(x, y, x + w, y + h);
+  // Mirrors redact_engine.render_text_masks: the ink starts `pad` inside the
+  // box, lines are an ascent plus size/5 apart, and the box gets size/4 padding.
+  function drawText() {
+    if (!hasText) return;
+    const text = textInput.value.replace(/\r\n?/g, "\n");
+    if (!text.trim()) return;
+    const size = Math.max(6, Math.min(400, parseFloat(textSize.value) || 24));
+    const px = size / scaleY;
+    const bold = textBold.checked ? 700 : 400;
+    const family = textFamily.value === "mono" ? '"Cleaner Mono", monospace' : '"Cleaner Sans", sans-serif';
+    const background = textBackground.value;
+    const pad = background !== "none" ? Math.max(2, Math.floor(size / 4)) / scaleY : 0;
+    ctx.save();
+    ctx.font = `${bold} ${px}px ${family}`;
+    ctx.textBaseline = "alphabetic";
+    ctx.textAlign = "left";
+    const lines = text.split("\n");
+    const metrics = lines.map((line) => ctx.measureText(line || " "));
+    const ascent = metrics[0].fontBoundingBoxAscent ?? px * 0.93;
+    const pitch = ascent + Math.floor(size / 5) / scaleY;
+    const firstTop = metrics[0].actualBoundingBoxAscent;
+    const inkWidth = Math.max(...metrics.map((m) => m.actualBoundingBoxRight + m.actualBoundingBoxLeft));
+    const lastBottom = (lines.length - 1) * pitch + metrics[metrics.length - 1].actualBoundingBoxDescent;
+    const originX = (parseFloat(textX.value) || 0) / scaleX;
+    const originY = (parseFloat(textY.value) || 0) / scaleY;
+    if (background !== "none") {
+      ctx.fillStyle = paint(background);
+      ctx.fillRect(originX, originY, inkWidth + 2 * pad, firstTop + lastBottom + 2 * pad);
     }
+    ctx.fillStyle = paint(textColor.value);
+    lines.forEach((line, index) => {
+      ctx.fillText(line, originX + pad + metrics[index].actualBoundingBoxLeft, originY + pad + firstTop + index * pitch);
+    });
+    ctx.restore();
+  }
+
+  function redraw() {
+    if (!ctx || !canvas.isConnected) return;
+    drawBase();
+    drawRegion();
+    drawText();
   }
 
   img.addEventListener("load", () => {
     ready = true;
-    drawBase();
-    drawExistingRegion();
+    redraw();
   });
   img.src = canvas.dataset.imageSrc || "";
+
+  // Redraw when the fields change. The canvas is replaced whenever another
+  // image is loaded, so a listener for a canvas that is gone removes itself.
+  function onFieldChange() {
+    if (!canvas.isConnected) {
+      form.removeEventListener("input", onFieldChange);
+      form.removeEventListener("change", onFieldChange);
+      return;
+    }
+    redraw();
+  }
+  form.addEventListener("input", onFieldChange);
+  form.addEventListener("change", onFieldChange);
+  // The text files load the first time they are used; draw again once they have.
+  document.fonts?.load?.('700 20px "Cleaner Sans"');
+  document.fonts?.load?.('400 20px "Cleaner Sans"');
+  document.fonts?.load?.('400 20px "Cleaner Mono"');
+  document.fonts?.load?.('700 20px "Cleaner Mono"');
+  document.fonts?.addEventListener?.("loadingdone", redraw);
 
   function canvasPoint(event) {
     const rect = canvas.getBoundingClientRect();
@@ -781,44 +880,63 @@ function initCleanerPreview(scope) {
     yInput.value = String(y);
     wInput.value = String(w);
     hInput.value = String(Math.max(1, h));
+    if (regionOn instanceof HTMLInputElement) regionOn.checked = true;
+  }
+
+  function placeText(point) {
+    if (!hasText) return;
+    textX.value = String(Math.round(point.x * scaleX));
+    textY.value = String(Math.round(point.y * scaleY));
+    redraw();
   }
 
   let dragging = false;
   let start = { x: 0, y: 0 };
 
-  canvas.addEventListener("mousedown", (event) => {
+  function begin(event) {
     dragging = true;
     start = canvasPoint(event);
-    event.preventDefault();
-  });
-  canvas.addEventListener("mousemove", (event) => {
+    if (pickTarget() === "text") placeText(start);
+  }
+  function move(event) {
     if (!dragging) return;
     const point = canvasPoint(event);
-    drawRect(start.x, start.y, point.x, point.y);
-  });
-  window.addEventListener("mouseup", (event) => {
+    if (pickTarget() === "text") {
+      placeText(point);
+      return;
+    }
+    dragRect = { x0: start.x, y0: start.y, x1: point.x, y1: point.y };
+    redraw();
+  }
+  function end(event) {
     if (!dragging) return;
     dragging = false;
     const point = canvasPoint(event);
-    applyRegion(start.x, start.y, point.x, point.y);
+    if (pickTarget() === "region") {
+      dragRect = null;
+      // A click without a real drag would otherwise replace the region with a 1 px sliver.
+      if (Math.abs(point.x - start.x) >= 3 && Math.abs(point.y - start.y) >= 3) {
+        applyRegion(start.x, start.y, point.x, point.y);
+      }
+    }
+    redraw();
+  }
+
+  canvas.addEventListener("mousedown", (event) => {
+    begin(event);
+    event.preventDefault();
   });
+  canvas.addEventListener("mousemove", move);
+  window.addEventListener("mouseup", end);
   canvas.addEventListener("touchstart", (event) => {
-    dragging = true;
-    start = canvasPoint(event);
+    begin(event);
     event.preventDefault();
   }, { passive: false });
   canvas.addEventListener("touchmove", (event) => {
-    if (!dragging) return;
-    const point = canvasPoint(event);
-    drawRect(start.x, start.y, point.x, point.y);
+    move(event);
     event.preventDefault();
   }, { passive: false });
-  canvas.addEventListener("touchend", (event) => {
-    if (!dragging) return;
-    dragging = false;
-    const point = canvasPoint(event);
-    applyRegion(start.x, start.y, point.x, point.y);
-  });
+  canvas.addEventListener("touchend", end);
 }
 
 // Dicom Router rule form: show the daily or the interval schedule fields, and

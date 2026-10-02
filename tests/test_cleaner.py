@@ -18,7 +18,7 @@ from app.main import create_app
 from app.models import LocalAE, RemoteNode
 from app.store import ConfigStore
 from app.tools.dicom_preview import MAX_PREVIEW_DIM, PreviewError, render_preview_png
-from app.tools.redact_engine import RedactionError, parse_region, redact_pixels
+from app.tools.redact_engine import RedactionError, parse_region, parse_text_stamp, redact_pixels
 
 
 def _free_port() -> int:
@@ -163,6 +163,116 @@ def test_redact_pixels_region_confined_to_columns() -> None:
 
 
 # ---------------------------------------------------------------------------
+# Text label
+# ---------------------------------------------------------------------------
+
+
+def _stamp(text="HELLO", **kw):
+    args = dict(x=2, y=2, size=20, family="sans", bold="", color="white", background="none")
+    args.update(kw)
+    return parse_text_stamp(text, args["x"], args["y"], args["size"], args["family"], args["bold"],
+                            args["color"], args["background"])
+
+
+def test_parse_text_stamp_clamps_and_falls_back() -> None:
+    stamp = parse_text_stamp("a\r\nb", "-4", "x", "9999", "comic", "on", "pink", "grey")
+    assert stamp.text == "a\nb"
+    assert (stamp.x, stamp.y) == (0, 0)
+    assert stamp.size == 400
+    assert (stamp.family, stamp.bold, stamp.color, stamp.background) == ("sans", True, "white", "none")
+    assert parse_text_stamp("", 0, 0, 1, "", "", "", "").size == 6
+    assert not parse_text_stamp("  \n ", 0, 0, 24, "sans", "", "white", "none").enabled
+
+
+def test_text_only_draws_white_text_and_keeps_the_rest() -> None:
+    ds = _make_instance("1.2.3", "1.2.3.4", "1.2.3.4.20", rows=60, cols=200, samples_per_pixel=1)
+    before = ds.pixel_array.copy()
+    redact_pixels(ds, None, _stamp())
+    array = ds.pixel_array
+    assert array.max() == 255  # white ink
+    assert (array[40:, :] == before[40:, :]).all()  # nothing below the text changed
+    assert (array != before).any()
+    assert ds.BurnedInAnnotation == "YES"
+
+
+def test_text_after_redaction_sits_on_the_black_bar() -> None:
+    ds = _make_instance("1.2.3", "1.2.3.4", "1.2.3.4.21", rows=60, cols=200, samples_per_pixel=1)
+    redact_pixels(ds, parse_region(0, 0, 0, 40), _stamp(color="yellow"))
+    array = ds.pixel_array
+    assert array[0:40].max() == 211  # yellow on gray is its brightness
+    assert array[0:40].min() == 0  # the bar is still black around the letters
+    assert ds.BurnedInAnnotation == "YES"
+
+
+def test_text_background_box_and_bold_and_mono() -> None:
+    plain = _make_instance("1.2.3", "1.2.3.4", "1.2.3.4.22", rows=60, cols=240, samples_per_pixel=1)
+    boxed = _make_instance("1.2.3", "1.2.3.4", "1.2.3.4.23", rows=60, cols=240, samples_per_pixel=1)
+    untouched = plain.pixel_array.copy()
+    redact_pixels(plain, None, _stamp(color="black"))
+    redact_pixels(boxed, None, _stamp(color="black", background="white"))
+    assert (boxed.pixel_array == 255).sum() > (untouched == 255).sum() + 200  # the white box
+    assert (plain.pixel_array == 255).sum() <= (untouched == 255).sum()  # black ink alone adds no white
+    thin = _make_instance("1.2.3", "1.2.3.4", "1.2.3.4.24", rows=60, cols=240, samples_per_pixel=1)
+    heavy = _make_instance("1.2.3", "1.2.3.4", "1.2.3.4.25", rows=60, cols=240, samples_per_pixel=1)
+    redact_pixels(thin, None, _stamp(family="mono"))
+    redact_pixels(heavy, None, _stamp(family="mono", bold="on"))
+    assert int((heavy.pixel_array == 255).sum()) > int((thin.pixel_array == 255).sum())
+
+
+def test_text_color_and_multiframe_and_multiline() -> None:
+    ds = _make_instance("1.2.3", "1.2.3.4", "1.2.3.4.26", rows=80, cols=200, frames=2, samples_per_pixel=3)
+    redact_pixels(ds, None, _stamp("one\ntwo", color="red", background="black"))
+    array = ds.pixel_array
+    assert array.shape == (2, 80, 200, 3)
+    for frame in array:
+        assert ((frame[..., 0] == 255) & (frame[..., 1] < 100)).any()  # red ink
+        assert (frame[..., 0] == 255).sum() == (array[0][..., 0] == 255).sum()  # same on every frame
+    # two lines make a taller box than one
+    one = _make_instance("1.2.3", "1.2.3.4", "1.2.3.4.27", rows=80, cols=200, samples_per_pixel=1)
+    two = _make_instance("1.2.3", "1.2.3.4", "1.2.3.4.28", rows=80, cols=200, samples_per_pixel=1)
+    redact_pixels(one, None, _stamp("one", background="black", color="white"))
+    redact_pixels(two, None, _stamp("one\ntwo", background="black", color="white"))
+    assert int((two.pixel_array == 0).sum()) > int((one.pixel_array == 0).sum())
+
+
+def test_text_respects_bit_depth_signedness_and_monochrome1() -> None:
+    ds = _make_instance("1.2.3", "1.2.3.4", "1.2.3.4.29", rows=60, cols=200, samples_per_pixel=1)
+    ds.BitsAllocated, ds.BitsStored, ds.HighBit = 16, 12, 11
+    ds.PixelData = np.full((60, 200), 100, dtype=np.uint16).tobytes()
+    redact_pixels(ds, None, _stamp())
+    assert ds.pixel_array.max() == 4095  # white at 12 bits, not 16
+
+    signed = _make_instance("1.2.3", "1.2.3.4", "1.2.3.4.30", rows=60, cols=200, samples_per_pixel=1)
+    signed.BitsAllocated, signed.BitsStored, signed.HighBit, signed.PixelRepresentation = 16, 16, 15, 1
+    signed.PixelData = np.full((60, 200), -50, dtype=np.int16).tobytes()
+    redact_pixels(signed, None, _stamp())
+    assert signed.pixel_array.max() == 32767
+
+    mono1 = _make_instance("1.2.3", "1.2.3.4", "1.2.3.4.31", rows=60, cols=200, samples_per_pixel=1)
+    mono1.PhotometricInterpretation = "MONOCHROME1"
+    redact_pixels(mono1, None, _stamp())
+    assert mono1.pixel_array.min() == 0  # white is 0 in MONOCHROME1
+
+
+def test_text_partly_or_wholly_outside_the_image_is_clipped() -> None:
+    ds = _make_instance("1.2.3", "1.2.3.4", "1.2.3.4.32", rows=30, cols=100, samples_per_pixel=1)
+    before = ds.pixel_array.copy()
+    redact_pixels(ds, None, _stamp("far away", x=500, y=500))
+    assert (ds.pixel_array == before).all()
+    redact_pixels(ds, None, _stamp("edge", x=90, y=25, size=40))  # must not raise
+    assert ds.pixel_array.shape == (30, 100)
+
+
+def test_nothing_to_do_changes_nothing() -> None:
+    ds = _make_instance("1.2.3", "1.2.3.4", "1.2.3.4.33", rows=20, cols=20, samples_per_pixel=1)
+    before = ds.pixel_array.copy()
+    redact_pixels(ds, None, _stamp("   "))
+    assert (ds.pixel_array == before).all()
+    assert ds.BurnedInAnnotation == "NO"
+
+
+
+# ---------------------------------------------------------------------------
 # End-to-end: query + run against real (fake) SCPs, through the HTTP layer
 # ---------------------------------------------------------------------------
 
@@ -304,6 +414,61 @@ def test_cleaner_run_same_uid_mode_keeps_original_sop_instance_uid(tmp_path) -> 
             assert str(received[0].SOPInstanceUID) == sop_uid
     finally:
         server.shutdown()
+
+
+def test_cleaner_run_can_add_text_without_a_black_bar(tmp_path) -> None:
+    find_port = _free_port()
+    local_port = _free_port()
+    study_uid = "1.2.826.0.1.3680043.8.498.51223344"
+    series_uid = "1.2.826.0.1.3680043.8.498.51223345"
+    sop_uid = "1.2.826.0.1.3680043.8.498.51223346"
+    instance = _make_instance(study_uid, series_uid, sop_uid, rows=60, cols=200, samples_per_pixel=1)
+    original = instance.pixel_array.copy()
+    server, received = _start_find_move_store_scp(find_port, local_port, study_uid, instance)
+
+    store = ConfigStore(tmp_path / "config")
+    store.save_local(LocalAE(ae_title="DICOMM", host="127.0.0.1", port=local_port, storage_scp_enabled=True))
+    remote = RemoteNode(name="pacs", ae_title="QR_SCP", host="127.0.0.1", port=find_port)
+    store.add_remote(remote)
+    app = create_app(store)
+
+    try:
+        with TestClient(app) as client:
+            run = client.post(
+                "/tools/dicom-cleaner/run",
+                data={
+                    "action": "run", "remote_id": remote.id, "level": "STUDY", "study_uid": [study_uid],
+                    "region_enabled": ["0"],  # the page sends 0, then 1 when the box is ticked
+                    "region_height": "20",
+                    "text": "REVIEWED", "text_x": "5", "text_y": "30", "text_size": "18",
+                    "text_family": "mono", "text_bold": "1", "text_color": "yellow", "text_background": "black",
+                    "uid_mode": "new", "destination_remote_id": remote.id,
+                },
+            )
+            assert run.status_code == 200
+            assert "Stamped and sent" in run.text, run.text
+            assert len(received) == 1
+            array = received[0].pixel_array
+            assert received[0].BurnedInAnnotation == "YES"
+            assert (array[0:25, :] == original[0:25, :]).all()  # no black bar, nothing above the text changed
+            assert (array[25:, :] != original[25:, :]).any()  # the label is down here
+    finally:
+        server.shutdown()
+
+
+def test_cleaner_run_with_no_bar_and_no_text_does_nothing(tmp_path) -> None:
+    store = ConfigStore(tmp_path / "config")
+    remote = RemoteNode(name="pacs", ae_title="QR_SCP", host="127.0.0.1", port=_free_port())
+    store.add_remote(remote)
+    app = create_app(store)
+    with TestClient(app) as client:
+        run = client.post(
+            "/tools/dicom-cleaner/run",
+            data={"action": "run", "remote_id": remote.id, "level": "STUDY", "study_uid": ["1.2.3"],
+                  "region_enabled": ["0", "0"], "text": ""},
+        )
+        assert "Nothing to do" in run.text
+
 
 
 def test_cleaner_run_requires_study_selection() -> None:

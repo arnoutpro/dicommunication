@@ -17,6 +17,12 @@
   src: url("../fonts/plus-jakarta-sans-latin-ext-wght-normal.woff2") format("woff2");
   unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
 }
+/* The text label Dicom Cleaner draws into images uses these same files, so the
+   preview on the image picker looks like the result (licence next to them). */
+@font-face { font-family: "Cleaner Sans"; font-weight: 400; src: url("../fonts/DejaVuSans.ttf") format("truetype"); }
+@font-face { font-family: "Cleaner Sans"; font-weight: 700; src: url("../fonts/DejaVuSans-Bold.ttf") format("truetype"); }
+@font-face { font-family: "Cleaner Mono"; font-weight: 400; src: url("../fonts/DejaVuSansMono.ttf") format("truetype"); }
+@font-face { font-family: "Cleaner Mono"; font-weight: 700; src: url("../fonts/DejaVuSansMono-Bold.ttf") format("truetype"); }
 :root {
   /* "The Reading Room" (DESIGN.md): dark is the reference theme. These map
      onto the tool shell's --az-* roles; see DESIGN.md "In Dicommunication". */
@@ -789,6 +795,8 @@ td.actions > * + * { margin-left: 0.7rem; }
 .region-grid {
   grid-template-columns: repeat(4, minmax(0, 8rem));
 }
+.cleaner-text-field { display: flex; flex-direction: column; gap: 0.25rem; margin-bottom: 0.6rem; font-size: var(--text-md); font-weight: 600; color: var(--muted); }
+.cleaner-text-field > textarea { width: 100%; resize: vertical; }
 .inline-input {
   display: flex;
   gap: 0.4rem;

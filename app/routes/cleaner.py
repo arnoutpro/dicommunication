@@ -3,7 +3,7 @@
 Reached at ``/tools/dicom-cleaner``, same as any other tool page. Same
 combined-form shape as Dicom Anonymizer: "query" runs the Study-level
 C-FIND and re-renders the page with a checkable study table; "run" reads
-the checked studies plus the redact region / UID mode / destination from
+the checked studies plus the redact region, text label / UID mode / destination from
 the same page and does the retrieve + redact + send-back.
 """
 
@@ -114,10 +114,17 @@ async def cleaner_run(request: Request) -> HTMLResponse:
     options: dict = {"action": action, "level": level}
     if action == "run":
         options["study_uids"] = [uid for uid in form.getlist("study_uid") if uid]
+        # The page sends a hidden 0 and then the checkbox's 1, so the last value wins;
+        # a script that sends neither keeps the old behaviour (region on).
+        region_flags = form.getlist("region_enabled")
+        options["region_enabled"] = str(region_flags[-1]) if region_flags else "1"
         options["region_x"] = str(form.get("region_x") or "0")
         options["region_y"] = str(form.get("region_y") or "0")
         options["region_width"] = str(form.get("region_width") or "0")
         options["region_height"] = str(form.get("region_height") or "100")
+        for key in ("text", "text_x", "text_y", "text_size", "text_family", "text_color", "text_background"):
+            options[key] = str(form.get(key) or "")
+        options["text_bold"] = "1" if form.get("text_bold") else ""
         uid_mode = str(form.get("uid_mode") or "new").strip()
         options["uid_mode"] = uid_mode if uid_mode in UID_MODES else "new"
         options["destination_remote_id"] = str(form.get("destination_remote_id") or "")
@@ -237,5 +244,7 @@ async def cleaner_preview_image(request: Request) -> HTMLResponse:
             "orig_cols": orig_cols,
             "png_rows": png_rows,
             "png_cols": png_cols,
+            # Gray images get a text colour's brightness, so the preview must too.
+            "is_gray": int(getattr(ds, "SamplesPerPixel", 1) or 1) == 1,
         },
     )

@@ -33,10 +33,16 @@
 
   <section class="panel step">
     <header class="panel-head">
-      <h2 class="step-title"><span class="step-num" aria-hidden="true">3</span>Redact region</h2>
+      <h2 class="step-title"><span class="step-num" aria-hidden="true">3</span>Redact and label</h2>
     </header>
     <fieldset>
-      <legend>Region in pixels, from the top-left corner</legend>
+      <legend>Black bar</legend>
+      <input type="hidden" name="region_enabled" value="0">
+      <label class="checkbox">
+        <input type="checkbox" id="cleaner-region-enabled" name="region_enabled" value="1" checked>
+        Black out a region
+      </label>
+      <p class="hint">Region in pixels, from the top-left corner.</p>
       <div class="form-grid region-grid">
         <label>
           X
@@ -59,9 +65,73 @@
       <p class="hint">One rectangle is blacked out on every retrieved image. The default covers a 100px band across the top, where modalities usually burn in text. Non-image objects (SR, PR…) are skipped and reported as failed, not sent.</p>
     </fieldset>
 
+    <fieldset>
+      <legend>Text label (optional)</legend>
+      <label class="cleaner-text-field">
+        Text
+        <textarea id="cleaner-text" name="text" rows="2" maxlength="2000" placeholder="e.g. ANONYMISED — leave empty for no text"></textarea>
+        <span class="hint">Burned into every image, one line per line of text. Drawn after the black bar, so it can sit on it.</span>
+      </label>
+      <div class="form-grid region-grid">
+        <label>
+          X
+          <input type="number" id="cleaner-text-x" name="text_x" min="0" value="10">
+        </label>
+        <label>
+          Y
+          <input type="number" id="cleaner-text-y" name="text_y" min="0" value="10">
+        </label>
+        <label>
+          Font size (px)
+          <input type="number" id="cleaner-text-size" name="text_size" min="6" max="400" value="24">
+        </label>
+        <label>
+          Font
+          <select id="cleaner-text-family" name="text_family">
+            <option value="sans" selected>Sans</option>
+            <option value="mono">Monospace</option>
+          </select>
+        </label>
+        <label>
+          Colour
+          <select id="cleaner-text-color" name="text_color">
+            <option value="white" selected>White</option>
+            <option value="black">Black</option>
+            <option value="yellow">Yellow</option>
+            <option value="red">Red</option>
+            <option value="green">Green</option>
+            <option value="cyan">Cyan</option>
+          </select>
+        </label>
+        <label>
+          Box behind the text
+          <select id="cleaner-text-background" name="text_background">
+            <option value="none" selected>None</option>
+            <option value="black">Black</option>
+            <option value="white">White</option>
+          </select>
+        </label>
+        <label class="checkbox">
+          <input type="checkbox" id="cleaner-text-bold" name="text_bold" value="1">
+          Bold
+        </label>
+      </div>
+      <p class="hint">X and Y are the top-left corner of the text, in pixels. Text that runs past the edge is cut off. Gray images get the colour's brightness. Because the text is burned in, Burned-In Annotation (0028,0301) is set to YES when you add some.</p>
+    </fieldset>
+
     <details class="region-picker">
-      <summary>Pick the region on an image</summary>
-      <p class="hint">Load an image from the first checked study and drag a rectangle on it; the fields above follow.</p>
+      <summary>Pick on an image</summary>
+      <p class="hint">Load an image from the first checked study, then drag a rectangle for the black bar or click to place the text; the fields above follow, and the text shows as it will look.</p>
+      <div class="find-level-tabs" role="radiogroup" aria-label="What the image sets">
+        <label class="find-level-tab">
+          <input type="radio" name="cleaner_pick_target" value="region" checked>
+          <span>Drag the black bar</span>
+        </label>
+        <label class="find-level-tab">
+          <input type="radio" name="cleaner_pick_target" value="text">
+          <span>Click to place the text</span>
+        </label>
+      </div>
       <div class="form-actions">
         <button type="button" class="button"
                 hx-post="{{ href('/tools/dicom-cleaner/preview-images') }}"
@@ -113,14 +183,14 @@
         <button class="button primary" type="submit" name="action" value="run" formnovalidate
                 data-study-pick-run data-run-verb="Clean"
                 data-busy-text="Retrieving &amp; sending…"
-                data-confirm="Retrieve, redact, and C-STORE the checked studies back to a PACS? This changes pixel data on real images.">
+                data-confirm="Retrieve, redact or label, and C-STORE the checked studies back to a PACS? This changes pixel data on real images.">
           Clean selected
         </button>
       </div>
     </div>
   </section>
   {% else %}
-  {% set pending_steps = ["Choose studies", "Redact region", "Send back"] %}
+  {% set pending_steps = ["Choose studies", "Redact and label", "Send back"] %}
   {% include "partials/pending_steps.html" %}
   {% endif %}
 </form>

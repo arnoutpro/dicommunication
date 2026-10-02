@@ -9,8 +9,8 @@ is one association per selected entity with its own error handling, small
 enough that a shared abstraction would cost more than it saves.
 
 What Cleaner adds on top of retrieve: blacking out one operator-configured
-rectangle in every retrieved image's pixel data (app/tools/redact_engine.py)
-and then C-STOREing the result to a destination node — by default the same
+rectangle in every retrieved image's pixel data, and/or drawing a text label
+into it (app/tools/redact_engine.py), and then C-STOREing the result to a destination node — by default the same
 PACS the study came from. It does not touch other tags the way Anonymizer's
 modes do; combine the two tools if a study needs both.
 """
@@ -33,7 +33,7 @@ from app.mwl_scp import STORAGE_INBOX
 from app.tools.base import BaseTool, elapsed_ms
 from app.tools.find_advanced import retrieve_storage_gate_message
 from app.tools.find_keys import build_identifier, normalize_da, record_from_dataset
-from app.tools.redact_engine import RedactionError, parse_region, redact_pixels
+from app.tools.redact_engine import RedactionError, parse_region, parse_text_stamp, redact_pixels
 from app.tools.registry import register
 
 PENDING = {0xFF00, 0xFF01}
@@ -339,8 +339,8 @@ class CleanerTool(BaseTool):
     name = "Dicom Cleaner"
     description = (
         "Query a PACS, retrieve studies/series/images, black out a configured "
-        "rectangle of burned-in pixel data (patient info, device overlays), and "
-        "send the cleaned instances back over C-STORE."
+        "rectangle of burned-in pixel data (patient info, device overlays) and/or "
+        "add a text label, and send the cleaned instances back over C-STORE."
     )
     category = "dimse"
     template = "cleaner.html"
@@ -421,9 +421,25 @@ class CleanerTool(BaseTool):
             )
         entities = entities[:MAX_ENTITIES_PER_RUN]
 
-        region = parse_region(
-            options.get("region_x"), options.get("region_y"), options.get("region_width"), options.get("region_height")
+        region_on = str(options.get("region_enabled", "1")).strip().lower() in {"1", "true", "on", "yes"}
+        region = (
+            parse_region(
+                options.get("region_x"), options.get("region_y"),
+                options.get("region_width"), options.get("region_height"),
+            )
+            if region_on else None
         )
+        text = parse_text_stamp(
+            options.get("text"), options.get("text_x"), options.get("text_y"), options.get("text_size"),
+            options.get("text_family"), options.get("text_bold"), options.get("text_color"),
+            options.get("text_background"),
+        )
+        if region is None and not text.enabled:
+            return ToolResult(
+                tool_id=self.id, tool_name=self.name, ok=False,
+                summary="Nothing to do: black out a region, add text, or both.",
+                remote_id=remote.id, remote_name=remote.name,
+            )
         uid_mode = str(options.get("uid_mode") or "new").strip()
         if uid_mode not in UID_MODES:
             uid_mode = "new"
@@ -473,7 +489,7 @@ class CleanerTool(BaseTool):
             for ds in datasets:
                 sop_uid = str(getattr(ds, "SOPInstanceUID", ""))
                 try:
-                    redact_pixels(ds, region)
+                    redact_pixels(ds, region, text)
                 except RedactionError as exc:
                     records.append({
                         "study_instance_uid": str(getattr(ds, "StudyInstanceUID", "")),
@@ -486,10 +502,18 @@ class CleanerTool(BaseTool):
                 if uid_mode == "new":
                     _renumber_for_new_uid(ds)
                 cleaned.append(ds)
+            done_parts = []
+            if region is not None:
+                done_parts.append(f"x={region.x}, y={region.y}, w={region.width or 'full'}, h={region.height}")
+            if text.enabled:
+                done_parts.append(
+                    f"text at x={text.x}, y={text.y}, {text.size}px {text.family}{' bold' if text.bold else ''}, "
+                    f"{text.color}" + (f" on {text.background}" if text.background != "none" else "")
+                )
             steps.append(ToolStep(
-                name="Redact", ok=bool(cleaned),
-                message=f"Redacted {len(cleaned)} of {len(datasets)} instance(s) "
-                f"(x={region.x}, y={region.y}, w={region.width or 'full'}, h={region.height})",
+                name="Redact" if region is not None else "Add text", ok=bool(cleaned),
+                message=f"{'Redacted' if region is not None else 'Stamped'} {len(cleaned)} of {len(datasets)} "
+                f"instance(s) ({'; '.join(done_parts)})",
                 duration_ms=elapsed_ms(redact_started),
             ))
 
@@ -520,7 +544,7 @@ class CleanerTool(BaseTool):
 
         ok = bool(steps) and all(step.ok for step in steps)
         summary = (
-            f"Redacted and sent {stored} instance(s) to {destination.name}"
+            f"{'Redacted' if region is not None else 'Stamped'} and sent {stored} instance(s) to {destination.name}"
             if ok else (next((s.message for s in steps if not s.ok), "Cleaner run failed"))
         )
         return ToolResult(

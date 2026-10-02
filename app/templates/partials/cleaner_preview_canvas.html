@@ -6,9 +6,10 @@
       data-cleaner-preview-canvas
       data-orig-rows="{{ orig_rows }}"
       data-orig-cols="{{ orig_cols }}"
+      {% if is_gray %}data-gray="1"{% endif %}
       data-image-src="data:image/png;base64,{{ png_b64 }}"
       width="{{ png_cols }}"
       height="{{ png_rows }}"></canvas>
-  <p class="hint">Drag a rectangle on the image to fill in the redact region below.</p>
+  <p class="hint">Drag a rectangle (or click, in text mode) on the image to fill in the fields above.</p>
 </div>
 {% endif %}

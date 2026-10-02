@@ -9,3 +9,4 @@ numpy>=1.26
 pylibjpeg>=2.0.1
 pylibjpeg-libjpeg>=2.3.0
 pylibjpeg-openjpeg>=2.4.0
+pillow>=10.1

@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+### Dicom Cleaner
+
+- **Add a text label to images, not just a black bar.** Step 3 is now "Redact and label": next to the black bar there is a **Text label** with the text itself (several lines are fine), **X** / **Y**, **font size** (6–400 px), **Sans or Monospace**, **bold**, **colour** (white, black, yellow, red, green, cyan) and an optional black or white **box behind the text** for readability. It is drawn after the bar, so it can sit on it, and **Black out a region** can be unticked to add text only. The text is rendered with Pillow (new requirement, `pillow>=10.1`) from DejaVu fonts that now ship in `app/static/fonts` (Bitstream Vera licence, next to the files), so it looks the same in Docker, the MSI and the DMG. It handles 8–16-bit, signed, MONOCHROME1, colour (RGB and raw YCbCr) and multi-frame images; gray images get the colour's brightness, and text that runs past the edge is clipped. Because the text is burned in, Burned-In Annotation (0028,0301) is set to `YES` on images that got text (still `NO` after a plain redaction).
+- **The image picker shows the text live**, in the same font and place it will be stored in, and has a new **Click to place the text** mode next to **Drag the black bar**. A plain click in bar mode no longer replaces the region with a 1 px sliver, and the preview now draws the bar when Width is 0 ("to the edge").
+- Tests: text stamping on gray/colour/multi-frame/12-bit/signed/MONOCHROME1 images, clipping, parsing, and a full run through a fake PACS that adds text without a bar.
+
 ## 0.5.2
 
 A new app icon: the brand "A" as a sharp vector, on a deep navy tile where its colours glow, so Dicommunication stands out in the Dock, Finder and the Windows Start menu.
