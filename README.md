@@ -56,9 +56,14 @@ Synthetic lab studies (not clinical data). Light theme, in the arnout.pro "Readi
 
 ![HL7 send with an ORM order update and Change existing order set to SC](docs/screenshots/hl7-send.webp)
 
-## What's new in 0.5.2
+## What's new in 0.5.3
 
-Details in [CHANGELOG.md](CHANGELOG.md#052).
+Details in [CHANGELOG.md](CHANGELOG.md#053).
+
+- **Send Image to PACS**: new DIMSE test tool — query a Modality Worklist SCP for a scheduled order, pick it, choose a modality and a few descriptive tags, and C-STORE a small solid-black placeholder image carrying that order's Patient/Study/Accession identifiers, simulating a modality completing the exam.
+- **Dicom Cleaner**: the redact rectangle can carry a label (e.g. "REDACTED"), stamped across the same black box on every retrieved image.
+
+And in 0.5.2 ([CHANGELOG.md](CHANGELOG.md#052)):
 
 - **A new app icon** on macOS and Windows: the brand "A", now a sharp vector, on a deep navy tile where its colours glow, so the app stands out in the Dock, Finder and the Start menu.
 
@@ -74,7 +79,7 @@ And in 0.5.1 ([CHANGELOG.md](CHANGELOG.md#051)):
 ## Contents
 
 - [Screenshots](#screenshots)
-- [What's new in 0.5.2](#whats-new-in-052)
+- [What's new in 0.5.3](#whats-new-in-053)
 - [What this is (and is not)](#what-this-is-and-is-not)
 - [How it's made](#how-its-made)
 - [DICOM services this tool distinguishes](#dicom-services-this-tool-distinguishes)
