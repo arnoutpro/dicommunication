@@ -53,6 +53,10 @@ def test_build_black_image_dataset_carries_order_identifiers() -> None:
     array = ds.pixel_array
     assert array.shape == (IMAGE_SIZE, IMAGE_SIZE)
     assert not array.any()  # solid black: every pixel is 0
+    # An explicit window, so a viewer auto-windowing from a degenerate
+    # (min == max == 0) image doesn't render it as solid white.
+    assert ds.WindowCenter == "128"
+    assert ds.WindowWidth == "256"
 
 
 def test_build_black_image_dataset_generates_study_uid_when_order_has_none() -> None:

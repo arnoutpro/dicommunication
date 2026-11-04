@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Fixes
+
+- **Send Image to PACS**: the placeholder image rendered as solid white instead of solid black in some viewers (confirmed with MicroDicom). Every pixel is 0 and the image carried no Window Center/Width, so a viewer auto-windowing from the image's own min/max hit a degenerate (min == max, width 0) case and some fell back to rendering it fully white. An explicit full-range 8-bit window (Window Center 128, Window Width 256 — 0 falls at the bottom of it) fixes this.
+
 ## 0.5.6
 
 Send Image to PACS can now look up a patient directly, Dicom Anonymizer results summarize per study, and Dicom Cleaner can assign a new Series Instance UID on send-back (plus a fix: Dicom Cleaner's redact-rectangle Label never actually reached the sent-back images).
