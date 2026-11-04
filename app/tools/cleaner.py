@@ -294,6 +294,20 @@ def _renumber_for_new_uid(ds: Dataset) -> None:
             file_meta.MediaStorageSOPClassUID = str(ds.SOPClassUID)
 
 
+def _renumber_for_new_series(ds: Dataset, series_uid: str) -> None:
+    """Move the cleaned image into its own new series, identified by
+    ``series_uid`` (the same value for every instance from one original
+    series, so they land together as one new series rather than one each).
+
+    Always also assigns a fresh SOPInstanceUID: keeping the original one
+    while changing its parent Series UID would leave the same SOP Instance
+    UID claimed by two different series on the PACS, which is ambiguous
+    regardless of the separate "same UID" choice for SOP Instance UID.
+    """
+    ds.SeriesInstanceUID = series_uid
+    _renumber_for_new_uid(ds)
+
+
 def _send_back(local: LocalAE, destination: RemoteNode, datasets: list[Dataset]) -> tuple[int, str]:
     """C-STORE every dataset to destination, using each one's own SOP Class."""
     if not datasets:
@@ -428,6 +442,7 @@ class CleanerTool(BaseTool):
         uid_mode = str(options.get("uid_mode") or "new").strip()
         if uid_mode not in UID_MODES:
             uid_mode = "new"
+        new_series_uid = bool(options.get("new_series_uid"))
 
         config_remotes = options.get("_remotes") or {}
         destination_id = str(options.get("destination_remote_id") or remote.id).strip() or remote.id
@@ -471,6 +486,7 @@ class CleanerTool(BaseTool):
 
             redact_started = time.perf_counter()
             cleaned: list[Dataset] = []
+            series_uid_map: dict[str, str] = {}
             for ds in datasets:
                 sop_uid = str(getattr(ds, "SOPInstanceUID", ""))
                 try:
@@ -484,14 +500,19 @@ class CleanerTool(BaseTool):
                         "error": str(exc),
                     })
                     continue
-                if uid_mode == "new":
+                if new_series_uid:
+                    original_series = str(getattr(ds, "SeriesInstanceUID", ""))
+                    new_series = series_uid_map.setdefault(original_series, generate_uid())
+                    _renumber_for_new_series(ds, new_series)
+                elif uid_mode == "new":
                     _renumber_for_new_uid(ds)
                 cleaned.append(ds)
             steps.append(ToolStep(
                 name="Redact", ok=bool(cleaned),
                 message=f"Redacted {len(cleaned)} of {len(datasets)} instance(s) "
                 f"(x={region.x}, y={region.y}, w={region.width or 'full'}, h={region.height})"
-                + (f', labeled "{region_label}"' if region_label else ""),
+                + (f', labeled "{region_label}"' if region_label else "")
+                + (f", into {len(series_uid_map)} new series" if new_series_uid else ""),
                 duration_ms=elapsed_ms(redact_started),
             ))
 
@@ -514,7 +535,8 @@ class CleanerTool(BaseTool):
             steps.append(ToolStep(
                 name="C-STORE", ok=stored == len(cleaned) and not send_error,
                 message=f"Sent {stored} of {len(cleaned)} cleaned instance(s) to {destination.name} "
-                f"as {'new' if uid_mode == 'new' else 'original'} SOP Instance UID(s)"
+                f"as {'new' if (uid_mode == 'new' or new_series_uid) else 'original'} SOP Instance UID(s)"
+                + (", in new Series Instance UID(s)" if new_series_uid else "")
                 + (f". Error: {send_error}" if send_error else ""),
                 duration_ms=elapsed_ms(send_started),
             ))

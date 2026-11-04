@@ -9,7 +9,7 @@
 </header>
 
 {% if config.remotes %}
-{% set has_orders = action == "query" and result and result.ok and result.records %}
+{% set has_orders = action in ("query", "patient", "manual") and result and result.ok and result.records %}
 <form class="step-flow" method="post" action="{{ href('/tools/send-image/run') }}">
   <section class="panel step">
     <header class="panel-head">
@@ -26,9 +26,31 @@
           </option>
           {% endfor %}
         </select>
-        <span class="hint">Must provide Query/Retrieve (Study Root C-FIND) — finds a study whether its order is open or already closed.</span>
+        <span class="hint">Where the image is sent in step 4, by default — used for the lookup too, when looking up.</span>
       </label>
       {% include "partials/identity_select.html" %}
+    </div>
+
+    <fieldset class="find-mode-field" data-send-image-mode>
+      <legend>How to find the study</legend>
+      <div class="find-level-tabs" role="radiogroup" aria-label="Lookup mode">
+        <label class="find-level-tab">
+          <input type="radio" name="find_mode" value="lookup" {% if find_mode not in ("patient", "manual") %}checked{% endif %} data-send-image-mode-radio>
+          <span>Look up a study</span>
+        </label>
+        <label class="find-level-tab">
+          <input type="radio" name="find_mode" value="patient" {% if find_mode == "patient" %}checked{% endif %} data-send-image-mode-radio>
+          <span>Look up a patient</span>
+        </label>
+        <label class="find-level-tab">
+          <input type="radio" name="find_mode" value="manual" {% if find_mode == "manual" %}checked{% endif %} data-send-image-mode-radio>
+          <span>Enter details manually</span>
+        </label>
+      </div>
+      <span class="hint">An order that's already closed, with no image yet stored, won't show up in a PACS study query (Study Root C-FIND only finds studies that already have at least one stored instance) or in Worklist. Look up the patient instead — many PACS keep a patient record independently of any study — or, if even that isn't registered, enter the details by hand. Either way, Accession Number and Study Instance UID are set in step 3.</span>
+    </fieldset>
+
+    <div class="form-grid" data-send-image-lookup-fields {% if find_mode in ("patient", "manual") %}hidden{% endif %}>
       <label>
         Patient name
         <input name="patient_name" value="{{ query.patient_name or '' }}" placeholder="DOE*">
@@ -50,9 +72,39 @@
         <input name="study_date" type="date" value="{{ query.study_date or '' }}">
       </label>
     </div>
-    <div class="form-actions">
+    <div class="form-actions" data-send-image-lookup-fields {% if find_mode in ("patient", "manual") %}hidden{% endif %}>
       <button class="button{% if not has_orders %} primary{% endif %}" type="submit" name="action" value="query" formnovalidate data-busy-text="Querying…">Find studies</button>
       <span class="hint">Study Root C-FIND against studies already stored in the PACS. Blank fields match anything, but a narrower query (e.g. Study Date) avoids a slow archive-wide search.</span>
+    </div>
+
+    <div class="form-grid" data-send-image-patient-fields {% if find_mode != "patient" %}hidden{% endif %}>
+      <label>
+        Patient name
+        <input name="patient_lookup_name" value="{{ patient.patient_name or '' }}" placeholder="DOE*">
+      </label>
+      <label>
+        Patient ID
+        <input name="patient_lookup_id" value="{{ patient.patient_id or '' }}">
+      </label>
+    </div>
+    <div class="form-actions" data-send-image-patient-fields {% if find_mode != "patient" %}hidden{% endif %}>
+      <button class="button{% if not has_orders %} primary{% endif %}" type="submit" name="action" value="patient" formnovalidate data-busy-text="Querying…">Find patient</button>
+      <span class="hint">Patient Root C-FIND, at Patient level — finds a registered patient even with zero studies. You'll set the Accession Number yourself in step 3.</span>
+    </div>
+
+    <div class="form-grid" data-send-image-manual-fields {% if find_mode != "manual" %}hidden{% endif %}>
+      <label>
+        Patient name
+        <input name="manual_patient_name" value="{{ manual.patient_name or '' }}" placeholder="DOE^JANE">
+      </label>
+      <label>
+        Patient ID
+        <input name="manual_patient_id" value="{{ manual.patient_id or '' }}">
+      </label>
+    </div>
+    <div class="form-actions" data-send-image-manual-fields {% if find_mode != "manual" %}hidden{% endif %}>
+      <button class="button{% if not has_orders %} primary{% endif %}" type="submit" name="action" value="manual" formnovalidate data-busy-text="Preparing…">Use these details</button>
+      <span class="hint">Not looked up anywhere — goes straight to picking a modality, Accession Number, and sending.</span>
     </div>
   </section>
 
@@ -112,6 +164,14 @@
         <span class="hint">What the stored image is tagged as — independent of the study's own existing modalities.</span>
       </label>
       <label>
+        Accession number
+        <input name="image_accession_number" placeholder="Falls back to the study's own Accession Number, if it had one">
+      </label>
+      <label>
+        Study Instance UID
+        <input name="image_study_instance_uid" placeholder="Falls back to the study's own UID, or generates a new one">
+      </label>
+      <label>
         Study description
         <input name="study_description" placeholder="Falls back to the study's own description">
       </label>
@@ -166,7 +226,7 @@
 {% endif %}
 
 <div id="result">
-  {% if result and not (action == "query" and result.ok and result.records) %}
+  {% if result and not (action in ("query", "patient", "manual") and result.ok and result.records) %}
     {% include "partials/result.html" %}
   {% endif %}
 </div>

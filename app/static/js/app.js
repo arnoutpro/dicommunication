@@ -886,11 +886,42 @@ function initTestbenchServiceFields() {
   sync();
 }
 
+// Send Image to PACS: toggle between the Study Root C-FIND lookup fields
+// and the manual-entry fields, for an order whose study has no image yet
+// stored (so it can't be found by either Worklist or a PACS query).
+function initSendImageForm(scope) {
+  const root = scope instanceof Element ? scope : document;
+  root.querySelectorAll("[data-send-image-mode]").forEach((fieldset) => {
+    const form = fieldset.closest("form");
+    if (!form || form.dataset.sendImageReady === "1") {
+      return;
+    }
+    form.dataset.sendImageReady = "1";
+    const groups = {
+      lookup: form.querySelectorAll("[data-send-image-lookup-fields]"),
+      patient: form.querySelectorAll("[data-send-image-patient-fields]"),
+      manual: form.querySelectorAll("[data-send-image-manual-fields]"),
+    };
+    function sync() {
+      const checked = form.querySelector("[data-send-image-mode-radio]:checked");
+      const mode = checked ? checked.value : "lookup";
+      Object.entries(groups).forEach(([name, elements]) => {
+        elements.forEach((el) => { el.hidden = name !== mode; });
+      });
+    }
+    form.querySelectorAll("[data-send-image-mode-radio]").forEach((radio) => {
+      radio.addEventListener("change", sync);
+    });
+    sync();
+  });
+}
+
 initNavTree();
 initRouteRuleForm();
 initTestbenchServiceFields();
 initPdfStoreForm(document);
 initAnonymizeForm(document);
+initSendImageForm(document);
 initStudyPick(document);
 initChoiceHints(document);
 initCleanerPreview(document);

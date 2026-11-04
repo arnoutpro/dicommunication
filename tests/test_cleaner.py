@@ -355,6 +355,146 @@ def test_cleaner_run_same_uid_mode_keeps_original_sop_instance_uid(tmp_path) -> 
         server.shutdown()
 
 
+def test_cleaner_run_with_new_series_uid_groups_same_source_series_together(tmp_path) -> None:
+    find_port = _free_port()
+    local_port = _free_port()
+    study_uid = "1.2.826.0.1.3680043.8.498.51223344"
+    series_uid = "1.2.826.0.1.3680043.8.498.51223345"
+    sop_uid_1 = "1.2.826.0.1.3680043.8.498.51223346"
+    sop_uid_2 = "1.2.826.0.1.3680043.8.498.51223347"
+    instance1 = _make_instance(study_uid, series_uid, sop_uid_1, rows=8, cols=6, samples_per_pixel=1)
+    instance2 = _make_instance(study_uid, series_uid, sop_uid_2, rows=8, cols=6, samples_per_pixel=1)
+    received: list[Dataset] = []
+
+    def handle_find(event):
+        identifier = event.identifier
+        if str(getattr(identifier, "QueryRetrieveLevel", "STUDY")) == "STUDY":
+            ds = Dataset()
+            ds.QueryRetrieveLevel = "STUDY"
+            ds.PatientName = "DOE^JANE"
+            ds.PatientID = "12345"
+            ds.StudyDate = "20260101"
+            ds.AccessionNumber = "ACC1"
+            ds.StudyDescription = "US ABDOMEN"
+            ds.ModalitiesInStudy = "US"
+            ds.StudyInstanceUID = study_uid
+            yield 0xFF00, ds
+        yield 0x0000, None
+
+    def handle_move(event):
+        yield "127.0.0.1", local_port, {"contexts": [build_context(str(instance1.SOPClassUID))]}
+        yield 2
+        yield 0xFF00, instance1
+        yield 0xFF00, instance2
+
+    def handle_store(event):
+        ds = event.dataset
+        ds.file_meta = event.file_meta
+        received.append(ds)
+        return 0x0000
+
+    ae = AE(ae_title="QR_SCP")
+    ae.add_supported_context(StudyRootQueryRetrieveInformationModelFind)
+    ae.add_supported_context(StudyRootQueryRetrieveInformationModelMove)
+    ae.add_supported_context(str(instance1.SOPClassUID))
+    server = ae.start_server(
+        ("127.0.0.1", find_port),
+        block=False,
+        evt_handlers=[
+            (evt.EVT_C_FIND, handle_find),
+            (evt.EVT_C_MOVE, handle_move),
+            (evt.EVT_C_STORE, handle_store),
+        ],
+    )
+
+    store = ConfigStore(tmp_path / "config")
+    store.save_local(LocalAE(ae_title="DICOMM", host="127.0.0.1", port=local_port, storage_scp_enabled=True))
+    remote = RemoteNode(name="pacs", ae_title="QR_SCP", host="127.0.0.1", port=find_port)
+    store.add_remote(remote)
+    app = create_app(store)
+
+    try:
+        with TestClient(app) as client:
+            run = client.post(
+                "/tools/dicom-cleaner/run",
+                data={
+                    "action": "run",
+                    "remote_id": remote.id,
+                    "level": "STUDY",
+                    "study_uid": [study_uid],
+                    "region_x": "0",
+                    "region_y": "0",
+                    "region_width": "0",
+                    "region_height": "3",
+                    "uid_mode": "same",
+                    "new_series_uid": "on",
+                    "destination_remote_id": remote.id,
+                },
+            )
+            assert run.status_code == 200
+            assert "Redacted and sent" in run.text, run.text
+            assert "into 1 new series" in run.text
+            assert len(received) == 2
+            new_series_1 = str(received[0].SeriesInstanceUID)
+            new_series_2 = str(received[1].SeriesInstanceUID)
+            # Both instances came from the same original series, so they share
+            # one new Series UID instead of getting one each.
+            assert new_series_1 == new_series_2
+            assert new_series_1 != series_uid
+            # A new series forces a new SOP Instance UID too, even though
+            # uid_mode="same" was chosen for the (unrelated) SOP UID setting.
+            assert str(received[0].SOPInstanceUID) != sop_uid_1
+            assert str(received[1].SOPInstanceUID) != sop_uid_2
+    finally:
+        server.shutdown()
+
+
+def test_cleaner_region_label_reaches_the_sent_image(tmp_path) -> None:
+    find_port = _free_port()
+    local_port = _free_port()
+    study_uid = "1.2.826.0.1.3680043.8.498.61223344"
+    series_uid = "1.2.826.0.1.3680043.8.498.61223345"
+    sop_uid = "1.2.826.0.1.3680043.8.498.61223346"
+    instance = _make_instance(study_uid, series_uid, sop_uid, rows=40, cols=120, samples_per_pixel=1)
+    server, received = _start_find_move_store_scp(find_port, local_port, study_uid, instance)
+
+    store = ConfigStore(tmp_path / "config")
+    store.save_local(LocalAE(ae_title="DICOMM", host="127.0.0.1", port=local_port, storage_scp_enabled=True))
+    remote = RemoteNode(name="pacs", ae_title="QR_SCP", host="127.0.0.1", port=find_port)
+    store.add_remote(remote)
+    app = create_app(store)
+
+    try:
+        with TestClient(app) as client:
+            run = client.post(
+                "/tools/dicom-cleaner/run",
+                data={
+                    "action": "run",
+                    "remote_id": remote.id,
+                    "level": "STUDY",
+                    "study_uid": [study_uid],
+                    "region_x": "0",
+                    "region_y": "0",
+                    "region_width": "0",
+                    "region_height": "40",
+                    "region_label": "REDACTED",
+                    "uid_mode": "new",
+                    "destination_remote_id": remote.id,
+                },
+            )
+            assert run.status_code == 200
+            assert "Redacted and sent" in run.text, run.text
+            assert "REDACTED" in run.text
+            assert len(received) == 1
+            array = received[0].pixel_array
+            # The label is burned in at the pixel data's own max brightness —
+            # this only happens if region_label actually reached redact_pixels
+            # through the full HTTP route, not just the lower-level function.
+            assert (array == 255).any()
+    finally:
+        server.shutdown()
+
+
 def test_cleaner_run_requires_study_selection() -> None:
     from app.tools.cleaner import CleanerTool
 

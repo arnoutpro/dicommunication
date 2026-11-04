@@ -118,8 +118,10 @@ async def cleaner_run(request: Request) -> HTMLResponse:
         options["region_y"] = str(form.get("region_y") or "0")
         options["region_width"] = str(form.get("region_width") or "0")
         options["region_height"] = str(form.get("region_height") or "100")
+        options["region_label"] = str(form.get("region_label") or "").strip()
         uid_mode = str(form.get("uid_mode") or "new").strip()
         options["uid_mode"] = uid_mode if uid_mode in UID_MODES else "new"
+        options["new_series_uid"] = bool(form.get("new_series_uid"))
         options["destination_remote_id"] = str(form.get("destination_remote_id") or "")
     else:
         options["patient_id"] = query["patient_id"]

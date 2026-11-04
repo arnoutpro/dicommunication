@@ -232,6 +232,9 @@ def test_anonymize_query_then_run_end_to_end(tmp_path) -> None:
             )
             assert run.status_code == 200
             assert "Anonymized and exported" in run.text, run.text
+            # Results summarize per study, not one row per instance.
+            assert "instances" in run.text
+            assert "sop instance uid" not in run.text.lower()
 
             written = list(out_dir.rglob("*.dcm"))
             assert written
