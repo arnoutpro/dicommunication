@@ -6,14 +6,12 @@ import time
 from pydicom.dataset import Dataset
 from pynetdicom import AE, evt
 from pynetdicom.sop_class import (
-    ModalityWorklistInformationFind,
     SecondaryCaptureImageStorage,
+    StudyRootQueryRetrieveInformationModelFind,
 )
 
 from app.dicom_image import IMAGE_SIZE, build_black_image_dataset
 from app.models import RemoteNode
-from app.mwl import entry_to_dataset
-from app.models import WorklistEntry
 
 
 def _free_port() -> int:
@@ -78,24 +76,24 @@ def test_send_image_has_its_own_page(client, remote) -> None:
     response = client.get("/tools/send-image")
     assert response.status_code == 200
     assert b"Send Image to PACS" in response.content
-    assert b"Find orders" in response.content
+    assert b"Find studies" in response.content
 
 
-def _order_entry() -> WorklistEntry:
-    return WorklistEntry(
-        patient_name="DOE^JANE",
-        patient_id="1001",
-        accession_number="ACC1",
-        modality="CT",
-        station_ae_title="CT1",
-        scheduled_date="2026-08-18",
-        requested_procedure_description="CT CHEST",
-        study_instance_uid="1.2.3.4.5",
-    )
+def _canned_study() -> Dataset:
+    ds = Dataset()
+    ds.QueryRetrieveLevel = "STUDY"
+    ds.PatientName = "DOE^JANE"
+    ds.PatientID = "1001"
+    ds.AccessionNumber = "ACC1"
+    ds.StudyDate = "20260818"
+    ds.StudyDescription = "CT CHEST"
+    ds.ModalitiesInStudy = "CT"
+    ds.StudyInstanceUID = "1.2.3.4.5"
+    return ds
 
 
-def _start_mwl_and_storage_scp(port: int):
-    canned = entry_to_dataset(_order_entry())
+def _start_find_and_storage_scp(port: int):
+    canned = _canned_study()
     received: list[Dataset] = []
 
     def handle_find(event):
@@ -109,7 +107,7 @@ def _start_mwl_and_storage_scp(port: int):
         return 0x0000
 
     ae = AE(ae_title="QR_SCP")
-    ae.add_supported_context(ModalityWorklistInformationFind)
+    ae.add_supported_context(StudyRootQueryRetrieveInformationModelFind)
     ae.add_supported_context(SecondaryCaptureImageStorage)
     server = ae.start_server(
         ("127.0.0.1", port),
@@ -122,9 +120,9 @@ def _start_mwl_and_storage_scp(port: int):
     return server, received
 
 
-def test_send_image_query_lists_the_order(client, store) -> None:
+def test_send_image_query_lists_the_study(client, store) -> None:
     port = _free_port()
-    server, _received = _start_mwl_and_storage_scp(port)
+    server, _received = _start_find_and_storage_scp(port)
     try:
         time.sleep(0.05)
         remote = RemoteNode(name="pacs", ae_title="QR_SCP", host="127.0.0.1", port=port)
@@ -137,15 +135,15 @@ def test_send_image_query_lists_the_order(client, store) -> None:
         assert queried.status_code == 200
         assert b"DOE^JANE" in queried.content
         assert b"ACC1" in queried.content
-        assert b"Pick the order" in queried.content
+        assert b"Pick the study" in queried.content
         assert b'name="orders_json"' in queried.content
     finally:
         server.shutdown()
 
 
-def test_send_image_full_flow_stores_a_black_image_with_order_identifiers(client, store) -> None:
+def test_send_image_full_flow_stores_a_black_image_with_study_identifiers(client, store) -> None:
     port = _free_port()
-    server, received = _start_mwl_and_storage_scp(port)
+    server, received = _start_find_and_storage_scp(port)
     try:
         time.sleep(0.05)
         remote = RemoteNode(name="pacs", ae_title="QR_SCP", host="127.0.0.1", port=port)
@@ -164,9 +162,9 @@ def test_send_image_full_flow_stores_a_black_image_with_order_identifiers(client
                 "action": "run",
                 "order_index": "0",
                 "orders_json": (
-                    '[{"patient_name":"DOE^JANE","patient_id":"1001",'
-                    '"accession_number":"ACC1","study_instance_uid":"1.2.3.4.5",'
-                    '"requested_procedure_description":"CT CHEST"}]'
+                    '[{"PatientName":"DOE^JANE","PatientID":"1001",'
+                    '"AccessionNumber":"ACC1","StudyInstanceUID":"1.2.3.4.5",'
+                    '"StudyDescription":"CT CHEST"}]'
                 ),
                 "modality": "CT",
                 "study_description": "",
@@ -183,7 +181,7 @@ def test_send_image_full_flow_stores_a_black_image_with_order_identifiers(client
         assert stored.AccessionNumber == "ACC1"
         assert stored.StudyInstanceUID == "1.2.3.4.5"
         assert stored.Modality == "CT"
-        # No typed Study Description: falls back to the order's own procedure description.
+        # No typed Study Description: falls back to the study's own description.
         assert stored.StudyDescription == "CT CHEST"
         assert stored.BodyPartExamined == "CHEST"
         assert not stored.pixel_array.any()
@@ -191,9 +189,9 @@ def test_send_image_full_flow_stores_a_black_image_with_order_identifiers(client
         server.shutdown()
 
 
-def test_send_image_run_without_picking_an_order_fails(client, store) -> None:
+def test_send_image_run_without_picking_a_study_fails(client, store) -> None:
     port = _free_port()
-    server, received = _start_mwl_and_storage_scp(port)
+    server, received = _start_find_and_storage_scp(port)
     try:
         time.sleep(0.05)
         remote = RemoteNode(name="pacs", ae_title="QR_SCP", host="127.0.0.1", port=port)
@@ -210,7 +208,7 @@ def test_send_image_run_without_picking_an_order_fails(client, store) -> None:
             },
         )
         assert sent.status_code == 200
-        assert b"Pick an order first" in sent.content
+        assert b"Pick a study first" in sent.content
         assert not received
     finally:
         server.shutdown()
@@ -218,7 +216,7 @@ def test_send_image_run_without_picking_an_order_fails(client, store) -> None:
 
 def test_send_image_run_without_modality_fails(client, store) -> None:
     port = _free_port()
-    server, received = _start_mwl_and_storage_scp(port)
+    server, received = _start_find_and_storage_scp(port)
     try:
         time.sleep(0.05)
         remote = RemoteNode(name="pacs", ae_title="QR_SCP", host="127.0.0.1", port=port)
@@ -230,7 +228,7 @@ def test_send_image_run_without_modality_fails(client, store) -> None:
                 "remote_id": remote.id,
                 "action": "run",
                 "order_index": "0",
-                "orders_json": '[{"patient_name":"DOE^JANE","patient_id":"1001"}]',
+                "orders_json": '[{"PatientName":"DOE^JANE","PatientID":"1001"}]',
                 "modality": "",
             },
         )
@@ -244,8 +242,8 @@ def test_send_image_run_without_modality_fails(client, store) -> None:
 def test_send_image_run_can_target_a_different_destination(client, store) -> None:
     source_port = _free_port()
     dest_port = _free_port()
-    source_server, source_received = _start_mwl_and_storage_scp(source_port)
-    dest_server, dest_received = _start_mwl_and_storage_scp(dest_port)
+    source_server, source_received = _start_find_and_storage_scp(source_port)
+    dest_server, dest_received = _start_find_and_storage_scp(dest_port)
     try:
         time.sleep(0.05)
         source = RemoteNode(name="source", ae_title="QR_SCP", host="127.0.0.1", port=source_port)
@@ -260,8 +258,8 @@ def test_send_image_run_can_target_a_different_destination(client, store) -> Non
                 "action": "run",
                 "order_index": "0",
                 "orders_json": (
-                    '[{"patient_name":"DOE^JANE","patient_id":"1001",'
-                    '"accession_number":"ACC1"}]'
+                    '[{"PatientName":"DOE^JANE","PatientID":"1001",'
+                    '"AccessionNumber":"ACC1"}]'
                 ),
                 "modality": "US",
                 "destination_remote_id": dest.id,
