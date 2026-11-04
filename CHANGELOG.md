@@ -1,8 +1,6 @@
 # Changelog
 
-## 0.5.7
-
-A fix: the Send Image to PACS placeholder came out solid white instead of solid black in some viewers.
+## Unreleased
 
 ### Interface
 
