@@ -56,9 +56,13 @@ Synthetic lab studies (not clinical data). Light theme, in the arnout.pro "Readi
 
 ![HL7 send with an ORM order update and Change existing order set to SC](docs/screenshots/hl7-send.webp)
 
-## What's new in 0.5.4
+## What's new in 0.5.5
 
-Details in [CHANGELOG.md](CHANGELOG.md#054).
+Details in [CHANGELOG.md](CHANGELOG.md#055).
+
+- **Send Image to PACS**: now finds the target study with Study Root C-FIND against the PACS archive instead of Modality Worklist, so it can attach an image to a study whose order is already closed/completed, not just an open scheduled order.
+
+And in 0.5.4 ([CHANGELOG.md](CHANGELOG.md#054)):
 
 - **Send Image to PACS**: fixed re-querying after an order list was shown — the browser's required-field validation was blocking "Find orders" from being clicked again.
 
@@ -83,7 +87,7 @@ And in 0.5.1 ([CHANGELOG.md](CHANGELOG.md#051)):
 ## Contents
 
 - [Screenshots](#screenshots)
-- [What's new in 0.5.4](#whats-new-in-054)
+- [What's new in 0.5.5](#whats-new-in-055)
 - [What this is (and is not)](#what-this-is-and-is-not)
 - [How it's made](#how-its-made)
 - [DICOM services this tool distinguishes](#dicom-services-this-tool-distinguishes)
