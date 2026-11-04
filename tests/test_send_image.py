@@ -239,6 +239,114 @@ def test_send_image_run_without_modality_fails(client, store) -> None:
         server.shutdown()
 
 
+# ---------------------------------------------------------------------------
+# Manual entry: a closed order whose study has no image yet stored is
+# invisible to both Worklist and Study Root C-FIND, so it must be typed in.
+# ---------------------------------------------------------------------------
+
+
+def test_send_image_manual_entry_lists_a_synthetic_study(client, store) -> None:
+    port = _free_port()
+    server, _received = _start_find_and_storage_scp(port)
+    try:
+        time.sleep(0.05)
+        remote = RemoteNode(name="pacs", ae_title="QR_SCP", host="127.0.0.1", port=port)
+        store.add_remote(remote)
+
+        manual = client.post(
+            "/tools/send-image/run",
+            data={
+                "remote_id": remote.id,
+                "action": "manual",
+                "manual_patient_name": "DOE^JOHN",
+                "manual_patient_id": "2002",
+                "manual_accession_number": "ACC2",
+                "manual_study_instance_uid": "1.2.3.4.5.888",
+            },
+        )
+        assert manual.status_code == 200
+        assert b"DOE^JOHN" in manual.content
+        assert b"ACC2" in manual.content
+        assert b"Pick the study" in manual.content
+        assert b'name="orders_json"' in manual.content
+    finally:
+        server.shutdown()
+
+
+def test_send_image_manual_entry_requires_patient_name_and_id(client, store) -> None:
+    port = _free_port()
+    server, _received = _start_find_and_storage_scp(port)
+    try:
+        time.sleep(0.05)
+        remote = RemoteNode(name="pacs", ae_title="QR_SCP", host="127.0.0.1", port=port)
+        store.add_remote(remote)
+
+        manual = client.post(
+            "/tools/send-image/run",
+            data={
+                "remote_id": remote.id,
+                "action": "manual",
+                "manual_patient_name": "",
+                "manual_patient_id": "",
+            },
+        )
+        assert manual.status_code == 200
+        assert b"Patient Name and Patient ID are required" in manual.content
+    finally:
+        server.shutdown()
+
+
+def test_send_image_full_flow_via_manual_entry_stores_black_image(client, store) -> None:
+    port = _free_port()
+    server, received = _start_find_and_storage_scp(port)
+    try:
+        time.sleep(0.05)
+        remote = RemoteNode(name="pacs", ae_title="QR_SCP", host="127.0.0.1", port=port)
+        store.add_remote(remote)
+
+        manual = client.post(
+            "/tools/send-image/run",
+            data={
+                "remote_id": remote.id,
+                "action": "manual",
+                "manual_patient_name": "DOE^JOHN",
+                "manual_patient_id": "2002",
+                "manual_accession_number": "ACC2",
+                "manual_study_instance_uid": "1.2.3.4.5.888",
+            },
+        )
+        assert manual.status_code == 200
+
+        sent = client.post(
+            "/tools/send-image/run",
+            data={
+                "remote_id": remote.id,
+                "action": "run",
+                "order_index": "0",
+                "orders_json": (
+                    '[{"PatientName":"DOE^JOHN","PatientID":"2002",'
+                    '"AccessionNumber":"ACC2","StudyInstanceUID":"1.2.3.4.5.888"}]'
+                ),
+                "modality": "MR",
+                "study_description": "",
+                "body_part_examined": "",
+                "series_description": "",
+            },
+        )
+        assert sent.status_code == 200
+        assert b"Stored 1 MR image" in sent.content
+        assert len(received) == 1
+        stored = received[0]
+        assert str(stored.PatientName) == "DOE^JOHN"
+        assert stored.PatientID == "2002"
+        assert stored.AccessionNumber == "ACC2"
+        assert stored.StudyInstanceUID == "1.2.3.4.5.888"
+        assert stored.Modality == "MR"
+        assert not stored.pixel_array.any()
+    finally:
+        server.shutdown()
+
+
 def test_send_image_run_can_target_a_different_destination(client, store) -> None:
     source_port = _free_port()
     dest_port = _free_port()

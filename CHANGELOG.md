@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Interface
+
+- **Send Image to PACS**: Step 1 now offers a choice of how to find the study. **Look up a study** is the existing Study Root C-FIND. **Enter details manually** is new — for an order whose study has no image yet stored at all, which is invisible to both Worklist and Study Root C-FIND (the latter only matches studies that already have a stored instance): type in Patient Name, Patient ID, Accession Number, and optionally a Study Instance UID directly, skipping any lookup.
+
 ## 0.5.5
 
 Send Image to PACS can now find a study whether its order is open or already closed.

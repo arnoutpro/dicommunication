@@ -1,13 +1,20 @@
-"""Query a PACS for a stored study via Study Root C-FIND, then build and
+"""Find a study (by Study Root C-FIND, or typed in by hand), then build and
 C-STORE a small solid-black placeholder image referencing that study's
 Patient/Study/Accession identifiers.
 
-Same query/pick/run shape as Dicom Anonymizer and Dicom Cleaner. The query
+Same query/pick/run shape as Dicom Anonymizer and Dicom Cleaner. The lookup
 is Study Root C-FIND (reusing app/tools/find_keys.py, same keys/identifier
 building as Dicom Cleaner's own study query) rather than Modality Worklist,
 since a stored study is found this way whether its order is still open or
 already closed — MWL only lists orders that haven't been performed yet, so
-it can't find a study after the event that created it. Exactly one study is
+it can't find one after the event that created it.
+
+That still isn't enough for an order whose study has no image yet stored at
+all: Study Root C-FIND only finds a study that already has at least one
+stored instance, so a closed-but-empty order is invisible to both lookups.
+For that case ``_manual`` takes typed-in Patient/Accession/Study Instance
+UID details as-is, skipping any network lookup, and builds the same single-
+record result shape ``_query`` would have returned. Exactly one study is
 picked per run (one image is sent, not a batch).
 """
 
@@ -50,12 +57,13 @@ class SendImageTool(BaseTool):
     id = "send-image"
     name = "Send Image to PACS"
     description = (
-        "Query a PACS for a stored study (Study Root C-FIND — finds a study "
-        "whether its order is still open or already closed), pick one, choose a "
-        "modality, and C-STORE a small solid-black placeholder image (Secondary "
-        "Capture) carrying that study's Patient/Study/Accession identifiers. The "
-        "image has no real pixel content; it exists to exercise the storage "
-        "path, not for review."
+        "Find a study — by Study Root C-FIND (works whether its order is "
+        "still open or already closed) or, for an order with no image yet "
+        "stored at all, typed in by hand — pick it, choose a modality, and "
+        "C-STORE a small solid-black placeholder image (Secondary Capture) "
+        "carrying that study's Patient/Study/Accession identifiers. The image "
+        "has no real pixel content; it exists to exercise the storage path, "
+        "not for review."
     )
     category = "dimse"
     template = "send_image.html"
@@ -70,7 +78,40 @@ class SendImageTool(BaseTool):
         action = str(options.get("action") or "query").strip()
         if action == "run":
             return self._run(local, remote, options)
+        if action == "manual":
+            return self._manual(remote, options)
         return self._query(local, remote, options)
+
+    def _manual(
+        self, remote: RemoteNode | None, options: dict[str, Any]
+    ) -> ToolResult:
+        patient_name = str(options.get("patient_name") or "").strip()
+        patient_id = str(options.get("patient_id") or "").strip()
+        if not patient_name or not patient_id:
+            return ToolResult(
+                tool_id=self.id,
+                tool_name=self.name,
+                ok=False,
+                summary="Patient Name and Patient ID are required.",
+            )
+        record = {
+            "PatientName": patient_name,
+            "PatientID": patient_id,
+            "AccessionNumber": str(options.get("accession_number") or "").strip(),
+            "StudyDate": "",
+            "StudyDescription": "",
+            "StudyInstanceUID": str(options.get("study_instance_uid") or "").strip(),
+            "ModalitiesInStudy": "",
+        }
+        return ToolResult(
+            tool_id=self.id,
+            tool_name=self.name,
+            ok=True,
+            summary="Using manually entered details — not looked up in the PACS or Worklist.",
+            remote_id=remote.id if remote else None,
+            remote_name=remote.name if remote else None,
+            records=[record],
+        )
 
     def _query(
         self, local: LocalAE, remote: RemoteNode | None, options: dict[str, Any]
