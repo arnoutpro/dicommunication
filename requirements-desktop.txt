@@ -2,6 +2,6 @@
 # Docker and `make run` do not need these.
 pywebview>=6.2.1,<7
 pythonnet>=3.0,<4; sys_platform == "win32"
-pyobjc-core>=12.2.2; sys_platform == "darwin"
-pyobjc-framework-Cocoa>=12.2.2; sys_platform == "darwin"
-pyobjc-framework-WebKit>=12.2.2; sys_platform == "darwin"
+pyobjc-core>=13.0; sys_platform == "darwin"
+pyobjc-framework-Cocoa>=13.0; sys_platform == "darwin"
+pyobjc-framework-WebKit>=13.0; sys_platform == "darwin"
