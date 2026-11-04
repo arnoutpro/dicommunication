@@ -1,6 +1,8 @@
 # Changelog
 
-## Unreleased
+## 0.5.6
+
+Send Image to PACS can now look up a patient directly, Dicom Anonymizer results summarize per study, and Dicom Cleaner can assign a new Series Instance UID on send-back (plus a fix: Dicom Cleaner's redact-rectangle Label never actually reached the sent-back images).
 
 ### Interface
 

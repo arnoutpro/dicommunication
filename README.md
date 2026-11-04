@@ -56,9 +56,15 @@ Synthetic lab studies (not clinical data). Light theme, in the arnout.pro "Readi
 
 ![HL7 send with an ORM order update and Change existing order set to SC](docs/screenshots/hl7-send.webp)
 
-## What's new in 0.5.5
+## What's new in 0.5.6
 
-Details in [CHANGELOG.md](CHANGELOG.md#055).
+Details in [CHANGELOG.md](CHANGELOG.md#056).
+
+- **Send Image to PACS**: Step 1 can now look up a patient (Patient Root C-FIND, finds a patient even with zero studies) or skip lookup entirely and enter details by hand — for an order whose study has no image yet stored.
+- **Dicom Anonymizer**: results summarize one row per study instead of one per instance.
+- **Dicom Cleaner**: a new "Assign a new Series Instance UID" option on send-back; also fixes the redact rectangle's Label field, which never actually reached the sent-back images.
+
+And in 0.5.5 ([CHANGELOG.md](CHANGELOG.md#055)):
 
 - **Send Image to PACS**: now finds the target study with Study Root C-FIND against the PACS archive instead of Modality Worklist, so it can attach an image to a study whose order is already closed/completed, not just an open scheduled order.
 
@@ -87,7 +93,7 @@ And in 0.5.1 ([CHANGELOG.md](CHANGELOG.md#051)):
 ## Contents
 
 - [Screenshots](#screenshots)
-- [What's new in 0.5.5](#whats-new-in-055)
+- [What's new in 0.5.6](#whats-new-in-056)
 - [What this is (and is not)](#what-this-is-and-is-not)
 - [How it's made](#how-its-made)
 - [DICOM services this tool distinguishes](#dicom-services-this-tool-distinguishes)
