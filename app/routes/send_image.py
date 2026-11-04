@@ -1,9 +1,9 @@
 """Send Image to PACS page and run route.
 
 Reached at ``/tools/send-image``, same combined-form shape as Dicom
-Anonymizer and Dicom Cleaner: "query" runs the MWL C-FIND and re-renders
-the page with a pickable order table; "run" reads the picked order (carried
-across as JSON, since there is no re-query-by-UID for a worklist entry),
+Anonymizer and Dicom Cleaner: "query" runs a Study Root C-FIND and
+re-renders the page with a pickable study table; "run" reads the picked
+study (carried across as JSON, since there is no re-query-by-UID needed),
 the chosen modality, the additional tags, and the destination from the
 same page, builds the placeholder image, and C-STOREs it.
 """
@@ -25,14 +25,13 @@ from app.tools.send_image import MODALITIES
 router = APIRouter()
 
 
-def _worklist_query_from_form(form: Any) -> dict[str, str]:
+def _study_query_from_form(form: Any) -> dict[str, str]:
     return {
         "patient_name": str(form.get("patient_name") or "").strip(),
         "patient_id": str(form.get("patient_id") or "").strip(),
         "accession_number": str(form.get("accession_number") or "").strip(),
         "modality": str(form.get("query_modality") or "").strip(),
-        "station_ae_title": str(form.get("station_ae_title") or "").strip(),
-        "scheduled_date": str(form.get("scheduled_date") or "").strip(),
+        "study_date": str(form.get("study_date") or "").strip(),
     }
 
 
@@ -85,7 +84,7 @@ async def send_image_run(request: Request) -> HTMLResponse:
     remote_id = str(form.get("remote_id") or "")
     identity_id = str(form.get("identity_id") or "")
     action = str(form.get("action") or "query").strip()
-    query = _worklist_query_from_form(form)
+    query = _study_query_from_form(form)
 
     options: dict[str, Any] = {"action": action, **query}
     if action == "run":

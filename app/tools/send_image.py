@@ -1,12 +1,14 @@
-"""Query Modality Worklist for a scheduled order, then build and C-STORE a
-small solid-black placeholder image referencing that order's Patient/
-Study/Accession identifiers — simulating a modality completing the exam.
+"""Query a PACS for a stored study via Study Root C-FIND, then build and
+C-STORE a small solid-black placeholder image referencing that study's
+Patient/Study/Accession identifiers.
 
-Same query/pick/run shape as Dicom Anonymizer and Dicom Cleaner, except the
-query is MWL C-FIND (reusing app/mwl.py, same as the MWL C-FIND test tool)
-rather than Study Root C-FIND, since an "order" is a scheduled procedure
-step, not a stored study. Exactly one order is picked per run (one image is
-sent, not a batch).
+Same query/pick/run shape as Dicom Anonymizer and Dicom Cleaner. The query
+is Study Root C-FIND (reusing app/tools/find_keys.py, same keys/identifier
+building as Dicom Cleaner's own study query) rather than Modality Worklist,
+since a stored study is found this way whether its order is still open or
+already closed — MWL only lists orders that haven't been performed yet, so
+it can't find a study after the event that created it. Exactly one study is
+picked per run (one image is sent, not a batch).
 """
 
 from __future__ import annotations
@@ -14,7 +16,7 @@ from __future__ import annotations
 import time
 from typing import Any
 
-from pynetdicom.sop_class import SecondaryCaptureImageStorage
+from pynetdicom.sop_class import SecondaryCaptureImageStorage, StudyRootQueryRetrieveInformationModelFind
 
 from app.dicom_client import (
     associate,
@@ -24,23 +26,36 @@ from app.dicom_client import (
     rejected_sop_message,
 )
 from app.dicom_image import build_black_image_dataset
-from app.models import LocalAE, RemoteNode, ToolResult, ToolStep, WorklistQuery
-from app.mwl import query_remote
+from app.models import LocalAE, RemoteNode, ToolResult, ToolStep
 from app.tools.base import BaseTool, elapsed_ms
+from app.tools.find_keys import build_identifier, normalize_da, record_from_dataset
 from app.tools.registry import register
 
 MODALITIES = ["CR", "CT", "DX", "MG", "MR", "NM", "OT", "PT", "RF", "SC", "SR", "US", "XA"]
+
+PENDING = {0xFF00, 0xFF01}
+MAX_QUERY_RESULTS = 500
+QUERY_COLUMNS = [
+    "StudyInstanceUID",
+    "PatientName",
+    "PatientID",
+    "StudyDate",
+    "AccessionNumber",
+    "StudyDescription",
+    "ModalitiesInStudy",
+]
 
 
 class SendImageTool(BaseTool):
     id = "send-image"
     name = "Send Image to PACS"
     description = (
-        "Query a Modality Worklist SCP for a scheduled order, pick one, choose a "
+        "Query a PACS for a stored study (Study Root C-FIND — finds a study "
+        "whether its order is still open or already closed), pick one, choose a "
         "modality, and C-STORE a small solid-black placeholder image (Secondary "
-        "Capture) carrying that order's Patient/Study/Accession identifiers — "
-        "simulating a modality completing the exam. The image has no real pixel "
-        "content; it exists to exercise the storage path, not for review."
+        "Capture) carrying that study's Patient/Study/Accession identifiers. The "
+        "image has no real pixel content; it exists to exercise the storage "
+        "path, not for review."
     )
     category = "dimse"
     template = "send_image.html"
@@ -65,44 +80,140 @@ class SendImageTool(BaseTool):
                 tool_id=self.id,
                 tool_name=self.name,
                 ok=False,
-                summary="Select a remote DICOM node that provides Modality Worklist.",
+                summary="Select a remote DICOM node that provides Query/Retrieve (Study Root C-FIND).",
             )
-        query = WorklistQuery.model_validate(options)
-        if not query.station_ae_title and local.station_ae_title:
-            query = query.model_copy(update={"station_ae_title": local.station_ae_title})
-        result = query_remote(local, remote, query)
-        steps = [
-            ToolStep(
-                name="MWL C-FIND",
-                ok=result.ok,
-                message=result.summary,
-                duration_ms=result.duration_ms,
-                details={"count": len(result.entries)},
-            )
-        ]
-        records = [
-            {
-                "patient_name": entry.patient_name,
-                "patient_id": entry.patient_id,
-                "accession_number": entry.accession_number,
-                "modality": entry.modality,
-                "scheduled_date": entry.scheduled_date,
-                "requested_procedure_description": entry.requested_procedure_description,
-                "study_instance_uid": entry.study_instance_uid,
-            }
-            for entry in result.entries
-        ]
+        values = {
+            "PatientName": str(options.get("patient_name") or "").strip(),
+            "PatientID": str(options.get("patient_id") or "").strip(),
+            "AccessionNumber": str(options.get("accession_number") or "").strip(),
+            "StudyDate": normalize_da(str(options.get("study_date") or "")),
+            "ModalitiesInStudy": str(options.get("modality") or "").strip().upper(),
+        }
+        values = {keyword: value for keyword, value in values.items() if value}
+        identifier = build_identifier("STUDY", values, QUERY_COLUMNS)
+
+        started = time.perf_counter()
+        steps: list[ToolStep] = []
+        contexts: list[dict[str, Any]] = []
+        records: list[dict[str, Any]] = []
+        assoc = None
+        with capture_pynetdicom_log() as log_stream:
+            try:
+                assoc_started = time.perf_counter()
+                _ae, assoc = associate(
+                    local, remote, [StudyRootQueryRetrieveInformationModelFind]
+                )
+                contexts = context_rows(assoc)
+                rejected = rejected_sop_message(
+                    contexts,
+                    "Study Root Query/Retrieve FIND",
+                    "This node is not a Q/R SCP.",
+                )
+                if not assoc.is_established:
+                    steps.append(
+                        ToolStep(
+                            name="Association",
+                            ok=False,
+                            message=rejected or reject_reason(assoc),
+                            duration_ms=elapsed_ms(assoc_started),
+                        )
+                    )
+                elif not assoc.accepted_contexts:
+                    steps.append(
+                        ToolStep(
+                            name="Association",
+                            ok=False,
+                            message=rejected
+                            or (
+                                "Association opened, but Study Root Query/Retrieve FIND "
+                                "was not accepted."
+                            ),
+                            duration_ms=elapsed_ms(assoc_started),
+                        )
+                    )
+                    assoc.release()
+                else:
+                    steps.append(
+                        ToolStep(
+                            name="Association",
+                            ok=True,
+                            message="Study Root FIND SOP Class accepted",
+                            duration_ms=elapsed_ms(assoc_started),
+                        )
+                    )
+                    find_started = time.perf_counter()
+                    failed_status = None
+                    for status, identifier_ds in assoc.send_c_find(
+                        identifier, StudyRootQueryRetrieveInformationModelFind
+                    ):
+                        if not status:
+                            failed_status = "No C-FIND response (timeout, abort, or invalid PDU)."
+                            break
+                        code = int(status.Status)
+                        if code in PENDING and identifier_ds is not None:
+                            if len(records) < MAX_QUERY_RESULTS:
+                                records.append(record_from_dataset(identifier_ds, QUERY_COLUMNS))
+                        elif code == 0x0000:
+                            continue
+                        else:
+                            failed_status = f"C-FIND status 0x{code:04X}"
+                            break
+                    if failed_status:
+                        steps.append(
+                            ToolStep(
+                                name="C-FIND",
+                                ok=False,
+                                message=failed_status,
+                                duration_ms=elapsed_ms(find_started),
+                            )
+                        )
+                    else:
+                        steps.append(
+                            ToolStep(
+                                name="C-FIND",
+                                ok=True,
+                                message=f"{len(records)} stud{'y' if len(records) == 1 else 'ies'} found",
+                                duration_ms=elapsed_ms(find_started),
+                                details={"count": len(records)},
+                            )
+                        )
+                    assoc.release()
+                    steps.append(ToolStep(name="Release", ok=True, message="Association released"))
+            except Exception as exc:  # noqa: BLE001
+                steps.append(
+                    ToolStep(
+                        name="C-FIND",
+                        ok=False,
+                        message=f"{type(exc).__name__}: {exc}",
+                        duration_ms=elapsed_ms(started),
+                    )
+                )
+            finally:
+                if assoc is not None and getattr(assoc, "is_established", False):
+                    try:
+                        assoc.abort()
+                    except Exception:  # noqa: BLE001
+                        pass
+            log = log_stream.getvalue().strip()
+
+        ok = bool(steps) and all(step.ok for step in steps)
+        failed = next((step for step in steps if not step.ok), None)
+        summary = (
+            f"Study Root C-FIND found {len(records)} stud{'y' if len(records) == 1 else 'ies'} on {remote.ae_title}"
+            if ok
+            else (failed.message if failed else "C-FIND failed")
+        )
         return ToolResult(
             tool_id=self.id,
             tool_name=self.name,
-            ok=result.ok,
-            summary=result.summary,
+            ok=ok,
+            summary=summary,
             remote_id=remote.id,
             remote_name=remote.name,
-            duration_ms=result.duration_ms,
+            duration_ms=elapsed_ms(started),
             steps=steps,
-            log=result.log,
-            contexts=result.contexts,
+            log=log,
+            contexts=contexts,
             records=records,
         )
 
@@ -110,11 +221,11 @@ class SendImageTool(BaseTool):
         self, local: LocalAE, remote: RemoteNode | None, options: dict[str, Any]
     ) -> ToolResult:
         order = options.get("order") or {}
-        patient_name = str(order.get("patient_name") or "").strip()
-        patient_id = str(order.get("patient_id") or "").strip()
+        patient_name = str(order.get("PatientName") or "").strip()
+        patient_id = str(order.get("PatientID") or "").strip()
         if not patient_name or not patient_id:
             return ToolResult(
-                tool_id=self.id, tool_name=self.name, ok=False, summary="Pick an order first."
+                tool_id=self.id, tool_name=self.name, ok=False, summary="Pick a study first."
             )
         modality = str(options.get("modality") or "").strip().upper()
         if not modality:
@@ -137,10 +248,10 @@ class SendImageTool(BaseTool):
             patient_name=patient_name,
             patient_id=patient_id,
             modality=modality,
-            accession_number=str(order.get("accession_number") or ""),
-            study_instance_uid=str(order.get("study_instance_uid") or ""),
+            accession_number=str(order.get("AccessionNumber") or ""),
+            study_instance_uid=str(order.get("StudyInstanceUID") or ""),
             study_description=str(
-                options.get("study_description") or order.get("requested_procedure_description") or ""
+                options.get("study_description") or order.get("StudyDescription") or ""
             ),
             body_part_examined=str(options.get("body_part_examined") or ""),
             series_description=str(options.get("series_description") or ""),

@@ -13,7 +13,7 @@
 <form class="step-flow" method="post" action="{{ href('/tools/send-image/run') }}">
   <section class="panel step">
     <header class="panel-head">
-      <h2 class="step-title"><span class="step-num" aria-hidden="true">1</span>Find an order</h2>
+      <h2 class="step-title"><span class="step-num" aria-hidden="true">1</span>Find a study</h2>
       <span class="muted">Calling AE {{ config.local.ae_title }}</span>
     </header>
     <div class="form-grid">
@@ -26,7 +26,7 @@
           </option>
           {% endfor %}
         </select>
-        <span class="hint">Must provide Modality Worklist (MWL C-FIND), not just Study Root.</span>
+        <span class="hint">Must provide Query/Retrieve (Study Root C-FIND) — finds a study whether its order is open or already closed.</span>
       </label>
       {% include "partials/identity_select.html" %}
       <label>
@@ -46,26 +46,22 @@
         <input name="query_modality" value="{{ query.modality or '' }}" placeholder="CT" maxlength="16">
       </label>
       <label>
-        Station AE Title
-        <input name="station_ae_title" value="{{ query.station_ae_title or '' }}" maxlength="16">
-      </label>
-      <label>
-        Scheduled date
-        <input name="scheduled_date" type="date" value="{{ query.scheduled_date or '' }}">
+        Study date
+        <input name="study_date" type="date" value="{{ query.study_date or '' }}">
       </label>
     </div>
     <div class="form-actions">
-      <button class="button{% if not has_orders %} primary{% endif %}" type="submit" name="action" value="query" formnovalidate data-busy-text="Querying…">Find orders</button>
-      <span class="hint">Modality Worklist C-FIND. Blank fields match anything.</span>
+      <button class="button{% if not has_orders %} primary{% endif %}" type="submit" name="action" value="query" formnovalidate data-busy-text="Querying…">Find studies</button>
+      <span class="hint">Study Root C-FIND against studies already stored in the PACS. Blank fields match anything, but a narrower query (e.g. Study Date) avoids a slow archive-wide search.</span>
     </div>
   </section>
 
   {% if has_orders %}
   <section class="panel step">
     <header class="panel-head">
-      <h2 class="step-title"><span class="step-num" aria-hidden="true">2</span>Pick the order</h2>
+      <h2 class="step-title"><span class="step-num" aria-hidden="true">2</span>Pick the study</h2>
     </header>
-    <p class="hint">{{ result.records | length }} order{{ "" if result.records | length == 1 else "s" }} found.</p>
+    <p class="hint">{{ result.records | length }} stud{{ "y" if result.records | length == 1 else "ies" }} found.</p>
     <div class="table-wrap">
       <table class="find-table send-image-orders">
         <thead>
@@ -74,9 +70,9 @@
             <th>Patient Name</th>
             <th>Patient ID</th>
             <th>Accession Number</th>
-            <th>Scheduled Date</th>
-            <th>Scheduled Modality</th>
-            <th>Procedure</th>
+            <th>Study Date</th>
+            <th>Modalities</th>
+            <th>Study Description</th>
           </tr>
         </thead>
         <tbody>
@@ -84,14 +80,14 @@
           <tr>
             <td class="pick-col">
               <input type="radio" name="order_index" value="{{ loop.index0 }}" {% if loop.first %}required{% endif %}
-                     aria-label="Pick {{ row.patient_name or row.patient_id }}">
+                     aria-label="Pick {{ row.PatientName or row.PatientID }}">
             </td>
-            <td>{{ row.patient_name }}</td>
-            <td>{{ row.patient_id }}</td>
-            <td>{{ row.accession_number }}</td>
-            <td>{{ row.scheduled_date }}</td>
-            <td>{{ row.modality }}</td>
-            <td>{{ row.requested_procedure_description }}</td>
+            <td>{{ row.PatientName }}</td>
+            <td>{{ row.PatientID }}</td>
+            <td>{{ row.AccessionNumber }}</td>
+            <td>{{ row.StudyDate }}</td>
+            <td>{{ row.ModalitiesInStudy }}</td>
+            <td>{{ row.StudyDescription }}</td>
           </tr>
           {% endfor %}
         </tbody>
@@ -113,11 +109,11 @@
           <option value="{{ code }}">{{ code }}</option>
           {% endfor %}
         </select>
-        <span class="hint">What the stored image is tagged as — independent of the order's own scheduled modality.</span>
+        <span class="hint">What the stored image is tagged as — independent of the study's own existing modalities.</span>
       </label>
       <label>
         Study description
-        <input name="study_description" placeholder="Falls back to the order's procedure description">
+        <input name="study_description" placeholder="Falls back to the study's own description">
       </label>
       <label>
         Body part examined
@@ -139,7 +135,7 @@
       <label>
         Send to
         <select name="destination_remote_id">
-          <option value="">Same as the order's remote node</option>
+          <option value="">Same as the study's remote node</option>
           {% for node in config.remotes %}
           <option value="{{ node.id }}">{{ node.name }} — {{ node.ae_title }} @ {{ node.connect_host }}:{{ node.port }}</option>
           {% endfor %}
@@ -148,14 +144,14 @@
       <div class="form-actions">
         <button class="button primary" type="submit" name="action" value="run" formnovalidate
                 data-busy-text="Sending…"
-                data-confirm="C-STORE a solid-black placeholder image for this order to a PACS?">
+                data-confirm="C-STORE a solid-black placeholder image for this study to a PACS?">
           Send image
         </button>
       </div>
     </div>
   </section>
   {% else %}
-  {% set pending_steps = ["Pick the order", "Describe the image", "Send"] %}
+  {% set pending_steps = ["Pick the study", "Describe the image", "Send"] %}
   {% include "partials/pending_steps.html" %}
   {% endif %}
 </form>

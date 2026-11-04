@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Interface
+
+- **Send Image to PACS** now finds the target study with Study Root C-FIND against the PACS archive instead of Modality Worklist — so it can attach an image to a study whose order has already been completed/closed, not just an open scheduled order (MWL stops listing an order the moment it's performed, so it could never find a closed one). Step 1's fields change to match: Study Date replaces Scheduled Date, Station AE Title is dropped (not a Study Root key), and the picked-study table shows Study Date / Modalities / Study Description instead of the scheduled-order fields.
+
 ## 0.5.4
 
 A small fix: re-querying Send Image to PACS after results were shown was blocked by the browser's own form validation.
