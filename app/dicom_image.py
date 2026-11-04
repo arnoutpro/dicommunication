@@ -87,6 +87,13 @@ def build_black_image_dataset(
     ds.PixelRepresentation = 0
     ds.PixelData = pixels
     ds.BurnedInAnnotation = "NO"
+    # Every pixel is 0, so a viewer auto-windowing from the image's own
+    # min/max (a common fallback when these tags are absent) hits a
+    # degenerate width-0 window and some viewers render that as solid
+    # white rather than black. An explicit full-range 8-bit window (0
+    # falls at the bottom of it) avoids that and displays as black.
+    ds.WindowCenter = "128"
+    ds.WindowWidth = "256"
 
     text = f"{ds.PatientName}{ds.PatientID}{ds.StudyDescription}{ds.SeriesDescription}"
     if not text.isascii():
