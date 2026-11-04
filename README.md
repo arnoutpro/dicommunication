@@ -56,9 +56,13 @@ Synthetic lab studies (not clinical data). Light theme, in the arnout.pro "Readi
 
 ![HL7 send with an ORM order update and Change existing order set to SC](docs/screenshots/hl7-send.webp)
 
-## What's new in 0.5.7
+## What's new in 0.6.0
 
-Details in [CHANGELOG.md](CHANGELOG.md#057).
+Details in [CHANGELOG.md](CHANGELOG.md#060).
+
+- **Top bar**: the product tabs now sit in the same row as the brand mark and the About/Help/Configuration/theme buttons, instead of their own row underneath.
+
+And in 0.5.7 ([CHANGELOG.md](CHANGELOG.md#057)):
 
 - **Send Image to PACS**: fixed the placeholder image rendering solid white instead of solid black in some viewers (confirmed with MicroDicom) — it now carries an explicit Window Center/Width.
 
@@ -97,7 +101,7 @@ And in 0.5.1 ([CHANGELOG.md](CHANGELOG.md#051)):
 ## Contents
 
 - [Screenshots](#screenshots)
-- [What's new in 0.5.7](#whats-new-in-057)
+- [What's new in 0.6.0](#whats-new-in-060)
 - [What this is (and is not)](#what-this-is-and-is-not)
 - [How it's made](#how-its-made)
 - [DICOM services this tool distinguishes](#dicom-services-this-tool-distinguishes)
