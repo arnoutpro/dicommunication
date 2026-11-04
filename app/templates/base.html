@@ -38,6 +38,11 @@
           {%- endif %}
         </p>
       </div>
+      <nav class="tab-row" aria-label="Applications">
+        {% for t in tabs %}
+        <a href="{{ href(tab_hrefs[t]) }}" class="tab-item{% if t == tab %} active{% endif %}">{{ tab_labels[t] }}</a>
+        {% endfor %}
+      </nav>
       <div class="topbar-actions">
         <a href="{{ href('/about') }}" class="button{% if nav == 'about' %} is-active{% endif %}">About</a>
         <a href="{{ href('/help') }}" class="button{% if nav == 'help' %} is-active{% endif %}">Help</a>
@@ -110,11 +115,6 @@
         </div>
       </div>
     </header>
-    <nav class="tab-row" aria-label="Applications">
-      {% for t in tabs %}
-      <a href="{{ href(tab_hrefs[t]) }}" class="tab-item{% if t == tab %} active{% endif %}">{{ tab_labels[t] }}</a>
-      {% endfor %}
-    </nav>
     <aside class="sidebar">
       <nav>
         {% if tab == 'dicommunication' %}

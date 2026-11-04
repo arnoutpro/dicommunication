@@ -124,7 +124,7 @@ h1, h2, h3, h4 {
 .shell {
   display: grid;
   grid-template-columns: 15.5rem 1fr;
-  grid-template-rows: auto auto 1fr;
+  grid-template-rows: auto 1fr;
   height: 100%;
   min-height: 100%;
   overflow: hidden;
@@ -133,8 +133,9 @@ h1, h2, h3, h4 {
 }
 
 /* Top bar (DESIGN.md "Tool shell"): the mark, the product name as a muted
-   label with an optional "/ group" crumb, and ghost buttons on the right.
-   The one surface allowed the header glass. */
+   label with an optional "/ group" crumb, the product tabs, and ghost
+   buttons on the right, all in one row. The one surface allowed the
+   header glass. */
 .topbar {
   grid-column: 1 / -1;
   grid-row: 1;
@@ -148,7 +149,6 @@ h1, h2, h3, h4 {
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   border-bottom: 1px solid var(--line);
-  /* Above the tab row (z-index 2), so the theme menu opens over it. */
   z-index: 3;
 }
 .topbar-title {
@@ -156,6 +156,7 @@ h1, h2, h3, h4 {
   align-items: center;
   gap: 0.6rem;
   min-width: 0;
+  flex: none;
 }
 .app-title {
   display: flex;
@@ -174,6 +175,7 @@ h1, h2, h3, h4 {
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  flex: none;
 }
 .topbar-actions .button,
 .theme-toggle-btn {
@@ -205,32 +207,25 @@ h1, h2, h3, h4 {
   border-color: color-mix(in srgb, var(--accent) 30%, transparent);
 }
 
-/* Product tabs: plain text tabs on a hairline, the selected one in Signal
-   Accent with an underline. The underline is drawn inside the tab (inset
-   shadow) and the row keeps its own hairline, so nothing has to line up
-   with anything else across elements. */
+/* Product tabs: plain text tabs sharing the top bar row with the brand and
+   the ghost buttons, the selected one in Signal Accent with an underline.
+   The underline is drawn inside the tab (inset shadow). */
 .tab-row {
-  grid-column: 2;
-  grid-row: 2;
   display: flex;
   flex-direction: row;
-  flex: none;
+  flex: 1 1 auto;
   align-items: stretch;
+  justify-content: center;
   gap: 0.25rem;
-  /* 1.35rem (the page gutter) less a tab's 0.75rem padding, so the first
-     tab's label lines up with the page title below. */
-  padding: 0 0.6rem;
-  background: var(--bg-elev);
-  border-bottom: 1px solid var(--line);
+  min-width: 0;
   overflow-x: auto;
-  z-index: 2;
 }
 .tab-item {
   display: inline-flex;
   align-items: center;
-  min-height: 2.6rem;
+  min-height: 2.2rem;
   padding: 0 0.75rem;
-  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+  border-radius: var(--radius-sm);
   font-size: var(--text-sm);
   font-weight: 600;
   color: var(--muted);
@@ -241,21 +236,19 @@ h1, h2, h3, h4 {
 .tab-item:hover {
   color: var(--text);
   background: var(--glass-strong);
-  box-shadow: inset 0 -2px 0 var(--line-strong);
 }
 .tab-item:focus-visible { outline-offset: -2px; }
 /* The selected tab: the same soft accent fill as the selected sidebar
-   item, bolder than its neighbours, on a thicker accent underline. */
+   item and the active top-bar button, bolder than its neighbours. */
 .tab-row .tab-item.active {
   color: var(--accent);
   font-weight: 800;
   background: var(--accent-dim);
-  box-shadow: inset 0 -3px 0 var(--accent);
 }
 
 .sidebar {
   grid-column: 1;
-  grid-row: 2 / 4;
+  grid-row: 2;
   display: flex;
   flex-direction: column;
   min-height: 0;
@@ -522,7 +515,7 @@ h1, h2, h3, h4 {
      scroller, stretched .shell and scrolled the top bar away on focus. */
   position: relative;
   grid-column: 2;
-  grid-row: 3;
+  grid-row: 2;
   padding: 1.15rem 1.35rem 1.4rem;
   max-width: 1600px;
   min-width: 0;
@@ -1536,21 +1529,22 @@ label.checkbox > span > .hint { display: block; margin-top: 0.1rem; }
   html, body { height: auto; overflow: auto; }
   .shell {
     grid-template-columns: 1fr;
-    grid-template-rows: auto auto auto 1fr;
+    grid-template-rows: auto auto 1fr;
     height: auto;
     overflow: visible;
   }
-  .topbar { grid-column: 1; grid-row: 1; }
-  .tab-row { grid-column: 1; grid-row: 2; }
+  .topbar { grid-column: 1; grid-row: 1; flex-wrap: wrap; row-gap: 0.4rem; }
+  .tab-row { flex-basis: 100%; order: 2; justify-content: flex-start; }
+  .topbar-actions { order: 3; flex-wrap: wrap; justify-content: flex-end; }
   .sidebar {
     grid-column: 1;
-    grid-row: 3;
+    grid-row: 2;
     position: relative;
     height: auto;
     border-right: 0;
     border-bottom: 1px solid var(--line);
   }
-  .main { grid-column: 1; grid-row: 4; }
+  .main { grid-column: 1; grid-row: 3; }
   .grid-3, .grid-4, .form-grid { grid-template-columns: 1fr; }
   .logs-settings {
     grid-template-columns: 1fr 1fr;
@@ -1559,11 +1553,6 @@ label.checkbox > span > .hint { display: block; margin-top: 0.1rem; }
   .logs-settings .form-actions { grid-column: 1 / -1; }
   .logs-view-head { flex-wrap: wrap; }
   .main { padding: 1.2rem; }
-}
-
-@media (max-width: 480px) {
-  .topbar { flex-wrap: wrap; row-gap: 0.4rem; }
-  .topbar-actions { flex-wrap: wrap; justify-content: flex-end; }
 }
 
 .hidden { display: none !important; }

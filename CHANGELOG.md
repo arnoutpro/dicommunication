@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Interface
+
+- **Top bar**: the product tabs (Dicommunication, Dicomtag Analytics, Dicom Anonymizer, Dicom Router, Dicom Cleaner) now sit in the same row as the brand mark and the About/Help/Configuration/theme buttons, instead of their own row underneath. On narrow windows the tabs and buttons wrap onto their own lines below the brand, same as before.
+
 ## 0.5.7
 
 A fix: the Send Image to PACS placeholder came out solid white instead of solid black in some viewers.
