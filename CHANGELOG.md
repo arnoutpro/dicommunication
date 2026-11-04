@@ -1,8 +1,6 @@
 # Changelog
 
-## 0.5.5
-
-Send Image to PACS can now find a study whether its order is open or already closed.
+## Unreleased
 
 ### Interface
 
