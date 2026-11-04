@@ -36,6 +36,7 @@ def _make_instance(
     cols: int = 4,
     frames: int = 1,
     samples_per_pixel: int = 1,
+    bits: int = 8,
 ) -> Dataset:
     ds = Dataset()
     ds.PatientName = "DOE^JANE"
@@ -50,9 +51,9 @@ def _make_instance(
     ds.Modality = "US"
     ds.Rows = rows
     ds.Columns = cols
-    ds.BitsAllocated = 8
-    ds.BitsStored = 8
-    ds.HighBit = 7
+    ds.BitsAllocated = bits
+    ds.BitsStored = bits
+    ds.HighBit = bits - 1
     ds.PixelRepresentation = 0
     ds.SamplesPerPixel = samples_per_pixel
     if samples_per_pixel > 1:
@@ -66,7 +67,9 @@ def _make_instance(
     shape += [rows, cols]
     if samples_per_pixel > 1:
         shape += [samples_per_pixel]
-    pixels = (np.arange(int(np.prod(shape)), dtype=np.uint8) % 251 + 1).reshape(shape)
+    dtype = np.uint16 if bits > 8 else np.uint8
+    span = 65501 if bits > 8 else 251
+    pixels = (np.arange(int(np.prod(shape)), dtype=dtype) % span + 1).reshape(shape)
     ds.PixelData = pixels.tobytes()
     ds.file_meta = FileMetaDataset()
     ds.file_meta.TransferSyntaxUID = ExplicitVRLittleEndian
@@ -160,6 +163,52 @@ def test_redact_pixels_region_confined_to_columns() -> None:
     assert (array[1:3, 2:4] == 0).all()
     assert not (array[0, :] == 0).all()
     assert not (array[:, 0] == 0).all()
+
+
+def test_redact_pixels_with_label_stamps_bright_text_in_the_region() -> None:
+    ds = _make_instance("1.2.3", "1.2.3.4", "1.2.3.4.6", rows=120, cols=400, samples_per_pixel=1)
+    region = parse_region(0, 0, 0, 100)
+    redact_pixels(ds, region, "REDACTED")
+    array = ds.pixel_array
+    assert (array[0:100, :] == 255).any(), "label should stamp some max-brightness pixels in the region"
+    assert not (array[0:100, :] == 255).all(), "label should not fill the whole region solid white"
+    assert not (array[100:, :] == 255).any(), "label must stay confined to the redacted region"
+    assert ds.BurnedInAnnotation == "NO"
+
+
+def test_redact_pixels_without_label_leaves_region_solid_black() -> None:
+    ds = _make_instance("1.2.3", "1.2.3.4", "1.2.3.4.7", rows=120, cols=400, samples_per_pixel=1)
+    region = parse_region(0, 0, 0, 100)
+    redact_pixels(ds, region, "")
+    array = ds.pixel_array
+    assert (array[0:100, :] == 0).all()
+
+
+def test_redact_pixels_label_dropped_when_region_too_small_to_fit() -> None:
+    ds = _make_instance("1.2.3", "1.2.3.4", "1.2.3.4.8", rows=20, cols=20, samples_per_pixel=1)
+    region = parse_region(0, 0, 3, 3)
+    redact_pixels(ds, region, "A VERY LONG LABEL THAT CANNOT POSSIBLY FIT")
+    array = ds.pixel_array
+    # Too small to fit even one character: blacked out, nothing stamped — no crash either.
+    assert (array[0:3, 0:3] == 0).all()
+
+
+def test_redact_pixels_label_uses_the_dtype_max_not_255() -> None:
+    ds = _make_instance("1.2.3", "1.2.3.4", "1.2.3.4.9", rows=120, cols=400, samples_per_pixel=1, bits=16)
+    region = parse_region(0, 0, 0, 100)
+    redact_pixels(ds, region, "REDACTED")
+    array = ds.pixel_array
+    assert array.dtype == np.uint16
+    assert (array[0:100, :] == 65535).any()
+
+
+def test_redact_pixels_with_label_color_image() -> None:
+    ds = _make_instance("1.2.3", "1.2.3.4", "1.2.3.4.10", rows=80, cols=300, samples_per_pixel=3)
+    region = parse_region(0, 0, 0, 60)
+    redact_pixels(ds, region, "PHI")
+    array = ds.pixel_array
+    assert array.ndim == 3
+    assert ((array[0:60, :, :] == 255).all(axis=-1)).any()
 
 
 # ---------------------------------------------------------------------------

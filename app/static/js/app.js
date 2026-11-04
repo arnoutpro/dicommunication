@@ -711,6 +711,7 @@ function initCleanerPreview(scope) {
   const yInput = form?.querySelector("#cleaner-region-y");
   const wInput = form?.querySelector("#cleaner-region-width");
   const hInput = form?.querySelector("#cleaner-region-height");
+  const labelInput = form?.querySelector("#cleaner-region-label");
   if (!(xInput instanceof HTMLInputElement) || !(yInput instanceof HTMLInputElement)
       || !(wInput instanceof HTMLInputElement) || !(hInput instanceof HTMLInputElement)) {
     return;
@@ -742,6 +743,17 @@ function initCleanerPreview(scope) {
     ctx.strokeStyle = "rgba(220, 38, 38, 0.9)";
     ctx.lineWidth = 1;
     ctx.strokeRect(x + 0.5, y + 0.5, w, h);
+    const label = (labelInput?.value || "").trim();
+    if (label && w > 4 && h > 4) {
+      const fontSize = Math.max(8, Math.min(h * 0.6, w / Math.max(1, label.length) / 0.6));
+      ctx.save();
+      ctx.font = `700 ${fontSize}px monospace`;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillStyle = "#ffffff";
+      ctx.fillText(label, x + w / 2, y + h / 2, w - 4);
+      ctx.restore();
+    }
   }
 
   function drawExistingRegion() {
@@ -760,6 +772,10 @@ function initCleanerPreview(scope) {
     drawExistingRegion();
   });
   img.src = canvas.dataset.imageSrc || "";
+
+  if (labelInput instanceof HTMLInputElement) {
+    labelInput.addEventListener("input", drawExistingRegion);
+  }
 
   function canvasPoint(event) {
     const rect = canvas.getBoundingClientRect();

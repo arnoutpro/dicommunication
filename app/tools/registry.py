@@ -25,6 +25,7 @@ BUILTIN_TOOL_MODULES = (
     "ping",
     "redact_engine",
     "store",
+    "stroke_font",
     "tag_editor",
 )
 

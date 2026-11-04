@@ -789,6 +789,19 @@ td.actions > * + * { margin-left: 0.7rem; }
 .region-grid {
   grid-template-columns: repeat(4, minmax(0, 8rem));
 }
+.cleaner-label-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin-top: 0.6rem;
+  max-width: 28rem;
+  font-size: var(--text-md);
+  color: var(--muted);
+  font-weight: 600;
+}
+.cleaner-label-field input {
+  width: 100%;
+}
 .inline-input {
   display: flex;
   gap: 0.4rem;
