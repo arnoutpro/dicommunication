@@ -5,6 +5,12 @@
 ### Interface
 
 - **Send Image to PACS**: Step 1 now offers a choice of how to find the study — for an order whose study has no image yet stored at all, which is invisible to both Worklist and Study Root C-FIND (the latter only matches studies that already have a stored instance). **Look up a study** is the existing Study Root C-FIND. **Look up a patient** is new: Patient Root C-FIND at Patient level, which many PACS can answer from a patient's registration/demographics record alone, with zero studies required. **Enter details manually** is also new, for when even the patient isn't registered: type in Patient Name and Patient ID directly, skipping any lookup. Either new mode leaves Accession Number and Study Instance UID blank on the found record; step 3 ("Describe the image") now has fields for both, which also override a Study Root C-FIND result's own values when filled in.
+- **Dicom Anonymizer**: the result table now summarizes one row per anonymized study (series count, instance count), instead of one row per instance — a study with hundreds of images no longer turns the result into a long scroll.
+- **Dicom Cleaner**: a new "Assign a new Series Instance UID" checkbox on the send-back step groups the cleaned images into a brand-new series instead of merging back into the original one — every image from the same source series shares one new Series UID. Always also assigns a fresh SOP Instance UID, regardless of the existing "Send back as" choice, since keeping the original SOP Instance UID under a different series would be ambiguous.
+
+### Fixes
+
+- **Dicom Cleaner**: the redact rectangle's "Label" field (added in 0.5.3) was silently dropped before reaching the tool — typing a label had no effect on the instances actually sent back to PACS, only on the live preview canvas. The route now forwards it.
 
 ## 0.5.5
 

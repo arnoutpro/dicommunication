@@ -103,6 +103,14 @@
       <p class="hint" data-hint-for="same">Keeps the original UIDs. Whether the PACS replaces the image, rejects it or reports a conflict depends on the PACS, not on this tool.</p>
     </fieldset>
 
+    <div class="stamp">
+      <label class="stamp-field-title">
+        <input type="checkbox" name="new_series_uid" value="on">
+        Assign a new Series Instance UID
+      </label>
+      <p class="hint">Groups the cleaned images into a brand-new series instead of the original one — all images from the same source series share one new Series UID. Implies a new SOP Instance UID too, regardless of the choice above, since reusing the original one under a different series would be ambiguous.</p>
+    </div>
+
     <div class="form-grid">
       <label>
         Send to

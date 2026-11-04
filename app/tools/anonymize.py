@@ -516,6 +516,8 @@ class AnonymizeTool(BaseTool):
             anon_started = time.perf_counter()
             batch = AnonBatch()
             anonymized: list[Dataset] = []
+            failed = 0
+            last_error = ""
             for dataset in datasets:
                 try:
                     anonymized.append(
@@ -526,12 +528,14 @@ class AnonymizeTool(BaseTool):
                         )
                     )
                 except Exception as exc:  # noqa: BLE001
-                    records.append({"sop_instance_uid": str(getattr(dataset, "SOPInstanceUID", "")), "status": f"anonymize failed: {exc}"})
+                    failed += 1
+                    last_error = str(exc)
             steps.append(
                 ToolStep(
                     name="Anonymize",
                     ok=bool(anonymized),
-                    message=f"Anonymized {len(anonymized)} of {len(datasets)} instance(s) ({MODE_LABELS.get(mode, mode)})",
+                    message=f"Anonymized {len(anonymized)} of {len(datasets)} instance(s) ({MODE_LABELS.get(mode, mode)})"
+                    + (f" — {failed} failed: {last_error}" if failed else ""),
                     duration_ms=elapsed_ms(anon_started),
                 )
             )
@@ -558,15 +562,24 @@ class AnonymizeTool(BaseTool):
                     duration_ms=elapsed_ms(write_started),
                 )
             )
+            study_summary: dict[str, dict[str, Any]] = {}
             for dataset in anonymized:
-                records.append(
-                    {
-                        "study_instance_uid": str(getattr(dataset, "StudyInstanceUID", "")),
-                        "series_instance_uid": str(getattr(dataset, "SeriesInstanceUID", "")),
-                        "sop_instance_uid": str(getattr(dataset, "SOPInstanceUID", "")),
-                        "status": "written",
-                    }
+                study_uid = str(getattr(dataset, "StudyInstanceUID", ""))
+                series_uid = str(getattr(dataset, "SeriesInstanceUID", ""))
+                entry = study_summary.setdefault(
+                    study_uid, {"study_instance_uid": study_uid, "_series": set(), "instances": 0}
                 )
+                entry["_series"].add(series_uid)
+                entry["instances"] += 1
+            records = [
+                {
+                    "study_instance_uid": entry["study_instance_uid"],
+                    "series": len(entry["_series"]),
+                    "instances": entry["instances"],
+                    "status": "written",
+                }
+                for entry in study_summary.values()
+            ]
             log = log_stream.getvalue().strip()
 
         ok = bool(anonymized) and bool(steps) and all(step.ok for step in steps)
