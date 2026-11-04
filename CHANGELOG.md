@@ -4,7 +4,7 @@
 
 ### Interface
 
-- **Send Image to PACS**: Step 1 now offers a choice of how to find the study. **Look up a study** is the existing Study Root C-FIND. **Enter details manually** is new — for an order whose study has no image yet stored at all, which is invisible to both Worklist and Study Root C-FIND (the latter only matches studies that already have a stored instance): type in Patient Name, Patient ID, Accession Number, and optionally a Study Instance UID directly, skipping any lookup.
+- **Send Image to PACS**: Step 1 now offers a choice of how to find the study — for an order whose study has no image yet stored at all, which is invisible to both Worklist and Study Root C-FIND (the latter only matches studies that already have a stored instance). **Look up a study** is the existing Study Root C-FIND. **Look up a patient** is new: Patient Root C-FIND at Patient level, which many PACS can answer from a patient's registration/demographics record alone, with zero studies required. **Enter details manually** is also new, for when even the patient isn't registered: type in Patient Name and Patient ID directly, skipping any lookup. Either new mode leaves Accession Number and Study Instance UID blank on the found record; step 3 ("Describe the image") now has fields for both, which also override a Study Root C-FIND result's own values when filled in.
 
 ## 0.5.5
 

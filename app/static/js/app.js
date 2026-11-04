@@ -897,13 +897,17 @@ function initSendImageForm(scope) {
       return;
     }
     form.dataset.sendImageReady = "1";
-    const lookupFields = form.querySelectorAll("[data-send-image-lookup-fields]");
-    const manualFields = form.querySelectorAll("[data-send-image-manual-fields]");
+    const groups = {
+      lookup: form.querySelectorAll("[data-send-image-lookup-fields]"),
+      patient: form.querySelectorAll("[data-send-image-patient-fields]"),
+      manual: form.querySelectorAll("[data-send-image-manual-fields]"),
+    };
     function sync() {
       const checked = form.querySelector("[data-send-image-mode-radio]:checked");
-      const manual = checked ? checked.value === "manual" : false;
-      lookupFields.forEach((el) => { el.hidden = manual; });
-      manualFields.forEach((el) => { el.hidden = !manual; });
+      const mode = checked ? checked.value : "lookup";
+      Object.entries(groups).forEach(([name, elements]) => {
+        elements.forEach((el) => { el.hidden = name !== mode; });
+      });
     }
     form.querySelectorAll("[data-send-image-mode-radio]").forEach((radio) => {
       radio.addEventListener("change", sync);
