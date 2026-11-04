@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.5.4
+
+A small fix: re-querying Send Image to PACS after results were shown was blocked by the browser's own form validation.
+
+### Fixes
+
+- **Send Image to PACS**: the "Find orders" button didn't skip the browser's required-field validation, so once an order table, modality picker, etc. rendered after a query, clicking "Find orders" again to search again was blocked until an order and modality were picked — even though a fresh query needs neither.
+
 ## 0.5.3
 
 A new DIMSE tool that simulates a modality completing a scheduled worklist order, and a label option for Dicom Cleaner's redact rectangle.
