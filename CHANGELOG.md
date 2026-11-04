@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Interface
+
+- **Dicom Cleaner**: the redact rectangle can now carry a label — an optional text field next to the region picker burns a short stamp (e.g. "REDACTED") across the same black box on every retrieved image, in white at the pixel data's own brightest value (so it reads clearly whether the image is 8-bit or 16-bit). Rendered with a small hand-drawn stroke font (`app/tools/stroke_font.py`) rather than Pillow, matching this project's existing no-Pillow preview rendering; dropped automatically, not an error, if the box is too small to fit even one character. The region-picker canvas shows the label live as you drag or type, using the browser's own font so it's an approximation, not a pixel-exact preview of the final stamp.
+
 ## 0.5.2
 
 A new app icon: the brand "A" as a sharp vector, on a deep navy tile where its colours glow, so Dicommunication stands out in the Dock, Finder and the Windows Start menu.

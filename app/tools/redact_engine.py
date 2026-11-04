@@ -17,7 +17,10 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+import numpy as np
 from pydicom.dataset import Dataset
+
+from app.tools.stroke_font import draw_text
 
 
 class RedactionError(Exception):
@@ -56,8 +59,14 @@ def parse_region(x: object, y: object, width: object, height: object) -> RedactR
     )
 
 
-def redact_pixels(ds: Dataset, region: RedactRegion) -> Dataset:
+def redact_pixels(ds: Dataset, region: RedactRegion, label: str = "") -> Dataset:
     """Black out ``region`` in ds's pixel data, in place, and return ds.
+
+    If ``label`` is non-empty, it is also burned into the same region — a
+    short monospace stamp (e.g. "REDACTED") at the brightest value the
+    pixel data's dtype supports, so it reads clearly against the black
+    fill regardless of bit depth. Dropped silently (not an error) if the
+    region is too small to fit even one legible character.
 
     Also sets Burned-In Annotation (0028,0301) to NO, since that's the
     point of running this at all — leaving it unset or "YES" would tell a
@@ -105,6 +114,19 @@ def redact_pixels(ds: Dataset, region: RedactRegion) -> Dataset:
             pixel_array[y0:y1, x0:x1, :] = 0
         else:
             pixel_array[y0:y1, x0:x1] = 0
+
+        label = label.strip()
+        if label:
+            color = (
+                int(np.iinfo(pixel_array.dtype).max)
+                if np.issubdtype(pixel_array.dtype, np.integer)
+                else float(pixel_array.max())
+            )
+            if is_multiframe:
+                for frame_index in range(pixel_array.shape[0]):
+                    draw_text(pixel_array[frame_index], label, x0, y0, x1, y1, color, is_color=is_color)
+            else:
+                draw_text(pixel_array, label, x0, y0, x1, y1, color, is_color=is_color)
 
     ds.PixelData = pixel_array.tobytes()
     if "PlanarConfiguration" in ds:

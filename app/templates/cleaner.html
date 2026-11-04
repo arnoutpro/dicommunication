@@ -56,7 +56,11 @@
           <input type="number" id="cleaner-region-height" name="region_height" min="1" value="100">
         </label>
       </div>
-      <p class="hint">One rectangle is blacked out on every retrieved image. The default covers a 100px band across the top, where modalities usually burn in text. Non-image objects (SR, PR…) are skipped and reported as failed, not sent.</p>
+      <label class="cleaner-label-field">
+        Label drawn over the black box (optional)
+        <input type="text" id="cleaner-region-label" name="region_label" maxlength="60" placeholder="REDACTED" autocomplete="off">
+      </label>
+      <p class="hint">One rectangle is blacked out on every retrieved image. The default covers a 100px band across the top, where modalities usually burn in text. A label, if set, is stamped in white across that same rectangle on every image — it's dropped automatically if the box is too small to fit even one readable character. Non-image objects (SR, PR…) are skipped and reported as failed, not sent.</p>
     </fieldset>
 
     <details class="region-picker">

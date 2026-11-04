@@ -424,6 +424,7 @@ class CleanerTool(BaseTool):
         region = parse_region(
             options.get("region_x"), options.get("region_y"), options.get("region_width"), options.get("region_height")
         )
+        region_label = str(options.get("region_label") or "").strip()[:60]
         uid_mode = str(options.get("uid_mode") or "new").strip()
         if uid_mode not in UID_MODES:
             uid_mode = "new"
@@ -473,7 +474,7 @@ class CleanerTool(BaseTool):
             for ds in datasets:
                 sop_uid = str(getattr(ds, "SOPInstanceUID", ""))
                 try:
-                    redact_pixels(ds, region)
+                    redact_pixels(ds, region, region_label)
                 except RedactionError as exc:
                     records.append({
                         "study_instance_uid": str(getattr(ds, "StudyInstanceUID", "")),
@@ -489,7 +490,8 @@ class CleanerTool(BaseTool):
             steps.append(ToolStep(
                 name="Redact", ok=bool(cleaned),
                 message=f"Redacted {len(cleaned)} of {len(datasets)} instance(s) "
-                f"(x={region.x}, y={region.y}, w={region.width or 'full'}, h={region.height})",
+                f"(x={region.x}, y={region.y}, w={region.width or 'full'}, h={region.height})"
+                + (f', labeled "{region_label}"' if region_label else ""),
                 duration_ms=elapsed_ms(redact_started),
             ))
 
