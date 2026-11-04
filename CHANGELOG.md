@@ -4,6 +4,7 @@
 
 ### Interface
 
+- **Send Image to PACS**: new DIMSE test tool, alongside MWL C-FIND / PDF to DICOM. Query a Modality Worklist SCP for a scheduled order, pick exactly one, choose a modality and a few descriptive tags (Study Description, Body Part Examined, Series Description), and C-STORE a small solid-black placeholder image (Secondary Capture, `app/dicom_image.py`) carrying that order's Patient Name/ID, Accession Number, and Study Instance UID when it has one (a fresh one is generated otherwise) — simulating a modality completing the exam. The chosen modality is independent of whatever the order itself was scheduled as. Destination defaults to the order's own remote node but can be overridden, same as Dicom Cleaner's send-back step.
 - **Dicom Cleaner**: the redact rectangle can now carry a label — an optional text field next to the region picker burns a short stamp (e.g. "REDACTED") across the same black box on every retrieved image, in white at the pixel data's own brightest value (so it reads clearly whether the image is 8-bit or 16-bit). Rendered with a small hand-drawn stroke font (`app/tools/stroke_font.py`) rather than Pillow, matching this project's existing no-Pillow preview rendering; dropped automatically, not an error, if the box is too small to fit even one character. The region-picker canvas shows the label live as you drag or type, using the browser's own font so it's an approximation, not a pixel-exact preview of the final stamp.
 
 ## 0.5.2

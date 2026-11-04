@@ -151,7 +151,7 @@ def execute_tool(
             bool(scp and scp.running and config.local.storage_scp_enabled),
         )
         options.setdefault("_storage_error", getattr(scp, "last_error", None) if scp else None)
-    if tool_id == "dicom-cleaner":
+    if tool_id in ("dicom-cleaner", "send-image"):
         options = dict(options or {})
         options.setdefault("_remotes", {node.id: node for node in config.remotes})
     result = tool.run(local, remote, options)

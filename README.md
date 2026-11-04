@@ -140,6 +140,7 @@ AI makes it possible for one person with domain knowledge to build a tool like t
 | C-FIND | C-FIND | Study Root Query/Retrieve FIND | Search *stored studies* in a PACS archive at STUDY level. Zero matches can still be a successful Q/R C-FIND. |
 | Dicomtag Analytics | C-FIND, optional C-MOVE | Study Root Query/Retrieve FIND (and MOVE for SR) | Reached at `/tools/c-find-advanced` in the sidebar. Same SOP Class at Study, Series, or Image plus optional Vue ELSCINT1 keys. Hierarchical: Series needs Study Instance UID; Image needs Study and Series Instance UID. **List SR reports** is Series C-FIND with modality `SR` for every study in the table. **Retrieve report text** C-MOVEs each listed SR on its own association and parses the Content Sequence. Results copy / CSV / JSON. |
 | MWL C-FIND / Worklist | C-FIND | Modality Worklist `1.2.840.10008.5.1.4.31` | Search *scheduled procedures*, not the archive. |
+| Send Image to PACS | C-FIND, C-STORE | Modality Worklist FIND, then Secondary Capture Image Storage | Reached at `/tools/send-image` in the sidebar. Query MWL for a scheduled order, pick it, choose a modality and a few descriptive tags, and C-STORE a small solid-black placeholder image carrying that order's Patient/Study/Accession identifiers — simulating a modality completing the exam. |
 | Dicom Router | C-FIND, optional C-MOVE + C-STORE | Study Root Query/Retrieve FIND (MOVE/STORE for retrieve-and-forward) | Reached at `/router` in the sidebar. Same FIND as Dicomtag Analytics, but scheduled/automatic instead of manual, with an optional automatic retrieve-and-forward to one or more destination nodes. |
 | Dicom Cleaner | C-FIND, C-MOVE, C-STORE | Study Root Query/Retrieve FIND/MOVE, then Storage back out | Reached at `/tools/dicom-cleaner` in the sidebar. Study-level C-FIND, C-MOVE retrieve, blacks out one operator-configured rectangle of pixel data on every retrieved instance (PyDicom + numpy), then C-STOREs the cleaned instances back to a PACS. |
 
@@ -383,7 +384,7 @@ Every virtual calling AE must be allowed on the remote, the same way the worksta
 
 ## Test tools
 
-The **Dicommunication** tab's own left sidebar lists these directly (no separate "Test tools" fold — that's the whole point of this tab): Dashboard, Testbench, C-ECHO board, Worklist, then **Connectivity** (PING), **DIMSE** (C-ECHO, C-STORE, PDF to DICOM, C-FIND, MWL C-FIND, Tag Editor), and **HL7** (HL7 send), each category foldable. Dicomtag Analytics, Dicom Anonymizer, and Dicom Cleaner have their own tabs instead of living in this list. The category that contains the current page stays open. New plugin tools appear under their `category`, unless promoted to their own tab.
+The **Dicommunication** tab's own left sidebar lists these directly (no separate "Test tools" fold — that's the whole point of this tab): Dashboard, Testbench, C-ECHO board, Worklist, then **Connectivity** (PING), **DIMSE** (C-ECHO, C-STORE, PDF to DICOM, C-FIND, MWL C-FIND, Send Image to PACS, Tag Editor), and **HL7** (HL7 send), each category foldable. Dicomtag Analytics, Dicom Anonymizer, and Dicom Cleaner have their own tabs instead of living in this list. The category that contains the current page stays open. New plugin tools appear under their `category`, unless promoted to their own tab.
 
 ### Testbench (`/testbench`)
 
