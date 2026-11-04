@@ -15,7 +15,7 @@ from app.applog import configure as configure_logging, log, should_skip_http_log
 from app.mwl_scp import WorklistSCP
 from app.paths import package_dir
 from app.router_scheduler import RouterScheduler
-from app.routes import anonymize, api, cleaner, config, echo_board, logs, misc, route_rules, testbench, tools, worklist
+from app.routes import anonymize, api, cleaner, config, echo_board, logs, misc, route_rules, send_image, testbench, tools, worklist
 from app.security import SecurityMiddleware
 from app.store import ConfigStore
 
@@ -143,6 +143,7 @@ def create_app(store: ConfigStore | None = None) -> FastAPI:
     # swallows every request without any of the options these tools need.
     app.include_router(anonymize.router)
     app.include_router(cleaner.router)
+    app.include_router(send_image.router)
     app.include_router(tools.router)
     app.include_router(api.router)
 

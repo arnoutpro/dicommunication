@@ -1,0 +1,177 @@
+{% extends "base.html" %}
+{% block title %}{{ tool.name }} · {{ product_name }}{% endblock %}
+{% block content %}
+<header class="page-head">
+  <div>
+    <h1>{{ tool.name }}</h1>
+    <p class="lede">{{ tool.description }}</p>
+  </div>
+</header>
+
+{% if config.remotes %}
+{% set has_orders = action == "query" and result and result.ok and result.records %}
+<form class="step-flow" method="post" action="{{ href('/tools/send-image/run') }}">
+  <section class="panel step">
+    <header class="panel-head">
+      <h2 class="step-title"><span class="step-num" aria-hidden="true">1</span>Find an order</h2>
+      <span class="muted">Calling AE {{ config.local.ae_title }}</span>
+    </header>
+    <div class="form-grid">
+      <label>
+        Remote node
+        <select name="remote_id" required>
+          {% for remote in config.remotes %}
+          <option value="{{ remote.id }}" {% if remote.id == remote_id %}selected{% endif %}>
+            {{ remote.name }} — {{ remote.ae_title }} @ {{ remote.connect_host }}:{{ remote.port }}
+          </option>
+          {% endfor %}
+        </select>
+        <span class="hint">Must provide Modality Worklist (MWL C-FIND), not just Study Root.</span>
+      </label>
+      {% include "partials/identity_select.html" %}
+      <label>
+        Patient name
+        <input name="patient_name" value="{{ query.patient_name or '' }}" placeholder="DOE*">
+      </label>
+      <label>
+        Patient ID
+        <input name="patient_id" value="{{ query.patient_id or '' }}">
+      </label>
+      <label>
+        Accession number
+        <input name="accession_number" value="{{ query.accession_number or '' }}">
+      </label>
+      <label>
+        Modality
+        <input name="query_modality" value="{{ query.modality or '' }}" placeholder="CT" maxlength="16">
+      </label>
+      <label>
+        Station AE Title
+        <input name="station_ae_title" value="{{ query.station_ae_title or '' }}" maxlength="16">
+      </label>
+      <label>
+        Scheduled date
+        <input name="scheduled_date" type="date" value="{{ query.scheduled_date or '' }}">
+      </label>
+    </div>
+    <div class="form-actions">
+      <button class="button{% if not has_orders %} primary{% endif %}" type="submit" name="action" value="query" data-busy-text="Querying…">Find orders</button>
+      <span class="hint">Modality Worklist C-FIND. Blank fields match anything.</span>
+    </div>
+  </section>
+
+  {% if has_orders %}
+  <section class="panel step">
+    <header class="panel-head">
+      <h2 class="step-title"><span class="step-num" aria-hidden="true">2</span>Pick the order</h2>
+    </header>
+    <p class="hint">{{ result.records | length }} order{{ "" if result.records | length == 1 else "s" }} found.</p>
+    <div class="table-wrap">
+      <table class="find-table send-image-orders">
+        <thead>
+          <tr>
+            <th class="pick-col"></th>
+            <th>Patient Name</th>
+            <th>Patient ID</th>
+            <th>Accession Number</th>
+            <th>Scheduled Date</th>
+            <th>Scheduled Modality</th>
+            <th>Procedure</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in result.records %}
+          <tr>
+            <td class="pick-col">
+              <input type="radio" name="order_index" value="{{ loop.index0 }}" {% if loop.first %}required{% endif %}
+                     aria-label="Pick {{ row.patient_name or row.patient_id }}">
+            </td>
+            <td>{{ row.patient_name }}</td>
+            <td>{{ row.patient_id }}</td>
+            <td>{{ row.accession_number }}</td>
+            <td>{{ row.scheduled_date }}</td>
+            <td>{{ row.modality }}</td>
+            <td>{{ row.requested_procedure_description }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <textarea hidden name="orders_json">{{ result.records | tojson }}</textarea>
+  </section>
+
+  <section class="panel step">
+    <header class="panel-head">
+      <h2 class="step-title"><span class="step-num" aria-hidden="true">3</span>Describe the image</h2>
+    </header>
+    <div class="form-grid">
+      <label>
+        Modality <abbr class="req" title="Required">*</abbr>
+        <select name="modality" required>
+          <option value="">Choose…</option>
+          {% for code in send_image_modalities %}
+          <option value="{{ code }}">{{ code }}</option>
+          {% endfor %}
+        </select>
+        <span class="hint">What the stored image is tagged as — independent of the order's own scheduled modality.</span>
+      </label>
+      <label>
+        Study description
+        <input name="study_description" placeholder="Falls back to the order's procedure description">
+      </label>
+      <label>
+        Body part examined
+        <input name="body_part_examined" placeholder="CHEST" maxlength="16">
+      </label>
+      <label>
+        Series description
+        <input name="series_description">
+      </label>
+    </div>
+    <p class="hint">The image itself is a fixed {{ send_image_size }}×{{ send_image_size }} solid black frame — there is no real pixel content to configure; these tags are what make it identifiable.</p>
+  </section>
+
+  <section class="panel step">
+    <header class="panel-head">
+      <h2 class="step-title"><span class="step-num" aria-hidden="true">4</span>Send</h2>
+    </header>
+    <div class="form-grid">
+      <label>
+        Send to
+        <select name="destination_remote_id">
+          <option value="">Same as the order's remote node</option>
+          {% for node in config.remotes %}
+          <option value="{{ node.id }}">{{ node.name }} — {{ node.ae_title }} @ {{ node.connect_host }}:{{ node.port }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <div class="form-actions">
+        <button class="button primary" type="submit" name="action" value="run" formnovalidate
+                data-busy-text="Sending…"
+                data-confirm="C-STORE a solid-black placeholder image for this order to a PACS?">
+          Send image
+        </button>
+      </div>
+    </div>
+  </section>
+  {% else %}
+  {% set pending_steps = ["Pick the order", "Describe the image", "Send"] %}
+  {% include "partials/pending_steps.html" %}
+  {% endif %}
+</form>
+{% else %}
+<section class="panel">
+  <div class="empty">
+    <strong>No remote node configured</strong>
+    <p>Add a PACS or modality first, then come back to run {{ tool.name }}.</p>
+    <a class="button primary" href="{{ href('/config/remotes') }}">Add a remote node</a>
+  </div>
+</section>
+{% endif %}
+
+<div id="result">
+  {% if result and not (action == "query" and result.ok and result.records) %}
+    {% include "partials/result.html" %}
+  {% endif %}
+</div>
+{% endblock %}

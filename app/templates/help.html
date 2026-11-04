@@ -35,6 +35,7 @@
     <li><a href="#c-find">Study Root C-FIND</a></li>
     <li><a href="#c-find-advanced">Dicomtag Analytics</a></li>
     <li><a href="#mwl-find">MWL C-FIND</a></li>
+    <li><a href="#send-image">Send Image to PACS</a></li>
     <li><a href="#hl7-send">HL7 send</a></li>
     <li><a href="#tag-editor">Tag Editor</a></li>
     <li><a href="#anonymize">Dicom Anonymizer</a></li>
@@ -125,6 +126,12 @@
           <td>C-FIND</td>
           <td>Modality Worklist <code>1.2.840.10008.5.1.4.31</code></td>
           <td>Search <em>scheduled procedures</em>, not the archive.</td>
+        </tr>
+        <tr>
+          <td><strong>Send Image to PACS</strong></td>
+          <td>C-FIND, C-STORE</td>
+          <td>Modality Worklist FIND, then Secondary Capture Image Storage</td>
+          <td>Reached at <code>/tools/send-image</code> in the sidebar. Query MWL for a scheduled order, pick it, choose a modality and a few descriptive tags, and C-STORE a small solid-black placeholder image carrying that order's Patient/Study/Accession identifiers — simulating a modality completing the exam. No real pixel content.</td>
         </tr>
         <tr>
           <td><strong>Dicom Router</strong></td>
@@ -465,6 +472,15 @@
   </header>
   <p>The same SOP Class as the Worklist page: Modality Worklist Information Model FIND <code>1.2.840.10008.5.1.4.31</code>. Use this single-tool page when you already know you want MWL, or use Testbench to compare it with Study Root on the same remote.</p>
   <p>Station AE and modality defaults come from <strong>Present as</strong>. Orthanc without the worklist plugin typically rejects this SOP Class even when Verification and Storage succeed — that is expected, not a bug in this tool.</p>
+</section>
+
+<section class="panel help-section" id="send-image">
+  <header class="panel-head">
+    <h2>Send Image to PACS</h2>
+    <a href="/tools/send-image">Open</a>
+  </header>
+  <p>Simulates a modality completing a scheduled exam. <strong>1. Find an order</strong> runs the same Modality Worklist C-FIND as MWL C-FIND / Worklist. <strong>2. Pick the order</strong> — exactly one; this sends a single image, not a batch. <strong>3. Describe the image</strong> — choose the Modality the stored object is tagged as (independent of the order's own scheduled modality), plus optional Study Description (falls back to the order's procedure description when left blank), Body Part Examined, and Series Description. <strong>4. Send</strong> picks a destination, defaulting to the same node the order came from.</p>
+  <p>The image itself is a fixed small solid-black frame (Secondary Capture Image Storage) — there is no real pixel content to configure. What makes it identifiable is the Patient Name, Patient ID, Accession Number, and (when the order carries one) Study Instance UID copied straight from the picked order, so the stored instance lands against the same patient/exam the order refers to. A fresh Study Instance UID is generated only if the order didn't have one.</p>
 </section>
 
 <section class="panel help-section" id="hl7-send">

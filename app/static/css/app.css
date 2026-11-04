@@ -2262,6 +2262,9 @@ body.page-find .find-head {
 .find-table tbody tr.is-selected td {
   background: color-mix(in srgb, var(--accent) 16%, transparent);
 }
+.send-image-orders tbody tr:has(input:checked) td {
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+}
 .find-table td[data-key="Findings"],
 .find-table td[data-key="Impression"] {
   white-space: pre-wrap;
