@@ -1,6 +1,8 @@
 # Changelog
 
-## Unreleased
+## 0.5.3
+
+A new DIMSE tool that simulates a modality completing a scheduled worklist order, and a label option for Dicom Cleaner's redact rectangle.
 
 ### Interface
 
