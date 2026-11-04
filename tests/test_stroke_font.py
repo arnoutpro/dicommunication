@@ -42,6 +42,17 @@ def test_draw_text_unmapped_characters_are_skipped_not_fatal() -> None:
     assert (array == 255).any()
 
 
+def test_font_renders_dicom_patient_name_separator() -> None:
+    # PN-format patient names use "^" between components (e.g. "DOE^JOHN"),
+    # and labels referencing a patient also commonly need "_" (filenames,
+    # identifiers) — both should render, not silently vanish like "@" does.
+    assert "^" in FONT
+    assert "_" in FONT
+    array = np.zeros((100, 300), dtype=np.uint8)
+    draw_text(array, "DOE^JOHN", 0, 0, 300, 100, 255, is_color=False)
+    assert (array == 255).any()
+
+
 def test_draw_text_color_image_fills_the_given_rgb_triplet() -> None:
     array = np.zeros((100, 300, 3), dtype=np.uint8)
     draw_text(array, "OK", 0, 0, 300, 100, (10, 20, 30), is_color=True)
