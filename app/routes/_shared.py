@@ -15,7 +15,7 @@ from pydantic import ValidationError
 
 from app import __version__
 from app.applog import configure as configure_logging, log
-from app.models import LoggingSettings, ToolResult
+from app.models import LoggingSettings, RemoteNode, ToolResult
 from app.paths import package_dir
 from app.shell import (
     PROMOTED_TAB_TOOL_IDS,
@@ -127,6 +127,7 @@ def execute_tool(
     remote_id: str | None = None,
     options: dict[str, Any] | None = None,
     identity_id: str | None = None,
+    manual_remote: RemoteNode | None = None,
 ) -> ToolResult:
     app = request.app
     config = app.state.store.load()
@@ -134,7 +135,9 @@ def execute_tool(
         tool = get_tool(tool_id)
     except KeyError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
-    remote = config.get_remote(remote_id) if remote_id else None
+    # A manually-entered node (currently C-ECHO only) is ephemeral: it is
+    # used for this one run and never saved to config.remotes.
+    remote = manual_remote or (config.get_remote(remote_id) if remote_id else None)
     if tool.requires_remote and remote is None:
         raise HTTPException(status_code=400, detail="A remote DICOM node is required")
     try:

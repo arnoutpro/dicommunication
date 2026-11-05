@@ -4,6 +4,7 @@
 
 ### Interface
 
+- **C-ECHO**: can now be run against a node entered on the spot — AE Title, host, port — instead of requiring it to be added under Configuration → Remote nodes first. A "Saved node" / "Enter connection details manually" toggle appears on the C-ECHO page when at least one node is configured; with none configured, the manual fields are the only option. The entered node is used for that one run only and is never saved to Configuration.
 - **Dicom Router**: a route rule can now export its matches to a dated JSON file — a plain data drop (Study Instance UID, Study Date, Accession Number, Modality, Study Description, status; no Patient Name or Patient ID) meant for a separate reporting/graphing tool to read, not a report viewed in this app. Set an "Export folder" on the rule; each run writes/overwrites `<rule-name>-YYYY-MM-DD.json` there. Works alongside (or instead of) the existing retrieve/forward — a find-only rule with Study Date set to "Today" and a daily schedule is the simplest way to get one file a day.
 
 ### Fixes

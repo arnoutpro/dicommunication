@@ -414,6 +414,7 @@
   </header>
   <p>Verification SOP Class <code>1.2.840.10008.1.1</code>. Associates with the selected remote as the chosen calling AE and sends C-ECHO. A pass means the peer accepted Verification and answered. It does <strong>not</strong> mean the peer will accept Storage, Study Root FIND, or Modality Worklist.</p>
   <p>If the association is rejected entirely, the calling AE is not in the peer’s allow-list, or host / port / called AE are wrong. Check Configured nodes and the vendor “known AEs” list (Orthanc <code>DicomModalities</code>).</p>
+  <p>Don't want to add the node to Configured nodes just to try it once? Switch to <strong>Enter connection details manually</strong> and type its AE Title, host, and port — the run uses them directly and nothing is saved.</p>
 </section>
 
 <section class="panel help-section" id="c-store">
