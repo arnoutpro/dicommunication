@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## 0.7.0
+
+C-ECHO can now be run against a node entered on the spot, and Dicom Router rules can export their matches to a JSON file for an external reporting tool to read.
+
 ### Interface
 
 - **C-ECHO**: can now be run against a node entered on the spot — AE Title, host, port — instead of requiring it to be added under Configuration → Remote nodes first. A "Saved node" / "Enter connection details manually" toggle appears on the C-ECHO page when at least one node is configured; with none configured, the manual fields are the only option. The entered node is used for that one run only and is never saved to Configuration.

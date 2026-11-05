@@ -56,9 +56,14 @@ Synthetic lab studies (not clinical data). Light theme, in the arnout.pro "Readi
 
 ![HL7 send with an ORM order update and Change existing order set to SC](docs/screenshots/hl7-send.webp)
 
-## What's new in 0.6.0
+## What's new in 0.7.0
 
-Details in [CHANGELOG.md](CHANGELOG.md#060).
+Details in [CHANGELOG.md](CHANGELOG.md#070).
+
+- **C-ECHO**: can now be run against a node entered on the spot (AE Title, host, port) instead of requiring it to be added under Configuration → Remote nodes first — a one-off entry, never saved.
+- **Dicom Router**: a route rule can now export its matches to a dated JSON file — a plain data drop for a separate reporting/graphing tool to read, not a report viewed in this app.
+
+And in 0.6.0 ([CHANGELOG.md](CHANGELOG.md#060)):
 
 - **Top bar**: the product tabs now sit in the same row as the brand mark and the About/Help/Configuration/theme buttons, instead of their own row underneath.
 
@@ -101,7 +106,7 @@ And in 0.5.1 ([CHANGELOG.md](CHANGELOG.md#051)):
 ## Contents
 
 - [Screenshots](#screenshots)
-- [What's new in 0.6.0](#whats-new-in-060)
+- [What's new in 0.7.0](#whats-new-in-070)
 - [What this is (and is not)](#what-this-is-and-is-not)
 - [How it's made](#how-its-made)
 - [DICOM services this tool distinguishes](#dicom-services-this-tool-distinguishes)
