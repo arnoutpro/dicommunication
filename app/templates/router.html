@@ -42,10 +42,30 @@
     <p>A route rule needs a source PACS to query. <a href="{{ href('/config/remotes') }}">Add one on Remote nodes</a>.</p>
   </div>
   {% else %}
+  {% set study_saved_queries = saved_queries | selectattr("level", "equalto", "STUDY") | list %}
+  {% if not editing and study_saved_queries %}
+  <form method="get" action="{{ href('/router') }}" class="form-grid">
+    <input type="hidden" name="new" value="1">
+    <label class="span-2">
+      Or load filters from a saved Dicomtag Analytics query
+      <span class="inline-input">
+        <select name="load_query">
+          <option value="">Select a saved query…</option>
+          {% for q in study_saved_queries %}
+          <option value="{{ q.id }}">{{ q.name }}</option>
+          {% endfor %}
+        </select>
+        <button class="button compact" type="submit">Load</button>
+      </span>
+      <span class="hint">Copies that query's remote node and filters into the rule below — a one-time copy, not a live link; editing the saved query afterwards has no effect on rules already loaded from it.</span>
+    </label>
+  </form>
+  {% endif %}
   <form method="post" action="{{ href('/router') }}" class="form-grid" autocomplete="off">
     {% if editing %}
     <input type="hidden" name="rule_id" value="{{ editing.id }}">
     {% endif %}
+    <input type="hidden" name="extra_query_json" value='{{ extra_query_json or "{}" }}'>
     <label>
       Name
       <input name="name"{{ invalid("name") }} required placeholder="Nightly CT from PACS" value="{{ values.name if values else '' }}">
@@ -67,6 +87,12 @@
       {{ field_error("modality") }}
       <span class="hint">Comma-separated. Leave blank to match any modality.</span>
     </label>
+    {% if values and values.extra_query %}
+    <p class="hint span-2">
+      Extra filters from the loaded query:
+      {% for keyword, value in values.extra_query.items() %}<code>{{ keyword }}</code>=<code>{{ value }}</code>{% if not loop.last %}, {% endif %}{% endfor %}
+    </p>
+    {% endif %}
     <label>
       Query level
       <select name="level">

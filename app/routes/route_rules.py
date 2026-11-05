@@ -2,15 +2,41 @@
 
 from __future__ import annotations
 
+import json
+
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from pydantic import ValidationError
 
 from app.applog import log
-from app.models import RouteRule
+from app.models import RouteRule, SavedQuery
 from app.routes._shared import page, templates
 
 router = APIRouter()
+
+
+def _draft_from_saved_query(saved_query: SavedQuery) -> RouteRule:
+    """A new rule's starting point, copied once from a saved Dicomtag Analytics
+    query — not a live link, so editing the saved query afterwards has no
+    effect on rules already loaded from it.
+
+    Study Date is left to the rule's own "Study date" control (a schedule
+    re-derives "today" on every run; the saved query's own date value was a
+    one-off snapshot). Modality maps onto the rule's existing field; every
+    other filter value the query had (accession number, a private Vue tag,
+    ...) carries over as an extra matching key.
+    """
+    extra_query = {
+        keyword: value
+        for keyword, value in saved_query.values.items()
+        if keyword not in ("StudyDate", "ModalitiesInStudy") and value
+    }
+    return RouteRule.model_construct(
+        name=f"{saved_query.name} (scheduled)",
+        source_remote_id=saved_query.remote_id,
+        modality=saved_query.values.get("ModalitiesInStudy", ""),
+        extra_query=extra_query,
+    )
 
 
 def _router_view(
@@ -28,6 +54,7 @@ def _router_view(
     # The page leads with the rule list; the form shows only when asked for,
     # when a save failed, or when there are no rules yet to list.
     show_form = bool(editing or adding or error or not request.app.state.store.list_route_rules())
+    values = draft or editing
     return templates.TemplateResponse(
         request,
         "router.html",
@@ -36,7 +63,8 @@ def _router_view(
             nav=nav,
             editing=editing,
             show_form=show_form,
-            values=draft or editing,
+            values=values,
+            extra_query_json=json.dumps(values.extra_query) if values else "{}",
             error_field=error_field,
             saved=saved,
             error=error,
@@ -47,10 +75,26 @@ def _router_view(
 
 @router.get("/router", response_class=HTMLResponse)
 def router_page(
-    request: Request, edit: str | None = None, new: str | None = None, saved: str | None = None
+    request: Request,
+    edit: str | None = None,
+    new: str | None = None,
+    saved: str | None = None,
+    load_query: str | None = None,
 ) -> HTMLResponse:
     editing = request.app.state.store.get_route_rule(edit) if edit else None
-    return _router_view(request, editing=editing, adding=bool(new), saved=saved)
+    draft = None
+    error = None
+    if load_query and not editing:
+        saved_query = request.app.state.store.get_saved_query(load_query)
+        if saved_query is None:
+            error = "That saved query no longer exists."
+        elif saved_query.level != "STUDY":
+            error = "Only a Study-level saved query can be loaded into a route rule."
+        else:
+            draft = _draft_from_saved_query(saved_query)
+    return _router_view(
+        request, editing=editing, adding=bool(new) or draft is not None, draft=draft, saved=saved, error=error
+    )
 
 
 @router.get("/router/{rule_id}/runs", response_class=HTMLResponse)
@@ -84,6 +128,20 @@ def _int_or_raw(value: object, default: int) -> int | str:
         return text
 
 
+def _extra_query_from_form(raw: object) -> dict[str, str]:
+    """The hidden ``extra_query_json`` field: filters copied in when a saved
+    query was loaded, round-tripped through edits/saves as plain text (the
+    form has no per-field inputs for an open-ended set of DICOM keywords).
+    """
+    try:
+        parsed = json.loads(str(raw or "") or "{}")
+    except ValueError:
+        return {}
+    if not isinstance(parsed, dict):
+        return {}
+    return {str(key): str(value).strip() for key, value in parsed.items() if str(value).strip()}
+
+
 def _rule_error(exc: ValueError, fields: dict) -> tuple[str, str | None]:
     """The message to show and the form field it belongs to (None: the whole form)."""
     if not isinstance(exc, ValidationError):
@@ -115,6 +173,7 @@ async def add_or_update_route_rule(request: Request):
         "days_of_week": [_int_or_raw(value, 0) for value in form.getlist("days_of_week")],
         "destination_remote_ids": [value for value in form.getlist("destination_remote_ids") if value],
         "export_dir": str(form.get("export_dir") or ""),
+        "extra_query": _extra_query_from_form(form.get("extra_query_json")),
     }
 
     try:
