@@ -8,7 +8,7 @@ from pydicom.dataset import Dataset
 from pynetdicom import AE, evt
 from pynetdicom.sop_class import StudyRootQueryRetrieveInformationModelFind
 
-from app.models import RemoteNode, RouteRule
+from app.models import RemoteNode, RouteRule, SavedQuery
 from app.store import ConfigStore
 
 
@@ -287,6 +287,71 @@ def test_daily_schedule_without_times_keeps_the_form(client: TestClient, store: 
     assert "Value error" not in page
     # And the browser is told the field is required, so it can catch this first.
     assert "data-required-when-daily" in page
+
+
+def test_router_page_offers_loading_a_study_level_saved_query(
+    client: TestClient, store: ConfigStore, remote: RemoteNode
+) -> None:
+    store.save_query(
+        SavedQuery(name="Unread CTs", remote_id=remote.id, level="STUDY", values={"ModalitiesInStudy": "CT"})
+    )
+    store.save_query(SavedQuery(name="Series lookup", remote_id=remote.id, level="SERIES"))
+    page = client.get("/router").text
+    assert "load filters from a saved Dicomtag Analytics query" in page
+    assert "Unread CTs" in page
+    # Only a Study-level saved query fits the rule's per-study tracking model.
+    assert "Series lookup" not in page
+
+
+def test_loading_a_saved_query_prefills_the_rule_form(client: TestClient, store: ConfigStore, remote: RemoteNode) -> None:
+    saved = store.save_query(
+        SavedQuery(
+            name="Unread CTs",
+            remote_id=remote.id,
+            level="STUDY",
+            values={"ModalitiesInStudy": "CT", "AccessionNumber": "ACC*", "StudyDate": "20260101"},
+        )
+    )
+    page = client.get(f"/router?new=1&load_query={saved.id}")
+    assert page.status_code == 200
+    assert 'value="Unread CTs (scheduled)"' in page.text
+    assert f'<option value="{remote.id}" selected' in page.text
+    assert 'value="CT"' in page.text
+    assert "Extra filters from the loaded query" in page.text
+    assert "AccessionNumber" in page.text
+    assert "ACC*" in page.text
+    # Study Date was a one-off snapshot in Analytics; the rule keeps its own
+    # "Study date" control instead of inheriting that literal value.
+    assert "20260101" not in page.text
+    assert "&#34;AccessionNumber&#34;: &#34;ACC*&#34;" in page.text
+
+
+def test_loading_a_series_level_saved_query_is_rejected(client: TestClient, store: ConfigStore, remote: RemoteNode) -> None:
+    saved = store.save_query(SavedQuery(name="Series lookup", remote_id=remote.id, level="SERIES"))
+    page = client.get(f"/router?new=1&load_query={saved.id}")
+    assert page.status_code == 200
+    assert "Only a Study-level saved query" in page.text
+
+
+def test_add_route_rule_with_extra_query_round_trips(client: TestClient, store: ConfigStore, remote: RemoteNode) -> None:
+    response = client.post(
+        "/router",
+        data={
+            "name": "From saved query",
+            "source_remote_id": remote.id,
+            "schedule_mode": "interval",
+            "interval_minutes": "15",
+            "extra_query_json": '{"AccessionNumber": "ACC*", "TamarStudyStatus": "UNREAD"}',
+        },
+        follow_redirects=False,
+    )
+    assert response.status_code == 303
+    rule = store.list_route_rules()[0]
+    assert rule.extra_query == {"AccessionNumber": "ACC*", "TamarStudyStatus": "UNREAD"}
+
+    edit_page = client.get(f"/router?edit={rule.id}")
+    assert "Extra filters from the loaded query" in edit_page.text
+    assert "TamarStudyStatus" in edit_page.text
 
 
 def test_invalid_time_on_edit_keeps_the_rule(client: TestClient, store: ConfigStore, remote: RemoteNode) -> None:

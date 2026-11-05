@@ -547,6 +547,44 @@ def test_start_rule_computes_fresh_schedule_when_stopped(store: ConfigStore) -> 
     assert reloaded.next_run_at >= before + timedelta(minutes=29)
 
 
+def test_run_rule_sends_extra_query_as_matching_keys(store: ConfigStore) -> None:
+    """``extra_query`` (copied in from a loaded Dicomtag Analytics saved query)
+    reaches the C-FIND identifier — a plain DICOM keyword via the public
+    dictionary, and a private Vue/ELSCINT1 tag via its private block.
+    """
+    port = _free_port()
+    sent: list[Dataset] = []
+
+    def handle_find(event):
+        sent.append(event.identifier)
+        yield 0x0000, None
+
+    scp = AE(ae_title="QR_SCP")
+    scp.add_supported_context(StudyRootQueryRetrieveInformationModelFind)
+    server = scp.start_server(("127.0.0.1", port), block=False, evt_handlers=[(evt.EVT_C_FIND, handle_find)])
+    try:
+        time.sleep(0.05)
+        remote = store.add_remote(RemoteNode(name="pacs", ae_title="QR_SCP", host="127.0.0.1", port=port)).remotes[-1]
+        rule = store.add_route_rule(
+            RouteRule(
+                name="From saved query",
+                source_remote_id=remote.id,
+                date_scope="all",
+                extra_query={"AccessionNumber": "ACC*", "TamarStudyStatus": "UNREAD"},
+            )
+        )
+        scheduler = RouterScheduler(store, WorklistSCP(store))
+        run = scheduler.run_rule(rule)
+        assert run.ok, run.error
+        assert len(sent) == 1
+        identifier = sent[0]
+        assert str(identifier.AccessionNumber) == "ACC*"
+        block = identifier.private_block(0x07A1, "ELSCINT1")
+        assert str(block[0x2A].value) == "UNREAD"
+    finally:
+        server.shutdown()
+
+
 def test_run_now_reports_already_running(store: ConfigStore) -> None:
     remote = store.add_remote(RemoteNode(name="pacs", ae_title="QR_SCP", host="127.0.0.1", port=1)).remotes[-1]
     rule = store.add_route_rule(RouteRule(name="X", source_remote_id=remote.id))

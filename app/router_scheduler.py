@@ -26,7 +26,6 @@ from pathlib import Path
 from typing import Any
 
 from pydicom.dataset import Dataset
-from pydicom.datadict import tag_for_keyword
 from pynetdicom.sop_class import (
     StudyRootQueryRetrieveInformationModelFind,
     StudyRootQueryRetrieveInformationModelMove,
@@ -37,6 +36,7 @@ from app.dicom_client import associate
 from app.models import LocalAE, RemoteNode, ROUTE_RUN_MAX_MATCHES, RouteMatch, RouteRule, RouteRun, utc_now
 from app.mwl_scp import STORAGE_INBOX, WorklistSCP
 from app.store import ConfigStore
+from app.tools.find_keys import apply_key
 
 TICK_SECONDS = 20
 PENDING = {0xFF00, 0xFF01}
@@ -117,11 +117,18 @@ def _date_query(rule: RouteRule) -> str:
 
 
 def _apply_extra_query(identifier: Dataset, extra_query: dict[str, str]) -> None:
+    """Extra matching keys copied in from a loaded Dicomtag Analytics saved
+    query — anything beyond the rule's own Modality/Study Date, including a
+    private Vue/ELSCINT1 tag (see app.tools.find_keys). An unknown or
+    unsupported keyword is skipped, not an error: a saved query can carry a
+    key this PACS build doesn't offer, and the C-FIND should still run with
+    what it does understand.
+    """
     for keyword, value in extra_query.items():
-        if not tag_for_keyword(keyword):
+        if not value:
             continue
         try:
-            setattr(identifier, keyword, value)
+            apply_key(identifier, keyword, value)
         except Exception:  # noqa: BLE001
             continue
 
