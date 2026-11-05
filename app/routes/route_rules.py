@@ -114,6 +114,7 @@ async def add_or_update_route_rule(request: Request):
         "daily_times": [part.strip() for part in str(form.get("daily_times") or "").split(",") if part.strip()],
         "days_of_week": [_int_or_raw(value, 0) for value in form.getlist("days_of_week")],
         "destination_remote_ids": [value for value in form.getlist("destination_remote_ids") if value],
+        "export_dir": str(form.get("export_dir") or ""),
     }
 
     try:

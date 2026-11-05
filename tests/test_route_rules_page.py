@@ -91,6 +91,7 @@ def test_add_edit_delete_route_rule(client: TestClient, store: ConfigStore, remo
             "schedule_mode": "interval",
             "interval_minutes": "30",
             "daily_times": "",
+            "export_dir": "/data/pacs-reports",
         },
         follow_redirects=False,
     )
@@ -103,6 +104,7 @@ def test_add_edit_delete_route_rule(client: TestClient, store: ConfigStore, remo
     assert rule.modality == "CT,MR"
     assert rule.interval_minutes == 30
     assert rule.status == "active"
+    assert rule.export_dir == "/data/pacs-reports"
 
     edit_page = client.get(f"/router?edit={rule.id}")
     assert edit_page.status_code == 200

@@ -568,6 +568,7 @@
     <li>A rule with no destination nodes only tracks new studies (find-only) — nothing is retrieved or moved.</li>
     <li>Add one or more destination nodes and the scheduler additionally C-MOVEs each new match to this workstation's local Storage SCP — same Accept C-STORE setting Dicomtag Analytics' SR retrieve and Tag Editor Fetch use — and C-STOREs it on to every destination, using the retrieved object's own SOP Class. There is nothing to pre-register per rule.</li>
     <li>A study is only marked "seen" once it is fully handled (found-only for a find-only rule, forwarded to every destination for one that has them), so a failed retrieve or forward is retried automatically on the next run instead of silently dropped.</li>
+    <li>Set an <strong>Export folder</strong> and each run also writes (or overwrites) <code>&lt;rule-name&gt;-YYYY-MM-DD.json</code> there — that run's matches as Study Instance UID, Study Date, Accession Number, Modality, Study Description and status, deliberately without Patient Name or Patient ID. This is independent of destination nodes: a find-only rule can export too. It is a plain data drop for a separate reporting/graphing tool to read, not something this app displays — a daily rule with Study Date set to "Today" gives that tool one file per day.</li>
   </ul>
   <p>Each rule can be <strong>Started</strong>, <strong>Paused</strong>, or <strong>Stopped</strong> independently of its own schedule — from the route rules list, or on the rule's own page:</p>
   <ul>
