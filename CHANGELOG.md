@@ -1,6 +1,8 @@
 # Changelog
 
-## Unreleased
+## 0.6.0
+
+The product tabs now live in the top bar itself, alongside the brand mark and the About/Help/Configuration/theme buttons.
 
 ### Interface
 
