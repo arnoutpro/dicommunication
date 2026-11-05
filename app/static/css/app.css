@@ -215,7 +215,12 @@ h1, h2, h3, h4 {
   flex-direction: row;
   flex: 1 1 auto;
   align-items: stretch;
-  justify-content: center;
+  /* flex-start, not center: centering overflowing flex content spills it
+     out symmetrically past both edges of the box instead of clipping/
+     scrolling within it — the first tab would bleed left into the brand
+     title and the last would clip on the right the moment the row is a
+     little too narrow for all five tabs. */
+  justify-content: flex-start;
   gap: 0.25rem;
   min-width: 0;
   overflow-x: auto;

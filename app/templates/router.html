@@ -157,6 +157,17 @@
       </div>
     </details>
 
+    <details class="advanced" {% if values and values.export_dir %}open{% endif %}>
+      <summary>Export matches to a file (optional)</summary>
+      <div class="form-grid">
+        <label class="span-2">
+          Export folder
+          <input name="export_dir" placeholder="/path/to/folder" value="{{ values.export_dir if values else '' }}">
+          <span class="hint">Each run writes (or overwrites) <code>&lt;rule-name&gt;-YYYY-MM-DD.json</code> here, with that run's matched studies — Study Instance UID, Study Date, Accession Number, Modality, Study Description, status. No Patient Name or Patient ID. Meant as a plain data drop for a separate reporting/graphing tool to read, not a report viewed in this app.</span>
+        </label>
+      </div>
+    </details>
+
     <div class="form-actions">
       <button class="button primary" type="submit">{% if editing %}Save route rule{% else %}Add route rule{% endif %}</button>
     </div>
@@ -196,6 +207,9 @@
               &rarr; {% for dest_id in r.destination_remote_ids %}{% set dest = config.get_remote(dest_id) %}{{ dest.name if dest else 'missing node' }}{% if not loop.last %}, {% endif %}{% endfor %}
               {% else %}
               · track only
+              {% endif %}
+              {% if r.export_dir %}
+              · exporting to {{ r.export_dir }}
               {% endif %}
             </div>
           </td>

@@ -236,6 +236,12 @@ class RouteRule(BaseModel):
 
     destination_remote_ids: list[str] = Field(default_factory=list)
 
+    # Quick-and-dirty data export, independent of destination_remote_ids:
+    # when set, each run appends that run's matches (non-identifying fields
+    # only — no PatientName/PatientID) to a dated JSON file in this folder,
+    # for an external reporting/graphing tool to read. See RouterScheduler.
+    export_dir: str = ""
+
     created_at: datetime = Field(default_factory=utc_now)
     updated_at: datetime = Field(default_factory=utc_now)
     last_run_at: datetime | None = None
@@ -267,6 +273,11 @@ class RouteRule(BaseModel):
         if not value:
             return ""
         return normalize_ae_title(value)
+
+    @field_validator("export_dir")
+    @classmethod
+    def _optional_export_dir(cls, value: str) -> str:
+        return (value or "").strip()
 
     @field_validator("modality")
     @classmethod

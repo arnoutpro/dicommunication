@@ -150,6 +150,83 @@ def test_run_rule_reports_new_studies_without_destination(store: ConfigStore) ->
         server.shutdown()
 
 
+def test_run_rule_exports_matches_without_patient_fields(store: ConfigStore, tmp_path) -> None:
+    import json
+
+    port = _free_port()
+
+    def handle_find(event):
+        yield 0xFF00, _study_ds("1.2.3")
+        yield 0x0000, None
+
+    scp = AE(ae_title="QR_SCP")
+    scp.add_supported_context(StudyRootQueryRetrieveInformationModelFind)
+    server = scp.start_server(("127.0.0.1", port), block=False, evt_handlers=[(evt.EVT_C_FIND, handle_find)])
+    try:
+        time.sleep(0.05)
+        remote = store.add_remote(
+            RemoteNode(name="pacs", ae_title="QR_SCP", host="127.0.0.1", port=port)
+        ).remotes[-1]
+        export_dir = tmp_path / "exports"
+        rule = store.add_route_rule(
+            RouteRule(
+                name="Daily Report",
+                source_remote_id=remote.id,
+                date_scope="all",
+                export_dir=str(export_dir),
+            )
+        )
+        storage_scp = WorklistSCP(store)
+        scheduler = RouterScheduler(store, storage_scp)
+
+        now = datetime(2026, 3, 15, 12, 0, tzinfo=timezone.utc)
+        run = scheduler.run_rule(rule, now=now)
+        assert run.ok, run.error
+
+        files = list(export_dir.glob("*.json"))
+        assert len(files) == 1
+        assert files[0].name == "daily-report-2026-03-15.json"
+        payload = json.loads(files[0].read_text())
+        assert payload["rule_name"] == "Daily Report"
+        assert payload["count"] == 1
+        study = payload["studies"][0]
+        assert study["study_instance_uid"] == "1.2.3"
+        assert study["modality"] == "CT"
+        assert study["accession_number"] == "ACC1"
+        assert "patient_name" not in study
+        assert "patient_id" not in study
+    finally:
+        server.shutdown()
+
+
+def test_run_rule_without_export_dir_writes_nothing(store: ConfigStore, tmp_path) -> None:
+    port = _free_port()
+
+    def handle_find(event):
+        yield 0xFF00, _study_ds("1.2.4")
+        yield 0x0000, None
+
+    scp = AE(ae_title="QR_SCP")
+    scp.add_supported_context(StudyRootQueryRetrieveInformationModelFind)
+    server = scp.start_server(("127.0.0.1", port), block=False, evt_handlers=[(evt.EVT_C_FIND, handle_find)])
+    try:
+        time.sleep(0.05)
+        remote = store.add_remote(
+            RemoteNode(name="pacs", ae_title="QR_SCP", host="127.0.0.1", port=port)
+        ).remotes[-1]
+        rule = store.add_route_rule(
+            RouteRule(name="No Export", source_remote_id=remote.id, date_scope="all")
+        )
+        storage_scp = WorklistSCP(store)
+        scheduler = RouterScheduler(store, storage_scp)
+
+        run = scheduler.run_rule(rule)
+        assert run.ok, run.error
+        assert not (tmp_path / "exports").exists()
+    finally:
+        server.shutdown()
+
+
 def test_run_rule_retrieves_and_forwards_new_studies(store: ConfigStore) -> None:
     storage_port = _free_port()
     pacs_port = _free_port()

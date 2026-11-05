@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+### Interface
+
+- **Dicom Router**: a route rule can now export its matches to a dated JSON file — a plain data drop (Study Instance UID, Study Date, Accession Number, Modality, Study Description, status; no Patient Name or Patient ID) meant for a separate reporting/graphing tool to read, not a report viewed in this app. Set an "Export folder" on the rule; each run writes/overwrites `<rule-name>-YYYY-MM-DD.json` there. Works alongside (or instead of) the existing retrieve/forward — a find-only rule with Study Date set to "Today" and a daily schedule is the simplest way to get one file a day.
+
+### Fixes
+
+- **Top bar**: the product tabs (moved into the top bar in 0.6.0) could visually overlap the brand title, and the last tab could get clipped, at window widths just a little too narrow to fit everything — `justify-content: center` on an overflowing flex row spills content out symmetrically past both edges instead of clipping/scrolling within it. Changed to `flex-start`, which only overflows (scrollably) past the end, never the start.
+
 ## 0.6.0
 
 The product tabs now live in the top bar itself, alongside the brand mark and the About/Help/Configuration/theme buttons.

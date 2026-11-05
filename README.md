@@ -462,6 +462,8 @@ A **route rule** is a scheduled Study Root C-FIND (interval in minutes, or speci
 
 A rule with no destination nodes just tracks new studies (find-only). Add one or more destination nodes and the scheduler additionally C-MOVEs each new match to this workstation's local Storage SCP (same **Accept C-STORE** setting Dicomtag Analytics' SR retrieve uses) and C-STOREs it on to every destination, using the retrieved object's own SOP Class — no need to pre-register storage SOP classes per rule. A study is only marked "seen" once it's fully handled, so a failed retrieve or forward is retried automatically on the next run rather than silently dropped.
 
+A rule can also **export its matches to a file** — an "Export folder" setting, independent of retrieve/forward. Each run writes (or overwrites) `<rule-name>-YYYY-MM-DD.json` there: that run's matched studies as Study Instance UID, Study Date, Accession Number, Modality, Study Description and status — deliberately no Patient Name or Patient ID. It's a plain data drop for a separate reporting/graphing tool to read, not a report built or viewed in this app; a find-only rule with Study Date set to "Today" and a daily schedule is the simplest way to get one file a day covering that day's studies.
+
 Each rule can be **Started**, **Paused**, or **Stopped** independently of its own schedule (from the rules list, or on the rule's own page):
 
 - **Start** runs the rule immediately and computes a fresh next scheduled time — whether it was paused or stopped before.

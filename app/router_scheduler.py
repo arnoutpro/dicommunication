@@ -17,9 +17,12 @@ without redoing or losing already-forwarded work.
 
 from __future__ import annotations
 
+import json
+import re
 import threading
 import time
 from datetime import date, datetime, time as dt_time, timedelta, timezone
+from pathlib import Path
 from typing import Any
 
 from pydicom.dataset import Dataset
@@ -37,6 +40,46 @@ from app.store import ConfigStore
 
 TICK_SECONDS = 20
 PENDING = {0xFF00, 0xFF01}
+
+
+def _export_slug(name: str) -> str:
+    slug = re.sub(r"[^A-Za-z0-9]+", "-", name.strip()).strip("-").lower()
+    return slug or "rule"
+
+
+def export_run_matches(rule: RouteRule, run: RouteRun, now: datetime) -> None:
+    """Write this run's matches to a dated JSON file for an external
+    reporting/graphing tool to read — deliberately just a file drop, not a
+    feature of its own: no patient-identifying fields, no aggregation, no
+    UI to view it. One file per rule per calendar day; a second run on the
+    same day overwrites it rather than appending.
+    """
+    try:
+        out_dir = Path(rule.export_dir).expanduser()
+        out_dir.mkdir(parents=True, exist_ok=True)
+        records = [
+            {
+                "study_instance_uid": match.study_instance_uid,
+                "series_instance_uid": match.series_instance_uid,
+                "study_date": match.study_date,
+                "accession_number": match.accession_number,
+                "modality": match.modality,
+                "study_description": match.study_description,
+                "status": match.status,
+            }
+            for match in run.matches
+        ]
+        payload = {
+            "rule_id": rule.id,
+            "rule_name": rule.name,
+            "exported_at": now.isoformat(),
+            "count": len(records),
+            "studies": records,
+        }
+        out_path = out_dir / f"{_export_slug(rule.name)}-{now.date().isoformat()}.json"
+        out_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+    except OSError as exc:
+        log.warning("Route rule %r: could not write export file: %s", rule.name, exc)
 
 
 def _assoc_up(assoc: Any) -> bool:
@@ -471,6 +514,8 @@ class RouterScheduler:
                         except KeyError:
                             break  # rule was deleted while this run was in flight
                 run.status = "interrupted" if interrupted else "completed"
+                if rule.export_dir and run.matches:
+                    export_run_matches(rule, run, now)
 
         run.duration_ms = (time.perf_counter() - started) * 1000
         rule.last_run_at = now
