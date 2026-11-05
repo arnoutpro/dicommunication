@@ -13,7 +13,7 @@ from pydantic import ValidationError
 from app.applog import log
 from app.fs_dialog import dialogs_available, pick_directory
 from app.hl7 import DEFAULT_PORT, display_hl7, sample_adt_a01
-from app.models import Hl7Message, SavedQuery, ToolResult
+from app.models import Hl7Message, RemoteNode, SavedQuery, ToolResult
 from app.pdf_dicom import (
     CollectError,
     MAX_FILES,
@@ -922,11 +922,62 @@ async def tag_editor_run(request: Request):
 def run_tool_form(
     request: Request,
     tool_id: str,
-    remote_id: str = Form(...),
+    remote_id: str = Form(""),
     identity_id: str = Form(""),
+    remote_mode: str = Form("saved"),
+    manual_ae_title: str = Form(""),
+    manual_host: str = Form(""),
+    manual_port: str = Form(""),
 ):
+    manual_remote: RemoteNode | None = None
+    if tool_id == "c-echo" and remote_mode == "manual":
+        try:
+            manual_remote = RemoteNode(
+                name=f"{manual_ae_title.strip() or 'Manual entry'} (not saved)",
+                ae_title=manual_ae_title,
+                host=manual_host,
+                port=int(manual_port) if str(manual_port).strip() else 104,
+            )
+        except (ValidationError, ValueError) as exc:
+            message = _first_error(exc) if isinstance(exc, ValidationError) else "Port: invalid value"
+            failure = ToolResult(tool_id=tool_id, tool_name=tool_id, ok=False, summary=message)
+            if _hx(request):
+                return templates.TemplateResponse(
+                    request,
+                    "partials/result.html",
+                    {"request": request, "result": failure, "display_tool_name": display_tool_name},
+                    status_code=400,
+                )
+            try:
+                tool = get_tool(tool_id)
+            except KeyError:
+                tool = None
+            return templates.TemplateResponse(
+                request,
+                tool.template if tool else "tool.html",
+                page(
+                    request,
+                    nav="tools",
+                    tool=tool,
+                    tool_id=tool_id,
+                    result=failure,
+                    remote_id=remote_id,
+                    remote_mode=remote_mode,
+                    manual_ae_title=manual_ae_title,
+                    manual_host=manual_host,
+                    manual_port=manual_port,
+                ),
+                status_code=400,
+            )
+        remote_id = ""
     try:
-        result = execute_tool(request, tool_id, remote_id, identity_id=identity_id or None)
+        result = execute_tool(
+            request,
+            tool_id,
+            remote_id or None,
+            identity_id=identity_id or None,
+            manual_remote=manual_remote,
+        )
     except HTTPException as exc:
         failure = ToolResult(
             tool_id=tool_id,

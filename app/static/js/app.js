@@ -916,12 +916,43 @@ function initSendImageForm(scope) {
   });
 }
 
+// C-ECHO: toggle between a saved remote node and typing AE Title/host/port
+// in for a one-off run, so an unknown or not-yet-configured node doesn't
+// need to be saved under Configuration → Remote nodes first.
+function initToolRemoteModeForm(scope) {
+  const root = scope instanceof Element ? scope : document;
+  root.querySelectorAll("[data-remote-mode]").forEach((fieldset) => {
+    const form = fieldset.closest("form");
+    if (!form || form.dataset.remoteModeReady === "1") {
+      return;
+    }
+    form.dataset.remoteModeReady = "1";
+    const savedFields = form.querySelectorAll("[data-remote-mode-saved]");
+    const manualFields = form.querySelectorAll("[data-remote-mode-manual]");
+    const remoteSelect = form.querySelector('[name="remote_id"]');
+    const manualAeTitle = form.querySelector('[name="manual_ae_title"]');
+    function sync() {
+      const checked = form.querySelector("[data-remote-mode-radio]:checked");
+      const manual = checked ? checked.value === "manual" : false;
+      savedFields.forEach((el) => { el.hidden = manual; });
+      manualFields.forEach((el) => { el.hidden = !manual; });
+      if (remoteSelect) remoteSelect.required = !manual;
+      if (manualAeTitle) manualAeTitle.required = manual;
+    }
+    form.querySelectorAll("[data-remote-mode-radio]").forEach((radio) => {
+      radio.addEventListener("change", sync);
+    });
+    sync();
+  });
+}
+
 initNavTree();
 initRouteRuleForm();
 initTestbenchServiceFields();
 initPdfStoreForm(document);
 initAnonymizeForm(document);
 initSendImageForm(document);
+initToolRemoteModeForm(document);
 initStudyPick(document);
 initChoiceHints(document);
 initCleanerPreview(document);

@@ -43,3 +43,59 @@ def test_c_echo_fails_when_nothing_listens() -> None:
     assert result.ok is False
     assert result.steps
     assert result.steps[0].ok is False
+
+
+def test_c_echo_page_offers_manual_entry_without_any_configured_remote(client) -> None:
+    page = client.get("/tools/c-echo")
+    assert page.status_code == 200
+    assert "manual_ae_title" in page.text
+    assert "manual_host" in page.text
+    assert "No remote node configured" not in page.text
+
+
+def test_c_echo_run_against_a_manually_entered_node(client) -> None:
+    port = _free_port()
+    scp = AE(ae_title="AD_HOC_SCP")
+    scp.add_supported_context(Verification)
+    server = scp.start_server(
+        ("127.0.0.1", port), block=False, evt_handlers=[(evt.EVT_C_ECHO, lambda event: 0x0000)]
+    )
+    try:
+        time.sleep(0.05)
+        response = client.post(
+            "/tools/c-echo/run",
+            data={
+                "remote_mode": "manual",
+                "manual_ae_title": "AD_HOC_SCP",
+                "manual_host": "127.0.0.1",
+                "manual_port": str(port),
+            },
+        )
+        assert response.status_code == 200
+        assert "0x0000" in response.text
+        assert "Pass" in response.text
+    finally:
+        server.shutdown()
+
+
+def test_c_echo_manual_entry_requires_an_ae_title(client) -> None:
+    response = client.post(
+        "/tools/c-echo/run",
+        data={"remote_mode": "manual", "manual_ae_title": "", "manual_host": "127.0.0.1"},
+    )
+    assert response.status_code == 400
+    assert "AE Title is required" in response.text
+
+
+def test_c_echo_manual_entry_is_not_saved_to_config(client, store) -> None:
+    port = _free_port()
+    client.post(
+        "/tools/c-echo/run",
+        data={
+            "remote_mode": "manual",
+            "manual_ae_title": "THROWAWAY",
+            "manual_host": "127.0.0.1",
+            "manual_port": str(port),
+        },
+    )
+    assert not any(node.ae_title == "THROWAWAY" for node in store.load().remotes)
