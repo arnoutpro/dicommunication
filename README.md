@@ -56,9 +56,13 @@ Synthetic lab studies (not clinical data). Light theme, in the arnout.pro "Readi
 
 ![HL7 send with an ORM order update and Change existing order set to SC](docs/screenshots/hl7-send.webp)
 
-## What's new in 0.7.0
+## What's new in 0.8.0
 
-Details in [CHANGELOG.md](CHANGELOG.md#070).
+Details in [CHANGELOG.md](CHANGELOG.md#080).
+
+- **Dicom Router**: a new rule can now load its filters from a saved Dicomtag Analytics query (Study level only) — a one-time copy of the remote node, Modality, and every other filter the query had.
+
+And in 0.7.0 ([CHANGELOG.md](CHANGELOG.md#070)):
 
 - **C-ECHO**: can now be run against a node entered on the spot (AE Title, host, port) instead of requiring it to be added under Configuration → Remote nodes first — a one-off entry, never saved.
 - **Dicom Router**: a route rule can now export its matches to a dated JSON file — a plain data drop for a separate reporting/graphing tool to read, not a report viewed in this app.
@@ -106,7 +110,7 @@ And in 0.5.1 ([CHANGELOG.md](CHANGELOG.md#051)):
 ## Contents
 
 - [Screenshots](#screenshots)
-- [What's new in 0.7.0](#whats-new-in-070)
+- [What's new in 0.8.0](#whats-new-in-080)
 - [What this is (and is not)](#what-this-is-and-is-not)
 - [How it's made](#how-its-made)
 - [DICOM services this tool distinguishes](#dicom-services-this-tool-distinguishes)
