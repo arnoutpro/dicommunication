@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## 0.8.0
+
+Dicom Router can now load a new rule's filters straight from a saved Dicomtag Analytics query.
+
 ### Interface
 
 - **Dicom Router**: a new rule can now load its filters from a saved Dicomtag Analytics query (Study level only) — a one-time copy of the remote node, Modality, and every other filter the query had (accession number, a private Vue/ELSCINT1 tag, ...), via a new "Or load filters from a saved Dicomtag Analytics query" picker on the Add route rule form. Study Date is left alone — the rule's own "Study date" control re-derives it on every scheduled run, rather than replaying the literal date from when the query was saved. Loading is a one-time copy, not a live link: editing the saved query afterwards has no effect on rules already loaded from it.
