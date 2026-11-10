@@ -56,9 +56,13 @@ Synthetic lab studies (not clinical data). Light theme, in the arnout.pro "Readi
 
 ![HL7 send with an ORM order update and Change existing order set to SC](docs/screenshots/hl7-send.webp)
 
-## What's new in 0.8.0
+## What's new in 0.9.0
 
-Details in [CHANGELOG.md](CHANGELOG.md#080).
+Details in [CHANGELOG.md](CHANGELOG.md#090).
+
+- **Dicomtag Analytics**: a Study-level result now offers **List series** — search Series Description (e.g. a result an AI tool wrote there, like "POSITIVE") across every matched study, without typing in a Study Instance UID.
+
+And in 0.8.0 ([CHANGELOG.md](CHANGELOG.md#080)):
 
 - **Dicom Router**: a new rule can now load its filters from a saved Dicomtag Analytics query (Study level only) — a one-time copy of the remote node, Modality, and every other filter the query had.
 
@@ -110,7 +114,7 @@ And in 0.5.1 ([CHANGELOG.md](CHANGELOG.md#051)):
 ## Contents
 
 - [Screenshots](#screenshots)
-- [What's new in 0.8.0](#whats-new-in-080)
+- [What's new in 0.9.0](#whats-new-in-090)
 - [What this is (and is not)](#what-this-is-and-is-not)
 - [How it's made](#how-its-made)
 - [DICOM services this tool distinguishes](#dicom-services-this-tool-distinguishes)
