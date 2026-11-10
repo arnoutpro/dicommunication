@@ -2,10 +2,6 @@
 
 ## Unreleased
 
-## 0.8.0
-
-Dicom Router can now load a new rule's filters straight from a saved Dicomtag Analytics query.
-
 ### Interface
 
 - **Dicomtag Analytics**: a Study-level result now offers **List series**, next to the existing List SR reports — type a Series Description (or leave it blank for every series) and it drills each matched study down to its series with one C-FIND per study. Series Description, like every Series key, is locked behind a Study Instance UID in the hierarchical model, so this is how it gets searched across many studies without typing a UID in by hand — useful for a tag an AI tool writes its result into (e.g. Series Description "POSITIVE"/"NEGATIVE"). One C-FIND per matched study: narrow the Study-level filters (date, modality) first to keep that count reasonable.
