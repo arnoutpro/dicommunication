@@ -2,10 +2,6 @@
 
 ## Unreleased
 
-## 0.9.1
-
-Dicomtag Analytics can now run a Study and Series find together in one click.
-
 ### Interface
 
 - **Dicomtag Analytics**: Series Description now accepts a comma-separated list (e.g. `POSITIVE, NEGATIVE, DOUBT`) in "Also search series" and "List series" — DICOM has no OR for a single matching key, so each value gets its own Series-level C-FIND per study and the results are merged.
