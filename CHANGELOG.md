@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## 0.9.3
+
+Series Description now accepts several comma-separated values (OR'd together), and a series-level result no longer hides the List SR reports / List series buttons.
+
 ### Interface
 
 - **Dicomtag Analytics**: Series Description now accepts a comma-separated list (e.g. `POSITIVE, NEGATIVE, DOUBT`) in "Also search series" and "List series" — DICOM has no OR for a single matching key, so each value gets its own Series-level C-FIND per study and the results are merged.

@@ -56,9 +56,13 @@ Synthetic lab studies (not clinical data). Light theme, in the arnout.pro "Readi
 
 ![HL7 send with an ORM order update and Change existing order set to SC](docs/screenshots/hl7-send.webp)
 
-## What's new in 0.9.1
+## What's new in 0.9.3
 
-Details in [CHANGELOG.md](CHANGELOG.md#091).
+Details in [CHANGELOG.md](CHANGELOG.md#093).
+
+- **Dicomtag Analytics**: Series Description now accepts several comma-separated values (e.g. `POSITIVE, NEGATIVE, DOUBT`, OR'd together), and a series-level result no longer hides the List SR reports / List series buttons.
+
+And in 0.9.1 ([CHANGELOG.md](CHANGELOG.md#091)):
 
 - **Dicomtag Analytics**: check "Also search series" under Level and running a Study query now does the Study find and a per-study Series find together in one click, instead of needing a separate "List series" step afterward.
 
@@ -118,7 +122,7 @@ And in 0.5.1 ([CHANGELOG.md](CHANGELOG.md#051)):
 ## Contents
 
 - [Screenshots](#screenshots)
-- [What's new in 0.9.1](#whats-new-in-091)
+- [What's new in 0.9.3](#whats-new-in-093)
 - [What this is (and is not)](#what-this-is-and-is-not)
 - [How it's made](#how-its-made)
 - [DICOM services this tool distinguishes](#dicom-services-this-tool-distinguishes)
