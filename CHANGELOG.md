@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+### Interface
+
+- **Dicomtag Analytics**: Series Description now accepts a comma-separated list (e.g. `POSITIVE, NEGATIVE, DOUBT`) in "Also search series" and "List series" — DICOM has no OR for a single matching key, so each value gets its own Series-level C-FIND per study and the results are merged.
+
+### Fixes
+
+- **Dicomtag Analytics**: a combined Study+Series result (from "Also search series", or from the "List series"/"List SR reports" follow-up buttons) no longer hides the "List SR reports" / "List series" buttons — they were gated on being at Study level, which a series-level result never is, even though each row still carries its Study Instance UID and chaining further works fine.
+
 ## 0.9.1
 
 Dicomtag Analytics can now run a Study and Series find together in one click.
