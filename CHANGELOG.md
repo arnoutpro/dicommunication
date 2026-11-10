@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Interface
+
+- **Dicomtag Analytics**: a Study query can now also search series in the same run — check "Also search series" under Level, optionally type a Series Description, and running the query does the Study C-FIND followed automatically by one Series-level C-FIND per matched study, returning the combined series table directly. The separate "List series" button (run after the fact, on an already-fetched Study result) still works too; this just adds the one-click path.
+
 ## 0.9.0
 
 Dicomtag Analytics can now search Series Description across many studies at once, without typing in a Study Instance UID.

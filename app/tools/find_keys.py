@@ -1143,6 +1143,10 @@ def options_from_form(form: Mapping[str, Any]) -> dict[str, Any]:
     series_description_filter = str(form.get("series_description_filter") or "").strip()
     if series_description_filter:
         payload["series_description_filter"] = series_description_filter
+    payload["combine_series"] = bool(form.get("combine_series"))
+    combine_series_description = str(form.get("combine_series_description") or "").strip()
+    if combine_series_description:
+        payload["combine_series_description"] = combine_series_description
     studies = _parse_studies(form.get("studies_json") or form.get("studies"))
     if studies:
         payload["studies"] = studies
