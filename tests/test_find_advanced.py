@@ -626,6 +626,146 @@ def test_list_sr_reports_via_form(client, store) -> None:
         server.shutdown()
 
 
+def test_list_series_by_description_from_study_results() -> None:
+    """Series Description is a Series-level key the hierarchical model locks
+    behind a Study Instance UID. "List series" drives it per study instead
+    of requiring the UID to be typed in by hand.
+    """
+    port = _free_port()
+
+    def handle_find(event):
+        identifier = event.identifier
+        level = str(getattr(identifier, "QueryRetrieveLevel", ""))
+        description = str(getattr(identifier, "SeriesDescription", "") or "")
+        ds = Dataset()
+        ds.QueryRetrieveLevel = level
+        ds.StudyInstanceUID = str(getattr(identifier, "StudyInstanceUID", "") or "1.2.3")
+        if level == "SERIES" and description == "POSITIVE":
+            ds.SeriesInstanceUID = "1.2.3.99"
+            ds.Modality = "DX"
+            ds.SeriesNumber = "904"
+            ds.SeriesDescription = "POSITIVE"
+            ds.NumberOfSeriesRelatedInstances = "4"
+            yield 0xFF00, ds
+        elif level == "SERIES":
+            pass
+        else:
+            ds.PatientName = "DOE^JANE"
+            ds.PatientID = "1001"
+            ds.StudyDate = "20261110"
+            ds.AccessionNumber = "ACC1"
+            ds.ModalitiesInStudy = "DX"
+            yield 0xFF00, ds
+        yield 0x0000, None
+
+    server = _start_scp("QR_SCP", port, [(evt.EVT_C_FIND, handle_find)])
+    try:
+        time.sleep(0.05)
+        local = LocalAE(timeout_seconds=5)
+        remote = RemoteNode(name="pacs", ae_title="QR_SCP", host="127.0.0.1", port=port)
+        result = CFindAdvancedTool().run(
+            local,
+            remote,
+            {
+                "follow": "list_series",
+                "series_description_filter": "POSITIVE",
+                "studies": [
+                    {
+                        "StudyInstanceUID": "1.2.3",
+                        "PatientName": "DOE^JANE",
+                        "PatientID": "1001",
+                        "StudyDate": "20261110",
+                        "AccessionNumber": "ACC1",
+                        "ModalitiesInStudy": "DX",
+                    }
+                ],
+            },
+        )
+        assert result.ok, result.summary
+        assert len(result.records) == 1
+        assert result.records[0]["SeriesDescription"] == "POSITIVE"
+        assert result.records[0]["SeriesInstanceUID"] == "1.2.3.99"
+        assert result.records[0]["PatientName"] == "DOE^JANE"
+        assert result.steps[1].details.get("kind") == "series_list"
+    finally:
+        server.shutdown()
+
+
+def test_list_series_without_description_returns_every_series() -> None:
+    port = _free_port()
+
+    def handle_find(event):
+        identifier = event.identifier
+        level = str(getattr(identifier, "QueryRetrieveLevel", ""))
+        ds = Dataset()
+        ds.QueryRetrieveLevel = level
+        ds.StudyInstanceUID = "1.2.3"
+        if level == "SERIES":
+            # SeriesDescription is a return key here (present, blank) rather
+            # than a matching key — no description filter was given.
+            assert not str(getattr(identifier, "SeriesDescription", "") or "")
+            ds.SeriesInstanceUID = "1.2.3.1"
+            ds.SeriesDescription = "AXIAL"
+        yield 0xFF00, ds
+        yield 0x0000, None
+
+    server = _start_scp("QR_SCP", port, [(evt.EVT_C_FIND, handle_find)])
+    try:
+        time.sleep(0.05)
+        local = LocalAE(timeout_seconds=5)
+        remote = RemoteNode(name="pacs", ae_title="QR_SCP", host="127.0.0.1", port=port)
+        result = CFindAdvancedTool().run(
+            local,
+            remote,
+            {"follow": "list_series", "studies": [{"StudyInstanceUID": "1.2.3"}]},
+        )
+        assert result.ok, result.summary
+        assert result.records[0]["SeriesDescription"] == "AXIAL"
+    finally:
+        server.shutdown()
+
+
+def test_list_series_via_form(client, store) -> None:
+    port = _free_port()
+
+    def handle_find(event):
+        identifier = event.identifier
+        level = str(getattr(identifier, "QueryRetrieveLevel", ""))
+        ds = Dataset()
+        ds.QueryRetrieveLevel = level
+        ds.StudyInstanceUID = "1.2.3"
+        if level == "SERIES":
+            ds.SeriesInstanceUID = "1.2.3.99"
+            ds.SeriesDescription = "POSITIVE"
+        else:
+            ds.PatientName = "DOE^JANE"
+        yield 0xFF00, ds
+        yield 0x0000, None
+
+    server = _start_scp("QR_SCP", port, [(evt.EVT_C_FIND, handle_find)])
+    try:
+        time.sleep(0.05)
+        remote = RemoteNode(name="pacs", ae_title="QR_SCP", host="127.0.0.1", port=port)
+        store.add_remote(remote)
+        listed = client.post(
+            "/tools/c-find-advanced/run",
+            data={
+                "remote_id": remote.id,
+                "level": "STUDY",
+                "follow": "list_series",
+                "series_description_filter": "POSITIVE",
+                "studies_json": '[{"StudyInstanceUID":"1.2.3","PatientName":"DOE^JANE"}]',
+            },
+            headers={"HX-Request": "true"},
+        )
+        assert listed.status_code == 200
+        assert b"1.2.3.99" in listed.content
+        assert b"POSITIVE" in listed.content
+        assert b"DOE^JANE" in listed.content
+    finally:
+        server.shutdown()
+
+
 def test_retrieve_sr_requires_storage_scp() -> None:
     remote = RemoteNode(name="pacs", ae_title="QR_SCP", host="127.0.0.1", port=9)
     result = CFindAdvancedTool().run(

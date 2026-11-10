@@ -241,14 +241,6 @@ def _open_assoc(local: LocalAE, remote: RemoteNode, syntax):
     return assoc, context_rows(assoc)
 
 
-def _sr_series_identifier(study_uid: str) -> Dataset:
-    return build_identifier(
-        "SERIES",
-        {"StudyInstanceUID": study_uid, "Modality": "SR"},
-        SR_SERIES_RETURN,
-    )
-
-
 def _sr_image_identifier(study_uid: str, series_uid: str) -> Dataset:
     return build_identifier(
         "IMAGE",
@@ -469,6 +461,8 @@ class CFindAdvancedTool(BaseTool):
         follow = str((options or {}).get("follow") or parsed.get("follow") or "").strip()
         if follow == "sr_series":
             return self._list_sr_series(local, remote, options or {}, parsed)
+        if follow == "list_series":
+            return self._list_series(local, remote, options or {}, parsed)
         if follow == "retrieve_sr":
             return self._retrieve_sr(local, remote, options or {}, parsed)
 
@@ -639,6 +633,60 @@ class CFindAdvancedTool(BaseTool):
         options: Mapping[str, Any],
         parsed: Mapping[str, Any],
     ) -> ToolResult:
+        return self._list_series_matching(
+            local,
+            remote,
+            options,
+            parsed,
+            match={"Modality": "SR"},
+            kind="sr_series",
+            noun="Structured Report series (Modality SR)",
+            not_found_hint="Run a Study query first, then List SR reports.",
+        )
+
+    def _list_series(
+        self,
+        local: LocalAE,
+        remote: RemoteNode,
+        options: Mapping[str, Any],
+        parsed: Mapping[str, Any],
+    ) -> ToolResult:
+        """Drill every study in the current Study-level result down to its
+        series — the hierarchical model requires a Study Instance UID for a
+        Series-level C-FIND, so this is how a Series key (Series Description,
+        say) gets searched across many studies without typing one in by hand.
+        One Series-level C-FIND per study: narrow the Study-level filters
+        (date, modality) first to keep that count reasonable.
+        """
+        description = str(
+            (options or {}).get("series_description_filter")
+            or parsed.get("series_description_filter")
+            or ""
+        ).strip()
+        noun = f"series matching Series Description {description!r}" if description else "series"
+        return self._list_series_matching(
+            local,
+            remote,
+            options,
+            parsed,
+            match={"SeriesDescription": description} if description else {},
+            kind="series_list",
+            noun=noun,
+            not_found_hint="Run a Study query first, then List series.",
+        )
+
+    def _list_series_matching(
+        self,
+        local: LocalAE,
+        remote: RemoteNode,
+        options: Mapping[str, Any],
+        parsed: Mapping[str, Any],
+        *,
+        match: dict[str, str],
+        kind: str,
+        noun: str,
+        not_found_hint: str,
+    ) -> ToolResult:
         studies = _rows_from_options({**parsed, **options})
         if not studies:
             uid = str(parsed.get("values", {}).get("StudyInstanceUID") or "").strip()
@@ -650,7 +698,7 @@ class CFindAdvancedTool(BaseTool):
                 tool_id=self.id,
                 tool_name=self.name,
                 ok=False,
-                summary="No Study Instance UID in the result list. Run a Study query first, then List SR reports.",
+                summary=f"No Study Instance UID in the result list. {not_found_hint}",
                 remote_id=remote.id,
                 remote_name=remote.name,
             )
@@ -703,7 +751,7 @@ class CFindAdvancedTool(BaseTool):
                         ToolStep(
                             name="Association",
                             ok=True,
-                            message="Study Root FIND SOP Class accepted · Series level, Modality SR",
+                            message=f"Study Root FIND SOP Class accepted · Series level, {noun}",
                             duration_ms=elapsed_ms(assoc_started),
                         )
                     )
@@ -720,7 +768,9 @@ class CFindAdvancedTool(BaseTool):
                             if not _assoc_up(assoc) or not assoc.accepted_contexts:
                                 failed_studies += 1
                                 continue
-                        identifier = _sr_series_identifier(uid)
+                        identifier = build_identifier(
+                            "SERIES", {"StudyInstanceUID": uid, **match}, SR_SERIES_RETURN
+                        )
                         series_hits, _trunc, failed_status = _collect_c_find(
                             assoc, identifier, SR_SERIES_RETURN
                         )
@@ -747,14 +797,14 @@ class CFindAdvancedTool(BaseTool):
                             name="C-FIND",
                             ok=failed_studies < len(studies),
                             message=(
-                                f"{len(records)} Structured Report series across "
+                                f"{len(records)} {noun} across "
                                 f"{len(studies)} studies{extra}{skipped}"
                             ),
                             duration_ms=elapsed_ms(find_started),
                             details={
                                 "count": len(records),
                                 "level": "SERIES",
-                                "kind": "sr_series",
+                                "kind": kind,
                                 "studies": len(studies),
                                 "failed_studies": failed_studies,
                                 "truncated": truncated_studies,
@@ -786,11 +836,11 @@ class CFindAdvancedTool(BaseTool):
         if ok:
             extra = f" (first {MAX_SR_STUDIES} studies)" if truncated_studies else ""
             summary = (
-                f"Listed {len(records)} Structured Report series (Modality SR) "
-                f"from {len(studies)} studies on {remote.ae_title}{extra}"
+                f"Listed {len(records)} {noun} from {len(studies)} studies "
+                f"on {remote.ae_title}{extra}"
             )
         else:
-            summary = failed.message if failed else "Could not list Structured Report series"
+            summary = failed.message if failed else f"Could not list {noun}"
         return ToolResult(
             tool_id=self.id,
             tool_name=self.name,
