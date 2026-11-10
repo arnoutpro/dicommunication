@@ -1912,6 +1912,7 @@ const FOLLOW_RECORD_KEYS = {
 
 function compactFollowRecords(kind, records) {
   const keys = FOLLOW_RECORD_KEYS[kind] || FOLLOW_RECORD_KEYS.sr_series;
+  const seenStudies = new Set();
   return (records || [])
     .map((row) => {
       const out = {};
@@ -1923,7 +1924,17 @@ function compactFollowRecords(kind, records) {
       });
       return out;
     })
-    .filter((row) => row.StudyInstanceUID);
+    .filter((row) => row.StudyInstanceUID)
+    // A series-level result can list the same study more than once (one row
+    // per matching series) — one C-FIND per study, not per row, on the
+    // follow-up.
+    .filter((row) => {
+      if (seenStudies.has(row.StudyInstanceUID)) {
+        return false;
+      }
+      seenStudies.add(row.StudyInstanceUID);
+      return true;
+    });
 }
 
 function clearFindParentUids(form) {

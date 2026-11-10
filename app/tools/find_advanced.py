@@ -658,7 +658,7 @@ class CFindAdvancedTool(BaseTool):
             remote,
             options,
             parsed,
-            match={"Modality": "SR"},
+            match=[{"Modality": "SR"}],
             kind="sr_series",
             noun="Structured Report series (Modality SR)",
             not_found_hint="Run a Study query first, then List SR reports.",
@@ -677,23 +677,35 @@ class CFindAdvancedTool(BaseTool):
         series — the hierarchical model requires a Study Instance UID for a
         Series-level C-FIND, so this is how a Series key (Series Description,
         say) gets searched across many studies without typing one in by hand.
-        One Series-level C-FIND per study: narrow the Study-level filters
+        One Series-level C-FIND per study (per Series Description value, if
+        more than one was given — DICOM matching has no OR for a single key,
+        so each value needs its own C-FIND): narrow the Study-level filters
         (date, modality) first to keep that count reasonable.
         """
-        description = str(
+        raw_description = str(
             (options or {}).get("series_description_filter")
             or parsed.get("series_description_filter")
             or (options or {}).get("combine_series_description")
             or parsed.get("combine_series_description")
             or ""
         ).strip()
-        noun = f"series matching Series Description {description!r}" if description else "series"
+        descriptions = [part.strip() for part in raw_description.split(",") if part.strip()]
+        if descriptions:
+            match: list[dict[str, str]] = [{"SeriesDescription": value} for value in descriptions]
+            if len(descriptions) == 1:
+                noun = f"series matching Series Description {descriptions[0]!r}"
+            else:
+                values = ", ".join(repr(value) for value in descriptions[:-1])
+                noun = f"series matching Series Description {values} or {descriptions[-1]!r}"
+        else:
+            match = [{}]
+            noun = "series"
         return self._list_series_matching(
             local,
             remote,
             options,
             parsed,
-            match={"SeriesDescription": description} if description else {},
+            match=match,
             kind=kind,
             noun=noun,
             not_found_hint="Run a Study query first, then List series.",
@@ -706,7 +718,7 @@ class CFindAdvancedTool(BaseTool):
         options: Mapping[str, Any],
         parsed: Mapping[str, Any],
         *,
-        match: dict[str, str],
+        match: list[dict[str, str]],
         kind: str,
         noun: str,
         not_found_hint: str,
@@ -782,38 +794,51 @@ class CFindAdvancedTool(BaseTool):
                     find_started = time.perf_counter()
                     for study in studies:
                         uid = _cell(study, "StudyInstanceUID")
-                        if not _assoc_up(assoc):
-                            _release_assoc(assoc)
-                            assoc, new_contexts = _open_assoc(
-                                local, remote, StudyRootQueryRetrieveInformationModelFind
-                            )
-                            if new_contexts:
-                                contexts = new_contexts
-                            if not _assoc_up(assoc) or not assoc.accepted_contexts:
-                                failed_studies += 1
-                                continue
-                        identifier = build_identifier(
-                            "SERIES", {"StudyInstanceUID": uid, **match}, SR_SERIES_RETURN
-                        )
-                        series_hits, _trunc, failed_status = _collect_c_find(
-                            assoc, identifier, SR_SERIES_RETURN
-                        )
-                        if failed_status:
-                            _release_assoc(assoc)
-                            assoc, new_contexts = _open_assoc(
-                                local, remote, StudyRootQueryRetrieveInformationModelFind
-                            )
-                            if new_contexts:
-                                contexts = new_contexts
-                            if _assoc_up(assoc) and assoc.accepted_contexts:
-                                series_hits, _trunc, failed_status = _collect_c_find(
-                                    assoc, identifier, SR_SERIES_RETURN
+                        seen_series: set[str] = set()
+                        study_failed = False
+                        for variant in match:
+                            if not _assoc_up(assoc):
+                                _release_assoc(assoc)
+                                assoc, new_contexts = _open_assoc(
+                                    local, remote, StudyRootQueryRetrieveInformationModelFind
                                 )
-                        if failed_status:
+                                if new_contexts:
+                                    contexts = new_contexts
+                                if not _assoc_up(assoc) or not assoc.accepted_contexts:
+                                    study_failed = True
+                                    break
+                            identifier = build_identifier(
+                                "SERIES", {"StudyInstanceUID": uid, **variant}, SR_SERIES_RETURN
+                            )
+                            series_hits, _trunc, failed_status = _collect_c_find(
+                                assoc, identifier, SR_SERIES_RETURN
+                            )
+                            if failed_status:
+                                _release_assoc(assoc)
+                                assoc, new_contexts = _open_assoc(
+                                    local, remote, StudyRootQueryRetrieveInformationModelFind
+                                )
+                                if new_contexts:
+                                    contexts = new_contexts
+                                if _assoc_up(assoc) and assoc.accepted_contexts:
+                                    series_hits, _trunc, failed_status = _collect_c_find(
+                                        assoc, identifier, SR_SERIES_RETURN
+                                    )
+                            if failed_status:
+                                study_failed = True
+                                break
+                            for series in series_hits:
+                                # More than one value (e.g. POSITIVE, DOUBT) means more
+                                # than one C-FIND per study; a series can't actually match
+                                # two distinct values, but a wildcard could overlap.
+                                series_uid = _cell(series, "SeriesInstanceUID")
+                                if series_uid and series_uid in seen_series:
+                                    continue
+                                if series_uid:
+                                    seen_series.add(series_uid)
+                                records.append(_merge_sr_series(study, series))
+                        if study_failed:
                             failed_studies += 1
-                            continue
-                        for series in series_hits:
-                            records.append(_merge_sr_series(study, series))
                     extra = f"; first {MAX_SR_STUDIES} studies" if truncated_studies else ""
                     skipped = f"; {failed_studies} study queries failed" if failed_studies else ""
                     steps.append(

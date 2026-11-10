@@ -68,10 +68,10 @@
     <button class="button compact" type="button" data-find-json>Download JSON</button>
     {% if kind == "sr_series" or (find_level|default("STUDY") == "SERIES" and result.records[0].get("Modality") == "SR") %}
     <button class="button compact primary" type="button" data-find-follow="retrieve_sr">Retrieve report text ({{ result.records|length }})</button>
-    {% elif find_level|default("STUDY") == "STUDY" and kind != "sr_content" %}
+    {% elif (find_level|default("STUDY") == "STUDY" or kind in ("series_list", "series_list_combined")) and kind != "sr_content" %}
     <button class="button compact primary" type="button" data-find-follow="sr_series">List SR reports ({{ result.records|length }})</button>
     <span class="inline-input">
-      <input data-find-series-description placeholder="Series Description, e.g. POSITIVE" spellcheck="false" autocomplete="off">
+      <input data-find-series-description placeholder="Series Description, e.g. POSITIVE, DOUBT" spellcheck="false" autocomplete="off">
       <button class="button compact" type="button" data-find-follow="list_series">List series</button>
     </span>
     {% endif %}

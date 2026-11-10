@@ -691,6 +691,58 @@ def test_list_series_by_description_from_study_results() -> None:
         server.shutdown()
 
 
+def test_list_series_with_multiple_descriptions_ors_them_together() -> None:
+    """DICOM has no OR for a single matching key, so "POSITIVE, DOUBT" runs
+    one Series-level C-FIND per study per value and merges the results.
+    """
+    port = _free_port()
+    series_queries: list[str] = []
+
+    def handle_find(event):
+        identifier = event.identifier
+        level = str(getattr(identifier, "QueryRetrieveLevel", ""))
+        description = str(getattr(identifier, "SeriesDescription", "") or "")
+        ds = Dataset()
+        ds.QueryRetrieveLevel = level
+        ds.StudyInstanceUID = "1.2.3"
+        if level == "SERIES":
+            series_queries.append(description)
+            if description == "POSITIVE":
+                ds.SeriesInstanceUID = "1.2.3.1"
+                ds.SeriesDescription = "POSITIVE"
+                yield 0xFF00, ds
+            elif description == "DOUBT":
+                ds.SeriesInstanceUID = "1.2.3.2"
+                ds.SeriesDescription = "DOUBT"
+                yield 0xFF00, ds
+            # NEGATIVE: no matching series for this study.
+        else:
+            ds.PatientName = "DOE^JANE"
+            yield 0xFF00, ds
+        yield 0x0000, None
+
+    server = _start_scp("QR_SCP", port, [(evt.EVT_C_FIND, handle_find)])
+    try:
+        time.sleep(0.05)
+        local = LocalAE(timeout_seconds=5)
+        remote = RemoteNode(name="pacs", ae_title="QR_SCP", host="127.0.0.1", port=port)
+        result = CFindAdvancedTool().run(
+            local,
+            remote,
+            {
+                "follow": "list_series",
+                "series_description_filter": "POSITIVE, NEGATIVE, DOUBT",
+                "studies": [{"StudyInstanceUID": "1.2.3", "PatientName": "DOE^JANE"}],
+            },
+        )
+        assert result.ok, result.summary
+        assert sorted(series_queries) == ["DOUBT", "NEGATIVE", "POSITIVE"]
+        descriptions = sorted(record["SeriesDescription"] for record in result.records)
+        assert descriptions == ["DOUBT", "POSITIVE"]
+    finally:
+        server.shutdown()
+
+
 def test_list_series_without_description_returns_every_series() -> None:
     port = _free_port()
 
@@ -762,6 +814,9 @@ def test_list_series_via_form(client, store) -> None:
         assert b"1.2.3.99" in listed.content
         assert b"POSITIVE" in listed.content
         assert b"DOE^JANE" in listed.content
+        # A series-level result still carries each row's Study Instance UID,
+        # so chaining straight into List SR reports from here works too.
+        assert b'data-find-follow="sr_series"' in listed.content
     finally:
         server.shutdown()
 
