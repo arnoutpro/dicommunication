@@ -766,6 +766,131 @@ def test_list_series_via_form(client, store) -> None:
         server.shutdown()
 
 
+def test_combine_series_runs_study_and_series_find_in_one_call() -> None:
+    """"Also search series" on the main Study query chains straight into a
+    per-study Series drill — one submission, not Study-query-then-List-series.
+    """
+    port = _free_port()
+
+    def handle_find(event):
+        identifier = event.identifier
+        level = str(getattr(identifier, "QueryRetrieveLevel", ""))
+        description = str(getattr(identifier, "SeriesDescription", "") or "")
+        ds = Dataset()
+        ds.QueryRetrieveLevel = level
+        ds.StudyInstanceUID = str(getattr(identifier, "StudyInstanceUID", "") or "1.2.3")
+        if level == "SERIES" and description == "POSITIVE":
+            ds.SeriesInstanceUID = "1.2.3.99"
+            ds.SeriesDescription = "POSITIVE"
+            yield 0xFF00, ds
+        elif level == "SERIES":
+            pass
+        else:
+            ds.PatientName = "DOE^JANE"
+            ds.StudyDate = "20261110"
+            ds.ModalitiesInStudy = "DX"
+            yield 0xFF00, ds
+        yield 0x0000, None
+
+    server = _start_scp("QR_SCP", port, [(evt.EVT_C_FIND, handle_find)])
+    try:
+        time.sleep(0.05)
+        local = LocalAE(timeout_seconds=5)
+        remote = RemoteNode(name="pacs", ae_title="QR_SCP", host="127.0.0.1", port=port)
+        result = CFindAdvancedTool().run(
+            local,
+            remote,
+            {
+                "level": "STUDY",
+                "values": {"StudyDate": "20261110"},
+                "return_keys": ["PatientName", "StudyDate", "ModalitiesInStudy"],
+                "combine_series": True,
+                "combine_series_description": "POSITIVE",
+            },
+        )
+        assert result.ok, result.summary
+        assert len(result.records) == 1
+        assert result.records[0]["SeriesDescription"] == "POSITIVE"
+        assert result.records[0]["SeriesInstanceUID"] == "1.2.3.99"
+        assert result.records[0]["PatientName"] == "DOE^JANE"
+        assert result.steps[-2].details.get("kind") == "series_list_combined"
+        # Both phases' steps are kept, for full transparency into what ran.
+        assert any(step.name == "Association" for step in result.steps[:3])
+    finally:
+        server.shutdown()
+
+
+def test_combine_series_via_form(client, store) -> None:
+    port = _free_port()
+
+    def handle_find(event):
+        identifier = event.identifier
+        level = str(getattr(identifier, "QueryRetrieveLevel", ""))
+        ds = Dataset()
+        ds.QueryRetrieveLevel = level
+        ds.StudyInstanceUID = "1.2.3"
+        if level == "SERIES":
+            ds.SeriesInstanceUID = "1.2.3.99"
+            ds.SeriesDescription = "POSITIVE"
+        else:
+            ds.PatientName = "DOE^JANE"
+        yield 0xFF00, ds
+        yield 0x0000, None
+
+    server = _start_scp("QR_SCP", port, [(evt.EVT_C_FIND, handle_find)])
+    try:
+        time.sleep(0.05)
+        remote = RemoteNode(name="pacs", ae_title="QR_SCP", host="127.0.0.1", port=port)
+        store.add_remote(remote)
+        response = client.post(
+            "/tools/c-find-advanced/run",
+            data={
+                "remote_id": remote.id,
+                "level": "STUDY",
+                "include": ["PatientName"],
+                "key_StudyDate": "20261110",
+                "combine_series": "on",
+                "combine_series_description": "POSITIVE",
+            },
+            headers={"HX-Request": "true"},
+        )
+        assert response.status_code == 200
+        assert b"1.2.3.99" in response.content
+        assert b"POSITIVE" in response.content
+        assert b"DOE^JANE" in response.content
+    finally:
+        server.shutdown()
+
+
+def test_combine_series_does_not_chain_when_no_studies_match() -> None:
+    port = _free_port()
+
+    def handle_find(event):
+        yield 0x0000, None
+
+    server = _start_scp("QR_SCP", port, [(evt.EVT_C_FIND, handle_find)])
+    try:
+        time.sleep(0.05)
+        local = LocalAE(timeout_seconds=5)
+        remote = RemoteNode(name="pacs", ae_title="QR_SCP", host="127.0.0.1", port=port)
+        result = CFindAdvancedTool().run(
+            local,
+            remote,
+            {
+                "level": "STUDY",
+                "values": {"StudyDate": "20261110"},
+                "return_keys": ["StudyDate"],
+                "combine_series": True,
+                "combine_series_description": "POSITIVE",
+            },
+        )
+        assert result.ok, result.summary
+        assert result.records == []
+        assert result.steps[-1].details.get("kind") is None
+    finally:
+        server.shutdown()
+
+
 def test_retrieve_sr_requires_storage_scp() -> None:
     remote = RemoteNode(name="pacs", ae_title="QR_SCP", host="127.0.0.1", port=9)
     result = CFindAdvancedTool().run(

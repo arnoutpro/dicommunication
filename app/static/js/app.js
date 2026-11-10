@@ -1467,10 +1467,34 @@ function applyDatePreset(form, preset) {
   syncFindAdvanced(form);
 }
 
+function syncFindCombineSeries(form) {
+  const wrap = form.querySelector("[data-find-combine-series]");
+  if (!wrap) {
+    return;
+  }
+  const onStudy = selectedFindLevel(form) === "STUDY";
+  wrap.hidden = !onStudy;
+  const toggle = wrap.querySelector("[data-find-combine-series-toggle]");
+  toggle.disabled = !onStudy;
+  if (!onStudy) {
+    toggle.checked = false;
+  }
+  const fields = wrap.querySelector("[data-find-combine-series-fields]");
+  const value = wrap.querySelector("[data-find-combine-series-value]");
+  const active = onStudy && toggle.checked;
+  if (fields) {
+    fields.hidden = !active;
+  }
+  if (value) {
+    value.disabled = !active;
+  }
+}
+
 function syncFindAdvanced(form) {
   if (!form) {
     return;
   }
+  syncFindCombineSeries(form);
   const level = selectedFindLevel(form);
   const values = collectFindValues(form);
   const hint = form.querySelector("[data-find-level-hint]");
@@ -2032,7 +2056,11 @@ function bindFindAdvanced(root) {
         syncFindAdvanced(target);
         return;
       }
-      if (event.target.closest("[data-find-level], [data-find-value], [data-find-include]")) {
+      if (
+        event.target.closest(
+          "[data-find-level], [data-find-value], [data-find-include], [data-find-combine-series-toggle]"
+        )
+      ) {
         syncFindAdvanced(target);
       }
     });

@@ -469,6 +469,13 @@ class CFindAdvancedTool(BaseTool):
         level = parsed["level"]
         values = parsed["values"]
         return_keys = parsed["return_keys"]
+        combine_series = level == "STUDY" and bool(
+            (options or {}).get("combine_series") or parsed.get("combine_series")
+        )
+        if combine_series and "StudyInstanceUID" not in return_keys:
+            # Needed to drill into series afterward, regardless of whether
+            # the user left its own "return this column" box checked.
+            return_keys = [*return_keys, "StudyInstanceUID"]
         blocked = validate_query(level, values)
         if blocked:
             return ToolResult(
@@ -612,6 +619,19 @@ class CFindAdvancedTool(BaseTool):
             if ok
             else (failed.message if failed else "Dicomtag Analytics failed")
         )
+        if combine_series and ok and records:
+            # One combined click: the Study pass above found the studies,
+            # now drill each into its series on the same association chain
+            # instead of making the user run a Study query, look at the
+            # table, and press List series as a second step.
+            combined_options = dict(options or {})
+            combined_options["studies"] = records
+            series_result = self._list_series(
+                local, remote, combined_options, parsed, kind="series_list_combined"
+            )
+            series_result.steps = steps + series_result.steps
+            series_result.duration_ms = elapsed_ms(started)
+            return series_result
         return ToolResult(
             tool_id=self.id,
             tool_name=self.name,
@@ -650,6 +670,8 @@ class CFindAdvancedTool(BaseTool):
         remote: RemoteNode,
         options: Mapping[str, Any],
         parsed: Mapping[str, Any],
+        *,
+        kind: str = "series_list",
     ) -> ToolResult:
         """Drill every study in the current Study-level result down to its
         series — the hierarchical model requires a Study Instance UID for a
@@ -661,6 +683,8 @@ class CFindAdvancedTool(BaseTool):
         description = str(
             (options or {}).get("series_description_filter")
             or parsed.get("series_description_filter")
+            or (options or {}).get("combine_series_description")
+            or parsed.get("combine_series_description")
             or ""
         ).strip()
         noun = f"series matching Series Description {description!r}" if description else "series"
@@ -670,7 +694,7 @@ class CFindAdvancedTool(BaseTool):
             options,
             parsed,
             match={"SeriesDescription": description} if description else {},
-            kind="series_list",
+            kind=kind,
             noun=noun,
             not_found_hint="Run a Study query first, then List series.",
         )

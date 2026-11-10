@@ -101,6 +101,18 @@
         </div>
       </fieldset>
 
+      <fieldset class="find-combine-series" data-find-combine-series>
+        <legend>Also search series</legend>
+        <label class="find-sr-field-toggle">
+          <input type="checkbox" name="combine_series" data-find-combine-series-toggle>
+          Drill every matched study down to its series in the same run
+        </label>
+        <div class="find-combine-series-fields" data-find-combine-series-fields hidden>
+          <input name="combine_series_description" placeholder="Series Description, e.g. POSITIVE — leave blank for every series" spellcheck="false" autocomplete="off" data-find-combine-series-value>
+        </div>
+        <span class="hint">Series Description is a Series key, locked behind a Study Instance UID in the hierarchical model — checking this runs the Study query above, then one Series-level C-FIND per matched study automatically, instead of needing a separate "List series" click. Narrow the Study-level filters first on a large result.</span>
+      </fieldset>
+
       <div class="find-toolbar">
         <button class="button compact" type="button" data-find-select="defaults">Usual columns</button>
         <button class="button compact" type="button" data-find-select="all">All keys</button>
