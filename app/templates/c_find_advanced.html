@@ -42,6 +42,9 @@
     >
       <input type="hidden" name="follow" value="" data-find-follow-field>
       <textarea hidden name="studies_json" data-find-studies-field></textarea>
+      <input type="hidden" name="series_description_filter" value="" data-find-series-description-field>
+      {# The visible input lives in the result partial, outside this <form> —
+         startFindFollow copies its value in here before resubmitting. #}
       <input type="hidden" name="max_records" value="" data-find-cap-field>
       <input type="hidden" name="date_preset" value="" data-find-date-preset>
       {% if saved_query %}<input type="hidden" name="saved_query_name" value="{{ saved_query.name }}">{% endif %}

@@ -1864,6 +1864,15 @@ const FOLLOW_RECORD_KEYS = {
     "StudyDescription",
     "ModalitiesInStudy",
   ],
+  list_series: [
+    "StudyInstanceUID",
+    "PatientName",
+    "PatientID",
+    "StudyDate",
+    "AccessionNumber",
+    "StudyDescription",
+    "ModalitiesInStudy",
+  ],
   retrieve_sr: [
     "StudyInstanceUID",
     "SeriesInstanceUID",
@@ -1958,6 +1967,13 @@ function startFindFollow(kind, resultRoot) {
   clearFindParentUids(form);
   follow.value = kind;
   studies.value = JSON.stringify(records);
+  if (kind === "list_series") {
+    const description = resultRoot && resultRoot.querySelector("[data-find-series-description]");
+    const descriptionField = form.querySelector("[data-find-series-description-field]");
+    if (descriptionField) {
+      descriptionField.value = description ? description.value.trim() : "";
+    }
+  }
   if (typeof form.requestSubmit === "function") {
     form.requestSubmit();
   } else {

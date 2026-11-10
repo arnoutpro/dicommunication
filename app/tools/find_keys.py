@@ -1136,6 +1136,13 @@ def options_from_form(form: Mapping[str, Any]) -> dict[str, Any]:
     follow = str(form.get("follow") or "").strip()
     if follow:
         payload["follow"] = follow
+    # Not one of the catalog's level-gated key_<name> fields — a Series key
+    # (like Series Description) is locked out of the main form until a Study
+    # Instance UID is on hand, which is exactly what "List series" fills in
+    # per study. This field stays enabled regardless of the selected level.
+    series_description_filter = str(form.get("series_description_filter") or "").strip()
+    if series_description_filter:
+        payload["series_description_filter"] = series_description_filter
     studies = _parse_studies(form.get("studies_json") or form.get("studies"))
     if studies:
         payload["studies"] = studies
