@@ -5,6 +5,7 @@
 ### Interface
 
 - **Dicomtag Analytics**: the query builder is now one full-width screen instead of sharing space with a cramped results column. Pressing "Run query" hides it entirely and the results take over the whole screen as a full-width table, with an "Edit query" button to switch straight back — the filter catalog itself also now wraps into multiple columns to use that width, instead of staying in one narrow stretched column.
+- **Dicomtag Analytics**: "List SR reports" / "Retrieve report text" in the results toolbar now match every other action there (Copy table, Download CSV/JSON, …) instead of standing out in a different color; the Series Description field next to "List series" no longer stretches to fill the whole row at full page width.
 
 ## 0.10.0
 

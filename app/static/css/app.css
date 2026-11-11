@@ -1297,6 +1297,8 @@ label:has(> .input-with-action > input:focus),
   align-items: center;
   justify-content: center;
   gap: 0.35rem;
+  flex-shrink: 0;
+  white-space: nowrap;
   border: 1px solid var(--line-strong);
   background: var(--glass);
   color: var(--subtle);
@@ -2363,6 +2365,8 @@ body.page-find .find-head {
   gap: 0.4rem 0.55rem;
   margin: 0 0 0.5rem;
 }
+.find-export-bar .inline-input { flex: 0 1 auto; }
+.find-export-bar .inline-input input { flex: 0 1 16rem; min-width: 10rem; }
 .find-sr-report {
   margin: 0.45rem 0 0.7rem;
   padding: 0;
