@@ -1873,6 +1873,33 @@ body.page-find .find-head {
   padding: 0.28rem 0.45rem;
   font-size: var(--text-sm);
 }
+.find-combine-series-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.3rem 0.5rem;
+}
+.find-combine-series-value {
+  flex: 1;
+  min-width: 12rem;
+}
+.find-combine-series-caption {
+  font-size: var(--text-xs);
+  white-space: nowrap;
+}
+.find-inline-help {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  font-size: var(--text-xs);
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.find-inline-help:hover { color: var(--accent-hover); text-decoration: underline; }
+.find-combine-series-help { margin-top: 0.3rem; }
 .find-sr-fields {
   display: flex;
   flex-wrap: wrap;

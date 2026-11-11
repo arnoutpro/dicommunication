@@ -2121,6 +2121,15 @@ function bindFindAdvanced(root) {
       if (stop) {
         stopFindQuery(target);
       }
+      const helpToggle = event.target.closest("[data-find-help-toggle]");
+      if (helpToggle) {
+        const help = helpToggle.closest("fieldset")?.querySelector("[data-find-help]");
+        if (help) {
+          help.hidden = !help.hidden;
+          helpToggle.setAttribute("aria-expanded", help.hidden ? "false" : "true");
+          helpToggle.textContent = help.hidden ? "Why?" : "Hide";
+        }
+      }
       const vueToggle = event.target.closest("[data-find-vue-toggle]");
       if (vueToggle) {
         const vueExtra = target.querySelector("[data-find-vue-extra]");
