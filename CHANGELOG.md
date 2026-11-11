@@ -11,6 +11,7 @@
 - **Sidebar**: each tool in the "Tools" switcher now has its own icon, so the list reads at a glance instead of as five lines of plain text.
 - **Dicomtag Analytics**: the Modality chip row now shows the first 6 codes (CR, CT, DX, MG, MR, NM) with a "+7 more" toggle for the rest, instead of all 13 at once; it opens itself if a saved query or typed value uses one of the hidden codes.
 - **Dicomtag Analytics**: "Also search series" is now one line (checkbox, Series Description field, and a "Why?" link) instead of a permanently-visible paragraph that pushed Study Date and the rest of the primary filters below the fold.
+- **Dicom Anonymizer / Dicom Cleaner**: the shared Modalities field now collapses to the same 6 common codes + "+7 more" toggle as Dicomtag Analytics, instead of always showing all 13. (Dicom Router's own Modality field is a plain text field, not chips, so there was nothing to collapse there.)
 
 ## 0.9.3
 
