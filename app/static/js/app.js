@@ -2301,9 +2301,47 @@ document.addEventListener("input", (event) => {
   }
 });
 
+function syncFindWorkspaceView(root) {
+  const workspace = (root || document).querySelector(".find-workspace");
+  if (!workspace) {
+    return;
+  }
+  const resultBox = workspace.querySelector("#result");
+  const queryPanel = workspace.querySelector("[data-find-query]");
+  const resultsPanel = workspace.querySelector("[data-find-results]");
+  const hasResult = !!(resultBox && resultBox.querySelector(".result"));
+  if (resultsPanel) {
+    resultsPanel.classList.toggle("is-empty", !hasResult);
+  }
+  if (queryPanel) {
+    queryPanel.classList.toggle("is-collapsed", hasResult);
+    const toggle = queryPanel.querySelector("[data-find-query-toggle]");
+    if (toggle) {
+      toggle.setAttribute("aria-expanded", hasResult ? "false" : "true");
+    }
+  }
+}
+
+document.addEventListener("click", (event) => {
+  const toggle = event.target.closest("[data-find-query-toggle]");
+  if (!toggle) {
+    return;
+  }
+  const queryPanel = toggle.closest("[data-find-query]");
+  if (!queryPanel) {
+    return;
+  }
+  const collapsed = queryPanel.classList.toggle("is-collapsed");
+  toggle.setAttribute("aria-expanded", collapsed ? "false" : "true");
+});
+
+syncFindWorkspaceView(document);
 bindFindAdvanced(document);
 document.body.addEventListener("htmx:afterSwap", (event) => {
   bindFindAdvanced(event.target);
+  if (event.target && event.target.id === "result") {
+    syncFindWorkspaceView(document);
+  }
 });
 
 document.body.addEventListener("htmx:beforeSwap", (event) => {

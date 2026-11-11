@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Interface
+
+- **Dicomtag Analytics**: the query builder is now one full-width screen instead of sharing space with a cramped results column. Pressing "Run query" collapses it to a slim summary bar ("Edit query" to reopen it) and the results take over the full width as a proper table — the filter catalog itself also now wraps into multiple columns to use that width, instead of staying in one narrow stretched column.
+
 ## 0.10.0
 
 A layout and visual pass across the app: the product switcher moved into the sidebar, Dicomtag Analytics' filter form got progressively-disclosed and flattened, several small styling inconsistencies against the app's own design rules were fixed, and a bolder visual direction (icon tiles, pill-shaped badges/chips/buttons, a big stat numeral on the Dashboard) was applied, starting with the Dashboard and Dicomtag Analytics.
