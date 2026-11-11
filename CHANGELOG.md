@@ -2,10 +2,6 @@
 
 ## Unreleased
 
-## 0.9.3
-
-Series Description now accepts several comma-separated values (OR'd together), and a series-level result no longer hides the List SR reports / List series buttons.
-
 ### Interface
 
 - **Top bar / sidebar**: the product switcher (Dicommunication, Dicomtag Analytics, Dicom Anonymizer, Dicom Router, Dicom Cleaner) moved from its own row in the top bar into a "Tools" section at the top of the sidebar, above each tool's own contextual navigation. The top bar is back to one row (brand + About/Help/Configuration/theme); phase 1 of a layout pass aimed at the app feeling less cluttered as more tools and options have been added to it.
