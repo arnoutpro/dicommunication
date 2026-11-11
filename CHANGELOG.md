@@ -15,6 +15,7 @@
 - **Dicomtag Analytics**: the page now has a one-line description under its title, and "Retrieve report text" is one compact line (Findings/Impression checkboxes plus a short "needs Accept C-STORE" link) instead of a separate 3-line warning paragraph above it.
 - Modality/Days-of-week/Destination-node toggle chips (and their own "+N more" toggle) are now fully pill-shaped, matching mockup A, instead of the same corner radius as badges.
 - **Dicomtag Analytics**: a result's query duration now shows right next to its summary ("...returned 1 study from QR_SCP · 119 ms") instead of only inside a collapsed "Timing" disclosure you had to open to see it.
+- Bolder visual pass, phase 1: Dashboard and Dicomtag Analytics get an icon tile beside a bigger, bolder page title; every status badge (Pass/Fail, Echo OK, Not checked, saved query count) and the one primary button per screen are now pill-shaped; the Dashboard's "Remote nodes" count is a large display numeral with a segmented answering/not answering/not checked bar instead of one line of text; "Next step" gets a small icon. Every other tool automatically picks up the pill-shaped badges and primary button, since those are shared components.
 
 ## 0.9.3
 

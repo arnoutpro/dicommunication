@@ -2,9 +2,14 @@
 {% block title %}Arnout.pro Dicommunication Tool{% endblock %}
 {% block content %}
 <section class="hero">
-  <div>
-    <h1>Dashboard</h1>
-    <p class="lede">This workstation, the nodes it talks to, and what they answered last.</p>
+  <div class="page-head-hero">
+    <span class="page-icon-tile" aria-hidden="true">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"></rect><rect x="14" y="3" width="7" height="7" rx="1"></rect><rect x="3" y="14" width="7" height="7" rx="1"></rect><rect x="14" y="14" width="7" height="7" rx="1"></rect></svg>
+    </span>
+    <div>
+      <h1>Dashboard</h1>
+      <p class="lede">This workstation, the nodes it talks to, and what they answered last.</p>
+    </div>
   </div>
 </section>
 
@@ -38,8 +43,13 @@
       <p class="card-label">Remote nodes</p>
       <a class="card-link" href="{{ href('/config/remotes') }}">Manage</a>
     </header>
-    <h2>{{ echo_board.total }}</h2>
+    <h2 class="stat-number">{{ echo_board.total }}</h2>
     {% if config.remotes %}
+    <div class="stat-bar" role="img" aria-label="{{ echo_board.passed }} answering, {{ echo_board.failed }} not answering, {{ echo_board.unknown }} not checked">
+      {% if echo_board.passed %}<span class="stat-bar-seg ok" style="flex-grow: {{ echo_board.passed }};"></span>{% endif %}
+      {% if echo_board.failed %}<span class="stat-bar-seg fail" style="flex-grow: {{ echo_board.failed }};"></span>{% endif %}
+      {% if echo_board.unknown %}<span class="stat-bar-seg unknown" style="flex-grow: {{ echo_board.unknown }};"></span>{% endif %}
+    </div>
     <p class="muted">
       {{ echo_board.passed }} answering · {{ echo_board.failed }} not answering · {{ echo_board.unknown }} not checked
     </p>
@@ -55,6 +65,11 @@
     <header class="card-head">
       <p class="card-label">Next step</p>
     </header>
+    <div class="next-step-row">
+      <span class="next-step-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"></path></svg>
+      </span>
+      <div>
     {% if not config.remotes %}
     <p class="next-step">Add the PACS, modality or test SCP you want to reach: its AE Title, host and port.</p>
     <a class="button primary card-action" href="{{ href('/config/remotes') }}">Add a remote node</a>
@@ -73,6 +88,8 @@
     <p class="next-step">Every node answers C-ECHO. Go further with a C-FIND or C-STORE in the Testbench.</p>
     <a class="button card-action" href="{{ href('/testbench') }}">Open Testbench</a>
     {% endif %}
+      </div>
+    </div>
   </article>
 </div>
 
