@@ -8,7 +8,7 @@ A low-code DICOM communication validator and PACS admin toolkit.
 
 Configure this workstation as a DICOM Application Entity, register remote nodes (PACS, Orthanc, RIS/MWL, modalities), impersonate extra calling AE Titles, and run the checks a connectivity ticket actually needs: network PING, C-ECHO, simulated C-STORE, PDF to Encapsulated PDF Storage, Study Root C-FIND (including Study / Series / Image), Modality Worklist C-FIND, and HL7 v2 send over MLLP.
 
-Dicommunication is **one application**, with a top tab row for each product and a shared **Configuration**, opened from the gear button in the top bar: **Dicommunication** (the network/DIMSE/HL7 workstation tools), **Dicomtag Analytics** (Study Root C-FIND, including Vue ELSCINT1 keys, plus listing and retrieving DICOM Structured Reports), **Dicom Anonymizer** (query, retrieve, and anonymize studies/series/images — see below), **Dicom Router** (scheduled C-FIND rules with optional retrieve/forward — see below), and **Dicom Cleaner** (query, retrieve, redact a rectangle of burned-in pixel data, and send the result back over C-STORE — see below). Each tab's content area has its own left sidebar with that product's own pages. Local AE, virtual identities, remote nodes, and logs are configured once, under Configuration, and shared by every product. The Windows MSI and macOS DMG each install a single shortcut / app.
+Dicommunication is **one application**, with a sidebar tool switcher for each product and a shared **Configuration**, opened from the gear button in the top bar: **Dicommunication** (the network/DIMSE/HL7 workstation tools), **Dicomtag Analytics** (Study Root C-FIND, including Vue ELSCINT1 keys, plus listing and retrieving DICOM Structured Reports), **Dicom Anonymizer** (query, retrieve, and anonymize studies/series/images — see below), **Dicom Router** (scheduled C-FIND rules with optional retrieve/forward — see below), and **Dicom Cleaner** (query, retrieve, redact a rectangle of burned-in pixel data, and send the result back over C-STORE — see below). Each tool's content area has its own left sidebar with that product's own pages, below the tool switcher. Local AE, virtual identities, remote nodes, and logs are configured once, under Configuration, and shared by every product. The Windows MSI and macOS DMG each install a single shortcut / app.
 
 The web UI is FastAPI + HTMX. DICOM uses pynetdicom/pydicom. New test tools are Python plugins: drop a file in `app/tools/` and it appears in the Dicommunication sidebar. The top bar's **About** button shows the running version; **Help** is the in-app administrator guide.
 
@@ -16,7 +16,7 @@ Open [http://127.0.0.1:8080](http://127.0.0.1:8080).
 
 ## Screenshots
 
-Synthetic lab studies (not clinical data). Light theme, in the arnout.pro "Reading Room" design shared with the browser tools (see [DESIGN.md](DESIGN.md)), with Dicommunication's indigo accent. The theme switcher (top right) also has dark and professional-dark modes: same layout, different palette. The product tabs sit under the top bar; **Configuration** is the gear button on the right of the top bar.
+Synthetic lab studies (not clinical data). Light theme, in the arnout.pro "Reading Room" design shared with the browser tools (see [DESIGN.md](DESIGN.md)), with Dicommunication's indigo accent. The theme switcher (top right) also has dark and professional-dark modes: same layout, different palette. The product switcher sits at the top of the sidebar; **Configuration** is the gear button on the right of the top bar.
 
 **Dicommunication** — dashboard: this workstation, each remote node's last C-ECHO in words, a one-click C-ECHO of every node, and a suggested next step.
 
@@ -56,9 +56,18 @@ Synthetic lab studies (not clinical data). Light theme, in the arnout.pro "Readi
 
 ![HL7 send with an ORM order update and Change existing order set to SC](docs/screenshots/hl7-send.webp)
 
-## What's new in 0.9.3
+## What's new in 0.10.0
 
-Details in [CHANGELOG.md](CHANGELOG.md#093).
+Details in [CHANGELOG.md](CHANGELOG.md#0100).
+
+A layout and visual redesign pass:
+
+- The product switcher moved from the top bar into the sidebar, each with its own icon.
+- **Dicomtag Analytics**: the filter form only shows Study Date, Accession Number, Modality and Series Description by default; every other field sits behind "More filters" (one flat list, with a live count), and the private Vue/ELSCINT1 tags collapse behind their own toggle. "Also search series" is one line instead of a permanent paragraph.
+- Modality chips (Dicomtag Analytics, Dicom Anonymizer, Dicom Cleaner) collapse to the 6 most common codes plus a "+7 more" toggle.
+- A bolder visual direction: the Dashboard and Dicomtag Analytics get an icon tile beside a bigger page title, a large stat numeral and segmented status bar on the Dashboard; every status badge and the one primary button per screen are now pill-shaped, across every tool.
+
+And in 0.9.3 ([CHANGELOG.md](CHANGELOG.md#093)):
 
 - **Dicomtag Analytics**: Series Description now accepts several comma-separated values (e.g. `POSITIVE, NEGATIVE, DOUBT`, OR'd together), and a series-level result no longer hides the List SR reports / List series buttons.
 
@@ -122,7 +131,7 @@ And in 0.5.1 ([CHANGELOG.md](CHANGELOG.md#051)):
 ## Contents
 
 - [Screenshots](#screenshots)
-- [What's new in 0.9.3](#whats-new-in-093)
+- [What's new in 0.10.0](#whats-new-in-0100)
 - [What this is (and is not)](#what-this-is-and-is-not)
 - [How it's made](#how-its-made)
 - [DICOM services this tool distinguishes](#dicom-services-this-tool-distinguishes)
