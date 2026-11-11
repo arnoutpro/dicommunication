@@ -1363,6 +1363,15 @@ function syncModalityChipsFromInput(form) {
   chipsBox.querySelectorAll("[data-modality-chip]").forEach((box) => {
     box.checked = tokens.includes(box.value);
   });
+  const more = chipsBox.querySelector("[data-find-modality-more]");
+  const moreToggle = chipsBox.querySelector("[data-find-modality-more-toggle]");
+  if (more && more.hidden && [...more.querySelectorAll("[data-modality-chip]")].some((box) => box.checked)) {
+    more.hidden = false;
+    if (moreToggle) {
+      moreToggle.setAttribute("aria-expanded", "true");
+      moreToggle.textContent = "Show fewer";
+    }
+  }
 }
 
 function syncModalityInputFromChips(form) {
@@ -1509,12 +1518,6 @@ function syncFindAdvanced(form) {
   if (hint) {
     hint.textContent = hints[level] || hints.STUDY;
   }
-  form.querySelectorAll("[data-find-group]").forEach((group) => {
-    const visible = [...group.querySelectorAll("[data-find-key]")].some((node) =>
-      (node.getAttribute("data-levels") || "").split(/\s+/).includes(level)
-    );
-    group.hidden = !visible;
-  });
   form.querySelectorAll("[data-find-key]").forEach((node) => {
     const levels = (node.getAttribute("data-levels") || "").split(/\s+/).filter(Boolean);
     const onLevel = levels.includes(level);
@@ -1557,6 +1560,27 @@ function syncFindAdvanced(form) {
   });
   syncModalityChipsFromInput(form);
   syncDatePickersFromInput(form);
+  syncFindMoreFiltersCount(form);
+}
+
+function syncFindMoreFiltersCount(form) {
+  const countNode = form.querySelector("[data-find-more-count]");
+  const vueExtra = form.querySelector("[data-find-vue-extra]");
+  if (countNode) {
+    const primary = form.querySelector(".find-primary");
+    const visible = [...form.querySelectorAll("[data-find-key]")].filter(
+      (node) => !node.hidden && (!primary || !primary.contains(node)) && (!vueExtra || !vueExtra.contains(node))
+    ).length;
+    countNode.textContent = visible ? ` · ${visible} available` : "";
+  }
+  const vueToggle = form.querySelector("[data-find-vue-toggle]");
+  if (vueToggle && vueExtra) {
+    const visibleVue = [...vueExtra.querySelectorAll("[data-find-key]")].filter((node) => !node.hidden).length;
+    vueToggle.hidden = visibleVue === 0;
+    if (vueExtra.hidden) {
+      vueToggle.textContent = `+ show ${visibleVue} more (Vue · ELSCINT1)`;
+    }
+  }
 }
 
 function applyFindSelection(form, mode) {
@@ -2097,6 +2121,27 @@ function bindFindAdvanced(root) {
       if (stop) {
         stopFindQuery(target);
       }
+      const helpToggle = event.target.closest("[data-find-help-toggle]");
+      if (helpToggle) {
+        const help = helpToggle.closest("fieldset")?.querySelector("[data-find-help]");
+        if (help) {
+          help.hidden = !help.hidden;
+          helpToggle.setAttribute("aria-expanded", help.hidden ? "false" : "true");
+          helpToggle.textContent = help.hidden ? "Why?" : "Hide";
+        }
+      }
+      const vueToggle = event.target.closest("[data-find-vue-toggle]");
+      if (vueToggle) {
+        const vueExtra = target.querySelector("[data-find-vue-extra]");
+        if (vueExtra) {
+          vueExtra.hidden = !vueExtra.hidden;
+          vueToggle.setAttribute("aria-expanded", vueExtra.hidden ? "false" : "true");
+          if (!vueExtra.hidden) {
+            vueToggle.textContent = "Hide Vue · ELSCINT1 fields";
+          }
+          syncFindMoreFiltersCount(target);
+        }
+      }
     });
     target.querySelectorAll("[data-find-modality-chips], [data-find-date-tools]").forEach((box) => {
       // These sit inside the <label class="find-key"> row; without this, a click on
@@ -2108,6 +2153,15 @@ function bindFindAdvanced(root) {
         const preset = event.target.closest("[data-date-preset]");
         if (preset) {
           applyDatePreset(target, preset.getAttribute("data-date-preset"));
+        }
+        const moreToggle = event.target.closest("[data-find-modality-more-toggle]");
+        if (moreToggle) {
+          const more = box.querySelector("[data-find-modality-more]");
+          if (more) {
+            more.hidden = !more.hidden;
+            moreToggle.setAttribute("aria-expanded", more.hidden ? "false" : "true");
+            moreToggle.textContent = more.hidden ? moreToggle.getAttribute("data-collapsed-label") : "Show fewer";
+          }
         }
         event.stopPropagation();
       });
