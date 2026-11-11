@@ -49,12 +49,14 @@ def test_configuration_is_a_top_bar_button_not_a_tab(client) -> None:
 
 def test_dicommunication_tab_active_on_home(client) -> None:
     body = client.get("/").text
-    assert '<a href="/" class="tab-item active">Dicommunication</a>' in body
+    assert '<a href="/" class="tab-item active">' in body
+    assert "</svg>Dicommunication</a>" in body
 
 
 def test_analytics_tab_active_and_isolated(client) -> None:
     body = client.get("/tools/c-find-advanced").text
-    assert '<a href="/tools/c-find-advanced" class="tab-item active">Dicomtag Analytics</a>' in body
+    assert '<a href="/tools/c-find-advanced" class="tab-item active">' in body
+    assert "</svg>Dicomtag Analytics</a>" in body
     assert "Configured nodes" not in body
     assert 'href="/logs"' not in body
     assert 'href="/testbench"' not in body
@@ -62,21 +64,24 @@ def test_analytics_tab_active_and_isolated(client) -> None:
 
 def test_anonymizer_tab_active_and_isolated(client) -> None:
     body = client.get("/tools/anonymize").text
-    assert '<a href="/tools/anonymize" class="tab-item active">Dicom Anonymizer</a>' in body
+    assert '<a href="/tools/anonymize" class="tab-item active">' in body
+    assert "</svg>Dicom Anonymizer</a>" in body
     assert "Configured nodes" not in body
     assert 'href="/testbench"' not in body
 
 
 def test_cleaner_tab_active_and_isolated(client) -> None:
     body = client.get("/tools/dicom-cleaner").text
-    assert '<a href="/tools/dicom-cleaner" class="tab-item active">Dicom Cleaner</a>' in body
+    assert '<a href="/tools/dicom-cleaner" class="tab-item active">' in body
+    assert "</svg>Dicom Cleaner</a>" in body
     assert "Configured nodes" not in body
     assert 'href="/testbench"' not in body
 
 
 def test_router_tab_active_and_isolated(client) -> None:
     body = client.get("/router").text
-    assert '<a href="/router" class="tab-item active">Dicom Router</a>' in body
+    assert '<a href="/router" class="tab-item active">' in body
+    assert "</svg>Dicom Router</a>" in body
     assert "Configured nodes" not in body
     assert 'href="/testbench"' not in body
 

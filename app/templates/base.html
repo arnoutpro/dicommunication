@@ -111,11 +111,24 @@
       </div>
     </header>
     <aside class="sidebar">
+      {% macro tab_icon(t) -%}
+      {%- if t == 'dicommunication' -%}
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"></rect><rect x="14" y="3" width="7" height="7" rx="1"></rect><rect x="3" y="14" width="7" height="7" rx="1"></rect><rect x="14" y="14" width="7" height="7" rx="1"></rect></svg>
+      {%- elif t == 'analytics' -%}
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="M21 21l-4.35-4.35"></path></svg>
+      {%- elif t == 'anonymizer' -%}
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z"></path></svg>
+      {%- elif t == 'router' -%}
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 12h-4l-3 9L9 3l-3 9H2"></path></svg>
+      {%- elif t == 'cleaner' -%}
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 2v14a2 2 0 0 0 2 2h14"></path><path d="M18 22V8a2 2 0 0 0-2-2H2"></path></svg>
+      {%- endif -%}
+      {%- endmacro %}
       <div class="sidebar-tools">
         <span class="nav-section-label">Tools</span>
         <nav class="tab-row" aria-label="Applications">
           {% for t in tabs %}
-          <a href="{{ href(tab_hrefs[t]) }}" class="tab-item{% if t == tab %} active{% endif %}">{{ tab_labels[t] }}</a>
+          <a href="{{ href(tab_hrefs[t]) }}" class="tab-item{% if t == tab %} active{% endif %}">{{ tab_icon(t) }}{{ tab_labels[t] }}</a>
           {% endfor %}
         </nav>
       </div>

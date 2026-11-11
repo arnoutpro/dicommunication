@@ -237,6 +237,7 @@ h1, h2, h3, h4 {
 .tab-item {
   display: flex;
   align-items: center;
+  gap: 0.55rem;
   padding: 0.5rem 0.7rem;
   border: 1px solid transparent;
   border-radius: var(--radius-sm);
@@ -245,6 +246,11 @@ h1, h2, h3, h4 {
   color: var(--muted);
   text-decoration: none;
   transition: color 0.15s, background-color 0.15s;
+}
+.tab-item svg {
+  width: 1.05rem;
+  height: 1.05rem;
+  flex-shrink: 0;
 }
 .tab-item:hover {
   color: var(--text);
