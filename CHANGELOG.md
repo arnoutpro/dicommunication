@@ -6,8 +6,7 @@
 
 - **Dicomtag Analytics**: the query builder is now one full-width screen instead of sharing space with a cramped results column. Pressing "Run query" hides it entirely and the results take over the whole screen as a full-width table, with an "Edit query" button to switch straight back — the filter catalog itself also now wraps into multiple columns to use that width, instead of staying in one narrow stretched column.
 - **Dicomtag Analytics**: "List SR reports" / "Retrieve report text" in the results toolbar now match every other action there (Copy table, Download CSV/JSON, …) instead of standing out in a different color; the Series Description field next to "List series" no longer stretches to fill the whole row at full page width.
-- **Dicomtag Analytics**: Copy table / Download CSV / Download JSON moved out of the toolbar above the results table into a quiet "Export" row below it, next to Timing/Association log — they don't change what you're looking at, unlike List SR reports / Series search / Count patients by name, which stay prominent right above the table they act on.
-- **Dicomtag Analytics**: Copy table / Download CSV / Download JSON now sit behind one "Export" toggle instead of three separate buttons; Association, SOP Classes negotiated, Timing, and the Association log are now behind one "Diagnostics" toggle instead of three separate ones.
+- **Dicomtag Analytics**: the results view is redesigned. A coloured status banner (green for Pass, red for Fail) carries the summary and a Diagnostics button, which opens Association, SOP Classes negotiated, Timing and the log in a popup instead of three disclosures in the page. One action bar holds the follow-ups (the main one filled, then Series search and Count patients by name) on the left and two menus on the right: Save this query and Export (Copy table, Download CSV, Download JSON). The records table has a tinted header, striped rows, a row hover and a record count.
 
 ## 0.10.0
 

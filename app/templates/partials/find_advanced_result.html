@@ -1,5 +1,5 @@
 <article class="result {% if result.ok %}ok{% else %}fail{% endif %}" data-find-result>
-  <header>
+  <header class="find-banner">
     <span class="badge {% if result.ok %}ok{% else %}fail{% endif %}">{% if result.ok %}Pass{% else %}Fail{% endif %}</span>
     <div>
       <strong>{{ display_tool_name(result.tool_name) }}</strong>
@@ -13,12 +13,48 @@
       </p>
       {% endif %}
     </div>
+    {% if result.steps or result.contexts or result.log %}
+    <button class="button compact find-tool" type="button" data-find-diag-open>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 12h-4l-3 9L9 3l-3 9H2"></path></svg>
+      Diagnostics
+    </button>
+    {% endif %}
   </header>
   {% if result.records %}
   {% set columns = find_columns if find_columns is defined and find_columns else (result.records[0].keys() | list) %}
   {% set labels = find_labels if find_labels is defined else {} %}
   {% set kind = find_kind if find_kind is defined else "table" %}
-  <h3 class="result-subhead">{% if kind == "sr_series" %}Structured Report series{% elif kind == "sr_content" %}Structured Report contents{% elif kind in ("series_list", "series_list_combined") %}Series{% else %}Returned records{% endif %}</h3>
+  <div class="find-actionbar">
+    <div class="find-actionbar-main">
+      {% if kind in ("sr_series", "sr_content", "series_list") %}
+      <button class="button compact" type="button" data-find-back>&larr; Back to results</button>
+      {% endif %}
+      {% if kind == "sr_series" or (find_level|default("STUDY") == "SERIES" and result.records[0].get("Modality") == "SR") %}
+      <button class="button compact primary" type="button" data-find-follow="retrieve_sr">Retrieve report text ({{ result.records|length }})</button>
+      {% elif (find_level|default("STUDY") == "STUDY" or kind in ("series_list", "series_list_combined")) and kind != "sr_content" %}
+      <button class="button compact primary" type="button" data-find-follow="sr_series">List SR reports ({{ result.records|length }})</button>
+      <span class="inline-input find-series-search">
+        <input data-find-series-description placeholder="Series Description, e.g. POSITIVE, DOUBT" spellcheck="false" autocomplete="off">
+        <button class="button compact" type="button" data-find-follow="list_series">List series</button>
+      </span>
+      {% endif %}
+      {% if find_level|default("STUDY") == "STUDY" and kind == "table" and "PatientName" in columns %}
+      <button class="button compact" type="button" data-find-patient-summary>Count patients by name</button>
+      {% endif %}
+    </div>
+    <div class="find-actionbar-tools">
+      {% include "partials/find_save_query.html" %}
+      <details class="find-menu" data-find-menu>
+        <summary>Export</summary>
+        <div class="find-menu-panel">
+          <button class="find-menu-item" type="button" data-find-copy>Copy table</button>
+          <button class="find-menu-item" type="button" data-find-csv>Download CSV</button>
+          <button class="find-menu-item" type="button" data-find-json>Download JSON</button>
+          <span class="hint">{% if kind == "sr_content" %}JSON includes Findings, Impression, the full report text, and the Content Sequence tree.{% else %}Copy is tab-separated for Excel.{% endif %}</span>
+        </div>
+      </details>
+    </div>
+  </div>
   {% if kind == "table" and find_truncated|default(false) %}
   <div class="find-cap-confirm" data-find-cap-confirm>
     {% if find_record_count|default(0) >= find_cap_ceiling|default(50000) %}
@@ -29,31 +65,11 @@
     {% endif %}
   </div>
   {% endif %}
-  <div class="find-export-bar">
-    {% if kind in ("sr_series", "sr_content", "series_list") %}
-    <button class="button compact" type="button" data-find-back>&larr; Back to results</button>
-    {% endif %}
-    {% if kind == "sr_series" or (find_level|default("STUDY") == "SERIES" and result.records[0].get("Modality") == "SR") %}
-    <button class="button compact" type="button" data-find-follow="retrieve_sr">Retrieve report text ({{ result.records|length }})</button>
-    {% elif (find_level|default("STUDY") == "STUDY" or kind in ("series_list", "series_list_combined")) and kind != "sr_content" %}
-    <button class="button compact" type="button" data-find-follow="sr_series">List SR reports ({{ result.records|length }})</button>
-    <span class="inline-input">
-      <input data-find-series-description placeholder="Series Description, e.g. POSITIVE, DOUBT" spellcheck="false" autocomplete="off">
-      <button class="button compact" type="button" data-find-follow="list_series">List series</button>
-    </span>
-    {% endif %}
-    {% if find_level|default("STUDY") == "STUDY" and kind == "table" and "PatientName" in columns %}
-    <button class="button compact" type="button" data-find-patient-summary>Count patients by name</button>
-    {% endif %}
-    {% if kind == "sr_series" %}
-    <span class="hint" data-find-export-hint>Same Study Instance UID, different Series Instance UID, modality SR.</span>
-    {% elif kind in ("series_list", "series_list_combined") %}
-    <span class="hint" data-find-export-hint>Same Study Instance UID, different Series Instance UID — every series of each matched study, or only those matching the typed Series Description.</span>
-    {% else %}
-    <span class="hint" data-find-export-hint>Click a row to reuse Study / Series UIDs at the next level.</span>
-    {% endif %}
+  <div class="find-table-head">
+  <h3 class="result-subhead">{% if kind == "sr_series" %}Structured Report series{% elif kind == "sr_content" %}Structured Report contents{% elif kind in ("series_list", "series_list_combined") %}Series{% else %}Returned records{% endif %}</h3>
+    <span class="badge">{{ "{:,}".format(result.records|length) }}</span>
+    <span class="hint" data-find-export-hint>{% if kind == "sr_series" %}Same Study Instance UID, different Series Instance UID, modality SR.{% elif kind in ("series_list", "series_list_combined") %}Every series of each matched study, or only those matching the typed Series Description.{% else %}Click a row to reuse Study / Series UIDs at the next level.{% endif %}</span>
   </div>
-  {% include "partials/find_save_query.html" %}
   <div class="find-patient-summary" data-find-patient-summary-result hidden></div>
   {% if kind != "sr_content" %}
   <div class="table-wrap find-table-wrap">
@@ -154,26 +170,17 @@
   </article>
   {% endfor %}
   {% endif %}
-  <details class="find-assoc">
-    <summary>Export</summary>
-    <div class="find-export-footer">
-      <button class="button compact" type="button" data-find-copy>Copy table</button>
-      <button class="button compact" type="button" data-find-csv>Download CSV</button>
-      <button class="button compact" type="button" data-find-json>Download JSON</button>
-      {% if kind == "sr_content" %}
-      <span class="hint">JSON includes Findings, Impression, the full report text, and the Content Sequence tree.</span>
-      {% else %}
-      <span class="hint">Tab-separated for Excel.</span>
-      {% endif %}
-    </div>
-  </details>
   <textarea hidden data-find-export>{{ {"level": find_level|default("STUDY"), "kind": kind, "truncated": find_truncated|default(false), "columns": columns, "labels": labels, "records": result.records} | tojson }}</textarea>
   {% elif result.ok %}
   <p class="hint">The FIND SOP Class was accepted and the query succeeded with zero matches. Broaden the filters, or check that this calling AE is allowed to query the archive.{% if find_kind|default("") == "sr_series" %} These studies have no series with modality SR.{% elif find_kind|default("") in ("series_list", "series_list_combined") %} None of these studies have a series matching that filter.{% endif %}</p>
   {% endif %}
   {% if result.steps or result.contexts or result.log %}
-  <details class="find-assoc">
-    <summary>Diagnostics</summary>
+  <dialog class="find-diag" data-find-diag>
+    <header class="find-diag-head">
+      <h2>Diagnostics</h2>
+      <form method="dialog"><button class="button compact" type="submit">Close</button></form>
+    </header>
+    <div class="find-diag-body">
     {% if result.steps %}
     <h3 class="result-subhead">Association</h3>
     <ol class="steps">
@@ -217,6 +224,7 @@
     <h3 class="result-subhead">{% if result.contexts %}Association log{% else %}Log{% endif %}</h3>
     <pre class="log">{{ result.log }}</pre>
     {% endif %}
-  </details>
+    </div>
+  </dialog>
   {% endif %}
 </article>

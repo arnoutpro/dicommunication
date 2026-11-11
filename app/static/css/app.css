@@ -2358,22 +2358,147 @@ body.page-find .find-head {
 @media (max-width: 900px) {
   .find-setup { grid-template-columns: 1fr; }
 }
-.find-export-bar {
+/* Results view: a status banner, one action bar (follow-ups left, Save /
+   Export menus right), then the grid. Diagnostics opens in a dialog. */
+.find-results .result > header.find-banner {
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  padding: 0.6rem 0.8rem;
+  margin-bottom: 0.6rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+.find-results .result.ok > header.find-banner {
+  border-color: color-mix(in srgb, var(--ok) 35%, transparent);
+  background: color-mix(in srgb, var(--ok) 8%, transparent);
+}
+.find-results .result.fail > header.find-banner {
+  border-color: color-mix(in srgb, var(--fail) 40%, transparent);
+  background: color-mix(in srgb, var(--fail) 8%, transparent);
+}
+.find-banner p { margin: 0.1rem 0 0; }
+.find-tool svg { width: 0.85rem; height: 0.85rem; flex-shrink: 0; }
+.find-actionbar {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 0.4rem 0.55rem;
-  margin: 0 0 0.5rem;
+  justify-content: space-between;
+  gap: 0.5rem 1rem;
+  padding: 0.5rem 0.6rem;
+  margin-bottom: 0.6rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--glass);
 }
-.find-export-bar .inline-input { flex: 0 1 auto; }
-.find-export-bar .inline-input input { flex: 0 1 16rem; min-width: 10rem; }
-.find-export-footer {
+.find-actionbar-main,
+.find-actionbar-tools {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 0.4rem 0.55rem;
-  margin-top: 0.3rem;
+  gap: 0.4rem 0.5rem;
 }
+.find-series-search { flex: 0 1 auto; }
+.find-series-search input { flex: 0 1 17rem; min-width: 10rem; }
+.find-menu,
+.find-actionbar .find-save {
+  position: relative;
+  margin: 0;
+}
+.find-menu > summary,
+.find-actionbar .find-save > summary {
+  gap: 0.4rem;
+  padding: 0.42rem 0.85rem;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  background: var(--bg-panel);
+  color: var(--subtle);
+  font-size: var(--text-md);
+  font-weight: 700;
+  white-space: nowrap;
+}
+.find-menu > summary:hover,
+.find-menu[open] > summary,
+.find-actionbar .find-save > summary:hover,
+.find-actionbar .find-save[open] > summary {
+  border-color: color-mix(in srgb, var(--accent) 35%, transparent);
+  background: var(--accent-dim);
+  color: var(--accent);
+}
+.find-menu > summary::before,
+.find-actionbar .find-save > summary::before { order: 2; transform: rotate(45deg); margin-top: -0.2rem; }
+.find-menu-panel,
+.find-actionbar .find-save form {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 0.35rem);
+  z-index: 20;
+  min-width: 13rem;
+  margin: 0;
+  padding: 0.4rem;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-lg);
+  background: var(--surface-raised);
+}
+.find-menu-panel { display: flex; flex-direction: column; gap: 0.1rem; }
+.find-menu-panel .hint { padding: 0.3rem 0.6rem 0.2rem; max-width: 16rem; }
+.find-menu-item {
+  padding: 0.45rem 0.6rem;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--text);
+  font: inherit;
+  font-size: var(--text-md);
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+.find-menu-item:hover { background: var(--accent-dim); color: var(--accent); }
+.find-actionbar .find-save form { width: 22rem; padding: 0.7rem; }
+.find-actionbar .find-save-done { margin: 0; }
+.find-table-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem 0.6rem;
+  margin-bottom: 0.4rem;
+}
+.find-table-head .result-subhead { margin: 0; }
+.find-table-head .hint { margin-left: auto; }
+.find-results .find-table-wrap {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  min-height: 10rem;
+}
+.find-results .find-table th {
+  background: color-mix(in srgb, var(--accent) 7%, var(--bg-panel));
+  color: var(--subtle);
+  border-bottom: 1px solid var(--line-strong);
+}
+.find-results .find-table tbody tr:nth-child(even) td { background: var(--glass); }
+.find-results .find-table tbody tr:hover td { background: var(--accent-dim); }
+.find-diag {
+  width: min(52rem, calc(100vw - 2rem));
+  max-height: calc(100vh - 4rem);
+  padding: 0;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-lg);
+  background: var(--bg-panel);
+  color: var(--text);
+}
+.find-diag::backdrop { background: rgb(2 6 23 / 0.55); }
+.find-diag-head {
+  position: sticky;
+  top: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.8rem 1rem;
+  border-bottom: 1px solid var(--line);
+  background: var(--bg-panel);
+}
+.find-diag-head h2 { font-size: var(--text-lg); }
+.find-diag-body { padding: 0.4rem 1rem 1rem; }
 .find-sr-report {
   margin: 0.45rem 0 0.7rem;
   padding: 0;
