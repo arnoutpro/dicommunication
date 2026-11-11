@@ -1920,7 +1920,7 @@ body.page-find .find-head {
   min-width: 0;
   padding: 0.3rem 0.65rem;
   border: 1px solid transparent;
-  border-radius: 0.4rem;
+  border-radius: var(--radius-sm);
   color: var(--subtle);
   font-size: var(--text-sm);
   font-weight: 700;
