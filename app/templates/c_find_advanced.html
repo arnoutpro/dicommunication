@@ -124,6 +124,20 @@
         {% endfor %}
       {% endif %}
 
+      {% set counts = namespace(more=0, vue=0) %}
+      {% for key in find_catalog.search_keys %}
+        {% if key.keyword not in primary_keywords %}
+          {% if key.group.startswith('vue') %}{% set counts.vue = counts.vue + 1 %}
+          {% else %}{% set counts.more = counts.more + 1 %}{% endif %}
+        {% endif %}
+      {% endfor %}
+      {% set vue_ns = namespace(open=false) %}
+      {% if saved_query %}
+        {% for key in find_catalog.search_keys if key.group.startswith('vue') %}
+          {% if key.keyword in saved_query.values.keys() or key.keyword in saved_query.include %}{% set vue_ns.open = true %}{% endif %}
+        {% endfor %}
+      {% endif %}
+
       {% macro find_key_row(key) %}
       <label
         class="find-key"
@@ -202,24 +216,30 @@
       </div>
 
       <details class="find-more-filters" data-find-more-filters{% if ns.more_open %} open{% endif %}>
-        <summary>More filters</summary>
+        <summary>More filters<span class="find-more-count" data-find-more-count>{% if counts.more %} · {{ counts.more }} available{% endif %}</span></summary>
         <div class="find-tree-wrap">
           <nav class="find-tree" aria-label="DICOM keys">
-            {% for group in find_catalog.groups %}
-            <details
-              class="find-tree-branch{% if group.experimental %} is-vue{% endif %}"
-              data-find-group="{{ group.id }}"
-              {% if not group.experimental %}open{% endif %}
-            >
-              <summary>{{ group.label }}</summary>
+            <div class="find-key-list">
+              {% for key in find_catalog.search_keys if key.keyword not in primary_keywords and not key.group.startswith('vue') %}
+              {{ find_key_row(key) }}
+              {% endfor %}
+            </div>
+            {% if counts.vue %}
+            <button
+              type="button"
+              class="find-vue-toggle"
+              data-find-vue-toggle
+              aria-expanded="{{ 'true' if vue_ns.open else 'false' }}"
+            >{% if vue_ns.open %}Hide Vue · ELSCINT1 fields{% else %}+ show {{ counts.vue }} more (Vue · ELSCINT1){% endif %}</button>
+            <div class="find-key-list find-vue-extra" data-find-vue-extra{% if not vue_ns.open %} hidden{% endif %}>
+              {% for group in find_catalog.groups if group.experimental %}
               {% if group.hint %}<p class="hint">{{ group.hint }}</p>{% endif %}
-              <div class="find-key-list">
-                {% for key in find_catalog.search_keys if key.group == group.id and key.keyword not in primary_keywords %}
-                {{ find_key_row(key) }}
-                {% endfor %}
-              </div>
-            </details>
-            {% endfor %}
+              {% for key in find_catalog.search_keys if key.group == group.id %}
+              {{ find_key_row(key) }}
+              {% endfor %}
+              {% endfor %}
+            </div>
+            {% endif %}
           </nav>
         </div>
       </details>

@@ -1509,12 +1509,6 @@ function syncFindAdvanced(form) {
   if (hint) {
     hint.textContent = hints[level] || hints.STUDY;
   }
-  form.querySelectorAll("[data-find-group]").forEach((group) => {
-    const visible = [...group.querySelectorAll("[data-find-key]")].some((node) =>
-      (node.getAttribute("data-levels") || "").split(/\s+/).includes(level)
-    );
-    group.hidden = !visible;
-  });
   form.querySelectorAll("[data-find-key]").forEach((node) => {
     const levels = (node.getAttribute("data-levels") || "").split(/\s+/).filter(Boolean);
     const onLevel = levels.includes(level);
@@ -1557,6 +1551,27 @@ function syncFindAdvanced(form) {
   });
   syncModalityChipsFromInput(form);
   syncDatePickersFromInput(form);
+  syncFindMoreFiltersCount(form);
+}
+
+function syncFindMoreFiltersCount(form) {
+  const countNode = form.querySelector("[data-find-more-count]");
+  const vueExtra = form.querySelector("[data-find-vue-extra]");
+  if (countNode) {
+    const primary = form.querySelector(".find-primary");
+    const visible = [...form.querySelectorAll("[data-find-key]")].filter(
+      (node) => !node.hidden && (!primary || !primary.contains(node)) && (!vueExtra || !vueExtra.contains(node))
+    ).length;
+    countNode.textContent = visible ? ` · ${visible} available` : "";
+  }
+  const vueToggle = form.querySelector("[data-find-vue-toggle]");
+  if (vueToggle && vueExtra) {
+    const visibleVue = [...vueExtra.querySelectorAll("[data-find-key]")].filter((node) => !node.hidden).length;
+    vueToggle.hidden = visibleVue === 0;
+    if (vueExtra.hidden) {
+      vueToggle.textContent = `+ show ${visibleVue} more (Vue · ELSCINT1)`;
+    }
+  }
 }
 
 function applyFindSelection(form, mode) {
@@ -2096,6 +2111,18 @@ function bindFindAdvanced(root) {
       const stop = event.target.closest("[data-find-stop]");
       if (stop) {
         stopFindQuery(target);
+      }
+      const vueToggle = event.target.closest("[data-find-vue-toggle]");
+      if (vueToggle) {
+        const vueExtra = target.querySelector("[data-find-vue-extra]");
+        if (vueExtra) {
+          vueExtra.hidden = !vueExtra.hidden;
+          vueToggle.setAttribute("aria-expanded", vueExtra.hidden ? "false" : "true");
+          if (!vueExtra.hidden) {
+            vueToggle.textContent = "Hide Vue · ELSCINT1 fields";
+          }
+          syncFindMoreFiltersCount(target);
+        }
       }
     });
     target.querySelectorAll("[data-find-modality-chips], [data-find-date-tools]").forEach((box) => {

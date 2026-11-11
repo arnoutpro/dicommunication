@@ -1989,6 +1989,10 @@ body.page-find .find-head {
   vertical-align: 0.18rem;
 }
 .find-more-filters > summary:hover { background: var(--glass-strong); }
+.find-more-count {
+  font-weight: 600;
+  color: var(--muted);
+}
 .find-tree-wrap {
   flex: 1;
   min-height: 0;
@@ -2002,47 +2006,26 @@ body.page-find .find-head {
   display: flex;
   flex-direction: column;
 }
-.find-tree-branch {
-  margin: 0;
-  border-bottom: 1px solid var(--line);
-}
-.find-tree-branch:last-child { border-bottom: 0; }
-.find-tree-branch > summary {
-  /* Full-width rows with their own chevron spacing, not the generic pill. */
-  width: auto;
-  gap: 0;
-  border-radius: 0;
-  cursor: pointer;
-  list-style: none;
-  padding: 0.28rem 0.45rem;
+.find-vue-toggle {
+  align-self: flex-start;
+  margin: 0.2rem 0.45rem 0.3rem;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font: inherit;
   font-size: var(--text-xs);
   font-weight: 700;
-  letter-spacing: 0.01em;
-  color: var(--nav-parent);
-  user-select: none;
+  cursor: pointer;
 }
-.find-tree-branch > summary::-webkit-details-marker { display: none; }
-.find-tree-branch > summary::before {
-  content: "";
-  display: inline-block;
-  width: 0.32rem;
-  height: 0.32rem;
-  margin-right: 0.4rem;
-  border-right: 1.5px solid currentColor;
-  border-bottom: 1.5px solid currentColor;
-  transform: rotate(-45deg);
-  transition: transform 0.15s;
-  vertical-align: 0.1rem;
+.find-vue-toggle:hover { color: var(--accent-hover); text-decoration: underline; }
+.find-vue-extra {
+  border-top: 1px solid var(--line);
+  padding-top: 0.2rem;
 }
-.find-tree-branch[open] > summary::before {
-  transform: rotate(45deg);
-  margin-right: 0.45rem;
-  vertical-align: 0.18rem;
-}
-.find-tree-branch > summary:hover { background: var(--glass-strong); }
-.find-tree-branch > .hint {
+.find-vue-extra > .hint {
   margin: 0;
-  padding: 0 0.45rem 0.3rem 1.15rem;
+  padding: 0.3rem 0.45rem 0.3rem 0.7rem;
   font-size: var(--text-2xs);
   line-height: 1.3;
 }
