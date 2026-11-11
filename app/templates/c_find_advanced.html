@@ -3,9 +3,14 @@
 {% block body_class %} page-find{% endblock %}
 {% block content %}
 <header class="page-head find-head">
-  <div>
-    <h1>{{ tool.name }}</h1>
-    <p class="lede">Study Root C-FIND against a configured PACS node.</p>
+  <div class="page-head-hero">
+    <span class="page-icon-tile" aria-hidden="true">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"></circle><path d="M21 21l-4.35-4.35"></path></svg>
+    </span>
+    <div>
+      <h1>{{ tool.name }}</h1>
+      <p class="lede">Study Root C-FIND against a configured PACS node.</p>
+    </div>
   </div>
 </header>
 {% if request.query_params.get('deleted') %}
@@ -270,7 +275,10 @@
       </details>
 
       <div class="form-actions">
-        <button class="button primary" type="submit" data-find-run>Run query</button>
+        <button class="button primary" type="submit" data-find-run>
+          <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"></path></svg>
+          Run query
+        </button>
         <button class="button" type="button" data-find-stop>Stop</button>
         <span id="busy" class="htmx-indicator spinner">Querying…</span>
       </div>
