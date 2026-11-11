@@ -345,6 +345,57 @@ def test_c_find_advanced_page_and_api(client, store) -> None:
         server.shutdown()
 
 
+def test_primary_filters_always_visible_rest_collapsed_by_default(client, remote) -> None:
+    """Study Date, Accession, Modality and Series Description render once,
+    above the fold; everything else (Patient keys, Vue tags, ...) sits
+    behind a closed "More filters" disclosure so the page isn't a wall of
+    checkboxes on first load.
+    """
+    page = client.get("/tools/c-find-advanced").text
+    assert '<div class="find-primary">' in page
+    assert page.count('data-find-key="StudyDate"') == 1
+    assert page.count('data-find-key="AccessionNumber"') == 1
+    assert page.count('data-find-key="ModalitiesInStudy"') == 1
+    assert page.count('data-find-key="SeriesDescription"') == 1
+    # The primary section's markup comes before the More filters disclosure.
+    assert page.index('data-find-key="StudyDate"') < page.index("More filters")
+    assert page.index("More filters") < page.index('data-find-key="PatientName"')
+    assert '<details class="find-more-filters" data-find-more-filters>' in page
+    assert "find-more-filters\" data-find-more-filters open>" not in page
+
+
+def test_more_filters_opens_when_saved_query_uses_a_non_primary_field(client, store, remote) -> None:
+    from app.models import SavedQuery
+
+    saved = store.save_query(
+        SavedQuery(
+            name="By referring physician",
+            remote_id=remote.id,
+            level="STUDY",
+            include=["StudyDate", "ReferringPhysicianName"],
+            values={"StudyDate": "20261111", "ReferringPhysicianName": "SMITH*"},
+        )
+    )
+    page = client.get(f"/tools/c-find-advanced?saved={saved.id}").text
+    assert '<details class="find-more-filters" data-find-more-filters open>' in page
+
+
+def test_more_filters_stays_closed_when_saved_query_only_uses_primary_fields(client, store, remote) -> None:
+    from app.models import SavedQuery
+
+    saved = store.save_query(
+        SavedQuery(
+            name="CT today",
+            remote_id=remote.id,
+            level="STUDY",
+            include=["StudyDate", "ModalitiesInStudy"],
+            values={"StudyDate": "20261111", "ModalitiesInStudy": "CT"},
+        )
+    )
+    page = client.get(f"/tools/c-find-advanced?saved={saved.id}").text
+    assert '<details class="find-more-filters" data-find-more-filters>' in page
+
+
 def test_max_records_override_lifts_the_display_cap() -> None:
     """The 'Count patients by name' auto re-query passes options["max_records"]
     to get every match after the default MAX_RECORDS display cap truncated the
