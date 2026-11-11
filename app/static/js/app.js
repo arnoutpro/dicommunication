@@ -2307,19 +2307,8 @@ function syncFindWorkspaceView(root) {
     return;
   }
   const resultBox = workspace.querySelector("#result");
-  const queryPanel = workspace.querySelector("[data-find-query]");
-  const resultsPanel = workspace.querySelector("[data-find-results]");
   const hasResult = !!(resultBox && resultBox.querySelector(".result"));
-  if (resultsPanel) {
-    resultsPanel.classList.toggle("is-empty", !hasResult);
-  }
-  if (queryPanel) {
-    queryPanel.classList.toggle("is-collapsed", hasResult);
-    const toggle = queryPanel.querySelector("[data-find-query-toggle]");
-    if (toggle) {
-      toggle.setAttribute("aria-expanded", hasResult ? "false" : "true");
-    }
-  }
+  workspace.setAttribute("data-find-view", hasResult ? "results" : "query");
 }
 
 document.addEventListener("click", (event) => {
@@ -2327,12 +2316,11 @@ document.addEventListener("click", (event) => {
   if (!toggle) {
     return;
   }
-  const queryPanel = toggle.closest("[data-find-query]");
-  if (!queryPanel) {
+  const workspace = toggle.closest(".find-workspace");
+  if (!workspace) {
     return;
   }
-  const collapsed = queryPanel.classList.toggle("is-collapsed");
-  toggle.setAttribute("aria-expanded", collapsed ? "false" : "true");
+  workspace.setAttribute("data-find-view", "query");
 });
 
 syncFindWorkspaceView(document);

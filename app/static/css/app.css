@@ -1891,12 +1891,13 @@ body.page-find .find-head {
   width: 1.4rem;
   height: 2px;
 }
-/* Query builder is one full-width screen; running a query collapses it to a
-   slim summary bar and the results panel takes over below as a full-width
-   grid, instead of the two living side by side in cramped half-columns. */
+/* Query builder is one full-width screen; running a query hides it entirely
+   and the results panel takes over the whole screen, instead of the two
+   living side by side in cramped half-columns or stacked on one screen. */
 .find-query { flex: none; }
 .find-results { flex: 1; min-height: 28rem; }
-.find-results.is-empty { display: none; }
+.find-workspace[data-find-view="results"] .find-query { display: none; }
+.find-workspace:not([data-find-view="results"]) .find-results { display: none; }
 .find-query-toggle {
   display: none;
   align-items: center;
@@ -1913,13 +1914,8 @@ body.page-find .find-head {
   cursor: pointer;
 }
 .find-query-toggle:hover { color: var(--accent-hover); border-color: color-mix(in srgb, var(--accent) 35%, transparent); }
-.find-query-toggle svg { width: 0.75rem; height: 0.75rem; transition: transform 0.15s; }
-.find-query.is-collapsed .find-query-toggle { display: inline-flex; }
-.find-query.is-collapsed .find-query-toggle svg { transform: rotate(180deg); }
-.find-query.is-collapsed .find-advanced-form,
-.find-query.is-collapsed .find-saved-line {
-  display: none;
-}
+.find-query-toggle svg { width: 0.75rem; height: 0.75rem; }
+.find-workspace[data-find-view="results"] .find-query-toggle { display: inline-flex; }
 .find-advanced-form {
   display: flex;
   flex-direction: column;
