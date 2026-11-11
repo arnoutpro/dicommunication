@@ -1859,15 +1859,6 @@ body.page-find .find-head {
   font-weight: 600;
 }
 .find-setup .hint { display: none; }
-.find-retrieve-note {
-  font-size: var(--text-xs);
-  color: var(--muted);
-  line-height: 1.35;
-  margin: 0.15rem 0 0;
-}
-.find-retrieve-note code {
-  font-size: inherit;
-}
 .find-setup select,
 .find-setup input {
   padding: 0.28rem 0.45rem;
@@ -1906,10 +1897,15 @@ body.page-find .find-head {
   align-items: center;
   gap: 0.15rem 0.9rem;
 }
-.find-sr-fields legend {
-  width: 100%;
-  margin-bottom: 0.1rem;
+.find-sr-fields legend { margin: 0; }
+.find-sr-warning {
+  font-size: var(--text-xs);
+  color: var(--muted);
+  text-decoration: underline;
+  text-decoration-style: dotted;
+  white-space: nowrap;
 }
+.find-sr-warning:hover { color: var(--accent); }
 .find-sr-field-toggle {
   display: inline-flex;
   align-items: center;
