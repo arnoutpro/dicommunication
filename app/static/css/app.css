@@ -2367,6 +2367,22 @@ body.page-find .find-head {
 }
 .find-export-bar .inline-input { flex: 0 1 auto; }
 .find-export-bar .inline-input input { flex: 0 1 16rem; min-width: 10rem; }
+.find-export-footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem 0.55rem;
+  margin: 0.6rem 0 0;
+  padding-top: 0.6rem;
+  border-top: 1px solid var(--line);
+}
+.find-export-footer > .hint:first-child {
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-size: var(--text-2xs);
+  color: var(--muted);
+}
 .find-sr-report {
   margin: 0.45rem 0 0.7rem;
   padding: 0;
