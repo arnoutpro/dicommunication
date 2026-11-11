@@ -113,12 +113,16 @@
         <span class="hint">Series Description is a Series key, locked behind a Study Instance UID in the hierarchical model — checking this runs the Study query above, then one Series-level C-FIND per matched study automatically, instead of needing a separate "List series" click. Comma-separated values (e.g. <code>POSITIVE, NEGATIVE, DOUBT</code>) OR together — DICOM has no OR for a single key, so that's one C-FIND per study per value. Narrow the Study-level filters first on a large result.</span>
       </fieldset>
 
-      <div class="find-toolbar">
-        <button class="button compact" type="button" data-find-select="defaults">Usual columns</button>
-        <button class="button compact" type="button" data-find-select="all">All keys</button>
-        <button class="button compact" type="button" data-find-select="sr">SR series</button>
-        <button class="button compact" type="button" data-find-select="clear">Clear</button>
-      </div>
+      {% set primary_keywords = ("StudyDate", "ModalitiesInStudy", "Modality", "AccessionNumber", "SeriesDescription") %}
+      {% set ns = namespace(more_open=false) %}
+      {% if saved_query %}
+        {% for kw in saved_query.values.keys() %}
+          {% if kw not in primary_keywords %}{% set ns.more_open = true %}{% endif %}
+        {% endfor %}
+        {% for kw in saved_query.include %}
+          {% if kw not in primary_keywords %}{% set ns.more_open = true %}{% endif %}
+        {% endfor %}
+      {% endif %}
 
       {% macro find_key_row(key) %}
       <label
@@ -184,25 +188,41 @@
       </label>
       {% endmacro %}
 
-      <div class="find-tree-wrap">
-        <nav class="find-tree" aria-label="DICOM keys">
-          {% for group in find_catalog.groups %}
-          <details
-            class="find-tree-branch{% if group.experimental %} is-vue{% endif %}"
-            data-find-group="{{ group.id }}"
-            {% if not group.experimental %}open{% endif %}
-          >
-            <summary>{{ group.label }}</summary>
-            {% if group.hint %}<p class="hint">{{ group.hint }}</p>{% endif %}
-            <div class="find-key-list">
-              {% for key in find_catalog.search_keys if key.group == group.id %}
-              {{ find_key_row(key) }}
-              {% endfor %}
-            </div>
-          </details>
-          {% endfor %}
-        </nav>
+      <div class="find-primary">
+        {% for key in find_catalog.search_keys if key.keyword in primary_keywords %}
+        {{ find_key_row(key) }}
+        {% endfor %}
       </div>
+
+      <div class="find-toolbar">
+        <button class="button compact" type="button" data-find-select="defaults">Usual columns</button>
+        <button class="button compact" type="button" data-find-select="all">All keys</button>
+        <button class="button compact" type="button" data-find-select="sr">SR series</button>
+        <button class="button compact" type="button" data-find-select="clear">Clear</button>
+      </div>
+
+      <details class="find-more-filters" data-find-more-filters{% if ns.more_open %} open{% endif %}>
+        <summary>More filters</summary>
+        <div class="find-tree-wrap">
+          <nav class="find-tree" aria-label="DICOM keys">
+            {% for group in find_catalog.groups %}
+            <details
+              class="find-tree-branch{% if group.experimental %} is-vue{% endif %}"
+              data-find-group="{{ group.id }}"
+              {% if not group.experimental %}open{% endif %}
+            >
+              <summary>{{ group.label }}</summary>
+              {% if group.hint %}<p class="hint">{{ group.hint }}</p>{% endif %}
+              <div class="find-key-list">
+                {% for key in find_catalog.search_keys if key.group == group.id and key.keyword not in primary_keywords %}
+                {{ find_key_row(key) }}
+                {% endfor %}
+              </div>
+            </details>
+            {% endfor %}
+          </nav>
+        </div>
+      </details>
 
       <div class="form-actions">
         <button class="button primary" type="submit" data-find-run>Run query</button>

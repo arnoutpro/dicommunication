@@ -5,6 +5,7 @@
 ### Interface
 
 - **Top bar / sidebar**: the product switcher (Dicommunication, Dicomtag Analytics, Dicom Anonymizer, Dicom Router, Dicom Cleaner) moved from its own row in the top bar into a "Tools" section at the top of the sidebar, above each tool's own contextual navigation. The top bar is back to one row (brand + About/Help/Configuration/theme); phase 1 of a layout pass aimed at the app feeling less cluttered as more tools and options have been added to it.
+- **Dicomtag Analytics**: phase 2 of that layout pass. Study Date, Accession Number, Modality and Series Description now stay visible above the fold; every other key (the rest of Patient/Study/Series/Image, and the Vue/ELSCINT1 tags) sits behind a closed "More filters" disclosure, which opens itself automatically when a saved query uses one of those fields.
 
 ## 0.9.3
 

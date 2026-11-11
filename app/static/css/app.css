@@ -1943,6 +1943,44 @@ body.page-find .find-head {
   padding: 0.16rem 0.45rem;
   font-size: var(--text-2xs);
 }
+/* The fields worth seeing before you've touched anything: Study Date,
+   Modality, Accession, Series Description. Everything else — Patient keys,
+   the rest of Study, Series, Image, the Vue/ELSCINT1 tags — is real but
+   rarely needed at once, so it collapses behind "More filters" instead of
+   all rendering open on every visit. */
+.find-primary {
+  display: flex;
+  flex-direction: column;
+}
+.find-more-filters > summary {
+  width: fit-content;
+  cursor: pointer;
+  list-style: none;
+  padding: 0.3rem 0.6rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  font-size: var(--text-sm);
+  font-weight: 700;
+  color: var(--accent);
+  user-select: none;
+}
+.find-more-filters > summary::-webkit-details-marker { display: none; }
+.find-more-filters > summary::before {
+  content: "";
+  display: inline-block;
+  width: 0.32rem;
+  height: 0.32rem;
+  margin-right: 0.45rem;
+  border-right: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor;
+  transform: rotate(-45deg);
+  vertical-align: 0.12rem;
+}
+.find-more-filters[open] > summary::before {
+  transform: rotate(45deg);
+  vertical-align: 0.18rem;
+}
+.find-more-filters > summary:hover { background: var(--glass-strong); }
 .find-tree-wrap {
   flex: 1;
   min-height: 0;
@@ -1950,6 +1988,7 @@ body.page-find .find-head {
   border: 1px solid var(--line);
   border-radius: var(--radius);
   background: var(--bg-elev);
+  margin-top: 0.3rem;
 }
 .find-tree {
   display: flex;
