@@ -193,7 +193,7 @@ h1, h2, h3, h4 {
   border-radius: var(--radius-sm);
   background: var(--glass);
   color: var(--subtle);
-  font-size: 0.8rem;
+  font-size: var(--text-sm);
   font-weight: 700;
   transition: border-color 0.15s, background-color 0.15s, color 0.15s;
 }
@@ -1981,6 +1981,7 @@ body.page-find .find-head {
   border-right: 1.5px solid currentColor;
   border-bottom: 1.5px solid currentColor;
   transform: rotate(-45deg);
+  transition: transform 0.15s;
   vertical-align: 0.12rem;
 }
 .find-more-filters[open] > summary::before {
@@ -2030,6 +2031,7 @@ body.page-find .find-head {
   border-right: 1.5px solid currentColor;
   border-bottom: 1.5px solid currentColor;
   transform: rotate(-45deg);
+  transition: transform 0.15s;
   vertical-align: 0.1rem;
 }
 .find-tree-branch[open] > summary::before {
