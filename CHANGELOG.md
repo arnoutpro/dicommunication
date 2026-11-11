@@ -9,6 +9,7 @@
 - Phase 3 of that layout pass: an audit of the stylesheet against the app's own `DESIGN.md` rules, fixing several small inconsistencies — every checkbox and radio button now always picks up the theme's accent color (a few were missing it), a find-level tab's corner radius now uses the same design token as every other control instead of its own hardcoded value, the top-bar buttons' font size now uses the same token as other small text, and the "More filters" / key-group disclosure chevrons now animate their open/close rotation like every other disclosure instead of snapping instantly.
 - **Dicomtag Analytics**: "More filters" now shows how many extra fields are available (`More filters · 15 available`) and lists them as one flat list instead of nested Patient/Study/Series/Image accordions you had to open one by one; the private Vue/ELSCINT1 tags collapse behind a single "+ show N more (Vue · ELSCINT1)" link instead of their own always-expanded sections.
 - **Sidebar**: each tool in the "Tools" switcher now has its own icon, so the list reads at a glance instead of as five lines of plain text.
+- **Dicomtag Analytics**: the Modality chip row now shows the first 6 codes (CR, CT, DX, MG, MR, NM) with a "+7 more" toggle for the rest, instead of all 13 at once; it opens itself if a saved query or typed value uses one of the hidden codes.
 
 ## 0.9.3
 

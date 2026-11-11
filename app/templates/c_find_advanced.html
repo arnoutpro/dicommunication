@@ -174,13 +174,30 @@
         >
         <span class="hint" data-find-hint>{{ key.hint }}</span>
         {% if key.keyword == "ModalitiesInStudy" %}
+        {% set common_modalities = ["CR", "CT", "DX", "MG", "MR", "NM"] %}
+        {% set more_modalities = ["OT", "PT", "RF", "SC", "SR", "US", "XA"] %}
         <div class="find-modality-chips" data-find-modality-chips>
-          {% for code in ["CR", "CT", "DX", "MG", "MR", "NM", "OT", "PT", "RF", "SC", "SR", "US", "XA"] %}
+          {% for code in common_modalities %}
           <label class="find-modality-chip">
             <input type="checkbox" value="{{ code }}" data-modality-chip>
             <span>{{ code }}</span>
           </label>
           {% endfor %}
+          <button
+            type="button"
+            class="find-modality-more-toggle"
+            data-find-modality-more-toggle
+            data-collapsed-label="+{{ more_modalities|length }} more"
+            aria-expanded="false"
+          >+{{ more_modalities|length }} more</button>
+          <span class="find-modality-more" data-find-modality-more hidden>
+            {% for code in more_modalities %}
+            <label class="find-modality-chip">
+              <input type="checkbox" value="{{ code }}" data-modality-chip>
+              <span>{{ code }}</span>
+            </label>
+            {% endfor %}
+          </span>
         </div>
         {% elif key.keyword == "StudyDate" %}
         <div class="find-date-tools" data-find-date-tools>

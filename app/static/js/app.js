@@ -1363,6 +1363,15 @@ function syncModalityChipsFromInput(form) {
   chipsBox.querySelectorAll("[data-modality-chip]").forEach((box) => {
     box.checked = tokens.includes(box.value);
   });
+  const more = chipsBox.querySelector("[data-find-modality-more]");
+  const moreToggle = chipsBox.querySelector("[data-find-modality-more-toggle]");
+  if (more && more.hidden && [...more.querySelectorAll("[data-modality-chip]")].some((box) => box.checked)) {
+    more.hidden = false;
+    if (moreToggle) {
+      moreToggle.setAttribute("aria-expanded", "true");
+      moreToggle.textContent = "Show fewer";
+    }
+  }
 }
 
 function syncModalityInputFromChips(form) {
@@ -2135,6 +2144,15 @@ function bindFindAdvanced(root) {
         const preset = event.target.closest("[data-date-preset]");
         if (preset) {
           applyDatePreset(target, preset.getAttribute("data-date-preset"));
+        }
+        const moreToggle = event.target.closest("[data-find-modality-more-toggle]");
+        if (moreToggle) {
+          const more = box.querySelector("[data-find-modality-more]");
+          if (more) {
+            more.hidden = !more.hidden;
+            moreToggle.setAttribute("aria-expanded", more.hidden ? "false" : "true");
+            moreToggle.textContent = more.hidden ? moreToggle.getAttribute("data-collapsed-label") : "Show fewer";
+          }
         }
         event.stopPropagation();
       });
