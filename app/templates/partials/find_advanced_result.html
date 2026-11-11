@@ -14,36 +14,6 @@
       {% endif %}
     </div>
   </header>
-  {% if result.steps %}
-  <details class="find-assoc">
-    <summary>Association</summary>
-    <ol class="steps">
-      {% for step in result.steps %}
-      <li>
-        <span class="dot {% if step.ok %}ok{% else %}fail{% endif %}"></span>
-        <div>
-          <strong>{{ step.name }}</strong>
-          <p>{{ step.message }}</p>
-          {% if step.details.get("output") %}
-          <pre class="log">{{ step.details.output }}</pre>
-          {% endif %}
-        </div>
-      </li>
-      {% endfor %}
-    </ol>
-    {% if result.contexts %}
-    <h3 class="result-subhead">SOP Classes negotiated</h3>
-    {% with contexts=result.contexts %}
-      {% include "partials/contexts.html" %}
-    {% endwith %}
-    {% endif %}
-  </details>
-  {% elif result.contexts %}
-  <h3 class="result-subhead">SOP Classes negotiated</h3>
-  {% with contexts=result.contexts %}
-    {% include "partials/contexts.html" %}
-  {% endwith %}
-  {% endif %}
   {% if result.records %}
   {% set columns = find_columns if find_columns is defined and find_columns else (result.records[0].keys() | list) %}
   {% set labels = find_labels if find_labels is defined else {} %}
@@ -184,24 +154,51 @@
   </article>
   {% endfor %}
   {% endif %}
-  <div class="find-export-footer">
-    <span class="hint">Export</span>
-    <button class="button compact" type="button" data-find-copy>Copy table</button>
-    <button class="button compact" type="button" data-find-csv>Download CSV</button>
-    <button class="button compact" type="button" data-find-json>Download JSON</button>
-    {% if kind == "sr_content" %}
-    <span class="hint">JSON includes Findings, Impression, the full report text, and the Content Sequence tree.</span>
-    {% else %}
-    <span class="hint">Tab-separated for Excel.</span>
-    {% endif %}
-  </div>
+  <details class="find-assoc">
+    <summary>Export</summary>
+    <div class="find-export-footer">
+      <button class="button compact" type="button" data-find-copy>Copy table</button>
+      <button class="button compact" type="button" data-find-csv>Download CSV</button>
+      <button class="button compact" type="button" data-find-json>Download JSON</button>
+      {% if kind == "sr_content" %}
+      <span class="hint">JSON includes Findings, Impression, the full report text, and the Content Sequence tree.</span>
+      {% else %}
+      <span class="hint">Tab-separated for Excel.</span>
+      {% endif %}
+    </div>
+  </details>
   <textarea hidden data-find-export>{{ {"level": find_level|default("STUDY"), "kind": kind, "truncated": find_truncated|default(false), "columns": columns, "labels": labels, "records": result.records} | tojson }}</textarea>
   {% elif result.ok %}
   <p class="hint">The FIND SOP Class was accepted and the query succeeded with zero matches. Broaden the filters, or check that this calling AE is allowed to query the archive.{% if find_kind|default("") == "sr_series" %} These studies have no series with modality SR.{% elif find_kind|default("") in ("series_list", "series_list_combined") %} None of these studies have a series matching that filter.{% endif %}</p>
   {% endif %}
-  {% if result.steps %}
+  {% if result.steps or result.contexts or result.log %}
   <details class="find-assoc">
-    <summary>Timing</summary>
+    <summary>Diagnostics</summary>
+    {% if result.steps %}
+    <h3 class="result-subhead">Association</h3>
+    <ol class="steps">
+      {% for step in result.steps %}
+      <li>
+        <span class="dot {% if step.ok %}ok{% else %}fail{% endif %}"></span>
+        <div>
+          <strong>{{ step.name }}</strong>
+          <p>{{ step.message }}</p>
+          {% if step.details.get("output") %}
+          <pre class="log">{{ step.details.output }}</pre>
+          {% endif %}
+        </div>
+      </li>
+      {% endfor %}
+    </ol>
+    {% endif %}
+    {% if result.contexts %}
+    <h3 class="result-subhead">SOP Classes negotiated</h3>
+    {% with contexts=result.contexts %}
+      {% include "partials/contexts.html" %}
+    {% endwith %}
+    {% endif %}
+    {% if result.steps %}
+    <h3 class="result-subhead">Timing</h3>
     <ol class="steps">
       {% for step in result.steps %}
       <li>
@@ -215,12 +212,11 @@
       </li>
       {% endfor %}
     </ol>
-  </details>
-  {% endif %}
-  {% if result.log %}
-  <details class="find-assoc">
-    <summary>{% if result.contexts %}Association log{% else %}Log{% endif %}</summary>
+    {% endif %}
+    {% if result.log %}
+    <h3 class="result-subhead">{% if result.contexts %}Association log{% else %}Log{% endif %}</h3>
     <pre class="log">{{ result.log }}</pre>
+    {% endif %}
   </details>
   {% endif %}
 </article>

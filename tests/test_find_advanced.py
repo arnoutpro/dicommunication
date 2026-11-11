@@ -314,8 +314,10 @@ def test_c_find_advanced_page_and_api(client, store) -> None:
         assert b'<script type="application/json" data-find-export>' not in form.content
         assert b"Count patients by name" in form.content
         assert b'"truncated": false' in form.content
-        assert b"<summary>Timing</summary>" in form.content
-        assert b"<summary>Association</summary>" in form.content
+        assert b"<summary>Diagnostics</summary>" in form.content
+        assert b'<h3 class="result-subhead">Timing</h3>' in form.content
+        assert b'<h3 class="result-subhead">Association</h3>' in form.content
+        assert b"<summary>Export</summary>" in form.content
         api = client.post(
             "/api/tools/c-find-advanced/run",
             json={
