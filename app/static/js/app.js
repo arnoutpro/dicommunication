@@ -2154,6 +2154,9 @@ function bindFindAdvanced(root) {
         if (preset) {
           applyDatePreset(target, preset.getAttribute("data-date-preset"));
         }
+        // stopPropagation below means the page-wide modality-more-toggle
+        // listener (bound on document, for Dicom Anonymizer/Cleaner's plain
+        // modality field) never sees these clicks, so it's handled here too.
         const moreToggle = event.target.closest("[data-find-modality-more-toggle]");
         if (moreToggle) {
           const more = box.querySelector("[data-find-modality-more]");
@@ -2244,6 +2247,24 @@ document.addEventListener("click", (event) => {
     startFindFollow(follow.getAttribute("data-find-follow"), result);
   } else if (row && result) {
     useFindRow(row);
+  }
+});
+
+// Generic "+N more" modality chip toggle, used on Dicomtag Analytics (where
+// find-advanced's own delegated listener already handles and stops it before
+// it ever reaches here) and on Dicom Anonymizer/Cleaner's plain checkbox
+// modality field, which has no such listener of its own.
+document.addEventListener("click", (event) => {
+  const moreToggle = event.target.closest("[data-find-modality-more-toggle]");
+  if (!moreToggle) {
+    return;
+  }
+  const box = moreToggle.closest(".find-modality-chips");
+  const more = box ? box.querySelector("[data-find-modality-more]") : null;
+  if (more) {
+    more.hidden = !more.hidden;
+    moreToggle.setAttribute("aria-expanded", more.hidden ? "false" : "true");
+    moreToggle.textContent = more.hidden ? moreToggle.getAttribute("data-collapsed-label") : "Show fewer";
   }
 });
 

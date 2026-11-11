@@ -29,13 +29,32 @@
 </label>
 <fieldset class="modality-field">
   <legend>Modalities</legend>
+  {% set common_modalities = ["CR", "CT", "DX", "MG", "MR", "NM"] %}
+  {% set more_modalities = ["OT", "PT", "RF", "SC", "SR", "US", "XA"] %}
+  {% set checked_modalities = query.modalities or [] %}
+  {% set more_open = more_modalities | select("in", checked_modalities) | list | length > 0 %}
   <div class="find-modality-chips">
-    {% for code in ["CR", "CT", "DX", "MG", "MR", "NM", "OT", "PT", "RF", "SC", "SR", "US", "XA"] %}
+    {% for code in common_modalities %}
     <label class="find-modality-chip">
-      <input type="checkbox" name="modality" value="{{ code }}" {% if code in (query.modalities or []) %}checked{% endif %}>
+      <input type="checkbox" name="modality" value="{{ code }}" {% if code in checked_modalities %}checked{% endif %}>
       <span>{{ code }}</span>
     </label>
     {% endfor %}
+    <button
+      type="button"
+      class="find-modality-more-toggle"
+      data-find-modality-more-toggle
+      data-collapsed-label="+{{ more_modalities|length }} more"
+      aria-expanded="{{ 'true' if more_open else 'false' }}"
+    >{% if more_open %}Show fewer{% else %}+{{ more_modalities|length }} more{% endif %}</button>
+    <span class="find-modality-more" data-find-modality-more{% if not more_open %} hidden{% endif %}>
+      {% for code in more_modalities %}
+      <label class="find-modality-chip">
+        <input type="checkbox" name="modality" value="{{ code }}" {% if code in checked_modalities %}checked{% endif %}>
+        <span>{{ code }}</span>
+      </label>
+      {% endfor %}
+    </span>
   </div>
   <span class="hint">None selected matches any modality.</span>
 </fieldset>
