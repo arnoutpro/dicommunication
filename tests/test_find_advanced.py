@@ -318,7 +318,8 @@ def test_c_find_advanced_page_and_api(client, store) -> None:
         assert b"<dialog class=\"find-diag\" data-find-diag>" in form.content
         assert b'<h3 class="result-subhead">Timing</h3>' in form.content
         assert b'<h3 class="result-subhead">Association</h3>' in form.content
-        assert b"<summary>Export</summary>" in form.content
+        assert b"data-find-export-open" in form.content
+        assert b"data-find-export-preset=\"patient\"" in form.content
         api = client.post(
             "/api/tools/c-find-advanced/run",
             json={

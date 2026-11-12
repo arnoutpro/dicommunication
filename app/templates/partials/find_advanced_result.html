@@ -44,17 +44,39 @@
     </div>
     <div class="find-actionbar-tools">
       {% include "partials/find_save_query.html" %}
-      <details class="find-menu" data-find-menu>
-        <summary>Export</summary>
-        <div class="find-menu-panel">
-          <button class="find-menu-item" type="button" data-find-copy>Copy table</button>
-          <button class="find-menu-item" type="button" data-find-csv>Download CSV</button>
-          <button class="find-menu-item" type="button" data-find-json>Download JSON</button>
-          <span class="hint">{% if kind == "sr_content" %}JSON includes Findings, Impression, the full report text, and the Content Sequence tree.{% else %}Copy is tab-separated for Excel.{% endif %}</span>
-        </div>
-      </details>
+      <button class="button compact" type="button" data-find-export-open>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"></path><path d="M7 10l5 5 5-5"></path><path d="M5 21h14"></path></svg>
+        Export
+      </button>
     </div>
   </div>
+  <dialog class="find-diag find-export" data-find-export-dialog>
+    <header class="find-diag-head">
+      <h2>Export</h2>
+      <form method="dialog"><button class="button compact" type="submit">Close</button></form>
+    </header>
+    <div class="find-diag-body">
+      <p class="hint">Choose which columns go into the export. Nothing is remembered between exports.</p>
+      <div class="find-export-presets">
+        <span class="find-export-presets-label">Quick</span>
+        <button class="button compact" type="button" data-find-export-preset="patient">Remove patient info</button>
+        <button class="button compact" type="button" data-find-export-preset="site">Remove site info</button>
+        <button class="button compact" type="button" data-find-export-preset="both">Remove both</button>
+        <button class="button compact" type="button" data-find-export-preset="all">Select all</button>
+        <button class="button compact" type="button" data-find-export-preset="none">Select none</button>
+      </div>
+      <div class="find-export-cols" data-find-export-cols></div>
+      <p class="hint">Removing columns only drops the ones marked <span class="badge">patient</span> or <span class="badge">site</span> above. UIDs, dates and descriptions stay unless you untick them yourself — check the list before sharing.</p>
+    </div>
+    <footer class="find-export-foot">
+      <span class="hint" data-find-export-count></span>
+      <div class="find-export-actions">
+        <button class="button compact" type="button" data-find-copy>Copy table</button>
+        <button class="button compact" type="button" data-find-csv>Download CSV</button>
+        <button class="button primary compact" type="button" data-find-json>Download JSON</button>
+      </div>
+    </footer>
+  </dialog>
   {% if kind == "table" and find_truncated|default(false) %}
   <div class="find-cap-confirm" data-find-cap-confirm>
     {% if find_record_count|default(0) >= find_cap_ceiling|default(50000) %}

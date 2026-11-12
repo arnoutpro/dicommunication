@@ -10,6 +10,7 @@
 - The same look now applies across the app: every page has the icon tile and large title; every table has the bordered grid with a tinted header, striped rows and a row hover; every tool's Pass/Fail result header is a green or red banner; and the numbered steps in Dicom Anonymizer, Dicom Cleaner and the other step-by-step tools use filled round step numbers.
 - On a wide window the page no longer shows a scrollbar strip partway across with blank space to its right: the content area now runs to the window edge, and the scrollbar track is transparent.
 - Forms no longer offer the browser's remembered values (earlier Patient IDs, accession numbers and so on) under their fields.
+- **Dicomtag Analytics**: Export is now a button that opens an Export dialog listing every result column with a checkbox. Quick buttons untick the patient columns (name, ID, birth date, sex, accession number, report text), the site columns (referring physician and the Tamar site, AE, location and physician fields), or both, and you can then adjust by hand. Copy table, Download CSV and Download JSON all export only the ticked columns; the JSON drops unticked keys entirely. The selection is not remembered between exports.
 
 ## 0.10.0
 

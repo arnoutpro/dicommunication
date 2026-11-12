@@ -1664,15 +1664,118 @@ function findExportFilename(payload, extension) {
   return `c-find-advanced-${level}-${stamp}.${extension}`;
 }
 
+const FIND_EXPORT_PATIENT = new Set([
+  "PatientName", "PatientID", "PatientBirthDate", "PatientSex", "IssuerOfPatientID",
+  "AccessionNumber", "StudyID", "Findings", "Impression", "sr_text", "sr_items",
+  "TamarStudyReason", "TamarMiscString4", "TamarMiscString5",
+]);
+const FIND_EXPORT_SITE = new Set([
+  "ReferringPhysicianName", "TamarSiteId", "TamarOriginalStoringAe", "TamarPracticeSettingsCode",
+  "TamarPatientLocation", "TamarAssignToDoctor", "TamarStudyReferredBy", "TamarReadingPhysicianId",
+  "TamarReferringPhysiciansStudyRead", "TamarSubspecialtyId", "TamarStudySubspecialtyId",
+]);
+
+function findExportDialog(root) {
+  return root.querySelector("[data-find-export-dialog]");
+}
+
+function findExportColumnList(payload) {
+  const columns = [...(payload.columns || [])];
+  const labels = { ...(payload.labels || {}) };
+  if (payload.kind === "sr_content" && (payload.records || []).some((row) => row.sr_items)) {
+    columns.push("sr_items");
+    labels.sr_items = "Content Sequence tree (JSON only)";
+  }
+  return { columns, labels };
+}
+
+function updateFindExportCount(dialog) {
+  const boxes = [...dialog.querySelectorAll(".find-export-col input")];
+  const on = boxes.filter((box) => box.checked).length;
+  const count = dialog.querySelector("[data-find-export-count]");
+  if (count) {
+    count.textContent = on ? `${on} of ${boxes.length} columns selected` : "Select at least one column.";
+  }
+  dialog.querySelectorAll(".find-export-actions button").forEach((button) => {
+    button.disabled = on === 0;
+  });
+}
+
+function openFindExport(root) {
+  const payload = parseFindExport(root);
+  const dialog = findExportDialog(root);
+  if (!payload || !dialog || typeof dialog.showModal !== "function") {
+    return;
+  }
+  const { columns, labels } = findExportColumnList(payload);
+  const grid = dialog.querySelector("[data-find-export-cols]");
+  grid.replaceChildren();
+  columns.forEach((column) => {
+    const label = document.createElement("label");
+    label.className = "find-export-col";
+    const input = document.createElement("input");
+    input.type = "checkbox";
+    input.checked = true;
+    input.value = column;
+    const text = document.createElement("span");
+    text.textContent = labels[column] || column;
+    label.append(input, text);
+    [[FIND_EXPORT_PATIENT, "patient"], [FIND_EXPORT_SITE, "site"]].forEach(([set, name]) => {
+      if (set.has(column)) {
+        const tag = document.createElement("span");
+        tag.className = "badge";
+        tag.textContent = name;
+        label.append(tag);
+      }
+    });
+    grid.append(label);
+  });
+  updateFindExportCount(dialog);
+  dialog.showModal();
+}
+
+function applyFindExportPreset(dialog, mode) {
+  dialog.querySelectorAll(".find-export-col input").forEach((box) => {
+    const hidePatient = (mode === "patient" || mode === "both") && FIND_EXPORT_PATIENT.has(box.value);
+    const hideSite = (mode === "site" || mode === "both") && FIND_EXPORT_SITE.has(box.value);
+    if (mode === "all") {
+      box.checked = true;
+    } else if (mode === "none") {
+      box.checked = false;
+    } else if (hidePatient || hideSite) {
+      box.checked = false;
+    }
+  });
+  updateFindExportCount(dialog);
+}
+
+// The columns ticked in the Export dialog; every column when it was never opened.
+function findExportColumns(root, payload) {
+  const dialog = findExportDialog(root);
+  const boxes = dialog ? [...dialog.querySelectorAll(".find-export-col input")] : [];
+  if (!boxes.length) {
+    return [...(payload.columns || [])];
+  }
+  return boxes.filter((box) => box.checked).map((box) => box.value);
+}
+
+function closeFindExport(root) {
+  const dialog = findExportDialog(root);
+  if (dialog && dialog.open) {
+    dialog.close();
+  }
+}
+
 function copyFindTable(root) {
   const payload = parseFindExport(root);
   const table = root.querySelector("[data-find-table]");
   let text = "";
   if (payload && payload.records && payload.columns) {
-    const labels = payload.columns.map((column) => (payload.labels && payload.labels[column]) || column);
+    const columns = findExportColumns(root, payload).filter((column) => payload.columns.includes(column));
+    const labels = columns.map((column) => (payload.labels && payload.labels[column]) || column);
     const lines = [labels.join("\t")];
     payload.records.forEach((row) => {
-      lines.push(payload.columns.map((column) => String(row[column] ?? "").replaceAll("\t", " ")).join("\t"));
+      lines.push(columns.map((column) => String(row[column] ?? "").replaceAll("\t", " ")).join("\t"));
     });
     text = lines.join("\n");
   } else if (table) {
@@ -1680,6 +1783,7 @@ function copyFindTable(root) {
       .map((row) => [...row.cells].map((cell) => cell.innerText.replaceAll("\t", " ")).join("\t"))
       .join("\n");
   }
+  closeFindExport(root);
   if (!text) {
     flashFindExport(root, "Nothing to copy.", false);
     return;
@@ -1693,14 +1797,16 @@ function copyFindTable(root) {
 
 function downloadFindCsv(root) {
   const payload = parseFindExport(root);
+  closeFindExport(root);
   if (!payload || !payload.records || !payload.columns) {
     flashFindExport(root, "Nothing to download.", false);
     return;
   }
-  const labels = payload.columns.map((column) => (payload.labels && payload.labels[column]) || column);
+  const columns = findExportColumns(root, payload).filter((column) => payload.columns.includes(column));
+  const labels = columns.map((column) => (payload.labels && payload.labels[column]) || column);
   const lines = [labels.map(csvCell).join(",")];
   payload.records.forEach((row) => {
-    lines.push(payload.columns.map((column) => csvCell(row[column])).join(","));
+    lines.push(columns.map((column) => csvCell(row[column])).join(","));
   });
   downloadText(findExportFilename(payload, "csv"), `${lines.join("\n")}\n`, "text/csv;charset=utf-8");
   flashFindExport(root, "Downloading CSV…", true);
@@ -1708,13 +1814,35 @@ function downloadFindCsv(root) {
 
 function downloadFindJson(root) {
   const payload = parseFindExport(root);
+  closeFindExport(root);
   if (!payload) {
     flashFindExport(root, "Nothing to download.", false);
     return;
   }
+  const columns = findExportColumns(root, payload);
+  const labels = {};
+  columns.forEach((column) => {
+    if (payload.labels && payload.labels[column]) {
+      labels[column] = payload.labels[column];
+    }
+  });
+  const chosen = {
+    ...payload,
+    columns: columns.filter((column) => (payload.columns || []).includes(column)),
+    labels,
+    records: (payload.records || []).map((row) => {
+      const kept = {};
+      columns.forEach((column) => {
+        if (column in row) {
+          kept[column] = row[column];
+        }
+      });
+      return kept;
+    }),
+  };
   downloadText(
     findExportFilename(payload, "json"),
-    `${JSON.stringify(payload, null, 2)}\n`,
+    `${JSON.stringify(chosen, null, 2)}\n`,
     "application/json;charset=utf-8"
   );
   flashFindExport(root, "Downloading JSON…", true);
@@ -2311,17 +2439,35 @@ document.addEventListener("click", (event) => {
     }
     return;
   }
-  if (event.target.matches("dialog[data-find-diag]")) {
+  if (event.target.matches("dialog.find-diag")) {
     event.target.close();
     return;
   }
-  // Popover menus (Export, Save this query) close on an item click or a click elsewhere.
-  const item = event.target.closest(".find-menu-item");
-  document.querySelectorAll(".find-menu[open], .find-actionbar .find-save[open]").forEach((menu) => {
-    if (item || !menu.contains(event.target)) {
+  const exportOpen = event.target.closest("[data-find-export-open]");
+  if (exportOpen) {
+    const result = exportOpen.closest("[data-find-result]");
+    if (result) {
+      openFindExport(result);
+    }
+    return;
+  }
+  const preset = event.target.closest("[data-find-export-preset]");
+  if (preset) {
+    applyFindExportPreset(preset.closest("dialog"), preset.getAttribute("data-find-export-preset"));
+    return;
+  }
+  // The Save this query popover closes on a click elsewhere.
+  document.querySelectorAll(".find-actionbar .find-save[open]").forEach((menu) => {
+    if (!menu.contains(event.target)) {
       menu.removeAttribute("open");
     }
   });
+});
+
+document.addEventListener("change", (event) => {
+  if (event.target.matches(".find-export-col input")) {
+    updateFindExportCount(event.target.closest("dialog"));
+  }
 });
 
 function syncFindWorkspaceView(root) {
