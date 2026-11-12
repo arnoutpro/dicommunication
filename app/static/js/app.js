@@ -1666,9 +1666,9 @@ function findExportFilename(payload, extension) {
 
 const FIND_EXPORT_PATIENT = new Set([
   "PatientName", "PatientID", "PatientBirthDate", "PatientSex", "IssuerOfPatientID",
-  "AccessionNumber", "StudyID", "Findings", "Impression", "sr_text", "sr_items",
-  "TamarStudyReason", "TamarMiscString4", "TamarMiscString5",
+  "AccessionNumber", "StudyID", "TamarStudyReason", "TamarMiscString4", "TamarMiscString5",
 ]);
+const FIND_EXPORT_REPORT = new Set(["Findings", "Impression", "sr_text", "sr_items"]);
 const FIND_EXPORT_SITE = new Set([
   "ReferringPhysicianName", "TamarSiteId", "TamarOriginalStoringAe", "TamarPracticeSettingsCode",
   "TamarPatientLocation", "TamarAssignToDoctor", "TamarStudyReferredBy", "TamarReadingPhysicianId",
@@ -1720,7 +1720,7 @@ function openFindExport(root) {
     const text = document.createElement("span");
     text.textContent = labels[column] || column;
     label.append(input, text);
-    [[FIND_EXPORT_PATIENT, "patient"], [FIND_EXPORT_SITE, "site"]].forEach(([set, name]) => {
+    [[FIND_EXPORT_PATIENT, "patient"], [FIND_EXPORT_SITE, "site"], [FIND_EXPORT_REPORT, "report"]].forEach(([set, name]) => {
       if (set.has(column)) {
         const tag = document.createElement("span");
         tag.className = "badge";
@@ -1738,7 +1738,9 @@ function applyFindExportPreset(dialog, mode) {
   dialog.querySelectorAll(".find-export-col input").forEach((box) => {
     const hidePatient = (mode === "patient" || mode === "both") && FIND_EXPORT_PATIENT.has(box.value);
     const hideSite = (mode === "site" || mode === "both") && FIND_EXPORT_SITE.has(box.value);
-    if (mode === "all") {
+    if (mode === "report") {
+      box.checked = box.value === "Findings" || box.value === "Impression";
+    } else if (mode === "all") {
       box.checked = true;
     } else if (mode === "none") {
       box.checked = false;
