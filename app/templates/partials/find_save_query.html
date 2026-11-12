@@ -26,7 +26,7 @@
         {% if save_error is defined and save_error %}aria-invalid="true" aria-describedby="find-save-error" autofocus{% endif %}
       >
     </label>
-    <button class="button compact" type="submit">Save query</button>
+    <button class="button compact primary" type="submit">Save query</button>
     {% if save_error is defined and save_error %}
     <span class="field-error" id="find-save-error">{{ save_error }}</span>
     {% endif %}

@@ -4,9 +4,12 @@
 {% macro invalid(name) %}{% if error_field == name %} aria-invalid="true" aria-describedby="error-{{ name }}" autofocus{% endif %}{% endmacro %}
 {% macro field_error(name) %}{% if error_field == name %}<span class="field-error" id="error-{{ name }}">{{ error }}</span>{% endif %}{% endmacro %}
 <header class="page-head">
-  <div>
+  <div class="page-head-hero">
+    {% include "partials/page_icon.html" %}
+    <div>
     <h1>Route rules</h1>
     <p class="lede">Each rule runs a C-FIND against a PACS on a timer or daily schedule. Add destination nodes to also C-MOVE new matches here and C-STORE them onward; leave destinations empty to just track new studies.</p>
+    </div>
   </div>
   {% if route_rules and not show_form and config.remotes %}
   <a class="button primary nowrap" href="{{ href('/router?new=1') }}">Add route rule</a>

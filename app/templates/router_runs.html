@@ -2,7 +2,9 @@
 {% block title %}{{ rule.name }} · Dicom Router · {{ product_name }}{% endblock %}
 {% block content %}
 <header class="page-head">
-  <div>
+  <div class="page-head-hero">
+    {% include "partials/page_icon.html" %}
+    <div>
     <h1>
       {{ rule.name }}
       {% if running %}
@@ -16,6 +18,7 @@
       {% endif %}
     </h1>
     <p class="lede">{{ rule.schedule_label }} · {{ config.get_remote(rule.source_remote_id).ae_title if config.get_remote(rule.source_remote_id) else 'source node missing' }}{% if rule.destination_remote_ids %} → {{ rule.destination_remote_ids | length }} destination{% if rule.destination_remote_ids | length != 1 %}s{% endif %}{% endif %}</p>
+    </div>
   </div>
   <a href="{{ href('/router') }}">&larr; All route rules</a>
 </header>

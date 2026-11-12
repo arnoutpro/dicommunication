@@ -4,9 +4,12 @@
 {% block content %}
 <div class="logs-page">
   <header class="page-head">
-    <div>
+    <div class="page-head-hero">
+      {% include "partials/page_icon.html" %}
+      <div>
       <h1>Logs</h1>
       <p class="lede">Startup, configuration, tool runs, and MWL SCP. HTTP at Debug. File rotates in the data directory.</p>
+      </div>
     </div>
   </header>
   {% if saved == "logging" %}

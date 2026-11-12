@@ -2301,9 +2301,58 @@ document.addEventListener("input", (event) => {
   }
 });
 
+document.addEventListener("click", (event) => {
+  const open = event.target.closest("[data-find-diag-open]");
+  if (open) {
+    const result = open.closest("[data-find-result]");
+    const dialog = result && result.querySelector("[data-find-diag]");
+    if (dialog && typeof dialog.showModal === "function") {
+      dialog.showModal();
+    }
+    return;
+  }
+  if (event.target.matches("dialog[data-find-diag]")) {
+    event.target.close();
+    return;
+  }
+  // Popover menus (Export, Save this query) close on an item click or a click elsewhere.
+  const item = event.target.closest(".find-menu-item");
+  document.querySelectorAll(".find-menu[open], .find-actionbar .find-save[open]").forEach((menu) => {
+    if (item || !menu.contains(event.target)) {
+      menu.removeAttribute("open");
+    }
+  });
+});
+
+function syncFindWorkspaceView(root) {
+  const workspace = (root || document).querySelector(".find-workspace");
+  if (!workspace) {
+    return;
+  }
+  const resultBox = workspace.querySelector("#result");
+  const hasResult = !!(resultBox && resultBox.querySelector(".result"));
+  workspace.setAttribute("data-find-view", hasResult ? "results" : "query");
+}
+
+document.addEventListener("click", (event) => {
+  const toggle = event.target.closest("[data-find-query-toggle]");
+  if (!toggle) {
+    return;
+  }
+  const workspace = toggle.closest(".find-workspace");
+  if (!workspace) {
+    return;
+  }
+  workspace.setAttribute("data-find-view", "query");
+});
+
+syncFindWorkspaceView(document);
 bindFindAdvanced(document);
 document.body.addEventListener("htmx:afterSwap", (event) => {
   bindFindAdvanced(event.target);
+  if (event.target && event.target.id === "result") {
+    syncFindWorkspaceView(document);
+  }
 });
 
 document.body.addEventListener("htmx:beforeSwap", (event) => {

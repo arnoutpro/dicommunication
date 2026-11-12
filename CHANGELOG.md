@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+
+### Interface
+
+- **Dicomtag Analytics**: the query builder is now one full-width screen instead of sharing space with a cramped results column. Pressing "Run query" hides it entirely and the results take over the whole screen as a full-width table, with an "Edit query" button to switch straight back — the filter catalog itself also now wraps into multiple columns to use that width, instead of staying in one narrow stretched column.
+- **Dicomtag Analytics**: "List SR reports" / "Retrieve report text" in the results toolbar now match every other action there (Copy table, Download CSV/JSON, …) instead of standing out in a different color; the Series Description field next to "List series" no longer stretches to fill the whole row at full page width.
+- **Dicomtag Analytics**: the results view is redesigned. A coloured status banner (green for Pass, red for Fail) carries the summary and a Diagnostics button, which opens Association, SOP Classes negotiated, Timing and the log in a popup instead of three disclosures in the page. One action bar holds the follow-ups (the main one filled, then Series search and Count patients by name) on the left and two menus on the right: Save this query and Export (Copy table, Download CSV, Download JSON). The records table has a tinted header, striped rows, a row hover and a record count.
+- The same look now applies across the app: every page has the icon tile and large title; every table has the bordered grid with a tinted header, striped rows and a row hover; every tool's Pass/Fail result header is a green or red banner; and the numbered steps in Dicom Anonymizer, Dicom Cleaner and the other step-by-step tools use filled round step numbers.
+
 ## 0.10.0
 
 A layout and visual pass across the app: the product switcher moved into the sidebar, Dicomtag Analytics' filter form got progressively-disclosed and flattened, several small styling inconsistencies against the app's own design rules were fixed, and a bolder visual direction (icon tiles, pill-shaped badges/chips/buttons, a big stat numeral on the Dashboard) was applied, starting with the Dashboard and Dicomtag Analytics.

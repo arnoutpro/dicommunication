@@ -2,9 +2,12 @@
 {% block title %}Remote nodes · {{ product_name }}{% endblock %}
 {% block content %}
 <header class="page-head">
-  <div>
+  <div class="page-head-hero">
+    {% include "partials/page_icon.html" %}
+    <div>
     <h1>Remote DICOM nodes</h1>
     <p class="lede">PACS, Orthanc, RIS/MWL, modalities, and test SCPs this workstation can associate with. Fill hostname, IP, or both — the connection uses IP when set.</p>
+    </div>
   </div>
 </header>
 {% include "partials/config_nav.html" %}
