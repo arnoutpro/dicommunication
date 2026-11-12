@@ -2,13 +2,16 @@
 {% block title %}Testbench · Dicommunication{% endblock %}
 {% block content %}
 <header class="page-head">
-  <div>
+  <div class="page-head-hero">
+    {% include "partials/page_icon.html" %}
+    <div>
     <h1>Testbench</h1>
     <p class="lede">
       Send a simulated C-ECHO, C-STORE, Study Root C-FIND, or Modality Worklist C-FIND
       to a remote node. These are different SOP Classes — a working C-ECHO (or Orthanc
       answering MWL in the UI) does not mean Storage or Query/Retrieve will succeed.
     </p>
+    </div>
   </div>
 </header>
 
