@@ -1297,6 +1297,51 @@ function downloadText(filename, text, type) {
   return true;
 }
 
+// Ask where to save: the desktop app's native Save dialog, else the browser's save picker,
+// else a plain download into the default folder. Resolves to {ok, path?, cancelled?}.
+async function saveText(filename, text, type) {
+  const api = window.pywebview && window.pywebview.api;
+  if (api && typeof api.save_file === "function") {
+    try {
+      const result = await api.save_file(filename, text);
+      if (result && (result.ok || result.cancelled)) {
+        return result;
+      }
+    } catch (error) {
+      // fall through to the browser paths
+    }
+  }
+  if (typeof window.showSaveFilePicker === "function") {
+    try {
+      const extension = filename.includes(".") ? `.${filename.split(".").pop()}` : "";
+      const handle = await window.showSaveFilePicker({
+        suggestedName: filename,
+        types: extension ? [{ description: extension.slice(1).toUpperCase(), accept: { [type.split(";")[0]]: [extension] } }] : undefined,
+      });
+      const writable = await handle.createWritable();
+      await writable.write(text);
+      await writable.close();
+      return { ok: true, path: handle.name };
+    } catch (error) {
+      if (error && error.name === "AbortError") {
+        return { ok: false, cancelled: true };
+      }
+    }
+  }
+  downloadText(filename, text, type);
+  return { ok: true };
+}
+
+function flashSaveResult(root, result, label) {
+  if (result.cancelled) {
+    flashFindExport(root, "Export cancelled.", false);
+  } else if (result.ok) {
+    flashFindExport(root, result.path ? `Saved ${label} to ${result.path}` : `Downloading ${label}…`, true);
+  } else {
+    flashFindExport(root, `Could not save: ${result.error || "unknown error"}`, false);
+  }
+}
+
 function copyText(text) {
   if (navigator.clipboard && navigator.clipboard.writeText) {
     return navigator.clipboard.writeText(text);
@@ -1810,8 +1855,9 @@ function downloadFindCsv(root) {
   payload.records.forEach((row) => {
     lines.push(columns.map((column) => csvCell(row[column])).join(","));
   });
-  downloadText(findExportFilename(payload, "csv"), `${lines.join("\n")}\n`, "text/csv;charset=utf-8");
-  flashFindExport(root, "Downloading CSV…", true);
+  saveText(findExportFilename(payload, "csv"), `${lines.join("\n")}\n`, "text/csv;charset=utf-8").then((result) =>
+    flashSaveResult(root, result, "CSV")
+  );
 }
 
 function downloadFindJson(root) {
@@ -1842,12 +1888,11 @@ function downloadFindJson(root) {
       return kept;
     }),
   };
-  downloadText(
+  saveText(
     findExportFilename(payload, "json"),
     `${JSON.stringify(chosen, null, 2)}\n`,
     "application/json;charset=utf-8"
-  );
-  flashFindExport(root, "Downloading JSON…", true);
+  ).then((result) => flashSaveResult(root, result, "JSON"));
 }
 
 function patientNameLetter(name) {

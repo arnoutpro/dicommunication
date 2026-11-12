@@ -128,6 +128,40 @@ def _macos_run_until_windows_close(webview) -> None:
         )
 
 
+class DesktopApi:
+    """Methods the page can call as ``window.pywebview.api.<name>`` in the native window."""
+
+    def save_file(self, filename: str, text: str) -> dict:
+        """Ask where to save ``text`` with a native Save dialog, then write it as UTF-8."""
+        import webview
+
+        windows = list(getattr(webview, "windows", []) or [])
+        if not windows:
+            return {"ok": False, "error": "No window to attach the Save dialog to."}
+        name = Path(str(filename)).name or "export.txt"
+        dialog_type = getattr(getattr(webview, "FileDialog", None), "SAVE", None)
+        if dialog_type is None:
+            dialog_type = webview.SAVE_DIALOG
+        try:
+            picked = windows[0].create_file_dialog(
+                dialog_type,
+                directory=str(Path.home() / "Documents")
+                if (Path.home() / "Documents").is_dir()
+                else str(Path.home()),
+                save_filename=name,
+            )
+        except Exception as exc:  # noqa: BLE001
+            return {"ok": False, "error": f"{type(exc).__name__}: {exc}"}
+        if not picked:
+            return {"ok": False, "cancelled": True}
+        target = Path(picked if isinstance(picked, str) else picked[0])
+        try:
+            target.write_text(str(text), encoding="utf-8", newline="")
+        except OSError as exc:
+            return {"ok": False, "error": str(exc)}
+        return {"ok": True, "path": str(target)}
+
+
 def run_native_window(ui: str, title: str | None = None) -> bool:
     """Open ``ui`` in a native window. Return False if the WebView cannot start."""
     try:
@@ -148,10 +182,12 @@ def run_native_window(ui: str, title: str | None = None) -> bool:
     try:
         try:
             window = webview.create_window(
-                title or WINDOW_TITLE, ui, zoomable=True, **window_kwargs
+                title or WINDOW_TITLE, ui, zoomable=True, js_api=DesktopApi(), **window_kwargs
             )
         except TypeError:
-            window = webview.create_window(title or WINDOW_TITLE, ui, **window_kwargs)
+            window = webview.create_window(
+                title or WINDOW_TITLE, ui, js_api=DesktopApi(), **window_kwargs
+            )
         shown = getattr(getattr(window, "events", None), "shown", None)
         if shown is not None:
             try:
