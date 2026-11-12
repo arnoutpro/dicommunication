@@ -92,7 +92,7 @@ body {
 }
 ::selection { background: var(--selection); }
 ::-webkit-scrollbar { width: 8px; height: 8px; }
-::-webkit-scrollbar-track { background: var(--scrollbar-track); }
+::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); }
 ::-webkit-scrollbar-thumb:hover { background: var(--scrollbar-thumb-hover); }
 :focus-visible {
@@ -532,8 +532,10 @@ h1, h2, h3, h4 {
   position: relative;
   grid-column: 2;
   grid-row: 2;
+  /* Full width so the scrollbar sits on the window edge; on very wide
+     windows the extra room becomes right padding instead of a second column. */
   padding: 1.15rem 1.35rem 1.4rem;
-  max-width: 1600px;
+  padding-right: max(1.35rem, calc(100% - 1600px));
   min-width: 0;
   min-height: 0;
   overflow: auto;

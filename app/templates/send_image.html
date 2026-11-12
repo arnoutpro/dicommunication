@@ -13,7 +13,7 @@
 
 {% if config.remotes %}
 {% set has_orders = action in ("query", "patient", "manual") and result and result.ok and result.records %}
-<form class="step-flow" method="post" action="{{ href('/tools/send-image/run') }}">
+<form autocomplete="off" class="step-flow" method="post" action="{{ href('/tools/send-image/run') }}">
   <section class="panel step">
     <header class="panel-head">
       <h2 class="step-title"><span class="step-num" aria-hidden="true">1</span>Find a study</h2>

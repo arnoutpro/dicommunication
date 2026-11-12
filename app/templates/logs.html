@@ -56,7 +56,7 @@
           Follow new lines
         </label>
         <a class="button" href="{{ href('/logs/download') }}">Download log</a>
-        <form method="post" action="{{ href('/logs/clear') }}" data-confirm="Clear the current log file? Rotated files are kept.">
+        <form autocomplete="off" method="post" action="{{ href('/logs/clear') }}" data-confirm="Clear the current log file? Rotated files are kept.">
           <button class="button" type="submit">Clear log</button>
         </form>
       </div>

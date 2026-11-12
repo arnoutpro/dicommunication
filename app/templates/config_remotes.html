@@ -110,7 +110,7 @@
           </td>
           <td class="actions">
             <a href="{{ href('/config/remotes?edit=' ~ remote.id) }}">Edit</a>
-            <form method="post" action="{{ href('/config/remotes/' ~ remote.id ~ '/delete') }}" class="inline" data-confirm="Delete remote node {{ remote.name }}?">
+            <form autocomplete="off" method="post" action="{{ href('/config/remotes/' ~ remote.id ~ '/delete') }}" class="inline" data-confirm="Delete remote node {{ remote.name }}?">
               <button type="submit" class="link-button danger">Delete</button>
             </form>
           </td>

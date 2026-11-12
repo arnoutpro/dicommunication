@@ -282,7 +282,7 @@
           <td><code>{{ item.preview }}</code></td>
           <td class="actions">
             <a href="/tools/hl7-send?load={{ item.id }}">Load</a>
-            <form method="post" action="/tools/hl7-send/messages/{{ item.id }}/delete" class="inline" data-confirm="Delete this saved message?">
+            <form autocomplete="off" method="post" action="/tools/hl7-send/messages/{{ item.id }}/delete" class="inline" data-confirm="Delete this saved message?">
               <button type="submit" class="link-button danger">Delete</button>
             </form>
           </td>

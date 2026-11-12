@@ -47,7 +47,7 @@
   {% else %}
   {% set study_saved_queries = saved_queries | selectattr("level", "equalto", "STUDY") | list %}
   {% if not editing and study_saved_queries %}
-  <form method="get" action="{{ href('/router') }}" class="form-grid">
+  <form autocomplete="off" method="get" action="{{ href('/router') }}" class="form-grid">
     <input type="hidden" name="new" value="1">
     <label class="span-2">
       Or load filters from a saved Dicomtag Analytics query

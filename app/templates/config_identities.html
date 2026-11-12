@@ -81,7 +81,7 @@
           <td>{{ identity.modality or "—" }}</td>
           <td class="actions">
             <a href="{{ href('/config/identities?edit=' ~ identity.id) }}">Edit</a>
-            <form method="post" action="{{ href('/config/identities/' ~ identity.id ~ '/delete') }}" class="inline" data-confirm="Delete virtual AE {{ identity.name }}?">
+            <form autocomplete="off" method="post" action="{{ href('/config/identities/' ~ identity.id ~ '/delete') }}" class="inline" data-confirm="Delete virtual AE {{ identity.name }}?">
               <button type="submit" class="link-button danger">Delete</button>
             </form>
           </td>

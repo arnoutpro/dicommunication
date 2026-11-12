@@ -27,7 +27,7 @@
     {% if saved_query %}
     <div class="find-saved-line">
       <span class="muted small">Saved query, filled in. Check it, then run it.</span>
-      <form method="post" action="{{ href('/tools/c-find-advanced/saved/' ~ saved_query.id ~ '/delete') }}" class="inline" data-confirm="Delete saved query {{ saved_query.name }}?">
+      <form autocomplete="off" method="post" action="{{ href('/tools/c-find-advanced/saved/' ~ saved_query.id ~ '/delete') }}" class="inline" data-confirm="Delete saved query {{ saved_query.name }}?">
         <button type="submit" class="link-button danger">Delete</button>
       </form>
     </div>
@@ -49,7 +49,7 @@
       <input type="hidden" name="follow" value="" data-find-follow-field>
       <textarea hidden name="studies_json" data-find-studies-field></textarea>
       <input type="hidden" name="series_description_filter" value="" data-find-series-description-field>
-      {# The visible input lives in the result partial, outside this <form> —
+      {# The visible input lives in the result partial, outside this <form autocomplete="off"> —
          startFindFollow copies its value in here before resubmitting. #}
       <input type="hidden" name="max_records" value="" data-find-cap-field>
       <input type="hidden" name="date_preset" value="" data-find-date-preset>
