@@ -53,7 +53,7 @@
     <p class="muted">
       {{ echo_board.passed }} answering · {{ echo_board.failed }} not answering · {{ echo_board.unknown }} not checked
     </p>
-    <form method="post" action="{{ href('/echo-board/run') }}?return=home" class="card-action">
+    <form autocomplete="off" method="post" action="{{ href('/echo-board/run') }}?return=home" class="card-action">
       <button class="button primary" type="submit" data-busy-text="Running C-ECHO…">C-ECHO all nodes</button>
     </form>
     {% else %}

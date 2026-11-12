@@ -45,7 +45,7 @@
   <div class="actions rule-actions">
     <a href="{{ href('/router?edit=' ~ rule.id) }}">Edit</a>
     {% include "partials/route_rule_actions.html" %}
-    <form method="post" action="{{ href('/router/' ~ rule.id ~ '/delete') }}" class="inline" data-confirm="Delete route rule {{ rule.name }}?">
+    <form autocomplete="off" method="post" action="{{ href('/router/' ~ rule.id ~ '/delete') }}" class="inline" data-confirm="Delete route rule {{ rule.name }}?">
       <button type="submit" class="link-button danger">Delete</button>
     </form>
   </div>

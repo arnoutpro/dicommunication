@@ -41,7 +41,7 @@
     <h2>Query worklist</h2>
     <a href="/config/remotes">Configure DMWL nodes</a>
   </header>
-  <form
+  <form autocomplete="off"
     class="form-grid"
     method="post"
     action="/worklist/query"
@@ -198,7 +198,7 @@
           <td>{{ item.scheduled_date }} {{ item.scheduled_time }}</td>
           <td><code>{{ item.station_ae_title }}</code></td>
           <td class="actions">
-            <form method="post" action="/worklist/entries/{{ item.id }}/delete" class="inline" data-confirm="Delete this worklist item?">
+            <form autocomplete="off" method="post" action="/worklist/entries/{{ item.id }}/delete" class="inline" data-confirm="Delete this worklist item?">
               <button type="submit" class="link-button danger">Delete</button>
             </form>
           </td>

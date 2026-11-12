@@ -19,7 +19,7 @@
 
   {% set remote_mode = remote_mode if remote_mode is defined and remote_mode else "saved" %}
   {% if config.remotes or tool.id == "c-echo" %}
-  <form
+  <form autocomplete="off"
     class="form-grid"
     method="post"
     action="/tools/{{ tool.id }}/run"

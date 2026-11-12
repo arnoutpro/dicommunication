@@ -13,7 +13,7 @@
 
 {% if config.remotes %}
 {% set has_studies = action == "query" and result and result.ok and result.records %}
-<form class="step-flow" method="post" action="{{ href('/tools/anonymize/run') }}" data-anon-form>
+<form autocomplete="off" class="step-flow" method="post" action="{{ href('/tools/anonymize/run') }}" data-anon-form>
   <section class="panel step">
     <header class="panel-head">
       <h2 class="step-title"><span class="step-num" aria-hidden="true">1</span>Find studies</h2>
