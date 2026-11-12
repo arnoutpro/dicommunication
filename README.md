@@ -56,9 +56,15 @@ Synthetic lab studies (not clinical data). Light theme, in the arnout.pro "Readi
 
 ![HL7 send with an ORM order update and Change existing order set to SC](docs/screenshots/hl7-send.webp)
 
-## What's new in 0.10.0
+## What's new in 0.10.4
 
-Details in [CHANGELOG.md](CHANGELOG.md#0100).
+Details in [CHANGELOG.md](CHANGELOG.md#0104).
+
+- **Dicomtag Analytics** is now two screens: build the query full-width, then "Run query" lets the results take over, with "Edit query" to go back. The results page has a green/red status banner, one action bar, a styled records grid and Diagnostics in a popup.
+- **Export dialog**: Export opens a dialog with a checkbox per column. Quick buttons remove patient info, site info or both; "Report only" keeps just Findings and Impression on Structured Report results. Copy, CSV and JSON export only the ticked columns.
+- The icon-tile page headers, striped tables, coloured result banners and filled step numbers apply on every page; the mid-screen scrollbar strip is gone and forms no longer suggest previously typed values.
+
+And in 0.10.0 ([CHANGELOG.md](CHANGELOG.md#0100)):
 
 A layout and visual redesign pass:
 
@@ -131,7 +137,7 @@ And in 0.5.1 ([CHANGELOG.md](CHANGELOG.md#051)):
 ## Contents
 
 - [Screenshots](#screenshots)
-- [What's new in 0.10.0](#whats-new-in-0100)
+- [What's new in 0.10.4](#whats-new-in-0104)
 - [What this is (and is not)](#what-this-is-and-is-not)
 - [How it's made](#how-its-made)
 - [DICOM services this tool distinguishes](#dicom-services-this-tool-distinguishes)

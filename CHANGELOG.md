@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.10.4
+
 ### Interface
 
 - **Dicomtag Analytics**: the query builder is now one full-width screen instead of sharing space with a cramped results column. Pressing "Run query" hides it entirely and the results take over the whole screen as a full-width table, with an "Edit query" button to switch straight back — the filter catalog itself also now wraps into multiple columns to use that width, instead of staying in one narrow stretched column.
