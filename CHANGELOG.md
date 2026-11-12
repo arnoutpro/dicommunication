@@ -1,6 +1,8 @@
 # Changelog
 
-## Unreleased
+## 0.10.2
+
+Dicomtag Analytics now works as two screens (build the query, then the results take over), the results view is redesigned, and the bolder look reaches every page.
 
 ### Interface
 
