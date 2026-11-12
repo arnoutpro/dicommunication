@@ -2422,12 +2422,10 @@ body.page-find .find-head {
 }
 .find-series-search { flex: 0 1 auto; }
 .find-series-search input { flex: 0 1 17rem; min-width: 10rem; }
-.find-menu,
 .find-actionbar .find-save {
   position: relative;
   margin: 0;
 }
-.find-menu > summary,
 .find-actionbar .find-save > summary {
   gap: 0.4rem;
   padding: 0.42rem 0.85rem;
@@ -2439,17 +2437,13 @@ body.page-find .find-head {
   font-weight: 700;
   white-space: nowrap;
 }
-.find-menu > summary:hover,
-.find-menu[open] > summary,
 .find-actionbar .find-save > summary:hover,
 .find-actionbar .find-save[open] > summary {
   border-color: color-mix(in srgb, var(--accent) 35%, transparent);
   background: var(--accent-dim);
   color: var(--accent);
 }
-.find-menu > summary::before,
 .find-actionbar .find-save > summary::before { order: 2; transform: rotate(45deg); margin-top: -0.2rem; }
-.find-menu-panel,
 .find-actionbar .find-save form {
   position: absolute;
   right: 0;
@@ -2462,21 +2456,7 @@ body.page-find .find-head {
   border-radius: var(--radius-lg);
   background: var(--surface-raised);
 }
-.find-menu-panel { display: flex; flex-direction: column; gap: 0.1rem; }
-.find-menu-panel .hint { padding: 0.3rem 0.6rem 0.2rem; max-width: 16rem; }
-.find-menu-item {
-  padding: 0.45rem 0.6rem;
-  border: 0;
-  border-radius: var(--radius-sm);
-  background: none;
-  color: var(--text);
-  font: inherit;
-  font-size: var(--text-md);
-  font-weight: 600;
-  text-align: left;
-  cursor: pointer;
-}
-.find-menu-item:hover { background: var(--accent-dim); color: var(--accent); }
+.find-actionbar .find-button-icon svg, .find-actionbar [data-find-export-open] svg { width: 0.85rem; height: 0.85rem; }
 .find-actionbar .find-save form { width: 22rem; padding: 0.7rem; }
 .find-actionbar .find-save-done { margin: 0; }
 .find-table-head {
@@ -2511,6 +2491,58 @@ body.page-find .find-head {
 }
 .find-diag-head h2 { font-size: var(--text-lg); }
 .find-diag-body { padding: 0.4rem 1rem 1rem; }
+.find-export { width: min(46rem, calc(100vw - 2rem)); }
+.find-export-presets {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0.7rem 0;
+}
+.find-export-presets-label {
+  margin-right: 0.2rem;
+  color: var(--muted);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.find-export-cols {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr));
+  gap: 0.15rem 0.8rem;
+  max-height: 22rem;
+  overflow: auto;
+  margin: 0 0 0.7rem;
+  padding: 0.5rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+.find-export-col {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.25rem 0.3rem;
+  border-radius: var(--radius-sm);
+  font-size: var(--text-md);
+  cursor: pointer;
+}
+.find-export-col:hover { background: var(--accent-dim); }
+.find-export-col .badge { margin-left: auto; }
+.find-export-foot {
+  position: sticky;
+  bottom: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 1rem;
+  padding: 0.7rem 1rem;
+  border-top: 1px solid var(--line);
+  background: var(--bg-panel);
+}
+.find-export-actions { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+.find-export-actions button:disabled { opacity: 0.45; cursor: not-allowed; }
 .find-sr-report {
   margin: 0.45rem 0 0.7rem;
   padding: 0;
