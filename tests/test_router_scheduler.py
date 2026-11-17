@@ -596,3 +596,56 @@ def test_run_now_reports_already_running(store: ConfigStore) -> None:
         assert scheduler.run_now(rule.id) == "already_running"
     finally:
         scheduler._unregister(rule.id)
+
+
+def test_run_rule_writes_status_snapshot_with_counts_only(store: ConfigStore, tmp_path) -> None:
+    import json
+
+    port = _free_port()
+
+    def handle_find(event):
+        for uid, status in (("1.1", "UNREAD"), ("1.2", "UNREAD"), ("1.3", "INCOMPLETE")):
+            ds = _study_ds(uid)
+            block = ds.private_block(0x07A1, "ELSCINT1", create=True)
+            block.add_new(0x2A, "CS", status)
+            yield 0xFF00, ds
+        yield 0x0000, None
+
+    scp = AE(ae_title="QR_SCP")
+    scp.add_supported_context(StudyRootQueryRetrieveInformationModelFind)
+    server = scp.start_server(("127.0.0.1", port), block=False, evt_handlers=[(evt.EVT_C_FIND, handle_find)])
+    try:
+        time.sleep(0.05)
+        remote = store.add_remote(RemoteNode(name="pacs", ae_title="QR_SCP", host="127.0.0.1", port=port)).remotes[-1]
+        out = tmp_path / "status"
+        rule = store.add_route_rule(
+            RouteRule(name="Open Exams", source_remote_id=remote.id, date_scope="all",
+                      export_dir=str(out), status_key="TamarStudyStatus")
+        )
+        scheduler = RouterScheduler(store, WorklistSCP(store))
+        now = datetime(2026, 3, 15, 12, 0, tzinfo=timezone.utc)
+        assert scheduler.run_rule(rule, now=now).ok
+        # Second run: studies are already "seen", the snapshot must still be complete.
+        assert scheduler.run_rule(rule, now=now + timedelta(minutes=1)).ok
+        raw = (out / "open-exams.status.json").read_text()
+        data = json.loads(raw)
+        assert data["ok"] is True and data["total"] == 3
+        assert data["by_status"] == {"INCOMPLETE": 1, "UNREAD": 2}
+        assert "DOE" not in raw and "1001" not in raw and "ACC1" not in raw
+    finally:
+        server.shutdown()
+
+
+def test_failed_run_still_writes_status_snapshot(store: ConfigStore, tmp_path) -> None:
+    import json
+
+    remote = store.add_remote(RemoteNode(name="pacs", ae_title="QR_SCP", host="127.0.0.1", port=_free_port())).remotes[-1]
+    out = tmp_path / "status"
+    rule = store.add_route_rule(
+        RouteRule(name="Down", source_remote_id=remote.id, date_scope="all",
+                  export_dir=str(out), status_key="TamarStudyStatus")
+    )
+    run = RouterScheduler(store, WorklistSCP(store)).run_rule(rule)
+    assert not run.ok
+    data = json.loads((out / "down.status.json").read_text())
+    assert data["ok"] is False and data["error"]
