@@ -18,6 +18,7 @@ without redoing or losing already-forwarded work.
 from __future__ import annotations
 
 import json
+import os
 import re
 import threading
 import time
@@ -36,7 +37,7 @@ from app.dicom_client import associate
 from app.models import LocalAE, RemoteNode, ROUTE_RUN_MAX_MATCHES, RouteMatch, RouteRule, RouteRun, utc_now
 from app.mwl_scp import STORAGE_INBOX, WorklistSCP
 from app.store import ConfigStore
-from app.tools.find_keys import apply_key
+from app.tools.find_keys import _read_key, apply_key
 
 TICK_SECONDS = 20
 PENDING = {0xFF00, 0xFF01}
@@ -80,6 +81,45 @@ def export_run_matches(rule: RouteRule, run: RouteRun, now: datetime) -> None:
         out_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
     except OSError as exc:
         log.warning("Route rule %r: could not write export file: %s", rule.name, exc)
+
+
+def status_file_name(rule: RouteRule) -> str:
+    return f"{_export_slug(rule.name)}.status.json"
+
+
+def write_status_snapshot(
+    rule: RouteRule,
+    run: RouteRun,
+    now: datetime,
+    status_counts: dict[str, int],
+) -> None:
+    """Write the rule's current status counts for the Lite dashboard.
+
+    A snapshot of *all* studies the query matched (not only new ones), written
+    on every run including empty and failed ones, so the reader can tell
+    "nothing to do" from "checks stopped". Counts only: no patient fields.
+    Atomic replace so the reader never sees a half-written file.
+    """
+    try:
+        out_dir = Path(rule.export_dir).expanduser()
+        out_dir.mkdir(parents=True, exist_ok=True)
+        payload = {
+            "rule_id": rule.id,
+            "rule_name": rule.name,
+            "status_key": rule.status_key,
+            "checked_at": now.isoformat(),
+            "interval_minutes": rule.interval_minutes if rule.schedule_mode == "interval" else None,
+            "ok": run.ok,
+            "error": run.error,
+            "total": run.matched_count,
+            "by_status": dict(sorted(status_counts.items())),
+        }
+        out_path = out_dir / status_file_name(rule)
+        tmp_path = out_path.with_suffix(".json.tmp")
+        tmp_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+        os.replace(tmp_path, out_path)
+    except OSError as exc:
+        log.warning("Route rule %r: could not write status file: %s", rule.name, exc)
 
 
 def _assoc_up(assoc: Any) -> bool:
@@ -144,6 +184,11 @@ def _study_identifier(rule: RouteRule) -> Dataset:
     identifier.ModalitiesInStudy = rule.modality
     identifier.StudyInstanceUID = ""
     _apply_extra_query(identifier, rule.extra_query)
+    if rule.status_key:
+        try:
+            apply_key(identifier, rule.status_key, "")
+        except Exception:  # noqa: BLE001
+            pass
     return identifier
 
 
@@ -451,6 +496,7 @@ class RouterScheduler:
         local = config.local
         remote = config.get_remote(rule.source_remote_id)
         run = RouteRun(rule_id=rule.id, rule_name=rule.name, started_at=now)
+        status_counts: dict[str, int] = {}
         interrupted = bool(interrupt is not None and interrupt.is_set())
 
         if remote is None:
@@ -473,11 +519,14 @@ class RouterScheduler:
                         "accession_number": _text(ds, "AccessionNumber"),
                         "modality": _text(ds, "ModalitiesInStudy"),
                         "study_description": _text(ds, "StudyDescription"),
+                        "status": (_read_key(ds, rule.status_key) if rule.status_key else "") or "(none)",
                     }
                     for ds in study_datasets
                     if _text(ds, "StudyInstanceUID")
                 ]
                 run.matched_count = len(studies)
+                for study in studies:
+                    status_counts[study["status"]] = status_counts.get(study["status"], 0) + 1
                 new_studies = [s for s in studies if not rule.has_seen(s["study_instance_uid"])]
 
                 destinations = [
@@ -525,6 +574,8 @@ class RouterScheduler:
                     export_run_matches(rule, run, now)
 
         run.duration_ms = (time.perf_counter() - started) * 1000
+        if rule.export_dir and rule.status_key and run.status != "interrupted":
+            write_status_snapshot(rule, run, now, status_counts)
         rule.last_run_at = now
         rule.last_run_ok = run.ok
         rule.last_error = run.error

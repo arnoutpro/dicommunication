@@ -186,13 +186,18 @@
       </div>
     </details>
 
-    <details class="advanced" {% if values and values.export_dir %}open{% endif %}>
+    <details class="advanced" {% if values and (values.export_dir or values.status_key) %}open{% endif %}>
       <summary>Export matches to a file (optional)</summary>
       <div class="form-grid">
         <label class="span-2">
           Export folder
           <input name="export_dir" placeholder="/path/to/folder" value="{{ values.export_dir if values else '' }}">
           <span class="hint">Each run writes (or overwrites) <code>&lt;rule-name&gt;-YYYY-MM-DD.json</code> here, with that run's matched studies — Study Instance UID, Study Date, Accession Number, Modality, Study Description, status. No Patient Name or Patient ID. Meant as a plain data drop for a separate reporting/graphing tool to read, not a report viewed in this app.</span>
+        </label>
+        <label class="span-2">
+          Status check key (for Dicommunication Lite)
+          <input name="status_key" placeholder="TamarStudyStatus" value="{{ values.status_key if values else '' }}">
+          <span class="hint">Find key to ask the PACS for and count per value, e.g. <code>TamarStudyStatus</code>. With an export folder set, every run (also an empty or failed one) rewrites <code>&lt;rule-name&gt;.status.json</code> there: the time of the check, whether it worked, and a count per status. Counts only, no patient data.</span>
         </label>
       </div>
     </details>

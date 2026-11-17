@@ -242,6 +242,12 @@ class RouteRule(BaseModel):
     # for an external reporting/graphing tool to read. See RouterScheduler.
     export_dir: str = ""
 
+    # Status check: a find key (e.g. "TamarStudyStatus") to ask the PACS for and
+    # count per value. With export_dir set, every run (even an empty or failed
+    # one) rewrites <rule>.status.json there — counts only, no patient data —
+    # for the Dicommunication Lite dashboard to read.
+    status_key: str = ""
+
     created_at: datetime = Field(default_factory=utc_now)
     updated_at: datetime = Field(default_factory=utc_now)
     last_run_at: datetime | None = None
@@ -277,6 +283,11 @@ class RouteRule(BaseModel):
     @field_validator("export_dir")
     @classmethod
     def _optional_export_dir(cls, value: str) -> str:
+        return (value or "").strip()
+
+    @field_validator("status_key")
+    @classmethod
+    def _optional_status_key(cls, value: str) -> str:
         return (value or "").strip()
 
     @field_validator("modality")
