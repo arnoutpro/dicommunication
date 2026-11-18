@@ -661,3 +661,34 @@ def test_query_summary_reports_applied_and_skipped_keys() -> None:
     sent, skipped = query_summary(rule)
     assert sent == {"ModalitiesInStudy": "CT", "TamarStudyStatus": "UNREAD"}
     assert skipped == ["BogusKey"]
+
+
+def test_private_filter_is_applied_locally_when_pacs_ignores_it(store: ConfigStore, tmp_path) -> None:
+    import json
+
+    port = _free_port()
+
+    def handle_find(event):  # a PACS that ignores the status match and returns everything
+        for uid, status in (("1.1", "FINAL"), ("1.2", "PENDING FINAL"), ("1.3", "UNREAD"), ("1.4", "PENDING FINAL")):
+            ds = _study_ds(uid)
+            ds.private_block(0x07A1, "ELSCINT1", create=True).add_new(0x2A, "CS", status)
+            yield 0xFF00, ds
+        yield 0x0000, None
+
+    scp = AE(ae_title="QR_SCP")
+    scp.add_supported_context(StudyRootQueryRetrieveInformationModelFind)
+    server = scp.start_server(("127.0.0.1", port), block=False, evt_handlers=[(evt.EVT_C_FIND, handle_find)])
+    try:
+        time.sleep(0.05)
+        remote = store.add_remote(RemoteNode(name="pacs", ae_title="QR_SCP", host="127.0.0.1", port=port)).remotes[-1]
+        out = tmp_path / "status"
+        rule = store.add_route_rule(
+            RouteRule(name="Pending", source_remote_id=remote.id, date_scope="all", export_dir=str(out),
+                      status_key="TamarStudyStatus", extra_query={"TamarStudyStatus": "Pending Final"})
+        )
+        run = RouterScheduler(store, WorklistSCP(store)).run_rule(rule)
+        assert run.ok and run.matched_count == 2
+        assert run.status_counts == {"PENDING FINAL": 2}
+        assert json.loads((out / "pending.status.json").read_text())["total"] == 2
+    finally:
+        server.shutdown()
