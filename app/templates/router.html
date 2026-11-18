@@ -69,7 +69,6 @@
     <input type="hidden" name="rule_id" value="{{ editing.id }}">
     {% endif %}
     <input type="hidden" name="extra_query_json" value='{{ extra_query_json or "{}" }}'>
-    <input type="hidden" name="return_keys_json" value='{{ return_keys_json or "[]" }}'>
     <label>
       Name
       <input name="name"{{ invalid("name") }} required placeholder="Nightly CT from PACS" value="{{ values.name if values else '' }}">
@@ -91,9 +90,6 @@
       {{ field_error("modality") }}
       <span class="hint">Comma-separated. Leave blank to match any modality.</span>
     </label>
-    {% if values and values.return_keys %}
-    <p class="hint span-2">Also asks the PACS to return: {% for keyword in values.return_keys %}<code>{{ keyword }}</code>{% if not loop.last %}, {% endif %}{% endfor %} (same request as the saved query).</p>
-    {% endif %}
     {% if values and values.extra_query %}
     <p class="hint span-2">
       Extra filters from the loaded query:

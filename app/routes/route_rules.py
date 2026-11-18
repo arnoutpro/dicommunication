@@ -32,10 +32,8 @@ def _draft_from_saved_query(saved_query: SavedQuery) -> RouteRule:
         for keyword, value in saved_query.values.items()
         if keyword not in ("StudyDate", "ModalitiesInStudy") and value
     }
-    return_keys = [keyword for keyword in saved_query.include if keyword != "StudyDate"]
     return RouteRule.model_construct(
         name=f"{saved_query.name} (scheduled)",
-        return_keys=return_keys,
         source_remote_id=saved_query.remote_id,
         modality=saved_query.values.get("ModalitiesInStudy", ""),
         extra_query=extra_query,
@@ -68,7 +66,6 @@ def _router_view(
             show_form=show_form,
             values=values,
             extra_query_json=json.dumps(values.extra_query) if values else "{}",
-            return_keys_json=json.dumps(values.return_keys) if values else "[]",
             error_field=error_field,
             saved=saved,
             error=error,
@@ -135,17 +132,6 @@ def _int_or_raw(value: object, default: int) -> int | str:
         return text
 
 
-def _return_keys_from_form(raw: object) -> list[str]:
-    """The hidden ``return_keys_json`` field, round-tripped like ``extra_query_json``."""
-    try:
-        parsed = json.loads(str(raw or "") or "[]")
-    except ValueError:
-        return []
-    if not isinstance(parsed, list):
-        return []
-    return [str(item).strip() for item in parsed if str(item).strip()]
-
-
 def _extra_query_from_form(raw: object) -> dict[str, str]:
     """The hidden ``extra_query_json`` field: filters copied in when a saved
     query was loaded, round-tripped through edits/saves as plain text (the
@@ -193,7 +179,6 @@ async def add_or_update_route_rule(request: Request):
         "export_dir": str(form.get("export_dir") or ""),
         "status_key": str(form.get("status_key") or ""),
         "extra_query": _extra_query_from_form(form.get("extra_query_json")),
-        "return_keys": _return_keys_from_form(form.get("return_keys_json")),
     }
 
     try:

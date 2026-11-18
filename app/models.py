@@ -248,11 +248,6 @@ class RouteRule(BaseModel):
     # for the Dicommunication Lite dashboard to read.
     status_key: str = ""
 
-    # Return keys (columns) copied from the loaded saved query and asked for
-    # with an empty value, so the C-FIND is the same request Analytics sends.
-    # Some PACS only honour a private-key match for a query shaped like theirs.
-    return_keys: list[str] = Field(default_factory=list)
-
     created_at: datetime = Field(default_factory=utc_now)
     updated_at: datetime = Field(default_factory=utc_now)
     last_run_at: datetime | None = None

@@ -692,22 +692,3 @@ def test_private_filter_is_applied_locally_when_pacs_ignores_it(store: ConfigSto
         assert json.loads((out / "pending.status.json").read_text())["total"] == 2
     finally:
         server.shutdown()
-
-
-def test_rule_from_saved_query_sends_the_same_identifier_as_analytics() -> None:
-    from app.models import SavedQuery
-    from app.routes.route_rules import _draft_from_saved_query
-    from app.router_scheduler import _study_identifier
-    from app.tools.find_keys import build_identifier
-
-    include = ["AccessionNumber", "ModalitiesInStudy", "PatientName", "PatientID", "PatientBirthDate",
-               "PatientSex", "ReferringPhysicianName", "StudyDescription", "StudyInstanceUID",
-               "TamarStudyStatus", "StudyDate"]
-    saved = SavedQuery(name="PF", remote_id="r", include=include,
-                       values={"StudyDate": "20261020-20261118", "TamarStudyStatus": "Pending Final"})
-    draft = _draft_from_saved_query(saved)
-    rule = RouteRule(name="t", source_remote_id="r", date_scope="all", extra_query=draft.extra_query,
-                     return_keys=draft.return_keys)
-    router_tags = {e.tag for e in _study_identifier(rule)}
-    analytics_tags = {e.tag for e in build_identifier("STUDY", saved.values, saved.include)}
-    assert analytics_tags <= router_tags

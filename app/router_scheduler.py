@@ -221,16 +221,6 @@ def _passes_local_filters(rule: RouteRule, ds: Dataset) -> bool:
     return True
 
 
-# Already in every study-level identifier (some with the rule's own value),
-# so a copied return key must not reset them.
-_STUDY_KEYS_ALWAYS_SENT = frozenset(
-    {
-        "StudyDate", "ModalitiesInStudy", "PatientName", "PatientID", "AccessionNumber",
-        "StudyDescription", "StudyInstanceUID",
-    }
-)
-
-
 def _study_identifier(rule: RouteRule) -> Dataset:
     identifier = Dataset()
     identifier.QueryRetrieveLevel = "STUDY"
@@ -242,13 +232,11 @@ def _study_identifier(rule: RouteRule) -> Dataset:
     identifier.ModalitiesInStudy = rule.modality
     identifier.StudyInstanceUID = ""
     _apply_extra_query(identifier, rule.extra_query)
-    for keyword in [*rule.return_keys, rule.status_key]:
-        if not keyword or keyword in rule.extra_query or keyword in _STUDY_KEYS_ALWAYS_SENT:
-            continue
+    if rule.status_key:
         try:
-            apply_key(identifier, keyword, "")
+            apply_key(identifier, rule.status_key, "")
         except Exception:  # noqa: BLE001
-            continue
+            pass
     return identifier
 
 
