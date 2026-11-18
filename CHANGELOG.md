@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+## 0.10.7
+
+### Dicom Router
+
+- **Status dashboard at `/lite`**: one tile per rule that has a status check key and an export folder, with a count per status, the time of the last check, and green / red / grey for working / failing / no recent check. Open it from the **Status dashboard** button on the Dicom Router page (it opens in its own tab). It reads the rules' `.status.json` files and stores nothing; the separate `app_lite` program is gone.
+
 ## 0.10.6
 
 ### Dicom Router

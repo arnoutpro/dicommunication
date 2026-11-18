@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Status dashboard · {{ product_name | default("Dicommunication") }}</title>
+  <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+  <link rel="stylesheet" href="{{ static_url('css/lite.css') }}">
+</head>
+<body>
+  <header>
+    <h1>Status dashboard</h1>
+    <span id="summary">…</span>
+    <a href="/router" class="back">Dicom Router</a>
+  </header>
+  <main id="tiles"></main>
+  <script src="{{ static_url('js/lite.js') }}"></script>
+</body>
+</html>

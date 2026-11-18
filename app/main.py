@@ -15,7 +15,7 @@ from app.applog import configure as configure_logging, log, should_skip_http_log
 from app.mwl_scp import WorklistSCP
 from app.paths import package_dir
 from app.router_scheduler import RouterScheduler
-from app.routes import anonymize, api, cleaner, config, echo_board, logs, misc, route_rules, send_image, testbench, tools, worklist
+from app.routes import anonymize, api, cleaner, config, echo_board, lite, logs, misc, route_rules, send_image, testbench, tools, worklist
 from app.security import SecurityMiddleware
 from app.store import ConfigStore
 
@@ -137,6 +137,7 @@ def create_app(store: ConfigStore | None = None) -> FastAPI:
     app.include_router(testbench.router)
     app.include_router(worklist.router)
     app.include_router(route_rules.router)
+    app.include_router(lite.router)
     # anonymize.router's and cleaner.router's specific POST /tools/<id>/run
     # routes must be registered before tools.router's generic
     # POST /tools/{tool_id}/run catch-all, or the catch-all matches first and
