@@ -56,6 +56,13 @@ Synthetic lab studies (not clinical data). Light theme, in the arnout.pro "Readi
 
 ![HL7 send with an ORM order update and Change existing order set to SC](docs/screenshots/hl7-send.webp)
 
+## What's new in 0.10.5
+
+Details in [CHANGELOG.md](CHANGELOG.md#0105).
+
+- **Dicom Router shows what a rule asks the PACS**: the exact keys sent, a warning for any key the app can't apply, a count per status value for each run, and why a run lists no studies.
+- **Number of days** is always visible in the rule form.
+
 ## What's new in 0.10.4
 
 Details in [CHANGELOG.md](CHANGELOG.md#0104).
@@ -137,6 +144,7 @@ And in 0.5.1 ([CHANGELOG.md](CHANGELOG.md#051)):
 ## Contents
 
 - [Screenshots](#screenshots)
+- [What's new in 0.10.5](#whats-new-in-0105)
 - [What's new in 0.10.4](#whats-new-in-0104)
 - [What this is (and is not)](#what-this-is-and-is-not)
 - [How it's made](#how-its-made)
