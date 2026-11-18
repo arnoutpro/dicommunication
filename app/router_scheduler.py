@@ -27,6 +27,7 @@ from pathlib import Path
 from typing import Any
 
 from pydicom.dataset import Dataset
+from pydicom.multival import MultiValue
 from pynetdicom.sop_class import (
     StudyRootQueryRetrieveInformationModelFind,
     StudyRootQueryRetrieveInformationModelMove,
@@ -140,7 +141,11 @@ def _release(assoc: Any) -> None:
 
 def _text(ds: Dataset, keyword: str) -> str:
     value = getattr(ds, keyword, "")
-    return "" if value is None else str(value).strip()
+    if value is None:
+        return ""
+    if isinstance(value, (list, tuple, MultiValue)):  # e.g. ModalitiesInStudy: DX\\SR
+        return ", ".join(str(part).strip() for part in value if str(part).strip())
+    return str(value).strip()
 
 
 def _date_query(rule: RouteRule) -> str:
@@ -547,14 +552,15 @@ class RouterScheduler:
                         "accession_number": _text(ds, "AccessionNumber"),
                         "modality": _text(ds, "ModalitiesInStudy"),
                         "study_description": _text(ds, "StudyDescription"),
-                        "status": (_read_key(ds, rule.status_key) if rule.status_key else "") or "(none)",
+                        "status": (_read_key(ds, rule.status_key) or "(none)") if rule.status_key else "",
                     }
                     for ds in study_datasets
                     if _text(ds, "StudyInstanceUID")
                 ]
                 run.matched_count = len(studies)
-                for study in studies:
-                    status_counts[study["status"]] = status_counts.get(study["status"], 0) + 1
+                if rule.status_key:
+                    for study in studies:
+                        status_counts[study["status"]] = status_counts.get(study["status"], 0) + 1
                 new_studies = [s for s in studies if not rule.has_seen(s["study_instance_uid"])]
 
                 destinations = [

@@ -87,7 +87,7 @@
     {% if run.error %}<p class="muted">{{ run.error }}</p>{% endif %}
     {% if run.ok and run.status_counts %}
     <p class="small">{% for value, count in run.status_counts.items() %}<span class="badge{% if value == '(none)' %} fail{% endif %}">{{ value }}: {{ count }}</span> {% endfor %}</p>
-    {% if run.status_counts.get('(none)') %}<p class="muted small">{{ run.status_counts['(none)'] }} matched stud{{ 'y' if run.status_counts['(none)'] == 1 else 'ies' }} came back without the status value. The PACS may ignore this key on C-FIND.</p>{% endif %}
+    {% if rule.status_key and run.status_counts.get('(none)') %}<p class="muted small">{{ run.status_counts['(none)'] }} matched stud{{ 'y' if run.status_counts['(none)'] == 1 else 'ies' }} came back without the status value. The PACS may ignore this key on C-FIND.</p>{% endif %}
     {% endif %}
     {% if run.ok and run.matched_count and not run.matches %}
     <p class="muted small">All {{ run.matched_count }} matched studies were already seen in an earlier run, so none are listed here.</p>

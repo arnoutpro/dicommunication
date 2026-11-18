@@ -674,3 +674,26 @@ def test_status_key_does_not_wipe_a_filter_on_the_same_key() -> None:
     # Without a filter on it, the status is still asked for (empty) so it comes back.
     bare = RouteRule(name="t", source_remote_id="r", date_scope="all", status_key="TamarStudyStatus")
     assert _study_identifier(bare)[0x07A1102A].value is None
+
+
+def test_multivalued_modality_is_joined_and_no_status_key_means_no_status_counts(store: ConfigStore) -> None:
+    port = _free_port()
+
+    def handle_find(event):
+        ds = _study_ds("1.9")
+        ds.ModalitiesInStudy = ["DX", "SR"]
+        yield 0xFF00, ds
+        yield 0x0000, None
+
+    scp = AE(ae_title="QR_SCP")
+    scp.add_supported_context(StudyRootQueryRetrieveInformationModelFind)
+    server = scp.start_server(("127.0.0.1", port), block=False, evt_handlers=[(evt.EVT_C_FIND, handle_find)])
+    try:
+        time.sleep(0.05)
+        remote = store.add_remote(RemoteNode(name="pacs", ae_title="QR_SCP", host="127.0.0.1", port=port)).remotes[-1]
+        rule = store.add_route_rule(RouteRule(name="Plain", source_remote_id=remote.id, date_scope="all"))
+        run = RouterScheduler(store, WorklistSCP(store)).run_rule(rule)
+        assert run.ok and run.matches[0].modality == "DX, SR"
+        assert run.status_counts == {}
+    finally:
+        server.shutdown()

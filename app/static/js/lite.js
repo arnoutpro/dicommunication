@@ -18,10 +18,6 @@
       t.appendChild(el("div", "msg mute", "Waiting for the first check"));
       return t;
     }
-    if (x.state === "unreadable") {
-      t.appendChild(el("div", "msg", "Status file unreadable"));
-      return t;
-    }
     t.appendChild(el("div", "meta", "Checked " + ago(x.age_seconds) + " · " + x.total + " exams"));
     if (x.state === "error") {
       t.appendChild(el("div", "msg", x.error || "Query failed"));
@@ -31,7 +27,7 @@
     if (!entries.length) entries = null;
     (entries || ["No exams"]).forEach(function (k) {
       var row = el("div", "row");
-      row.appendChild(el("span", "", k));
+      row.appendChild(el("span", "", k === "(none)" ? "No status returned" : k));
       row.appendChild(el("b", "", entries ? x.by_status[k] : 0));
       t.appendChild(row);
     });
@@ -45,14 +41,14 @@
   }
   function render(tiles) {
     var bad = tiles.filter(function (x) { return x.state === "error"; }).length;
-    var quiet = tiles.filter(function (x) { return x.state === "stale" || x.state === "unreadable"; }).length;
+    var quiet = tiles.filter(function (x) { return x.state === "stale"; }).length;
     document.body.className = bad ? "error" : (quiet || !tiles.length || tiles.some(function (x) { return x.state === "waiting"; }) ? "" : "ok");
-    document.getElementById("summary").textContent = !tiles.length ? "No rules with a status check key" :
+    document.getElementById("summary").textContent = !tiles.length ? "No Dicom Router rules yet" :
       bad ? bad + " failing" : quiet ? quiet + " without recent data" : "All checks running";
     var main = document.getElementById("tiles");
     main.replaceChildren();
     if (!tiles.length) {
-      main.appendChild(el("div", "empty", "Add a Dicom Router rule with an export folder and a status check key."));
+      main.appendChild(el("div", "empty", "Add a Dicom Router rule to see its latest result here."));
     }
     tiles.forEach(function (x) { main.appendChild(tile(x)); });
   }
