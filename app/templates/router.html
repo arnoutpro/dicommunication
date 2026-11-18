@@ -115,11 +115,11 @@
         <option value="all" {% if date_scope == 'all' %}selected{% endif %}>Any date</option>
       </select>
     </label>
-    <label data-reveal-when="date_scope=last_n_days"{% if date_scope != 'last_n_days' %} hidden{% endif %}>
+    <label>
       Number of days
       <input type="number" name="date_last_n_days"{{ invalid("date_last_n_days") }} min="1" max="365" value="{{ values.date_last_n_days if values else 1 }}">
       {{ field_error("date_last_n_days") }}
-      <span class="hint">Today plus the days before it.</span>
+      <span class="hint">Used when Study date is "Last N days": today plus the days before it.</span>
     </label>
     <label data-reveal-when="level=SERIES"{% if level != 'SERIES' %} hidden{% endif %}>
       Station Name filter

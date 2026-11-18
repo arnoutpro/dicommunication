@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Dicom Router
+
+- **Number of days always visible**: the field no longer waits for a script to reveal it when Study date is "Last N days", so it can't go missing; it only applies to that choice.
+
 ## 0.10.4
 
 ### Interface
