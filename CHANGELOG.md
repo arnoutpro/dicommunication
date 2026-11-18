@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+## 0.10.6
+
+### Dicom Router
+
+- **Status check key no longer wipes a filter on the same key**: a rule with `TamarStudyStatus` as both its filter (for example Pending Final) and its status check key sent the status empty, so the PACS returned every study. The filter value is now sent.
+
 ## 0.10.5
 
 ### Dicom Router

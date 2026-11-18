@@ -209,7 +209,9 @@ def _study_identifier(rule: RouteRule) -> Dataset:
     identifier.ModalitiesInStudy = rule.modality
     identifier.StudyInstanceUID = ""
     _apply_extra_query(identifier, rule.extra_query)
-    if rule.status_key:
+    # Ask for the status back — but never with an empty value when the same key
+    # is also a filter, or the filter value is wiped before it is sent.
+    if rule.status_key and rule.status_key not in rule.extra_query:
         try:
             apply_key(identifier, rule.status_key, "")
         except Exception:  # noqa: BLE001

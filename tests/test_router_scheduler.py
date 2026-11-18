@@ -661,3 +661,16 @@ def test_query_summary_reports_applied_and_skipped_keys() -> None:
     sent, skipped = query_summary(rule)
     assert sent == {"ModalitiesInStudy": "CT", "TamarStudyStatus": "UNREAD"}
     assert skipped == ["BogusKey"]
+
+
+def test_status_key_does_not_wipe_a_filter_on_the_same_key() -> None:
+    from app.router_scheduler import _study_identifier
+
+    rule = RouteRule(
+        name="t", source_remote_id="r", date_scope="all",
+        extra_query={"TamarStudyStatus": "Pending Final"}, status_key="TamarStudyStatus",
+    )
+    assert _study_identifier(rule)[0x07A1102A].value == "PENDING FINAL"
+    # Without a filter on it, the status is still asked for (empty) so it comes back.
+    bare = RouteRule(name="t", source_remote_id="r", date_scope="all", status_key="TamarStudyStatus")
+    assert _study_identifier(bare)[0x07A1102A].value is None

@@ -56,6 +56,12 @@ Synthetic lab studies (not clinical data). Light theme, in the arnout.pro "Readi
 
 ![HL7 send with an ORM order update and Change existing order set to SC](docs/screenshots/hl7-send.webp)
 
+## What's new in 0.10.6
+
+Details in [CHANGELOG.md](CHANGELOG.md#0106).
+
+- **Dicom Router**: a rule whose Status check key is also one of its filters (for example `TamarStudyStatus = Pending Final`) now sends the filter. Before, the status was sent empty and the PACS returned every study.
+
 ## What's new in 0.10.5
 
 Details in [CHANGELOG.md](CHANGELOG.md#0105).
@@ -144,6 +150,7 @@ And in 0.5.1 ([CHANGELOG.md](CHANGELOG.md#051)):
 ## Contents
 
 - [Screenshots](#screenshots)
+- [What's new in 0.10.6](#whats-new-in-0106)
 - [What's new in 0.10.5](#whats-new-in-0105)
 - [What's new in 0.10.4](#whats-new-in-0104)
 - [What this is (and is not)](#what-this-is-and-is-not)
