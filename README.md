@@ -56,6 +56,12 @@ Synthetic lab studies (not clinical data). Light theme, in the arnout.pro "Readi
 
 ![HL7 send with an ORM order update and Change existing order set to SC](docs/screenshots/hl7-send.webp)
 
+## What's new in 0.10.7
+
+Details in [CHANGELOG.md](CHANGELOG.md#0107).
+
+- **Status dashboard** (`/lite`, button on the Dicom Router page): one tile per rule with a status check key, showing the exam count per status at a glance. Counts only, nothing stored.
+
 ## What's new in 0.10.6
 
 Details in [CHANGELOG.md](CHANGELOG.md#0106).
@@ -150,6 +156,7 @@ And in 0.5.1 ([CHANGELOG.md](CHANGELOG.md#051)):
 ## Contents
 
 - [Screenshots](#screenshots)
+- [What's new in 0.10.7](#whats-new-in-0107)
 - [What's new in 0.10.6](#whats-new-in-0106)
 - [What's new in 0.10.5](#whats-new-in-0105)
 - [What's new in 0.10.4](#whats-new-in-0104)

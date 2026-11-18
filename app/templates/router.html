@@ -11,9 +11,12 @@
     <p class="lede">Each rule runs a C-FIND against a PACS on a timer or daily schedule. Add destination nodes to also C-MOVE new matches here and C-STORE them onward; leave destinations empty to just track new studies.</p>
     </div>
   </div>
-  {% if route_rules and not show_form and config.remotes %}
-  <a class="button primary nowrap" href="{{ href('/router?new=1') }}">Add route rule</a>
-  {% endif %}
+  <div class="actions">
+    {% if route_rules %}<a class="button nowrap" href="{{ href('/lite') }}" target="_blank" rel="noopener">Status dashboard</a>{% endif %}
+    {% if route_rules and not show_form and config.remotes %}
+    <a class="button primary nowrap" href="{{ href('/router?new=1') }}">Add route rule</a>
+    {% endif %}
+  </div>
 </header>
 
 {% if saved %}
