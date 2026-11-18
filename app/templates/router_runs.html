@@ -61,6 +61,9 @@
   {% else %}
   <p class="muted">No filters: every study the PACS has.</p>
   {% endif %}
+  {% if rule.return_keys %}
+  <p class="muted small">Also asks the PACS to return: {% for k in rule.return_keys %}<code>{{ k }}</code>{% if not loop.last %}, {% endif %}{% endfor %}.</p>
+  {% endif %}
   {% if query_local %}
   <p class="muted small">Checked by this app after the PACS answers (the PACS may ignore private keys when matching): {% for k in query_local %}<code>{{ k }}</code>{% if not loop.last %}, {% endif %}{% endfor %}. Matching ignores upper/lower case; <code>*</code> is a wildcard.</p>
   {% endif %}
