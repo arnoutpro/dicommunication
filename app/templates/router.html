@@ -245,6 +245,9 @@
               {% if r.export_dir %}
               · exporting to {{ r.export_dir }}
               {% endif %}
+              {% if r.extra_query %}
+              <div>Filters: {% for keyword, value in r.extra_query.items() %}<code>{{ keyword }}</code>={{ value }}{% if not loop.last %}, {% endif %}{% endfor %}</div>
+              {% endif %}
             </div>
           </td>
           <td>

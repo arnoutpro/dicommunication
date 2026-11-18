@@ -53,6 +53,21 @@
 
 <section class="panel">
   <header class="panel-head">
+    <h2>What this rule asks the PACS</h2>
+    <span class="muted small">as of now; "Study date" is worked out fresh on every run</span>
+  </header>
+  {% if query_sent %}
+  <p>{% for keyword, value in query_sent.items() %}<code>{{ keyword }}</code> = <code>{{ value }}</code>{% if not loop.last %} · {% endif %}{% endfor %}</p>
+  {% else %}
+  <p class="muted">No filters: every study the PACS has.</p>
+  {% endif %}
+  {% if query_skipped %}
+  <div class="flash fail">Not applied, this app does not know the key: {% for k in query_skipped %}<code>{{ k }}</code>{% if not loop.last %}, {% endif %}{% endfor %}. The query is broader than the saved one.</div>
+  {% endif %}
+</section>
+
+<section class="panel">
+  <header class="panel-head">
     <h2>Run history</h2>
     <span class="muted">{{ runs | length }} run{% if runs | length != 1 %}s{% endif %} (most recent first)</span>
   </header>
@@ -70,6 +85,14 @@
       <span class="muted small">{{ "%.0f"|format(run.duration_ms) }} ms</span>
     </header>
     {% if run.error %}<p class="muted">{{ run.error }}</p>{% endif %}
+    {% if run.ok and run.status_counts %}
+    <p class="small">{% for value, count in run.status_counts.items() %}<span class="badge{% if value == '(none)' %} fail{% endif %}">{{ value }}: {{ count }}</span> {% endfor %}</p>
+    {% if run.status_counts.get('(none)') %}<p class="muted small">{{ run.status_counts['(none)'] }} matched stud{{ 'y' if run.status_counts['(none)'] == 1 else 'ies' }} came back without the status value. The PACS may ignore this key on C-FIND.</p>{% endif %}
+    {% endif %}
+    {% if run.ok and run.matched_count and not run.matches %}
+    <p class="muted small">All {{ run.matched_count }} matched studies were already seen in an earlier run, so none are listed here.</p>
+    {% endif %}
+    {% if run.skipped_keys %}<p class="muted small">Skipped keys: {{ run.skipped_keys | join(', ') }}</p>{% endif %}
     {% if run.matches %}
     <div class="table-wrap">
       <table>

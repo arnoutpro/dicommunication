@@ -399,6 +399,12 @@ class RouteRun(BaseModel):
     matched_count: int = 0
     new_count: int = 0
     matches: list[RouteMatch] = Field(default_factory=list)
+    # Proof of what this run asked and got, without patient data: the keys
+    # sent to the PACS, rule keys the app could not apply, and a count per
+    # value of the rule's status key (when it has one).
+    query_sent: dict[str, str] = Field(default_factory=dict)
+    skipped_keys: list[str] = Field(default_factory=list)
+    status_counts: dict[str, int] = Field(default_factory=dict)
 
 
 class LoggingSettings(BaseModel):

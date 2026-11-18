@@ -4,6 +4,7 @@
 
 ### Dicom Router
 
+- **Proof of what a rule asks and gets**: a rule's page now lists the exact keys it sends to the PACS (Study date worked out for today) and warns about any key the app can't apply, which was silently dropped before. Each run shows a count per status value, a note when studies come back without it, and why the list is empty when every match was already seen. The rules list shows each rule's filters. Counts only, no extra patient data is stored.
 - **Number of days always visible**: the field no longer waits for a script to reveal it when Study date is "Last N days", so it can't go missing; it only applies to that choice.
 
 ## 0.10.4
