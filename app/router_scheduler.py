@@ -173,6 +173,31 @@ def _apply_extra_query(identifier: Dataset, extra_query: dict[str, str]) -> None
             continue
 
 
+def query_summary(rule: RouteRule) -> tuple[dict[str, str], list[str]]:
+    """What a run of this rule asks the PACS, as plain text, and which of the
+    rule's extra keys this app cannot apply (they are skipped, which makes the
+    query broader than the saved one — so it must be visible)."""
+    sent: dict[str, str] = {}
+    date = _date_query(rule)
+    if date:
+        sent["StudyDate"] = date
+    if rule.modality:
+        sent["ModalitiesInStudy"] = rule.modality
+    skipped: list[str] = []
+    for keyword, value in rule.extra_query.items():
+        if not value:
+            continue
+        try:
+            apply_key(Dataset(), keyword, value)
+        except Exception:  # noqa: BLE001
+            skipped.append(keyword)
+            continue
+        sent[keyword] = value
+    if rule.status_key:
+        sent.setdefault(rule.status_key, "(returned, not filtered)")
+    return sent, skipped
+
+
 def _study_identifier(rule: RouteRule) -> Dataset:
     identifier = Dataset()
     identifier.QueryRetrieveLevel = "STUDY"
@@ -497,6 +522,7 @@ class RouterScheduler:
         remote = config.get_remote(rule.source_remote_id)
         run = RouteRun(rule_id=rule.id, rule_name=rule.name, started_at=now)
         status_counts: dict[str, int] = {}
+        run.query_sent, run.skipped_keys = query_summary(rule)
         interrupted = bool(interrupt is not None and interrupt.is_set())
 
         if remote is None:
@@ -574,6 +600,7 @@ class RouterScheduler:
                     export_run_matches(rule, run, now)
 
         run.duration_ms = (time.perf_counter() - started) * 1000
+        run.status_counts = dict(sorted(status_counts.items()))
         if rule.export_dir and rule.status_key and run.status != "interrupted":
             write_status_snapshot(rule, run, now, status_counts)
         rule.last_run_at = now

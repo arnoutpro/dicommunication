@@ -67,14 +67,15 @@ def test_router_page_shows_form_when_empty(client: TestClient, remote: RemoteNod
 
 def test_rule_form_hides_fields_that_do_not_apply(client: TestClient, store: ConfigStore, remote: RemoteNode) -> None:
     page = client.get("/router").text
-    assert '<label data-reveal-when="date_scope=last_n_days" hidden>' in page
+    assert 'name="date_last_n_days"' in page
+    assert 'data-reveal-when="date_scope=last_n_days"' not in page  # always visible
     assert '<label data-reveal-when="level=SERIES" hidden>' in page
 
     rule = store.add_route_rule(
         RouteRule(name="Series", source_remote_id=remote.id, level="SERIES", date_scope="last_n_days")
     )
     editing = client.get(f"/router?edit={rule.id}").text
-    assert '<label data-reveal-when="date_scope=last_n_days">' in editing
+    assert 'name="date_last_n_days"' in editing
     assert '<label data-reveal-when="level=SERIES">' in editing
 
 

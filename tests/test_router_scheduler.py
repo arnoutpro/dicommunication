@@ -649,3 +649,15 @@ def test_failed_run_still_writes_status_snapshot(store: ConfigStore, tmp_path) -
     assert not run.ok
     data = json.loads((out / "down.status.json").read_text())
     assert data["ok"] is False and data["error"]
+
+
+def test_query_summary_reports_applied_and_skipped_keys() -> None:
+    from app.router_scheduler import query_summary
+
+    rule = RouteRule(
+        name="t", source_remote_id="r", date_scope="all", modality="CT",
+        extra_query={"TamarStudyStatus": "UNREAD", "BogusKey": "x"},
+    )
+    sent, skipped = query_summary(rule)
+    assert sent == {"ModalitiesInStudy": "CT", "TamarStudyStatus": "UNREAD"}
+    assert skipped == ["BogusKey"]

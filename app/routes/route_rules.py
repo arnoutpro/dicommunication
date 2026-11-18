@@ -10,6 +10,7 @@ from pydantic import ValidationError
 
 from app.applog import log
 from app.models import RouteRule, SavedQuery
+from app.router_scheduler import query_summary
 from app.routes._shared import page, templates
 
 router = APIRouter()
@@ -113,6 +114,8 @@ def router_runs_page(request: Request, rule_id: str, saved: str | None = None) -
             rule=rule,
             running=scheduler.is_running(rule_id),
             runs=store.list_route_runs(rule_id=rule_id, limit=50),
+            query_sent=query_summary(rule)[0],
+            query_skipped=query_summary(rule)[1],
             saved=saved,
         ),
     )
