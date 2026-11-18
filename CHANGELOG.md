@@ -2,10 +2,6 @@
 
 ## Unreleased
 
-### Dicom Router
-
-- **Private-key filters now work when the PACS ignores them**: a Vue / ELSCINT1 filter such as `TamarStudyStatus = Pending Final` is also checked by the app on the answer, so a rule no longer lists and counts every study the PACS returns for the date range. Case-insensitive, `*` is a wildcard; a study that comes back without the value does not match.
-
 ## 0.10.5
 
 ### Dicom Router

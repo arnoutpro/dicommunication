@@ -17,7 +17,6 @@ without redoing or losing already-forwarded work.
 
 from __future__ import annotations
 
-import fnmatch
 import json
 import os
 import re
@@ -38,7 +37,7 @@ from app.dicom_client import associate
 from app.models import LocalAE, RemoteNode, ROUTE_RUN_MAX_MATCHES, RouteMatch, RouteRule, RouteRun, utc_now
 from app.mwl_scp import STORAGE_INBOX, WorklistSCP
 from app.store import ConfigStore
-from app.tools.find_keys import _KEYS_BY_KEYWORD, _read_key, apply_key
+from app.tools.find_keys import _read_key, apply_key
 
 TICK_SECONDS = 20
 PENDING = {0xFF00, 0xFF01}
@@ -197,28 +196,6 @@ def query_summary(rule: RouteRule) -> tuple[dict[str, str], list[str]]:
     if rule.status_key:
         sent.setdefault(rule.status_key, "(returned, not filtered)")
     return sent, skipped
-
-
-def local_filter_keys(rule: RouteRule) -> list[str]:
-    """Extra keys this app checks itself after the PACS answers: private
-    (Vue / ELSCINT1) keys. A PACS may return them but ignore them when
-    matching, answering with every study in the date range."""
-    return [
-        keyword
-        for keyword, value in rule.extra_query.items()
-        if value and getattr(_KEYS_BY_KEYWORD.get(keyword), "private_creator", None)
-    ]
-
-
-def _passes_local_filters(rule: RouteRule, ds: Dataset) -> bool:
-    """Case-insensitive match (``*`` and ``?`` allowed) of each private key's
-    returned value against the rule's value. A study that comes back without
-    the value cannot be confirmed, so it does not match."""
-    for keyword in local_filter_keys(rule):
-        returned = _read_key(ds, keyword).strip().lower()
-        if not fnmatch.fnmatchcase(returned, rule.extra_query[keyword].strip().lower()):
-            return False
-    return True
 
 
 def _study_identifier(rule: RouteRule) -> Dataset:
@@ -571,7 +548,7 @@ class RouterScheduler:
                         "status": (_read_key(ds, rule.status_key) if rule.status_key else "") or "(none)",
                     }
                     for ds in study_datasets
-                    if _text(ds, "StudyInstanceUID") and _passes_local_filters(rule, ds)
+                    if _text(ds, "StudyInstanceUID")
                 ]
                 run.matched_count = len(studies)
                 for study in studies:
