@@ -981,6 +981,11 @@ document.addEventListener("submit", (event) => {
   if (form.hasAttribute("hx-post") || form.hasAttribute("hx-get")) {
     return;
   }
+  // A form that answers with a file download (data-download) never leaves the
+  // page, so nothing would ever clear the busy label. Leave its button alone.
+  if (form.hasAttribute("data-download")) {
+    return;
+  }
   const submitter = event.submitter;
   // Deferred: disabling the submitter synchronously in this handler drops
   // its name=value pair from the submitted form data (the browser decides

@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+## 0.10.14
+
+### Desktop window
+
+- **Exports and downloads now work in the desktop window.** The window (pywebview) cancelled every file download by default, so the settings export, the log download and the Analytics CSV / JSON export did nothing there, though they worked in a browser. Downloads are now allowed and open the system's Save dialog.
+- **The settings export button no longer stays on "Working…".** A form that answers with a file never leaves the page, so the busy label it got on submit was never cleared. Download forms now keep their button as it is.
+
 ## 0.10.13
 
 ### Configuration

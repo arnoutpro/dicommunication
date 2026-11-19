@@ -36,6 +36,14 @@ def test_the_page_renders_with_both_sections_and_a_sidebar_entry(client: TestCli
     assert boxes["remotes"] and boxes["rules"] and boxes["identities"] and not boxes["local"] and not boxes["queries"]
 
 
+def test_the_export_form_is_marked_as_a_download_so_its_button_is_not_left_on_working(client: TestClient) -> None:
+    # A download never navigates away; the global "Working…" busy state would never clear.
+    form = re.search(r'<form[^>]*action="/config/transfer/export"[^>]*>', client.get("/config/transfer").text).group(0)
+    assert "data-download" in form
+    js = (__import__("pathlib").Path(__file__).resolve().parents[1] / "app/static/js/app.js").read_text(encoding="utf-8")
+    assert 'form.hasAttribute("data-download")' in js
+
+
 def test_export_downloads_json_with_the_chosen_sections_only(client: TestClient, filled: ConfigStore) -> None:
     response = client.post("/config/transfer/export", data={"section": ["remotes", "queries"]})
     assert response.status_code == 200 and response.headers["content-type"].startswith("application/json")

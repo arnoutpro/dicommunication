@@ -128,6 +128,19 @@ def _macos_run_until_windows_close(webview) -> None:
         )
 
 
+def _allow_downloads(webview) -> None:
+    """Let the window save files the app offers: a settings export, the log, a CSV.
+
+    pywebview cancels every download unless this is on, so an export did nothing
+    in the desktop window (it worked in a browser). With it on, the system's own
+    Save dialog opens and the user picks where the file goes.
+    """
+    try:
+        webview.settings["ALLOW_DOWNLOADS"] = True
+    except Exception:  # noqa: BLE001 - an older pywebview without the setting: downloads stay off
+        pass
+
+
 def run_native_window(ui: str, title: str | None = None) -> bool:
     """Open ``ui`` in a native window. Return False if the WebView cannot start."""
     try:
@@ -136,6 +149,7 @@ def run_native_window(ui: str, title: str | None = None) -> bool:
         print("pywebview is not installed; opening the system browser.", flush=True)
         return False
 
+    _allow_downloads(webview)
     gui = native_gui()
     window_kwargs = {
         "width": 1280,
