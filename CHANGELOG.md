@@ -4,6 +4,10 @@
 
 ## 0.10.8
 
+### Dicomtag Analytics
+
+- **Tamar Patient Class** `(07a3,1013)` is a new Vue / ELSCINT1 key, so a query can return it or match on it (for example `I`). Like the other Vue keys it is off by default.
+
 ### Dicom Router
 
 - **The status dashboard lists every rule**: in 0.10.7 a rule only appeared with both an export folder and a status check key, so other rules were silently missing. Tiles now come from each rule's latest run: the count per status for a rule with a status check key, the matched count for one without. No export folder needed.

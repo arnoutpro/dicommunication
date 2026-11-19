@@ -811,6 +811,15 @@ KEYS: tuple[FindKey, ...] = (
         "STUDY",
     ),
     _vue(
+        "TamarPatientClass",
+        "(07a3,1013)",
+        "Tamar Patient Class",
+        "SH",
+        "vue-study",
+        "STUDY",
+        placeholder="I",
+    ),
+    _vue(
         "TamarPatientLocation",
         "(07a3,1015)",
         "Tamar Patient Location",
