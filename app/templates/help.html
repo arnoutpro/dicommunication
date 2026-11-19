@@ -44,6 +44,7 @@
     <li><a href="#anonymize">Dicom Anonymizer</a></li>
     <li><a href="#dicom-router">Dicom Router</a></li>
     <li><a href="#dicom-cleaner">Dicom Cleaner</a></li>
+    <li><a href="#dicom-import">Dicom Import</a></li>
     <li><a href="#reading-results">Reading accepted vs rejected SOP Classes</a></li>
     <li><a href="#data">Where data is stored</a></li>
     <li><a href="#json-api">JSON API</a></li>
@@ -74,7 +75,7 @@
   <header class="panel-head">
     <h2>The user interface</h2>
   </header>
-  <p>The top bar holds the arnout.pro A mark and product name on the left, a row of tabs in the middle — like folders in a cabinet — that picks the product: <strong>Dicommunication</strong>, <strong>Dicomtag Analytics</strong>, <strong>Dicom Anonymizer</strong>, <strong>Dicom Router</strong> and <strong>Dicom Cleaner</strong>, and on the right <strong>About</strong>, <strong>Help</strong>, <strong>Configuration</strong> (the gear) and the theme control. On narrow windows the tabs and buttons wrap onto their own lines below the brand. Whichever tab is open owns the left sidebar underneath it, with that product's own sub-menu — the Dicommunication tab's sidebar has Dashboard, Testbench, C-ECHO board, Worklist, and the DIMSE/HL7/Connectivity tool groups; Configuration isn't a tab because every product shares it: the Configuration button opens it, and its sidebar has Configured nodes, Local AE, Virtual AEs, Remote nodes, and Logs, set up once for all of them. Nested groups inside a tab's sidebar are foldable: open a chevron to expand; the group containing the current page stays open, and your open/closed state is remembered in this browser. At the bottom of the sidebar, <strong>About</strong> and <strong>Help</strong> sit on one row and open these documentation pages. The theme control switches Light, Dark, Follows device setting, or Professional dark. New installs open in Light. The AE chip is this workstation’s calling AE Title; the line under it is the listen port and how many virtual identities you have saved.</p>
+  <p>The top bar holds the arnout.pro A mark and product name on the left, a row of tabs in the middle — like folders in a cabinet — that picks the product: <strong>Dicommunication</strong>, <strong>Dicomtag Analytics</strong>, <strong>Dicom Anonymizer</strong>, <strong>Dicom Router</strong>, <strong>Dicom Cleaner</strong> and <strong>Dicom Import</strong>, and on the right <strong>About</strong>, <strong>Help</strong>, <strong>Configuration</strong> (the gear) and the theme control. On narrow windows the tabs and buttons wrap onto their own lines below the brand. Whichever tab is open owns the left sidebar underneath it, with that product's own sub-menu — the Dicommunication tab's sidebar has Dashboard, Testbench, C-ECHO board, Worklist, and the DIMSE/HL7/Connectivity tool groups; Configuration isn't a tab because every product shares it: the Configuration button opens it, and its sidebar has Configured nodes, Local AE, Virtual AEs, Remote nodes, and Logs, set up once for all of them. Nested groups inside a tab's sidebar are foldable: open a chevron to expand; the group containing the current page stays open, and your open/closed state is remembered in this browser. At the bottom of the sidebar, <strong>About</strong> and <strong>Help</strong> sit on one row and open these documentation pages. The theme control switches Light, Dark, Follows device setting, or Professional dark. New installs open in Light. The AE chip is this workstation’s calling AE Title; the line under it is the listen port and how many virtual identities you have saved.</p>
   <p>Most tool pages use HTMX: the form posts without a full page reload, and the result panel updates in place. Long DIMSE operations can take tens of seconds; wait for the result rather than clicking again.</p>
 </section>
 
@@ -147,6 +148,12 @@
           <td>C-FIND, C-MOVE, C-STORE</td>
           <td>Study Root Query/Retrieve FIND/MOVE, then Storage back out</td>
           <td>Reached at <code>/tools/dicom-cleaner</code> in the sidebar. Study-level C-FIND, C-MOVE retrieve, blacks out one operator-configured rectangle of pixel data on every retrieved instance, then C-STOREs the cleaned instances back to a PACS.</td>
+        </tr>
+        <tr>
+          <td><strong>Dicom Import</strong></td>
+          <td>C-STORE</td>
+          <td>Storage out, from files on disk</td>
+          <td>Reached at <code>/tools/dicom-import</code> in the sidebar. Scans a folder for a DICOMDIR and/or DICOM files, summarises them, lets you change patient and exam details, then C-STOREs the images to a PACS. Nothing is stored.</td>
         </tr>
       </tbody>
     </table>
@@ -489,6 +496,7 @@
   <p>The image itself is a fixed small solid-black frame (Secondary Capture Image Storage) — there is no real pixel content to configure. What makes it identifiable is the Patient Name, Patient ID, Accession Number, and Study Instance UID from the picked study and step 3, so the stored instance lands in the same study it refers to.</p>
 </section>
 
+
 <section class="panel help-section" id="hl7-send">
   <header class="panel-head">
     <h2>HL7 send</h2>
@@ -602,6 +610,17 @@
     <li><strong>Send to</strong> defaults to the same node the study was retrieved from; pick a different configured remote node to send the cleaned instances somewhere else instead.</li>
     <li>Retrieve needs Accept C-STORE on and this AE listed as a C-MOVE destination, same as Dicomtag Analytics and Dicom Anonymizer retrieve.</li>
   </ul>
+</section>
+
+<section class="panel help-section" id="dicom-import">
+  <header class="panel-head">
+    <h2>Dicom Import</h2>
+    <a href="/tools/dicom-import">Open</a>
+  </header>
+  <p>Brings DICOM files from a folder into a PACS: a CD or DVD export, a USB stick, or a folder of files. It has four steps. <strong>1. Choose the folder</strong>: type a path on the computer this app runs on, or press <strong>…</strong> to browse (the browse button needs a desktop session). The folder can hold a <code>DICOMDIR</code>, loose DICOM files, or both, in any depth of sub-folders; the files are only read, never changed. <strong>2. What was found</strong> sums up the folder from the DICOM tags: how many patients, studies, series and images, the size, and a table per study with its date, description, accession number, modality, series and image count. Warnings say what to check: files that are not DICOM (ignored), files missing a UID (left out), a repeated SOP Instance UID (only the first is kept), one patient ID with two different names or birth dates, files the DICOMDIR lists but are not on disk, files in the folder that the DICOMDIR does not list (still included), and compressed images.</p>
+  <p><strong>3. Review and change details</strong> is optional. Every patient and study has its details in editable fields: patient name, ID, birth date and sex; study description, accession number, date, time, referring physician and study ID. Only fields you change are written, and only while the images are sent, so the files on disk are never modified and no edited copy is made. <strong>Check changes</strong> validates what you typed and says how many fields will change, without sending anything. Untick a study to leave it out. <strong>4. Send to the PACS</strong> stores the chosen studies over C-STORE to a remote node, as the calling AE you choose. Progress shows while it runs; <strong>Stop</strong> ends it after the current file, and the result lists any file that failed with the reason. <strong>Change and send again</strong> returns to the review.</p>
+  <p>Two options. <strong>Give the studies, series and images new UIDs</strong> is for when the PACS may already hold these studies and they must not merge with or overwrite them; links between images, such as a report pointing at its images, follow the new UIDs. Leave it off to import them as they are. <strong>Decompress an image the PACS does not accept in its own format</strong> is on by default: a compressed image goes as it is when the PACS accepts its format, and is otherwise decompressed (which needs a decoder for that format; a failure is reported for that file).</p>
+  <p>Nothing about the patients is stored. The scan lives in memory only and is dropped when you start over or after about two hours idle. Under the Windows headless edition the service reads the folder as its own account (LocalService), so the folder must be readable by it, and a mapped drive letter such as <code>Z:</code> is not visible to a service: use a local path or a network path that account may read.</p>
 </section>
 
 <section class="panel help-section" id="reading-results">

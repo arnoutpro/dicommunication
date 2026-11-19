@@ -8,7 +8,7 @@ A low-code DICOM communication validator and PACS admin toolkit.
 
 Configure this workstation as a DICOM Application Entity, register remote nodes (PACS, Orthanc, RIS/MWL, modalities), impersonate extra calling AE Titles, and run the checks a connectivity ticket actually needs: network PING, C-ECHO, simulated C-STORE, PDF to Encapsulated PDF Storage, Study Root C-FIND (including Study / Series / Image), Modality Worklist C-FIND, and HL7 v2 send over MLLP.
 
-Dicommunication is **one application**, with a sidebar tool switcher for each product and a shared **Configuration**, opened from the gear button in the top bar: **Dicommunication** (the network/DIMSE/HL7 workstation tools), **Dicomtag Analytics** (Study Root C-FIND, including Vue ELSCINT1 keys, plus listing and retrieving DICOM Structured Reports), **Dicom Anonymizer** (query, retrieve, and anonymize studies/series/images — see below), **Dicom Router** (scheduled C-FIND rules with optional retrieve/forward — see below), and **Dicom Cleaner** (query, retrieve, redact a rectangle of burned-in pixel data, and send the result back over C-STORE — see below). Each tool's content area has its own left sidebar with that product's own pages, below the tool switcher. Local AE, virtual identities, remote nodes, and logs are configured once, under Configuration, and shared by every product. The Windows MSI and macOS DMG each install a single shortcut / app.
+Dicommunication is **one application**, with a sidebar tool switcher for each product and a shared **Configuration**, opened from the gear button in the top bar: **Dicommunication** (the network/DIMSE/HL7 workstation tools), **Dicomtag Analytics** (Study Root C-FIND, including Vue ELSCINT1 keys, plus listing and retrieving DICOM Structured Reports), **Dicom Anonymizer** (query, retrieve, and anonymize studies/series/images — see below), **Dicom Router** (scheduled C-FIND rules with optional retrieve/forward — see below), **Dicom Cleaner** (query, retrieve, redact a rectangle of burned-in pixel data, and send the result back over C-STORE — see below), and **Dicom Import** (scan a folder for a DICOMDIR and/or DICOM files, change patient and exam details, and send them to a PACS). Each tool's content area has its own left sidebar with that product's own pages, below the tool switcher. Local AE, virtual identities, remote nodes, and logs are configured once, under Configuration, and shared by every product. The Windows MSI and macOS DMG each install a single shortcut / app.
 
 The web UI is FastAPI + HTMX. DICOM uses pynetdicom/pydicom. New test tools are Python plugins: drop a file in `app/tools/` and it appears in the Dicommunication sidebar. The top bar's **About** button shows the running version; **Help** is the in-app administrator guide.
 
@@ -55,6 +55,12 @@ Synthetic lab studies (not clinical data). Light theme, in the arnout.pro "Readi
 **HL7 send** — four steps: destination, message (with saved messages), the optional rewrites in "Adjust before sending" (off by default; the heading lists what is on), and send.
 
 ![HL7 send with an ORM order update and Change existing order set to SC](docs/screenshots/hl7-send.webp)
+
+## What's new in 0.10.12
+
+Details in [CHANGELOG.md](CHANGELOG.md#01012).
+
+- **Dicom Import** (its own product in the left menu, below Dicom Cleaner): scan a folder for a DICOMDIR and/or DICOM files, see what is in it, change patient and exam details, and send the images to a PACS. Nothing is stored; edits are applied while sending.
 
 ## What's new in 0.10.11
 
@@ -181,6 +187,7 @@ And in 0.5.1 ([CHANGELOG.md](CHANGELOG.md#051)):
 ## Contents
 
 - [Screenshots](#screenshots)
+- [What's new in 0.10.12](#whats-new-in-01012)
 - [What's new in 0.10.11](#whats-new-in-01011)
 - [What's new in 0.10.10](#whats-new-in-01010)
 - [What's new in 0.10.9](#whats-new-in-0109)

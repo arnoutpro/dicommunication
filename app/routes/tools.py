@@ -635,13 +635,13 @@ def api_pdf_store_scan(directory: str = ""):
 
 
 @router.post("/api/fs/pick-directory")
-def api_pick_directory():
+def api_pick_directory(purpose: str = "pdf"):
     if not dialogs_available():
         raise HTTPException(
             status_code=503,
-            detail="No desktop folder dialog in this session. Type the path, or use Folder of PDFs.",
+            detail="No desktop folder dialog in this session. Type the path instead.",
         )
-    path = pick_directory()
+    path = pick_directory(purpose)
     if not path:
         raise HTTPException(status_code=400, detail="No folder selected.")
     return {"path": path}

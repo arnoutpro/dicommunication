@@ -947,6 +947,7 @@ function initToolRemoteModeForm(scope) {
 }
 
 initNavTree();
+initDicomImport();
 initRouteRuleForm();
 initTestbenchServiceFields();
 initPdfStoreForm(document);
@@ -2319,6 +2320,52 @@ function bindFindAdvanced(root) {
       applyDatePreset(target, target.dataset.savedDatePreset);
     }
   }
+}
+
+// DICOM Import: the folder's Browse button and the select all / none buttons.
+// Delegated from the page root, which stays put while the body below it is
+// swapped by the polling and the forms.
+function initDicomImport() {
+  const root = document.querySelector("[data-import-page]");
+  if (!root) {
+    return;
+  }
+  root.addEventListener("click", async (event) => {
+    const browse = event.target.closest("[data-import-browse]");
+    if (browse) {
+      const input = root.querySelector("[data-import-folder]");
+      const status = root.querySelector("[data-import-browse-status]");
+      browse.disabled = true;
+      try {
+        const response = await fetch("/api/fs/pick-directory?purpose=dicom", { method: "POST" });
+        const payload = await response.json().catch(() => ({}));
+        if (response.ok && payload.path && input instanceof HTMLInputElement) {
+          input.value = payload.path;
+          if (status) {
+            status.hidden = true;
+          }
+        } else if (status) {
+          status.hidden = false;
+          status.textContent = "No folder dialog in this session. Type the path instead.";
+        }
+      } catch (error) {
+        if (status) {
+          status.hidden = false;
+          status.textContent = "Could not open a folder dialog. Type the path instead.";
+        }
+      } finally {
+        browse.disabled = false;
+      }
+      return;
+    }
+    const select = event.target.closest("[data-import-select]");
+    if (select) {
+      const on = select.getAttribute("data-import-select") === "all";
+      root.querySelectorAll("[data-import-study]").forEach((box) => {
+        box.checked = on;
+      });
+    }
+  });
 }
 
 // Dicomtag Analytics: "Add other DICOM tags". Search the standard dictionary,

@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+## 0.10.12
+
+### Dicom Import
+
+- **New product, in the left menu below Dicom Cleaner**: bring DICOM files from a folder into a PACS in four steps.
+  1. **Choose the folder.** A `DICOMDIR` and/or loose DICOM files, in any depth of sub-folders. The scan runs in the background with live progress and can be stopped.
+  2. **What was found.** A summary from the DICOM tags: patients, studies, series, images, size, and a table per study. Warnings for non-DICOM files, files without UIDs, repeated SOP Instance UIDs, one patient ID with different names or birth dates, a DICOMDIR that lists missing files or does not list present ones, and compressed images.
+  3. **Review and change details** (optional). Edit patient name, ID, birth date and sex, and study description, accession number, date, time, referring physician and study ID. Values are checked and normalised (dates, times, lengths); **Check changes** reports how many fields will change without sending. Untick a study to leave it out.
+  4. **Send to the PACS** over C-STORE as a calling AE you choose, with progress, **Stop**, and a per-file list of any failure. Optional new Study, Series and SOP Instance UIDs (references between images follow them), and decompressing an image the PACS will not take in its own format.
+- Nothing is stored. The source files are only read; edits are applied to each file as it is sent, so no edited copy is made. The scan lives in memory and is dropped when you start over or after about two hours idle.
+- The Browse button of the folder dialog now says what it is for ("Select a folder with DICOM files") from a fixed list of titles.
+
 ## 0.10.11
 
 ### Windows
