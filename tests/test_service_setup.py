@@ -76,7 +76,10 @@ def test_configure_writes_the_settings_and_folders(tmp_path: Path, monkeypatch) 
     assert argv[0] == "icacls" and "/inheritance:r" in argv
     assert any(a.startswith("*S-1-5-18") for a in argv) and any(a.startswith("*S-1-5-32-544") for a in argv)
     assert any(a.startswith("*S-1-5-19") for a in argv)
-    assert not any("Users" in a or "Everyone" in a for a in argv)
+    # Only the grants matter here: the folder path itself may contain "Users" (C:\Users\...).
+    grants = argv[argv.index("/grant:r") + 1 :]
+    assert len(grants) == 3
+    assert not any("Users" in a or "Everyone" in a for a in grants)
 
 
 def test_a_failed_permission_change_is_only_a_warning(tmp_path: Path, monkeypatch) -> None:
