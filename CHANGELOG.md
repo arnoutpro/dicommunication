@@ -4,6 +4,10 @@
 
 ## 0.10.8
 
+### Send image
+
+- **Modality and Accession number line up**: in step 3 the required marker `*` wrapped onto its own line under Modality, pushing that field down so Accession number sat higher. The marker now stays on the label line.
+
 ### Dicomtag Analytics
 
 - **Tamar Patient Class** `(07a3,1013)` is a new Vue / ELSCINT1 key, so a query can return it or match on it (for example `I`). Like the other Vue keys it is off by default.
