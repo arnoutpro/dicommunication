@@ -1598,6 +1598,11 @@ function applyFindSelection(form, mode) {
     syncFindAdvanced(form);
     return;
   }
+  if (mode === "clear") {
+    form.querySelectorAll("[data-find-extra-row] input:not([type=checkbox])").forEach((input) => {
+      input.value = "";
+    });
+  }
   form.querySelectorAll("[data-find-key]").forEach((node) => {
     if (node.hidden) {
       return;
@@ -2308,11 +2313,257 @@ function bindFindAdvanced(root) {
       clearFindFollow(target);
     });
     syncFindAdvanced(target);
+    initFindExtraTags(target);
     // A saved query with a date preset gets today's range, not the saved one.
     if (target.dataset.savedDatePreset) {
       applyDatePreset(target, target.dataset.savedDatePreset);
     }
   }
+}
+
+// Dicomtag Analytics: "Add other DICOM tags". Search the standard dictionary,
+// tick several tags, add them as rows (return checkbox + match value) that post
+// with the form like the catalog keys do. Built with the DOM API, no innerHTML.
+function findExtraEl(tag, className, text) {
+  const node = document.createElement(tag);
+  if (className) {
+    node.className = className;
+  }
+  if (text !== undefined) {
+    node.textContent = text;
+  }
+  return node;
+}
+
+function findExtraKeywords(root) {
+  return new Set([...root.querySelectorAll("[data-find-extra-row]")].map((row) => row.dataset.keyword));
+}
+
+function buildFindExtraRow(item) {
+  const row = findExtraEl("div", "find-extra-row");
+  row.setAttribute("data-find-extra-row", "");
+  row.dataset.keyword = item.keyword;
+  const head = findExtraEl("label", "find-extra-head");
+  head.title = `${item.label} ${item.tag}`;
+  const include = document.createElement("input");
+  include.type = "checkbox";
+  include.name = "include";
+  include.value = item.keyword;
+  include.checked = true;
+  include.setAttribute("aria-label", `Return ${item.label} as a column`);
+  head.append(
+    include,
+    findExtraEl("span", "find-key-title", item.label),
+    findExtraEl("code", "find-extra-tag", item.tag),
+    findExtraEl("span", "find-extra-vr", item.vr)
+  );
+  const value = document.createElement("input");
+  value.name = `key_${item.keyword}`;
+  value.placeholder = item.placeholder || "";
+  value.spellcheck = false;
+  value.autocomplete = "off";
+  value.setAttribute("aria-label", `Match ${item.label}`);
+  const remove = findExtraEl("button", "link-button danger", "Remove");
+  remove.type = "button";
+  remove.setAttribute("data-find-extra-remove", "");
+  row.append(head, value, remove);
+  return row;
+}
+
+function initFindExtraTags(form) {
+  const root = form.querySelector("[data-find-extra]");
+  if (!root) {
+    return;
+  }
+  const search = root.querySelector("[data-find-tag-search]");
+  const resultsBox = root.querySelector("[data-find-tag-results]");
+  const list = root.querySelector("[data-find-tag-list]");
+  const status = root.querySelector("[data-find-tag-status]");
+  const extraList = root.querySelector("[data-find-extra-list]");
+  const empty = root.querySelector("[data-find-extra-empty]");
+  const count = root.querySelector("[data-find-extra-count]");
+  const privateHint = root.querySelector("[data-find-private-hint]");
+  const addButton = root.querySelector("[data-find-tag-add]");
+  let found = [];
+  let timer = null;
+  let latest = 0;
+  // Tags ticked so far, kept across searches until "Add selected".
+  const staged = new Map();
+
+  function refreshStaged() {
+    addButton.textContent = staged.size ? `Add selected (${staged.size})` : "Add selected";
+  }
+
+  function refreshCount() {
+    const added = extraList.querySelectorAll("[data-find-extra-row]").length;
+    empty.hidden = added > 0;
+    count.textContent = added ? ` · ${added} added` : "";
+  }
+
+  function addItem(item) {
+    if (findExtraKeywords(root).has(item.keyword)) {
+      return false;
+    }
+    extraList.appendChild(buildFindExtraRow(item));
+    refreshCount();
+    return true;
+  }
+
+  function renderResults(payload) {
+    // The search answers with "name"; a row (like the server-built ones) uses "label".
+    found = payload.results.map((result) => ({ ...result, label: result.label || result.name }));
+    list.replaceChildren();
+    const present = findExtraKeywords(root);
+    found.forEach((item, index) => {
+      const li = findExtraEl("li", "find-tag-item");
+      const label = findExtraEl("label", "find-tag-label");
+      const box = document.createElement("input");
+      box.type = "checkbox";
+      box.value = String(index);
+      const note = item.in_form ? "already on the form above" : present.has(item.keyword) ? "added" : "";
+      box.disabled = Boolean(note);
+      box.checked = !note && staged.has(item.keyword);
+      label.append(
+        box,
+        findExtraEl("span", "find-key-title", item.name),
+        findExtraEl("code", "find-extra-tag", item.tag),
+        findExtraEl("span", "find-extra-vr", item.vr)
+      );
+      if (item.retired) {
+        label.appendChild(findExtraEl("span", "find-extra-vr", "retired"));
+      }
+      if (note) {
+        label.appendChild(findExtraEl("span", "muted small", note));
+      }
+      li.appendChild(label);
+      list.appendChild(li);
+    });
+    const shown = found.length;
+    status.textContent = shown
+      ? payload.total > shown
+        ? `Showing ${shown} of ${payload.total}. Narrow the search to see more.`
+        : `${shown} found`
+      : "No matching tags";
+    resultsBox.hidden = false;
+  }
+
+  async function runSearch() {
+    const query = search.value.trim();
+    const ticket = ++latest;
+    if (query.length < 2) {
+      resultsBox.hidden = true;
+      return;
+    }
+    try {
+      const response = await fetch(`/tools/c-find-advanced/tag-search?q=${encodeURIComponent(query)}`);
+      if (!response.ok || ticket !== latest) {
+        return;
+      }
+      renderResults(await response.json());
+    } catch (error) {
+      status.textContent = "Search failed";
+      resultsBox.hidden = false;
+    }
+  }
+
+  search.addEventListener("input", () => {
+    clearTimeout(timer);
+    timer = setTimeout(runSearch, 250);
+  });
+  // Enter in these boxes must not submit the form, which would run the query.
+  root.addEventListener("keydown", (event) => {
+    if (event.key !== "Enter" || !event.target.matches("input")) {
+      return;
+    }
+    if (event.target.closest("[data-find-extra-row]")) {
+      return;
+    }
+    event.preventDefault();
+    if (event.target === search) {
+      clearTimeout(timer);
+      runSearch();
+    } else if (event.target.closest(".find-private")) {
+      root.querySelector("[data-find-private-add]").click();
+    }
+  });
+
+  list.addEventListener("change", (event) => {
+    const box = event.target;
+    if (!box.matches("input[type=checkbox]")) {
+      return;
+    }
+    const item = found[Number(box.value)];
+    if (box.checked) {
+      staged.set(item.keyword, item);
+    } else {
+      staged.delete(item.keyword);
+    }
+    refreshStaged();
+  });
+
+  root.addEventListener("click", (event) => {
+    if (event.target.closest("[data-find-tag-select-all]")) {
+      list.querySelectorAll("input[type=checkbox]:not(:disabled)").forEach((box) => {
+        box.checked = true;
+        staged.set(found[Number(box.value)].keyword, found[Number(box.value)]);
+      });
+      refreshStaged();
+      return;
+    }
+    if (event.target.closest("[data-find-tag-add]")) {
+      let added = 0;
+      staged.forEach((item) => {
+        if (addItem(item)) {
+          added += 1;
+        }
+      });
+      staged.clear();
+      refreshStaged();
+      if (!resultsBox.hidden) {
+        renderResults({ results: found, total: found.length });
+      }
+      status.textContent = added ? `Added ${added} tag${added === 1 ? "" : "s"}` : "Tick the tags to add first";
+      return;
+    }
+    if (event.target.closest("[data-find-private-add]")) {
+      const tag = root.querySelector("[data-find-private-tag]");
+      const creator = root.querySelector("[data-find-private-creator]");
+      const vr = root.querySelector("[data-find-private-vr]");
+      const match = tag.value.trim().match(/^\(?\s*([0-9A-Fa-f]{4})\s*,\s*([0-9A-Fa-f]{4})\s*\)?$/);
+      const name = creator.value.trim();
+      if (!match || parseInt(match[1], 16) % 2 === 0) {
+        privateHint.textContent = "Give a private tag as (gggg,eeee) with an odd group number, for example (07a1,102a).";
+        return;
+      }
+      if (!name) {
+        privateHint.textContent = "Give the private creator string, for example ELSCINT1.";
+        return;
+      }
+      const group = match[1].toUpperCase();
+      const element = match[2].toUpperCase();
+      const added = addItem({
+        keyword: `(${group},${element})@${name}:${vr.value}`,
+        label: `(${group},${element}) ${name}`,
+        tag: `(${group},${element})`,
+        vr: vr.value,
+        placeholder: "",
+      });
+      privateHint.textContent = added ? `Added (${group},${element}) ${name}.` : "That tag is already added.";
+      if (added) {
+        tag.value = "";
+      }
+      return;
+    }
+    const remove = event.target.closest("[data-find-extra-remove]");
+    if (remove) {
+      remove.closest("[data-find-extra-row]").remove();
+      refreshCount();
+      if (!resultsBox.hidden) {
+        runSearch();
+      }
+    }
+  });
+  refreshCount();
 }
 
 function pageProductName() {

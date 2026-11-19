@@ -56,6 +56,12 @@ Synthetic lab studies (not clinical data). Light theme, in the arnout.pro "Readi
 
 ![HL7 send with an ORM order update and Change existing order set to SC](docs/screenshots/hl7-send.webp)
 
+## What's new in 0.10.9
+
+Details in [CHANGELOG.md](CHANGELOG.md#0109).
+
+- **Dicomtag Analytics can query any DICOM tag**: search the standard dictionary under More filters, tick several tags and add them, as return columns, filters, or both. Private vendor tags can be added with their creator and type. Added tags are saved with the query.
+
 ## What's new in 0.10.8
 
 Details in [CHANGELOG.md](CHANGELOG.md#0108).
@@ -163,6 +169,7 @@ And in 0.5.1 ([CHANGELOG.md](CHANGELOG.md#051)):
 ## Contents
 
 - [Screenshots](#screenshots)
+- [What's new in 0.10.9](#whats-new-in-0109)
 - [What's new in 0.10.8](#whats-new-in-0108)
 - [What's new in 0.10.7](#whats-new-in-0107)
 - [What's new in 0.10.6](#whats-new-in-0106)

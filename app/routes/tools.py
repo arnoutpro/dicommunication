@@ -7,7 +7,7 @@ from typing import Any
 from urllib.parse import urlencode
 
 from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from pydantic import ValidationError
 
 from app.applog import log
@@ -29,7 +29,14 @@ from app.routes.send_image import _send_image_page
 from app.shell import display_tool_name
 from app.tools import get_tool
 from app.tools.find_advanced import COUNT_MAX_RECORDS
-from app.tools.find_keys import catalog_payload, column_labels, options_from_form
+from app.tools.find_keys import (
+    catalog_payload,
+    column_labels,
+    extra_rows,
+    is_extra_keyword,
+    options_from_form,
+    search_dictionary,
+)
 
 router = APIRouter()
 
@@ -411,6 +418,13 @@ def _c_find_advanced_page(
     query_snapshot: dict[str, Any] | None = None,
 ):
     tool = get_tool("c-find-advanced")
+    # Tags a saved query added beyond the form's own list: shown as rows to edit.
+    extra_keywords = (
+        [kw for kw in [*saved_query.include, *saved_query.values] if is_extra_keyword(kw)] if saved_query else []
+    )
+    find_extra_rows = (
+        extra_rows(extra_keywords, saved_query.include, saved_query.values) if saved_query else []
+    )
     return templates.TemplateResponse(
         request,
         tool.template,
@@ -423,6 +437,8 @@ def _c_find_advanced_page(
             remote_id=remote_id,
             identity_id=identity_id,
             saved_query=saved_query,
+            find_extra_rows=find_extra_rows,
+            find_extra_keywords=[row["keyword"] for row in find_extra_rows],
             **_find_advanced_extras(request, result, level),
             **_save_query_extras(result, query_snapshot),
         ),
@@ -771,6 +787,12 @@ async def c_find_advanced_run(request: Request):
         level=level,
         query_snapshot=snapshot,
     )
+
+
+@router.get("/tools/c-find-advanced/tag-search")
+def find_tag_search(q: str = ""):
+    """Search the standard DICOM data dictionary for tags to add to a query."""
+    return JSONResponse(search_dictionary(q))
 
 
 @router.post("/tools/c-find-advanced/saved")
