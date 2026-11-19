@@ -78,6 +78,28 @@ jobs:
           -bindpath dist/dicommunication
           -o dist/dicommunication-${{ steps.version.outputs.value }}-win64.msi
 
+      - name: Fetch the service host (WinSW, checksum-pinned)
+        run: python packaging/windows/fetch_winsw.py dist/service-host
+
+      - name: Install WiX extensions for the service edition
+        run: |
+          wix extension add -g WixToolset.Util.wixext/5.0.2
+          wix extension add -g WixToolset.Firewall.wixext/5.0.2
+
+      - name: Build service MSI
+        run: >
+          wix build
+          packaging/windows/Service.wxs
+          packaging/windows/harvested.wxs
+          -ext WixToolset.UI.wixext
+          -ext WixToolset.Util.wixext
+          -ext WixToolset.Firewall.wixext
+          -arch x64
+          -d ProductVersion=${{ steps.version.outputs.value }}
+          -bindpath dist/dicommunication
+          -bindpath dist/service-host
+          -o dist/dicommunication-service-${{ steps.version.outputs.value }}-win64.msi
+
       - name: Pack NuGet package
         run: >
           python packaging/windows/pack_nuget.py
@@ -89,7 +111,14 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: dicommunication-msi
-          path: dist/*.msi
+          path: dist/dicommunication-[0-9]*-win64.msi
+          if-no-files-found: error
+
+      - name: Upload service MSI
+        uses: actions/upload-artifact@v7
+        with:
+          name: dicommunication-service-msi
+          path: dist/dicommunication-service-*.msi
           if-no-files-found: error
 
       - name: Upload NuGet package

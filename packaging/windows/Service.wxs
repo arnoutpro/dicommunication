@@ -1,0 +1,213 @@
+<?xml version="1.0" encoding="utf-8"?>
+<?ifndef ProductVersion ?>
+<?define ProductVersion = "0.10.10" ?>
+<?endif?>
+<!--
+  Dicommunication, service edition.
+
+  The same program as Product.wxs, but installed as a Windows service instead of
+  a desktop app: it starts with Windows, needs nobody logged in, has no window,
+  and you open it in a browser at http://localhost:<port>. So the Dicom Router
+  rules and the status dashboard keep running without a window left open.
+
+  How it fits together:
+    * dicommunication.exe is the same frozen program (harvested.wxs, shared with
+      Product.wxs). It runs with the no-browser option.
+    * dicommunication-service.exe is WinSW, a small MIT-licensed service host
+      (packaging/windows/fetch_winsw.py). Windows starts it; it reads
+      dicommunication-service.xml and runs dicommunication.exe.
+    * The installer asks for the port (and whether other computers may connect),
+      then runs `dicommunication.exe the configure-service option`, which writes that XML
+      and locks down the data folder (app/service_setup.py), before the service
+      is started.
+
+  It uses the SAME UpgradeCode as Product.wxs on purpose: installing this over
+  the desktop edition replaces it (and the other way round), so a workstation has
+  one or the other, never both fighting for the same ports.
+
+  Runs as NT AUTHORITY\LocalService. Its data lives in C:\ProgramData\Dicommunication,
+  not in a user's profile, so settings of the desktop edition are not carried over.
+-->
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs"
+     xmlns:ui="http://wixtoolset.org/schemas/v4/wxs/ui"
+     xmlns:util="http://wixtoolset.org/schemas/v4/wxs/util"
+     xmlns:fw="http://wixtoolset.org/schemas/v4/wxs/firewall">
+  <Package
+      Name="Arnout.pro Dicommunication Tool (service)"
+      Manufacturer="Arnout.pro"
+      Version="$(var.ProductVersion)"
+      UpgradeCode="8f3c2a91-6d4e-4b17-9e5a-1c7d0f8a2b63"
+      Language="1033"
+      Scope="perMachine">
+    <SummaryInformation Description="Dicommunication as a Windows service, opened in the browser" />
+    <MajorUpgrade
+        DowngradeErrorMessage="A newer version of Dicommunication is already installed."
+        AllowSameVersionUpgrades="yes" />
+    <MediaTemplate EmbedCab="yes" />
+    <Icon Id="AppIcon" SourceFile="packaging\icons\app.ico" />
+    <Property Id="ARPPRODUCTICON" Value="AppIcon" />
+
+    <StandardDirectory Id="ProgramFiles64Folder">
+      <Directory Id="INSTALLFOLDER" Name="Dicommunication" />
+    </StandardDirectory>
+    <StandardDirectory Id="ProgramMenuFolder">
+      <Directory Id="ApplicationProgramsFolder" Name="Arnout.pro" />
+    </StandardDirectory>
+
+    <!--
+      The two questions the installer asks. Both are public (upper case) and
+      Secure, so `msiexec /i ... PORT=8090 ALLOWNETWORK=1 /qn` works unattended.
+      A reinstall or upgrade starts from what the last install chose.
+    -->
+    <Property Id="PORT" Value="8080" Secure="yes">
+      <RegistrySearch Id="PreviousPort" Root="HKLM" Key="Software\Arnout.pro\Dicommunication\Service"
+                      Name="Port" Type="raw" Bitness="always64" />
+    </Property>
+    <Property Id="ALLOWNETWORK" Secure="yes">
+      <RegistrySearch Id="PreviousAllowNetwork" Root="HKLM" Key="Software\Arnout.pro\Dicommunication\Service"
+                      Name="AllowNetwork" Type="raw" Bitness="always64" />
+    </Property>
+
+    <!-- The service: WinSW, started by Windows, reading dicommunication-service.xml. -->
+    <ComponentGroup Id="ServiceHost" Directory="INSTALLFOLDER">
+      <Component Id="ServiceHostExe" Guid="b2f8c2d4-5a37-4c0e-8d1f-6e93a47b10c5" Bitness="always64">
+        <File Id="ServiceHostFile" Source="dicommunication-service.exe" KeyPath="yes" />
+        <ServiceInstall
+            Id="DicommunicationService"
+            Name="Dicommunication"
+            DisplayName="Dicommunication"
+            Description="Arnout.pro Dicommunication: web interface, Dicom Router and status dashboard."
+            Type="ownProcess"
+            Start="auto"
+            ErrorControl="normal"
+            Vital="yes"
+            Account="NT AUTHORITY\LocalService">
+          <!-- If the program stops unexpectedly, start it again. -->
+          <util:ServiceConfig
+              FirstFailureActionType="restart"
+              SecondFailureActionType="restart"
+              ThirdFailureActionType="restart"
+              RestartServiceDelayInSeconds="30"
+              ResetPeriodInDays="1" />
+        </ServiceInstall>
+        <!-- Start after install, stop before upgrade and uninstall. A service that cannot
+             start (say, the port is taken) must not fail the whole install, so no waiting. -->
+        <ServiceControl Id="DicommunicationServiceControl" Name="Dicommunication"
+                        Start="install" Stop="both" Remove="uninstall" Wait="no" />
+        <!-- Written by the configure-service option, so Windows Installer does not know about it. -->
+        <RemoveFile Id="RemoveServiceSettings" Name="dicommunication-service.xml" On="both" />
+        <RegistryValue Root="HKLM" Key="Software\Arnout.pro\Dicommunication\Service"
+                       Name="Port" Type="string" Value="[PORT]" />
+        <RegistryValue Root="HKLM" Key="Software\Arnout.pro\Dicommunication\Service"
+                       Name="AllowNetwork" Type="string" Value="[ALLOWNETWORK]" />
+      </Component>
+      <Component Id="ServiceHostNotice" Guid="0d5a7e91-3c2b-4f68-a1d4-92b8e5f3c706" Bitness="always64">
+        <File Id="WinSwLicense" Source="packaging\windows\WinSW-LICENSE.txt" KeyPath="yes" />
+      </Component>
+    </ComponentGroup>
+
+    <!-- Only when other computers may connect: open the port in Windows Firewall. -->
+    <ComponentGroup Id="FirewallRule" Directory="INSTALLFOLDER">
+      <Component Id="WebInterfaceFirewallRule" Guid="6a3e9c10-84d2-4b75-9f0e-1c5d7b2a8e43" Bitness="always64"
+                 Condition="ALLOWNETWORK">
+        <RegistryValue Root="HKLM" Key="Software\Arnout.pro\Dicommunication\Service"
+                       Name="FirewallRule" Type="integer" Value="1" KeyPath="yes" />
+        <fw:FirewallException Id="WebInterfaceException" Name="Dicommunication web interface"
+                              Port="[PORT]" Protocol="tcp" Scope="any" IgnoreFailure="yes" />
+      </Component>
+    </ComponentGroup>
+
+    <!-- "Open Dicommunication" in the Start menu: the browser, at the chosen port. -->
+    <ComponentGroup Id="Shortcuts" Directory="ApplicationProgramsFolder">
+      <Component Id="OpenInBrowserShortcut" Guid="e7d41b36-9a58-4c2f-b0e3-5f81a6c9d274" Bitness="always64">
+        <util:InternetShortcut Id="OpenDicommunication" Name="Dicommunication"
+                               Target="http://localhost:[PORT]/" Type="url" />
+        <RemoveFolder Id="RemoveApplicationProgramsFolder" On="uninstall" />
+        <RegistryValue Root="HKLM" Key="Software\Arnout.pro\Dicommunication\Service"
+                       Name="Shortcut" Type="integer" Value="1" KeyPath="yes" />
+      </Component>
+    </ComponentGroup>
+
+    <Feature Id="Dicommunication" Title="Dicommunication service" Level="1"
+        Description="Dicommunication as a Windows service: starts with Windows, no window, opened in the browser.">
+      <ComponentGroupRef Id="AppFiles" />
+      <ComponentGroupRef Id="ServiceHost" />
+      <ComponentGroupRef Id="Shortcuts" />
+      <ComponentGroupRef Id="FirewallRule" />
+    </Feature>
+
+    <!--
+      After the files are copied and before the service is installed and started:
+      write the service settings from the chosen port. Elevated (Impersonate="no")
+      because it sets folder permissions. Fails the install only for a bad port or
+      an unwritable folder, with the reason in C:\ProgramData\Dicommunication\service-setup.log.
+    -->
+    <CustomAction Id="ConfigureServiceLocal" Directory="INSTALLFOLDER"
+        ExeCommand="&quot;[INSTALLFOLDER]dicommunication.exe&quot; --configure-service --port [PORT] --listen local"
+        Execute="deferred" Return="check" Impersonate="no" />
+    <CustomAction Id="ConfigureServiceNetwork" Directory="INSTALLFOLDER"
+        ExeCommand="&quot;[INSTALLFOLDER]dicommunication.exe&quot; --configure-service --port [PORT] --listen network"
+        Execute="deferred" Return="check" Impersonate="no" />
+    <!-- On a real uninstall, ask once whether to delete the data folder (it can hold patient data). -->
+    <CustomAction Id="PromptPurgeServiceData" Directory="INSTALLFOLDER"
+        ExeCommand="&quot;[INSTALLFOLDER]dicommunication.exe&quot; --uninstall-cleanup --service-data"
+        Execute="deferred" Return="ignore" Impersonate="yes" />
+    <InstallExecuteSequence>
+      <Custom Action="ConfigureServiceLocal" After="InstallFiles" Condition="NOT REMOVE AND NOT ALLOWNETWORK" />
+      <Custom Action="ConfigureServiceNetwork" After="InstallFiles" Condition="NOT REMOVE AND ALLOWNETWORK" />
+      <Custom Action="PromptPurgeServiceData" Before="RemoveFiles"
+              Condition='REMOVE="ALL" AND NOT UPGRADINGPRODUCTCODE AND UILevel &gt;= 5' />
+    </InstallExecuteSequence>
+
+    <!--
+      The standard wizard (welcome, licence, folder, ready), with one page added
+      after the folder page: the port and whether other computers may connect.
+      Next is disabled until the port is a number from 1024 to 65535.
+    -->
+    <Property Id="WIXUI_INSTALLDIR" Value="INSTALLFOLDER" />
+    <ui:WixUI Id="WixUI_InstallDir" />
+    <WixVariable Id="WixUILicenseRtf" Value="packaging\windows\License.rtf" />
+
+    <UI>
+      <Dialog Id="ServiceSettingsDlg" Width="370" Height="270" Title="!(loc.InstallDirDlg_Title)">
+        <Control Id="Title" Type="Text" X="15" Y="6" Width="340" Height="15" Transparent="yes" NoPrefix="yes"
+                 Text="{\WixUI_Font_Title}Service settings" />
+        <Control Id="Description" Type="Text" X="25" Y="23" Width="340" Height="15" Transparent="yes" NoPrefix="yes"
+                 Text="Dicommunication runs in the background and opens in your web browser." />
+        <Control Id="BannerLine" Type="Line" X="0" Y="44" Width="370" Height="0" />
+
+        <Control Id="PortLabel" Type="Text" X="20" Y="62" Width="330" Height="16" NoPrefix="yes"
+                 Text="Port for the web interface (1024 - 65535):" />
+        <Control Id="PortEdit" Type="Edit" X="20" Y="80" Width="70" Height="18" Property="PORT" Text="{5}" />
+        <Control Id="PortHint" Type="Text" X="100" Y="82" Width="250" Height="16" NoPrefix="yes"
+                 Text="You will open http://localhost:[PORT]/" />
+
+        <Control Id="NetworkCheck" Type="CheckBox" X="20" Y="120" Width="330" Height="18"
+                 Property="ALLOWNETWORK" CheckBoxValue="1"
+                 Text="Allow other computers on the network to connect" />
+        <Control Id="NetworkWarning" Type="Text" X="38" Y="140" Width="312" Height="64" NoPrefix="yes"
+                 Text="Leave this off unless you need it. Dicommunication has no login: anyone who can reach the port can use it, including sending DICOM and reading patient data. If you turn it on, the Windows Firewall is opened for this port; put it behind a login or a VPN." />
+
+        <Control Id="BottomLine" Type="Line" X="0" Y="234" Width="370" Height="0" />
+        <Control Id="Back" Type="PushButton" X="180" Y="243" Width="56" Height="17" Text="!(loc.WixUIBack)">
+          <Publish Event="NewDialog" Value="InstallDirDlg" />
+        </Control>
+        <Control Id="Next" Type="PushButton" X="236" Y="243" Width="56" Height="17" Default="yes" Text="!(loc.WixUINext)"
+                 DisableCondition="NOT (PORT &gt;= 1024 AND PORT &lt;= 65535)"
+                 EnableCondition="PORT &gt;= 1024 AND PORT &lt;= 65535">
+          <Publish Event="NewDialog" Value="VerifyReadyDlg" />
+        </Control>
+        <Control Id="Cancel" Type="PushButton" X="304" Y="243" Width="56" Height="17" Cancel="yes" Text="!(loc.WixUICancel)">
+          <Publish Event="SpawnDialog" Value="CancelDlg" />
+        </Control>
+      </Dialog>
+
+      <!-- Folder page: Next goes to the settings page; the ready page's Back returns to it.
+           A higher Order than the standard entry replaces it. -->
+      <Publish Dialog="InstallDirDlg" Control="Next" Event="NewDialog" Value="ServiceSettingsDlg" Order="5"
+               Condition="WIXUI_DONTVALIDATEPATH OR WIXUI_INSTALLDIR_VALID=&quot;1&quot;" />
+      <Publish Dialog="VerifyReadyDlg" Control="Back" Event="NewDialog" Value="ServiceSettingsDlg" Order="3"
+               Condition="NOT Installed" />
+    </UI>
+  </Package>
+</Wix>

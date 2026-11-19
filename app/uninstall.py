@@ -15,9 +15,11 @@ from __future__ import annotations
 
 import shutil
 import subprocess
+from pathlib import Path
 
 from app.launcher import windows_data_dir
 from app.paths import no_console_kwargs, runtime_os_name
+from app.service_setup import service_data_dir
 
 CONFIRM_TITLE = "Dicommunication"
 CONFIRM_MESSAGE = (
@@ -58,11 +60,15 @@ def confirm_purge_data() -> bool:
     return bool(_confirm_via_powershell())
 
 
-def purge_data_dir() -> None:
-    shutil.rmtree(windows_data_dir(), ignore_errors=True)
+def purge_data_dir(path: Path | None = None) -> None:
+    shutil.rmtree(path or windows_data_dir(), ignore_errors=True)
 
 
-def run_uninstall_cleanup() -> int:
+def run_uninstall_cleanup(service: bool = False) -> int:
+    """``service``: the service edition, whose data lives in ProgramData."""
     if confirm_purge_data():
-        purge_data_dir()
+        if service:
+            purge_data_dir(service_data_dir())
+        else:
+            purge_data_dir()
     return 0

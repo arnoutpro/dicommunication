@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+## 0.10.10
+
+### Windows
+
+- **Service edition**: a second installer, `dicommunication-service-<version>-win64.msi`, that installs Dicommunication as a Windows service instead of a desktop app. It starts with Windows, needs nobody logged in, has no window, and you open it in the browser. The Dicom Router rules and the status dashboard keep running without a window left open.
+- The wizard asks for the **port** (default 8080, checked to be 1024 to 65535) and whether **other computers may connect**. Local only is the default; ticking the box listens on the network and opens Windows Firewall for that port. Unattended: `PORT=8090 ALLOWNETWORK=1`.
+- Runs as `NT AUTHORITY\LocalService` with its own data folder, `C:\ProgramData\Dicommunication`, limited to administrators, SYSTEM and the service account. It restarts itself after a crash. Installing it replaces the desktop edition on that PC (same upgrade code).
+- Uses WinSW as the service host (MIT), fetched from NuGet and checked against a pinned SHA-256. The CI workflow builds it as the `dicommunication-service-msi` artifact next to the desktop MSI.
+
 ## 0.10.9
 
 ### Dicomtag Analytics
