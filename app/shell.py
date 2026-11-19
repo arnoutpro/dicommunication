@@ -98,7 +98,9 @@ TAB_HREFS = {
 # tab-level home instead. Dicom Import has its own tab as well.
 PROMOTED_TAB_TOOL_IDS = frozenset({"c-find-advanced", "anonymize", "dicom-cleaner", "dicom-import"})
 
-_CONFIG_NAV_VALUES = frozenset({"config", "config-local", "config-identities", "config-remotes", "logs"})
+_CONFIG_NAV_VALUES = frozenset(
+    {"config", "config-local", "config-identities", "config-remotes", "config-transfer", "logs"}
+)
 
 _TOOL_ID_TABS = {
     "c-find-advanced": TAB_ANALYTICS,

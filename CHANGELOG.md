@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+## 0.10.13
+
+### Configuration
+
+- **Import / export of settings** (Configuration > Import / export): move your settings to another computer, or into the headless edition, in one JSON file.
+  - **Export** the parts you tick: remote nodes, virtual AEs, local AE settings, saved Analytics queries and Dicom Router rules (without their run history). Results, the worklist, router run history, HL7 drafts and logs are never included. Local AE settings and saved queries start unticked, since the first is specific to one computer and the second may hold a patient ID typed as a filter.
+  - **Import** in two steps: choose the file and read a preview of what would be added, updated or left alone, then confirm. It only adds and updates, never deletes, and puts everything back if a write fails halfway. A record matches by id, then by name, so importing twice changes nothing; links between records are rewritten to the ids used here.
+  - New router rules come in stopped; a rule you already have keeps its running state. A link to a node that is not on this computer, and a rule's export folder, are shown as warnings.
+  - The file is checked for format, version and size (2 MB); a bad record is reported and left out while the rest is read. The uploaded file is held in memory between the preview and the import, never written to disk.
+
 ## 0.10.12
 
 ### Dicom Import

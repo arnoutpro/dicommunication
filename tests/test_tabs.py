@@ -108,7 +108,7 @@ def test_router_tab_active_and_isolated(client) -> None:
 
 
 def test_config_tab_active_and_holds_logs(client) -> None:
-    for path in ("/config", "/config/local", "/config/identities", "/config/remotes", "/logs"):
+    for path in ("/config", "/config/local", "/config/identities", "/config/remotes", "/config/transfer", "/logs"):
         body = client.get(path).text
         # The top-bar button is the selected state; no product tab is.
         assert '<a href="/config" class="button topbar-config is-active" aria-current="page"' in body, path

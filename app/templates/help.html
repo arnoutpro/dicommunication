@@ -46,6 +46,7 @@
     <li><a href="#dicom-cleaner">Dicom Cleaner</a></li>
     <li><a href="#dicom-import">Dicom Import</a></li>
     <li><a href="#reading-results">Reading accepted vs rejected SOP Classes</a></li>
+    <li><a href="#settings-transfer">Import / export of settings</a></li>
     <li><a href="#data">Where data is stored</a></li>
     <li><a href="#json-api">JSON API</a></li>
     <li><a href="#orthanc">Talking to Orthanc</a></li>
@@ -634,6 +635,15 @@
     <li><strong>All requested SOP Classes rejected, or association aborted</strong> — called AE, host, or port wrong; or the calling AE is not allowed.</li>
     <li><strong>Pass with zero rows</strong> — the FIND SOP Class was accepted and the query succeeded. Empty is a filter / data problem, not a connectivity failure.</li>
   </ul>
+</section>
+
+<section class="panel help-section" id="settings-transfer">
+  <header class="panel-head">
+    <h2>Import / export of settings</h2>
+    <a href="/config/transfer">Open</a>
+  </header>
+  <p>Under <strong>Configuration &rarr; Import / export</strong>. It moves your settings to another computer, or into the Windows headless edition (which starts with its own empty data folder), in one JSON file. <strong>Export</strong> downloads the parts you tick: remote nodes, virtual AEs, local AE settings, saved Analytics queries and Dicom Router rules. Results, the worklist, router run history, HL7 drafts and logs are never included, because they can contain patient data. The file lists PACS hosts, ports and AE titles but no passwords, so treat it as internal. Local AE settings belong to one computer, so they are off by default; saved queries are off by default because a query may hold a patient ID or name typed as a filter. Router rules are exported without their run history.</p>
+  <p><strong>Import</strong> is two steps. Choose the file and press <strong>Check the file</strong>: you see what would be added, updated or left as it is, with warnings, and nothing is written yet. Then <strong>Import the ticked parts</strong> applies it in one go, and puts everything back if anything fails halfway. Import only adds and updates; it never deletes. A record matches one you already have by id, then by name, so importing the same file twice changes nothing. Links between records (a rule pointing at its PACS, a saved query pointing at a node or virtual AE) are rewritten to the ids used on this computer; a link to a node that is not here is a warning. New router rules come in <strong>stopped</strong>, so nothing queries a PACS the moment you import; a rule you already have keeps its running state, as when you edit it. A rule's export folder is machine specific, so check it exists on the new computer. The uploaded file is held in memory between the two steps, never written to disk, and dropped after use or after about twenty minutes.</p>
 </section>
 
 <section class="panel help-section" id="data">
