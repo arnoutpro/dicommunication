@@ -56,6 +56,12 @@ Synthetic lab studies (not clinical data). Light theme, in the arnout.pro "Readi
 
 ![HL7 send with an ORM order update and Change existing order set to SC](docs/screenshots/hl7-send.webp)
 
+## What's new in 0.10.13
+
+Details in [CHANGELOG.md](CHANGELOG.md#01013).
+
+- **Import / export of settings** (Configuration): move remote nodes, virtual AEs, saved queries and router rules between computers, or into the headless edition, in one file. A preview shows what would change before anything is written; nothing is deleted, and nothing that can hold patient data is exported.
+
 ## What's new in 0.10.12
 
 Details in [CHANGELOG.md](CHANGELOG.md#01012).
@@ -187,6 +193,7 @@ And in 0.5.1 ([CHANGELOG.md](CHANGELOG.md#051)):
 ## Contents
 
 - [Screenshots](#screenshots)
+- [What's new in 0.10.13](#whats-new-in-01013)
 - [What's new in 0.10.12](#whats-new-in-01012)
 - [What's new in 0.10.11](#whats-new-in-01011)
 - [What's new in 0.10.10](#whats-new-in-01010)

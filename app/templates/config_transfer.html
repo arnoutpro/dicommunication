@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+{% block title %}Import / export · {{ product_name }}{% endblock %}
+{% block content %}
+<header class="page-head">
+  <div class="page-head-hero">
+    {% include "partials/page_icon.html" %}
+    <div>
+    <h1>Import / export</h1>
+    <p class="lede">Move your settings to another computer, or into the headless edition, in one file. Results, the worklist, router run history, HL7 drafts and logs are never included, because they can contain patient data.</p>
+    </div>
+  </div>
+</header>
+
+{% if flash %}<div class="flash {{ 'ok' if flash_ok else 'fail' }}">{{ flash }}</div>{% endif %}
+
+<section class="panel step">
+  <header class="panel-head">
+    <h2 class="step-title">Export</h2>
+  </header>
+  <form autocomplete="off" method="post" action="{{ href(base ~ '/export') }}">
+    <p class="hint">Choose what goes in the file.</p>
+    {% for section in sections %}
+    <label class="checkline">
+      <input type="checkbox" name="section" value="{{ section }}"{% if section in export_checked %} checked{% endif %}>
+      {{ labels[section] }} <span class="muted">· {{ counts[section] }}{% if section == 'local' %} set{% endif %}</span>
+    </label>
+    {% endfor %}
+    <p class="hint">The file lists your PACS hosts, ports and AE titles but no passwords. Treat it as internal. Local AE settings belong to one computer, so they are off by default. Saved queries are off by default because a query may hold a patient ID or name you typed as a filter. Router rules are exported without their run history.</p>
+    <div class="form-actions">
+      <button class="button primary" type="submit">Download settings file</button>
+    </div>
+  </form>
+</section>
+
+<section class="panel step">
+  <header class="panel-head">
+    <h2 class="step-title">Import</h2>
+  </header>
+  <form autocomplete="off" method="post" action="{{ href(base ~ '/preview') }}" enctype="multipart/form-data">
+    <p class="hint">Choose a settings file from Export. You see what would change before anything is written, and nothing is ever deleted: records are added, or updated when the id or the name matches one you already have.</p>
+    <input type="file" name="file" accept=".json,application/json" aria-label="Settings file" required>
+    <p class="hint">Up to {{ max_mb }} MB.</p>
+    <div class="form-actions">
+      <button class="button" type="submit">Check the file</button>
+    </div>
+  </form>
+</section>
+
+{% if preview %}
+<form autocomplete="off" method="post" action="{{ href(base ~ '/apply') }}" class="step-flow">
+  <input type="hidden" name="token" value="{{ preview.token }}">
+  <section class="panel step">
+    <header class="panel-head">
+      <h2 class="step-title">What importing <code>{{ preview.filename }}</code> would do</h2>
+      <span class="muted">{% if preview.parsed.app_version %}made by v{{ preview.parsed.app_version }}{% endif %}{% if preview.parsed.exported_at %} · {{ preview.parsed.exported_at[:10] }}{% endif %}</span>
+    </header>
+    {% for problem in preview.plan.problems %}<p class="import-warning is-warn">{{ problem }}</p>{% endfor %}
+    {% for warning in preview.plan.warnings %}<p class="import-warning is-warn">{{ warning }}</p>{% endfor %}
+    {% for group in preview.groups %}
+    <fieldset class="import-patient">
+      <legend>
+        <label class="checkline">
+          <input type="checkbox" name="section" value="{{ group.section }}"{% if group.section in preview.checked %} checked{% endif %}>
+          {{ group.label }}
+        </label>
+      </legend>
+      <div class="table-wrap">
+        <table class="import-table">
+          <tbody>
+            {% for item in group.rows %}
+            <tr>
+              <td>{{ item.name }}{% if item.detail %}<div class="muted small">{{ item.detail }}</div>{% endif %}</td>
+              <td class="nowrap">
+                {% if item.action == ADD %}<span class="badge ok">New</span>
+                {% elif item.action == UPDATE %}<span class="badge">Update</span>
+                {% else %}<span class="muted small">Already the same</span>{% endif %}
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% if group.section == 'local' %}<p class="hint">This replaces this computer's own AE title, port and listener settings. Leave it unticked unless that is what you want.</p>{% endif %}
+    </fieldset>
+    {% endfor %}
+    <p class="hint">Only the ticked parts are imported. A rule you already have keeps its running state, as when you edit it; new rules start stopped.</p>
+    <div class="form-actions">
+      <button class="button primary" type="submit">Import the ticked parts</button>
+      <button class="button" type="submit" formaction="{{ href(base ~ '/cancel') }}" formnovalidate>Cancel</button>
+    </div>
+  </section>
+</form>
+{% endif %}
+{% endblock %}
