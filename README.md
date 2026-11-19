@@ -56,6 +56,12 @@ Synthetic lab studies (not clinical data). Light theme, in the arnout.pro "Readi
 
 ![HL7 send with an ORM order update and Change existing order set to SC](docs/screenshots/hl7-send.webp)
 
+## What's new in 0.10.12
+
+Details in [CHANGELOG.md](CHANGELOG.md#01012).
+
+- **DICOM Import** (Dicommunication > DIMSE): scan a folder for a DICOMDIR and/or DICOM files, see what is in it, change patient and exam details, and send the images to a PACS. Nothing is stored; edits are applied while sending.
+
 ## What's new in 0.10.11
 
 Details in [CHANGELOG.md](CHANGELOG.md#01011).
@@ -181,6 +187,7 @@ And in 0.5.1 ([CHANGELOG.md](CHANGELOG.md#051)):
 ## Contents
 
 - [Screenshots](#screenshots)
+- [What's new in 0.10.12](#whats-new-in-01012)
 - [What's new in 0.10.11](#whats-new-in-01011)
 - [What's new in 0.10.10](#whats-new-in-01010)
 - [What's new in 0.10.9](#whats-new-in-0109)

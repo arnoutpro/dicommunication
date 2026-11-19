@@ -52,6 +52,7 @@ def test_tools_grouped_by_category() -> None:
         "c-find-advanced",
         "mwl-find",
         "send-image",
+        "dicom-import",
         "tag-editor",
         "anonymize",
         "dicom-cleaner",

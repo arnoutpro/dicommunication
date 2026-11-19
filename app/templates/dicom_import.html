@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}{{ tool.name }} · {{ product_name }}{% endblock %}
+{% block content %}
+<header class="page-head">
+  <div class="page-head-hero">
+    {% include "partials/page_icon.html" %}
+    <div>
+    <h1>{{ tool.name }}</h1>
+    <p class="lede">{{ tool.description }}</p>
+    </div>
+  </div>
+</header>
+
+<div data-import-page>
+{% if session or expired %}
+  {% include "partials/import_body.html" %}
+{% else %}
+  {% if flash %}<div class="flash fail">{{ flash }}</div>{% endif %}
+  <form autocomplete="off" class="step-flow" method="post" action="{{ href(base ~ '/scan') }}">
+    <section class="panel step">
+      <header class="panel-head">
+        <h2 class="step-title"><span class="step-num" aria-hidden="true">1</span>Choose the folder</h2>
+      </header>
+      <p class="hint">A folder on the computer this app runs on. It can hold a <code>DICOMDIR</code> (a CD or DVD export), loose DICOM files, or both, with any number of sub-folders. The files are only read, never changed.</p>
+      <div class="input-with-action">
+        <input name="folder" value="{{ folder }}" placeholder="D:\ or C:\exports\study or /data/dicom" spellcheck="false" required aria-label="Folder with DICOM files" data-import-folder>
+        <button type="button" class="button" data-import-browse title="Browse for a folder on this computer"{% if not dialogs_available %} disabled{% endif %}>…</button>
+      </div>
+      <p class="hint" data-import-browse-status hidden></p>
+      <label class="checkline">
+        <input type="checkbox" name="include_headerless"{% if include_headerless %} checked{% endif %}>
+        Also try files that lack the standard DICOM marker (old or stripped files)
+      </label>
+      <div class="form-actions">
+        <button class="button primary" type="submit">Scan folder</button>
+      </div>
+    </section>
+    <ol class="pending-steps" aria-label="Next steps">
+      {% for title in ["What was found", "Review and change details", "Send to the PACS"] %}
+      <li class="step is-pending"><span class="step-num" aria-hidden="true">{{ loop.index + 1 }}</span><span>{{ title }}</span></li>
+      {% endfor %}
+    </ol>
+  </form>
+{% endif %}
+</div>
+{% endblock %}

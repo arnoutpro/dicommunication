@@ -12,10 +12,11 @@ from fastapi.staticfiles import StaticFiles
 
 from app import __version__
 from app.applog import configure as configure_logging, log, should_skip_http_log
+from app.import_session import ImportSessions
 from app.mwl_scp import WorklistSCP
 from app.paths import package_dir
 from app.router_scheduler import RouterScheduler
-from app.routes import anonymize, api, cleaner, config, echo_board, lite, logs, misc, route_rules, send_image, testbench, tools, worklist
+from app.routes import anonymize, api, cleaner, config, dicom_import, echo_board, lite, logs, misc, route_rules, send_image, testbench, tools, worklist
 from app.security import SecurityMiddleware
 from app.store import ConfigStore
 
@@ -96,6 +97,7 @@ def create_app(store: ConfigStore | None = None) -> FastAPI:
     app.state.store = store
     app.state.mwl_scp = scp
     app.state.router_scheduler = router_scheduler
+    app.state.import_sessions = ImportSessions()
     static_dir = BASE_DIR / "static"
     if static_dir.exists():
         app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
@@ -145,6 +147,7 @@ def create_app(store: ConfigStore | None = None) -> FastAPI:
     app.include_router(anonymize.router)
     app.include_router(cleaner.router)
     app.include_router(send_image.router)
+    app.include_router(dicom_import.router)
     app.include_router(tools.router)
     app.include_router(api.router)
 

@@ -1,0 +1,245 @@
+{# DICOM Import: everything below the page header. Polls itself while a scan or send runs. #}
+{% macro field(f) %}
+<label>
+  {{ f.label }}
+  {% if f.name == 'sex' %}
+  <select name="{{ f.field }}"{% if f.error %} aria-invalid="true"{% endif %}>
+    {% for value, text in view.sex_choices %}
+    <option value="{{ value }}"{% if f.value == value %} selected{% endif %}>{{ text }}</option>
+    {% endfor %}
+  </select>
+  {% else %}
+  <input name="{{ f.field }}" value="{{ f.value }}" placeholder="{{ f.placeholder }}" spellcheck="false" autocomplete="off"{% if f.error %} aria-invalid="true"{% endif %}>
+  {% endif %}
+  {% if f.error %}<span class="field-error">{{ f.error }}</span>{% endif %}
+</label>
+{% endmacro %}
+
+{% set sid = session.id if session else '' %}
+<div id="import-body"{% if session and busy %} hx-get="{{ href(base ~ '/' ~ sid ~ '/body') }}" hx-trigger="every 1s" hx-swap="outerHTML"{% endif %}>
+
+{% if expired or not session %}
+<div class="flash fail">{{ flash or 'This import has expired.' }} <a href="{{ href(base) }}">Start again</a></div>
+{% else %}
+
+{% if flash %}<div class="flash {{ 'ok' if flash_ok else 'fail' }}">{{ flash }}</div>{% endif %}
+
+<section class="panel step">
+  <header class="panel-head">
+    <h2 class="step-title"><span class="step-num" aria-hidden="true">1</span>Folder</h2>
+    <form method="post" action="{{ href(base ~ '/' ~ sid ~ '/discard') }}" class="inline" data-confirm="Start over? What was scanned is dropped; the files stay where they are.">
+      <button type="submit" class="link-button">Start over</button>
+    </form>
+  </header>
+  <p><code>{{ session.folder }}</code>{% if session.include_headerless %} <span class="muted small">· also tried files without the DICOM marker</span>{% endif %}</p>
+</section>
+
+{# ---- scanning ---- #}
+{% if state == 'scanning' %}
+<section class="panel step">
+  <header class="panel-head">
+    <h2 class="step-title"><span class="step-num" aria-hidden="true">2</span>Scanning…</h2>
+  </header>
+  <p><strong>{{ session.scan_progress.files_seen }}</strong> files looked at · <strong>{{ session.scan_progress.dicom_files }}</strong> DICOM files found</p>
+  <p class="hint import-current">{{ session.scan_progress.current }}</p>
+  <form method="post" action="{{ href(base ~ '/' ~ sid ~ '/cancel') }}" hx-post="{{ href(base ~ '/' ~ sid ~ '/cancel') }}" hx-target="#import-body" hx-swap="outerHTML">
+    <button class="button" type="submit">Stop</button>
+  </form>
+</section>
+
+{# ---- could not scan ---- #}
+{% elif state == FAILED %}
+<div class="flash fail">{{ session.error }}</div>
+<p><a class="button" href="{{ href(base) }}">Choose another folder</a></p>
+
+{# ---- scanned: summary, then the form or the progress ---- #}
+{% else %}
+<section class="panel step">
+  <header class="panel-head">
+    <h2 class="step-title"><span class="step-num" aria-hidden="true">2</span>What was found</h2>
+    <span class="muted">scanned in {{ scan.seconds }} s</span>
+  </header>
+  {% if scan.instance_count %}
+  <p class="import-totals">
+    <span><strong>{{ scan.patients | length }}</strong> patient{{ '' if scan.patients | length == 1 else 's' }}</span>
+    <span><strong>{{ scan.studies() | length }}</strong> stud{{ 'y' if scan.studies() | length == 1 else 'ies' }}</span>
+    <span><strong>{{ scan.series_count }}</strong> series</span>
+    <span><strong>{{ scan.instance_count }}</strong> image{{ '' if scan.instance_count == 1 else 's' }}</span>
+    <span><strong>{{ scan.size | human_size }}</strong></span>
+    <span>{% if scan.dicomdirs %}DICOMDIR found{% else %}no DICOMDIR{% endif %}</span>
+  </p>
+  {% endif %}
+  {% for w in scan.warnings %}
+  <p class="import-warning is-{{ w.level }}">{{ w.text }}</p>
+  {% endfor %}
+  {% if scan.instance_count %}
+  <details class="import-formats">
+    <summary class="muted small">Image formats in the folder</summary>
+    <ul>
+      {% for uid, count in scan.transfer_syntaxes().items() %}
+      <li>{{ count }} × {{ uid | uid_name }}</li>
+      {% endfor %}
+    </ul>
+  </details>
+  <div class="table-wrap">
+    <table class="import-table">
+      <thead>
+        <tr><th>Patient</th><th>Study date</th><th>Description</th><th>Accession</th><th>Modality</th><th>Series</th><th>Images</th><th>Size</th></tr>
+      </thead>
+      <tbody>
+        {% for patient in scan.patients.values() %}
+        {% for study in patient.studies.values() %}
+        <tr>
+          <td>{{ patient.name or '(no name)' }}<div class="muted small">{{ patient.patient_id or 'no patient ID' }}{% if patient.birth_date %} · born {{ patient.birth_date | pretty_date }}{% endif %}{% if patient.sex %} · {{ patient.sex }}{% endif %}</div></td>
+          <td>{{ study.date | pretty_date }}</td>
+          <td>{{ study.description }}</td>
+          <td>{{ study.accession }}</td>
+          <td>{{ study.modalities | join(', ') }}</td>
+          <td>
+            <details>
+              <summary>{{ study.series | length }}</summary>
+              <ul class="import-series">
+                {% for series in study.series.values() %}
+                <li>{% if series.number is not none %}#{{ series.number }} {% endif %}{{ series.modality }}{% if series.description %} · {{ series.description }}{% endif %}{% if series.body_part %} · {{ series.body_part }}{% endif %} — {{ series.instances | length }} image{{ '' if series.instances | length == 1 else 's' }}</li>
+                {% endfor %}
+              </ul>
+            </details>
+          </td>
+          <td>{{ study.instance_count }}</td>
+          <td class="nowrap">{{ study.size | human_size }}</td>
+        </tr>
+        {% endfor %}
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+</section>
+
+{% if scan.instance_count and state == READY %}
+{# ---- review, change, send ---- #}
+<form autocomplete="off" class="step-flow" method="post" action="{{ href(base ~ '/' ~ sid ~ '/send') }}" hx-post="{{ href(base ~ '/' ~ sid ~ '/send') }}" hx-target="#import-body" hx-swap="outerHTML" data-import-form>
+  <section class="panel step">
+    <header class="panel-head">
+      <h2 class="step-title"><span class="step-num" aria-hidden="true">3</span>Review and change details</h2>
+      <span class="muted">optional</span>
+    </header>
+    <p class="hint">Change anything that is wrong, such as a patient ID or an accession number. Only the fields you change are written, and only while the images are sent: the files on disk are never modified. Untick a study to leave it out.</p>
+    <p class="import-toolbar">
+      <button type="button" class="button compact" data-import-select="all">Select all studies</button>
+      <button type="button" class="button compact" data-import-select="none">Select none</button>
+    </p>
+    {% for p in view.patients %}
+    <fieldset class="import-patient">
+      <legend>{{ p.patient.name or '(no name)' }} <span class="muted">· {{ p.patient.patient_id or 'no patient ID' }}</span></legend>
+      <div class="form-grid import-fields">
+        {% for f in p.fields %}{{ field(f) }}{% endfor %}
+      </div>
+      {% for s in p.studies %}
+      <div class="import-study">
+        <label class="checkline import-study-head">
+          <input type="checkbox" name="send_study" value="{{ s.uid }}"{% if s.selected %} checked{% endif %} data-import-study>
+          Send this study <span class="muted">· {{ s.study.modalities | join(', ') }} · {{ s.study.series | length }} series · {{ s.study.instance_count }} image{{ '' if s.study.instance_count == 1 else 's' }} · {{ s.study.size | human_size }}</span>
+        </label>
+        <div class="form-grid import-fields">
+          {% for f in s.fields %}{{ field(f) }}{% endfor %}
+        </div>
+      </div>
+      {% endfor %}
+    </fieldset>
+    {% endfor %}
+  </section>
+
+  <section class="panel step">
+    <header class="panel-head">
+      <h2 class="step-title"><span class="step-num" aria-hidden="true">4</span>Send to the PACS</h2>
+      <span class="muted">Calling AE {{ config.local.ae_title }}</span>
+    </header>
+    {% if config.remotes %}
+    <div class="form-grid">
+      <label>
+        Send to
+        <select name="remote_id" required>
+          {% for remote in config.remotes %}
+          <option value="{{ remote.id }}"{% if remote.id == remote_id %} selected{% endif %}>{{ remote.name }} — {{ remote.ae_title }} @ {{ remote.connect_host }}:{{ remote.port }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      {% include "partials/identity_select.html" %}
+    </div>
+    <label class="checkline">
+      <input type="checkbox" name="new_uids"{% if new_uids %} checked{% endif %}>
+      Give the studies, series and images new UIDs
+    </label>
+    <p class="hint">Use this when the PACS may already hold these studies and they must not merge with or overwrite them. Links between images, such as a report pointing at its images, follow the new UIDs. Leave it off to import them as they are.</p>
+    <label class="checkline">
+      <input type="checkbox" name="decompress"{% if decompress %} checked{% endif %}>
+      Decompress an image the PACS does not accept in its own format
+    </label>
+    <div class="form-actions">
+      <button class="button" type="submit" formaction="{{ href(base ~ '/' ~ sid ~ '/check') }}" hx-post="{{ href(base ~ '/' ~ sid ~ '/check') }}">Check changes</button>
+      <button class="button primary" type="submit">Send to the PACS</button>
+    </div>
+    {% else %}
+    <div class="empty">
+      <strong>Add a remote DICOM node first</strong>
+      <p>Sending needs a PACS to send to. <a href="{{ href('/config/remotes') }}">Add one on Remote nodes</a>.</p>
+    </div>
+    {% endif %}
+  </section>
+</form>
+
+{% elif session.send_progress %}
+{# ---- sending or sent ---- #}
+{% set sp = session.send_progress %}
+<section class="panel step">
+  <header class="panel-head">
+    <h2 class="step-title"><span class="step-num" aria-hidden="true">4</span>{% if state == 'sending' %}Sending to {{ session.send_target }}…{% else %}Result{% endif %}</h2>
+    {% if state == DONE %}<span class="muted">{{ sp.seconds }} s · sent to {{ session.send_target }}</span>{% endif %}
+  </header>
+  <progress class="import-progress" max="{{ sp.total or 1 }}" value="{{ sp.finished }}"></progress>
+  <p class="import-totals">
+    <span><strong>{{ sp.stored }}</strong> of {{ sp.total }} sent</span>
+    {% if sp.warnings %}<span><strong>{{ sp.warnings }}</strong> with a PACS warning</span>{% endif %}
+    {% if sp.decompressed %}<span><strong>{{ sp.decompressed }}</strong> decompressed</span>{% endif %}
+    {% if sp.failed %}<span class="is-bad"><strong>{{ sp.failed }}</strong> failed</span>{% endif %}
+    {% if sp.not_attempted %}<span class="is-bad"><strong>{{ sp.not_attempted }}</strong> not sent</span>{% endif %}
+    <span>{{ sp.bytes_sent | human_size }}</span>
+  </p>
+  {% if state == 'sending' %}
+  <p class="hint import-current">{{ sp.current }}</p>
+  <form method="post" action="{{ href(base ~ '/' ~ sid ~ '/cancel') }}" hx-post="{{ href(base ~ '/' ~ sid ~ '/cancel') }}" hx-target="#import-body" hx-swap="outerHTML">
+    <button class="button" type="submit">Stop</button>
+  </form>
+  {% else %}
+  {% if sp.message %}<div class="flash fail">{{ sp.message }}</div>{% endif %}
+  {% if sp.cancelled %}<div class="flash fail">Stopped before everything was sent.</div>{% endif %}
+  {% if sp.ok %}<div class="flash ok">All {{ sp.stored }} image{{ '' if sp.stored == 1 else 's' }} were stored.{% if session.edits.changed_count() %} {{ session.edits.changed_count() }} detail change{{ '' if session.edits.changed_count() == 1 else 's' }} applied.{% endif %}{% if session.edits.new_uids %} New UIDs were assigned.{% endif %}</div>{% endif %}
+  {% if sp.failures %}
+  <div class="table-wrap">
+    <table class="import-table">
+      <thead><tr><th>File</th><th>Reason</th></tr></thead>
+      <tbody>
+        {% for f in sp.failures %}
+        <tr><td><code>{{ relative(f.path) }}</code></td><td>{{ f.reason }}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% if sp.failed > sp.failures | length %}<p class="hint">Showing the first {{ sp.failures | length }} of {{ sp.failed }} failures.</p>{% endif %}
+  {% endif %}
+  <div class="form-actions">
+    <form method="post" action="{{ href(base ~ '/' ~ sid ~ '/again') }}" hx-post="{{ href(base ~ '/' ~ sid ~ '/again') }}" hx-target="#import-body" hx-swap="outerHTML" class="inline">
+      <button class="button" type="submit">Change and send again</button>
+    </form>
+    <form method="post" action="{{ href(base ~ '/' ~ sid ~ '/discard') }}" class="inline">
+      <button class="button primary" type="submit">Done, start over</button>
+    </form>
+  </div>
+  {% endif %}
+</section>
+{% endif %}
+
+{% endif %}
+{% endif %}
+</div>
