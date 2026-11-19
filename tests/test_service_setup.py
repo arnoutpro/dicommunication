@@ -1,4 +1,4 @@
-"""The Windows service edition's setup step (app/service_setup.py)."""
+"""The Windows headless edition's setup step (app/service_setup.py)."""
 
 from __future__ import annotations
 
@@ -125,7 +125,7 @@ def test_uninstall_cleanup_for_the_service_targets_programdata(monkeypatch, tmp_
     assert purged == [None]
 
 
-# --- packaging: the service edition's installer pieces -----------------------
+# --- packaging: the headless edition's installer pieces -----------------------
 
 import hashlib
 import importlib.util
@@ -179,7 +179,7 @@ def test_winsw_pin_is_a_sha256_and_a_version() -> None:
 
 def test_service_installer_replaces_the_desktop_one_and_matches_its_version_rules() -> None:
     product = (ROOT / "packaging" / "windows" / "Product.wxs").read_text(encoding="utf-8")
-    service = (ROOT / "packaging" / "windows" / "Service.wxs").read_text(encoding="utf-8")
+    service = (ROOT / "packaging" / "windows" / "Headless.wxs").read_text(encoding="utf-8")
     code = re.search(r'UpgradeCode="([^"]+)"', product).group(1)
     assert f'UpgradeCode="{code}"' in service  # installing one replaces the other
     from app import __version__
@@ -191,7 +191,7 @@ def test_service_installer_replaces_the_desktop_one_and_matches_its_version_rule
 
 
 def test_service_installer_settings_agree_with_the_setup_step() -> None:
-    service = (ROOT / "packaging" / "windows" / "Service.wxs").read_text(encoding="utf-8")
+    service = (ROOT / "packaging" / "windows" / "Headless.wxs").read_text(encoding="utf-8")
     assert f'Name="{ss.SERVICE_NAME}"' in service
     assert ss.SERVICE_XML_NAME in service
     assert f"--port [PORT] --listen {ss.LISTEN_LOCAL}" in service and f"--port [PORT] --listen {ss.LISTEN_NETWORK}" in service
@@ -204,7 +204,7 @@ def test_service_installer_settings_agree_with_the_setup_step() -> None:
 
 def test_workflow_builds_and_publishes_the_service_msi() -> None:
     workflow = (ROOT / ".github" / "workflows" / "windows-msi.yml").read_text(encoding="utf-8")
-    assert "fetch_winsw.py" in workflow and "Service.wxs" in workflow
-    assert "dicommunication-service-" in workflow
-    # The desktop artifact must not pick the service MSI up by accident.
+    assert "fetch_winsw.py" in workflow and "Headless.wxs" in workflow
+    assert "dicommunication-headless-" in workflow and "dicommunication-service-" not in workflow
+    # The desktop artifact must not pick the headless MSI up by accident.
     assert "dist/dicommunication-[0-9]*-win64.msi" in workflow

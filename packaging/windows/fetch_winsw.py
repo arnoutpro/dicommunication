@@ -1,4 +1,4 @@
-"""Fetch WinSW, the small service host the Windows service edition wraps around
+"""Fetch WinSW, the small service host the Windows headless edition wraps around
 dicommunication.exe, and stage it as ``dicommunication-service.exe``.
 
 WinSW is MIT licensed (see WinSW-LICENSE.txt). It is downloaded from NuGet and

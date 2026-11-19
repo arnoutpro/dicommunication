@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <?ifndef ProductVersion ?>
-<?define ProductVersion = "0.10.10" ?>
+<?define ProductVersion = "0.10.11" ?>
 <?endif?>
 <!--
-  Dicommunication, service edition.
+  Dicommunication, headless edition.
 
   The same program as Product.wxs, but installed as a Windows service instead of
   a desktop app: it starts with Windows, needs nobody logged in, has no window,
@@ -33,13 +33,13 @@
      xmlns:util="http://wixtoolset.org/schemas/v4/wxs/util"
      xmlns:fw="http://wixtoolset.org/schemas/v4/wxs/firewall">
   <Package
-      Name="Arnout.pro Dicommunication Tool (service)"
+      Name="Arnout.pro Dicommunication Tool (headless)"
       Manufacturer="Arnout.pro"
       Version="$(var.ProductVersion)"
       UpgradeCode="8f3c2a91-6d4e-4b17-9e5a-1c7d0f8a2b63"
       Language="1033"
       Scope="perMachine">
-    <SummaryInformation Description="Dicommunication as a Windows service, opened in the browser" />
+    <SummaryInformation Description="Dicommunication running in the background (headless), opened in the browser" />
     <MajorUpgrade
         DowngradeErrorMessage="A newer version of Dicommunication is already installed."
         AllowSameVersionUpgrades="yes" />
@@ -128,8 +128,8 @@
       </Component>
     </ComponentGroup>
 
-    <Feature Id="Dicommunication" Title="Dicommunication service" Level="1"
-        Description="Dicommunication as a Windows service: starts with Windows, no window, opened in the browser.">
+    <Feature Id="Dicommunication" Title="Dicommunication (headless)" Level="1"
+        Description="Dicommunication running headless: starts with Windows, no window, opened in the browser.">
       <ComponentGroupRef Id="AppFiles" />
       <ComponentGroupRef Id="ServiceHost" />
       <ComponentGroupRef Id="Shortcuts" />
@@ -171,7 +171,7 @@
     <UI>
       <Dialog Id="ServiceSettingsDlg" Width="370" Height="270" Title="!(loc.InstallDirDlg_Title)">
         <Control Id="Title" Type="Text" X="15" Y="6" Width="340" Height="15" Transparent="yes" NoPrefix="yes"
-                 Text="{\WixUI_Font_Title}Service settings" />
+                 Text="{\WixUI_Font_Title}Port and network settings" />
         <Control Id="Description" Type="Text" X="25" Y="23" Width="340" Height="15" Transparent="yes" NoPrefix="yes"
                  Text="Dicommunication runs in the background and opens in your web browser." />
         <Control Id="BannerLine" Type="Line" X="0" Y="44" Width="370" Height="0" />

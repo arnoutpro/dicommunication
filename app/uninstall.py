@@ -65,7 +65,7 @@ def purge_data_dir(path: Path | None = None) -> None:
 
 
 def run_uninstall_cleanup(service: bool = False) -> int:
-    """``service``: the service edition, whose data lives in ProgramData."""
+    """``service``: the headless edition, whose data lives in ProgramData."""
     if confirm_purge_data():
         if service:
             purge_data_dir(service_data_dir())
