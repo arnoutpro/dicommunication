@@ -162,12 +162,21 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help=argparse.SUPPRESS,  # Windows MSI uninstall hook, not a user-facing flag.
     )
+    # Windows service edition (packaging/windows/Service.wxs): not user-facing flags.
+    parser.add_argument("--configure-service", action="store_true", help=argparse.SUPPRESS)
+    parser.add_argument("--service-data", action="store_true", help=argparse.SUPPRESS)
+    parser.add_argument("--listen", choices=("local", "network"), default="local", help=argparse.SUPPRESS)
     args = parser.parse_args(argv)
+
+    if args.configure_service:
+        from app.service_setup import run_configure
+
+        return run_configure(args.port, args.listen)
 
     if args.uninstall_cleanup:
         from app.uninstall import run_uninstall_cleanup
 
-        return run_uninstall_cleanup()
+        return run_uninstall_cleanup(service=True) if args.service_data else run_uninstall_cleanup()
 
     apply_runtime_env()
     redirect_frozen_stdio()

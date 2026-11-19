@@ -56,6 +56,12 @@ Synthetic lab studies (not clinical data). Light theme, in the arnout.pro "Readi
 
 ![HL7 send with an ORM order update and Change existing order set to SC](docs/screenshots/hl7-send.webp)
 
+## What's new in 0.10.10
+
+Details in [CHANGELOG.md](CHANGELOG.md#01010).
+
+- **Windows service edition**: a second installer that runs Dicommunication in the background as a Windows service, opened in the browser. You choose the port in the wizard; it listens on this computer only unless you tick the network option. See [packaging/windows](packaging/windows/README.md).
+
 ## What's new in 0.10.9
 
 Details in [CHANGELOG.md](CHANGELOG.md#0109).
@@ -169,6 +175,7 @@ And in 0.5.1 ([CHANGELOG.md](CHANGELOG.md#051)):
 ## Contents
 
 - [Screenshots](#screenshots)
+- [What's new in 0.10.10](#whats-new-in-01010)
 - [What's new in 0.10.9](#whats-new-in-0109)
 - [What's new in 0.10.8](#whats-new-in-0108)
 - [What's new in 0.10.7](#whats-new-in-0107)

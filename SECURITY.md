@@ -19,6 +19,23 @@ If you need it reachable from more than the machine it runs on, put an
 authenticating reverse proxy in front of it and treat that proxy as the security
 boundary.
 
+## Service edition (Windows)
+
+`dicommunication-service-<version>-win64.msi` runs the same program as a background
+Windows service (see `packaging/windows/README.md`). The threat model above is
+unchanged, and two things matter more because nobody is watching a window:
+
+- **Local only by default.** The service listens on `127.0.0.1`. The installer's
+  "allow other computers" option makes it listen on every interface and opens the
+  Windows Firewall for that port. There is still no login, so anyone who can reach
+  the port can send DICOM, change nodes and read patient data. Use it only on a
+  network you already trust, or put an authenticating reverse proxy in front.
+- **Its data folder.** The service keeps settings, results and logs in
+  `C:\ProgramData\Dicommunication`, which can contain patient data in cleartext.
+  The installer limits that folder to administrators, SYSTEM and the service
+  account (`NT AUTHORITY\LocalService`). It is not deleted on uninstall unless you
+  agree to when asked.
+
 ## Protection against other websites
 
 No login does not mean *anyone* can drive it. The person most likely to reach
