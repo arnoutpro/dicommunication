@@ -2,6 +2,23 @@
 
 ## Unreleased
 
+## 0.10.8
+
+### Send image
+
+- **Modality and Accession number line up**: in step 3 the required marker `*` wrapped onto its own line under Modality, pushing that field down so Accession number sat higher. The marker now stays on the label line.
+
+### Dicomtag Analytics
+
+- **Tamar Patient Class** `(07a3,1013)` is a new Vue / ELSCINT1 key, so a query can return it or match on it (for example `I`). Like the other Vue keys it is off by default.
+
+### Dicom Router
+
+- **The status dashboard lists every rule**: in 0.10.7 a rule only appeared with both an export folder and a status check key, so other rules were silently missing. Tiles now come from each rule's latest run: the count per status for a rule with a status check key, the matched count for one without. No export folder needed.
+- **Run notes no longer blame the PACS for a missing status key**: a rule without a status check key no longer reports "came back without the status value", and no longer shows a "(none)" count.
+- **The status dashboard shows the modality**: under each count, a chip per modality in those studies (`CT 1`, `MR 1`, `DX+SR 3`). A study with several modalities counts once, as its combination, so the chips add up to the number above.
+- **Several modalities read as `DX, SR`** in the matches table, not `['DX', 'SR']`.
+
 ## 0.10.7
 
 ### Dicom Router

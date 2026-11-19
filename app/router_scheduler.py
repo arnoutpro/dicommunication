@@ -27,6 +27,7 @@ from pathlib import Path
 from typing import Any
 
 from pydicom.dataset import Dataset
+from pydicom.multival import MultiValue
 from pynetdicom.sop_class import (
     StudyRootQueryRetrieveInformationModelFind,
     StudyRootQueryRetrieveInformationModelMove,
@@ -140,7 +141,11 @@ def _release(assoc: Any) -> None:
 
 def _text(ds: Dataset, keyword: str) -> str:
     value = getattr(ds, keyword, "")
-    return "" if value is None else str(value).strip()
+    if value is None:
+        return ""
+    if isinstance(value, (list, tuple, MultiValue)):  # e.g. ModalitiesInStudy: DX\\SR
+        return ", ".join(str(part).strip() for part in value if str(part).strip())
+    return str(value).strip()
 
 
 def _date_query(rule: RouteRule) -> str:
@@ -524,6 +529,7 @@ class RouterScheduler:
         remote = config.get_remote(rule.source_remote_id)
         run = RouteRun(rule_id=rule.id, rule_name=rule.name, started_at=now)
         status_counts: dict[str, int] = {}
+        modality_counts: dict[str, dict[str, int]] = {}
         run.query_sent, run.skipped_keys = query_summary(rule)
         interrupted = bool(interrupt is not None and interrupt.is_set())
 
@@ -547,14 +553,18 @@ class RouterScheduler:
                         "accession_number": _text(ds, "AccessionNumber"),
                         "modality": _text(ds, "ModalitiesInStudy"),
                         "study_description": _text(ds, "StudyDescription"),
-                        "status": (_read_key(ds, rule.status_key) if rule.status_key else "") or "(none)",
+                        "status": (_read_key(ds, rule.status_key) or "(none)") if rule.status_key else "",
                     }
                     for ds in study_datasets
                     if _text(ds, "StudyInstanceUID")
                 ]
                 run.matched_count = len(studies)
                 for study in studies:
-                    status_counts[study["status"]] = status_counts.get(study["status"], 0) + 1
+                    kind = "+".join(part.strip() for part in study["modality"].split(",") if part.strip()) or "Unknown"
+                    bucket = modality_counts.setdefault(study["status"], {})
+                    bucket[kind] = bucket.get(kind, 0) + 1
+                    if rule.status_key:
+                        status_counts[study["status"]] = status_counts.get(study["status"], 0) + 1
                 new_studies = [s for s in studies if not rule.has_seen(s["study_instance_uid"])]
 
                 destinations = [
@@ -603,6 +613,7 @@ class RouterScheduler:
 
         run.duration_ms = (time.perf_counter() - started) * 1000
         run.status_counts = dict(sorted(status_counts.items()))
+        run.modality_counts = {label: dict(sorted(kinds.items())) for label, kinds in sorted(modality_counts.items())}
         if rule.export_dir and rule.status_key and run.status != "interrupted":
             write_status_snapshot(rule, run, now, status_counts)
         rule.last_run_at = now

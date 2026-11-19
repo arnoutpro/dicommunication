@@ -1,43 +1,48 @@
-"""Read the status files a Router rule writes (see router_scheduler.write_status_snapshot)
-for the /lite dashboard. Nothing is stored; every request re-reads the files."""
+"""Tiles for the /lite dashboard, built from each rule's newest run.
+
+The run history already holds what a tile needs (ok, error, counts, time), so
+the dashboard needs no export folder and lists every rule."""
 
 from __future__ import annotations
 
-import json
 from datetime import datetime, timezone
-from pathlib import Path
+
+from app.models import RouteRule, RouteRun
 
 STALE_AFTER_INTERVALS = 2.5
 DEFAULT_INTERVAL_MINUTES = 5
 DAILY_INTERVAL_MINUTES = 25 * 60
 
 
-def read_status_file(path: Path, rule_name: str, rule_status: str = "active",
-                     daily: bool = False, now: datetime | None = None) -> dict:
-    """One dashboard tile. ``state`` is ok / error / stale / waiting / unreadable."""
+def tile_for_rule(rule: RouteRule, run: RouteRun | None, now: datetime | None = None) -> dict:
+    """One dashboard tile. ``state`` is ok / error / stale / waiting."""
     now = now or datetime.now(timezone.utc)
-    base = {"rule_name": rule_name, "rule_status": rule_status}
-    if not path.is_file():
+    base = {"rule_name": rule.name, "rule_status": rule.status}
+    if run is None:
         return {**base, "state": "waiting"}
-    try:
-        data = json.loads(path.read_text(encoding="utf-8"))
-        checked = datetime.fromisoformat(data["checked_at"])
-        if checked.tzinfo is None:
-            checked = checked.replace(tzinfo=timezone.utc)
-    except (OSError, ValueError, KeyError, TypeError):
-        return {**base, "state": "unreadable"}
-    interval = data.get("interval_minutes") or (DAILY_INTERVAL_MINUTES if daily else DEFAULT_INTERVAL_MINUTES)
-    age = (now - checked).total_seconds()
+    started = run.started_at if run.started_at.tzinfo else run.started_at.replace(tzinfo=timezone.utc)
+    if rule.schedule_mode == "interval":
+        interval = rule.interval_minutes
+    else:
+        interval = DAILY_INTERVAL_MINUTES
+    age = (now - started).total_seconds()
     if age > interval * 60 * STALE_AFTER_INTERVALS:
         state = "stale"
     else:
-        state = "ok" if data.get("ok") else "error"
+        state = "ok" if run.ok else "error"
+    if rule.status_key:
+        by_status = dict(run.status_counts)
+        modalities = dict(run.modality_counts)
+    else:
+        by_status = {"Matched": run.matched_count}
+        modalities = {"Matched": run.modality_counts.get("", {})}
     return {
         **base,
         "state": state,
-        "checked_at": data["checked_at"],
+        "checked_at": started.isoformat(),
         "age_seconds": int(age),
-        "total": data.get("total", 0),
-        "by_status": data.get("by_status", {}),
-        "error": data.get("error", ""),
+        "total": run.matched_count,
+        "by_status": by_status,
+        "modalities": modalities,
+        "error": run.error,
     }

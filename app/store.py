@@ -432,6 +432,20 @@ class ConfigStore:
             runs = [run for run in runs if run.rule_id == rule_id]
         return runs[:limit]
 
+    def latest_route_runs(self) -> dict[str, RouteRun]:
+        """Each rule's newest run, parsing only those (the history can be large)."""
+        with self._lock:
+            raw = self._load_route_runs_unlocked()
+        latest: dict[str, RouteRun] = {}
+        for item in raw:  # stored newest first
+            rule_id = item.get("rule_id") if isinstance(item, dict) else None
+            if rule_id and rule_id not in latest:
+                try:
+                    latest[rule_id] = RouteRun.model_validate(item)
+                except ValueError:
+                    continue
+        return latest
+
     def _load_unlocked(self) -> AppConfig:
         if not self.config_path.exists():
             config = AppConfig()

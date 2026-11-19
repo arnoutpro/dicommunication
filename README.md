@@ -56,6 +56,13 @@ Synthetic lab studies (not clinical data). Light theme, in the arnout.pro "Readi
 
 ![HL7 send with an ORM order update and Change existing order set to SC](docs/screenshots/hl7-send.webp)
 
+## What's new in 0.10.8
+
+Details in [CHANGELOG.md](CHANGELOG.md#0108).
+
+- **The status dashboard lists every Dicom Router rule**, from its latest run, with no export folder needed. Rules without a status check key show their matched count.
+- Run notes and the modality column read correctly for rules without a status check key and for studies with several modalities.
+
 ## What's new in 0.10.7
 
 Details in [CHANGELOG.md](CHANGELOG.md#0107).
@@ -156,6 +163,7 @@ And in 0.5.1 ([CHANGELOG.md](CHANGELOG.md#051)):
 ## Contents
 
 - [Screenshots](#screenshots)
+- [What's new in 0.10.8](#whats-new-in-0108)
 - [What's new in 0.10.7](#whats-new-in-0107)
 - [What's new in 0.10.6](#whats-new-in-0106)
 - [What's new in 0.10.5](#whats-new-in-0105)

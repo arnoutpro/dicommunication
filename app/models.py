@@ -405,6 +405,9 @@ class RouteRun(BaseModel):
     query_sent: dict[str, str] = Field(default_factory=dict)
     skipped_keys: list[str] = Field(default_factory=list)
     status_counts: dict[str, int] = Field(default_factory=dict)
+    # Studies per status (key "" when the rule has no status key), then per
+    # modality combination in the study ("CT", "DX+SR"). Counts only.
+    modality_counts: dict[str, dict[str, int]] = Field(default_factory=dict)
 
 
 class LoggingSettings(BaseModel):

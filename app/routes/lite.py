@@ -1,15 +1,11 @@
-"""Status dashboard: one tile per Router rule that has a status check key and an
-export folder, read from the .status.json file the rule writes each run."""
+"""Status dashboard: one tile per Router rule, from the rule's newest run."""
 
 from __future__ import annotations
-
-from pathlib import Path
 
 from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 
-from app.lite_status import read_status_file
-from app.router_scheduler import status_file_name
+from app.lite_status import tile_for_rule
 from app.routes._shared import templates
 
 router = APIRouter()
@@ -22,12 +18,6 @@ def lite_page(request: Request) -> HTMLResponse:
 
 @router.get("/lite/api/status")
 def lite_status(request: Request) -> JSONResponse:
-    tiles = []
-    for rule in request.app.state.store.list_route_rules():
-        if not (rule.export_dir and rule.status_key):
-            continue
-        path = Path(rule.export_dir).expanduser() / status_file_name(rule)
-        tiles.append(
-            read_status_file(path, rule.name, rule_status=rule.status, daily=rule.schedule_mode == "daily")
-        )
-    return JSONResponse({"tiles": tiles})
+    store = request.app.state.store
+    latest = store.latest_route_runs()
+    return JSONResponse({"tiles": [tile_for_rule(rule, latest.get(rule.id)) for rule in store.list_route_rules()]})
