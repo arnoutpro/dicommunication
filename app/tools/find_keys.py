@@ -13,9 +13,10 @@ import io
 import json
 import re
 from dataclasses import asdict, dataclass
+from functools import lru_cache
 from typing import Any, Iterable, Mapping
 
-from pydicom.datadict import dictionary_VR, tag_for_keyword
+from pydicom.datadict import DicomDictionary, dictionary_VR, tag_for_keyword
 from pydicom.dataset import Dataset
 from pydicom.multival import MultiValue
 from pydicom.tag import Tag
@@ -1057,6 +1058,220 @@ def key_by_keyword(keyword: str) -> FindKey | None:
     return _KEYS_BY_KEYWORD.get(keyword)
 
 
+# --- Any DICOM tag, added by the user -------------------------------------
+#
+# The catalog above is a curated list. On top of it a query can carry "extra"
+# tags: any standard attribute from pydicom's data dictionary (keyword such as
+# PatientAge) or a private vendor tag typed as ``(gggg,eeee)@CREATOR:VR``.
+# They are keyed by that string everywhere a catalog keyword is, so the form,
+# saved queries, Router rules, results and exports all treat them alike.
+
+EXTRA_MAX = 100
+# Not sensibly queryable as a plain C-FIND key: sequences, binary data, tag
+# references. "UN"/"UV"/"SV" are left out for the same reason.
+EXTRA_EXCLUDED_VRS = frozenset({"SQ", "OB", "OD", "OF", "OL", "OV", "OW", "UN", "AT", "UV", "SV", "NONE"})
+EXTRA_PRIVATE_VRS = (
+    "AE", "AS", "CS", "DA", "DS", "DT", "FD", "FL", "IS", "LO", "LT", "PN", "SH", "SL", "SS", "ST", "TM",
+    "UC", "UI", "UL", "UR", "US", "UT",
+)
+_EXCLUDED_KEYWORDS = frozenset({"QueryRetrieveLevel", "SpecificCharacterSet"})
+_EXCLUDED_GROUPS = frozenset({0x0000, 0x0002, 0x7FE0, 0xFFFE})
+_PRIVATE_KEYWORD = re.compile(r"^\(([0-9A-Fa-f]{4}),([0-9A-Fa-f]{4})\)@(.+):([A-Z]{2})$")
+# A tag number: "(0010,1010)", "0010,10" or "00101010". Plain hex-looking words
+# such as "bad" or "face" are searched as names, not read as a group.
+_TAG_QUERY = re.compile(r"^\(?\s*([0-9A-Fa-f]{4})\s*,\s*([0-9A-Fa-f]{0,4})\s*\)?$|^([0-9A-Fa-f]{4})([0-9A-Fa-f]{4})$")
+_VR_PLACEHOLDERS = {
+    "DA": "YYYYMMDD or YYYYMMDD-YYYYMMDD",
+    "TM": "HHMMSS",
+    "DT": "YYYYMMDDHHMMSS",
+    "PN": "SMITH*",
+    "UI": "1.2.840.…",
+    "AS": "030Y",
+    "CS": "VALUE",
+    "US": "number",
+    "UL": "number",
+    "SS": "number",
+    "SL": "number",
+    "IS": "number",
+    "DS": "number",
+    "FL": "number",
+    "FD": "number",
+}
+
+
+@dataclass(frozen=True)
+class DictionaryTag:
+    keyword: str
+    tag: str
+    name: str
+    vr: str
+    vm: str
+    retired: bool
+
+
+def _concrete_vr(vr: str) -> str | None:
+    """pydicom lists some tags as "US or SS"; a query needs one VR."""
+    if vr in EXTRA_EXCLUDED_VRS:
+        return None
+    first = vr.split(" or ")[0].strip()
+    if first in EXTRA_EXCLUDED_VRS or any(part.strip() in {"OB", "OW"} for part in vr.split(" or ")):
+        return None
+    return first or None
+
+
+@lru_cache(maxsize=1)
+def _dictionary_tags() -> tuple[DictionaryTag, ...]:
+    entries: list[DictionaryTag] = []
+    for tag, (vr, vm, name, retired, keyword) in DicomDictionary.items():
+        group, element = tag >> 16, tag & 0xFFFF
+        if not keyword or keyword in _EXCLUDED_KEYWORDS:
+            continue
+        if group in _EXCLUDED_GROUPS or element == 0x0000:
+            continue
+        concrete = _concrete_vr(vr)
+        if concrete is None:
+            continue
+        entries.append(
+            DictionaryTag(
+                keyword=keyword,
+                tag=f"({group:04X},{element:04X})",
+                name=name,
+                vr=concrete,
+                vm=str(vm),
+                retired=bool(retired),
+            )
+        )
+    entries.sort(key=lambda item: item.name.casefold())
+    return tuple(entries)
+
+
+@lru_cache(maxsize=1)
+def _dictionary_by_keyword() -> dict[str, DictionaryTag]:
+    return {item.keyword: item for item in _dictionary_tags()}
+
+
+def private_keyword(group: str, element: str, creator: str, vr: str) -> str:
+    """The key string for a private tag, e.g. ``(07A1,102A)@ELSCINT1:CS``."""
+    return f"({group.upper()},{element.upper()})@{creator.strip()}:{vr.upper()}"
+
+
+@lru_cache(maxsize=4096)
+def lookup_key(keyword: str) -> FindKey | None:
+    """A catalog key, or one made up for an added tag; None if unknown."""
+    key = _KEYS_BY_KEYWORD.get(keyword)
+    if key is not None:
+        return key
+    return _extra_key(keyword)
+
+
+def _extra_key(keyword: str) -> FindKey | None:
+    match = _PRIVATE_KEYWORD.match(keyword)
+    if match:
+        group, element, creator, vr = match.groups()
+        if int(group, 16) % 2 == 0 or vr not in EXTRA_PRIVATE_VRS or not creator.strip():
+            return None
+        return FindKey(
+            keyword=keyword,
+            tag=f"({group.upper()},{element.upper()})",
+            label=f"({group.upper()},{element.upper()}) {creator}",
+            vr=vr,
+            group="extra",
+            levels=LEVELS,
+            placeholder=_VR_PLACEHOLDERS.get(vr, ""),
+            hint=f"Private tag, creator {creator}, type {vr}. The PACS may ignore it.",
+            default_return=False,
+            private_creator=creator,
+        )
+    entry = _dictionary_by_keyword().get(keyword)
+    if entry is None:
+        return None
+    return FindKey(
+        keyword=keyword,
+        tag=entry.tag,
+        label=entry.name,
+        vr=entry.vr,
+        group="extra",
+        levels=LEVELS,
+        placeholder=_VR_PLACEHOLDERS.get(entry.vr, ""),
+        hint=f"{entry.name}, type {entry.vr}{', retired' if entry.retired else ''}. The PACS may ignore it.",
+        default_return=False,
+    )
+
+
+def is_extra_keyword(keyword: str) -> bool:
+    """True for a valid added tag (not one of the curated catalog keys)."""
+    return keyword not in _KEYS_BY_KEYWORD and lookup_key(keyword) is not None
+
+
+def search_dictionary(query: str, limit: int = 50) -> dict[str, Any]:
+    """Search the standard data dictionary by name, keyword or tag number.
+
+    Every word must appear in the name or keyword; a tag number such as
+    ``0010,1010`` or ``0010`` matches by prefix. Catalog keys are returned too,
+    flagged ``in_form``, so the user sees they are already on the form.
+    """
+    text = (query or "").strip()
+    if len(text) < 2:
+        return {"results": [], "total": 0}
+    tag_match = _TAG_QUERY.match(text)
+    words = text.casefold().replace("'", "").split()
+    hits: list[tuple[int, DictionaryTag]] = []
+    for entry in _dictionary_tags():
+        if tag_match:
+            group = (tag_match.group(1) or tag_match.group(3)).upper()
+            element = (tag_match.group(2) if tag_match.group(1) else tag_match.group(4)).upper()
+            if not entry.tag.startswith(f"({group},{element}"):
+                continue
+            rank = 0
+        else:
+            name = entry.name.casefold().replace("'", "")
+            if not all(word in f"{name} {entry.keyword.casefold()}" for word in words):
+                continue
+            joined = " ".join(words)
+            rank = 0 if joined in {name, entry.keyword.casefold()} else 1 if name.startswith(words[0]) else 2
+        hits.append((rank, entry))
+    hits.sort(key=lambda pair: (pair[0], pair[1].name.casefold()))
+    results = [
+        {
+            "keyword": entry.keyword,
+            "tag": entry.tag,
+            "name": entry.name,
+            "vr": entry.vr,
+            "retired": entry.retired,
+            "placeholder": _VR_PLACEHOLDERS.get(entry.vr, ""),
+            "in_form": entry.keyword in _KEYS_BY_KEYWORD,
+        }
+        for _rank, entry in hits[:limit]
+    ]
+    return {"results": results, "total": len(hits)}
+
+
+def extra_rows(keywords: Iterable[str], included: Iterable[str], values: Mapping[str, str]) -> list[dict[str, Any]]:
+    """Form rows for the added tags of a saved query, in order."""
+    included_set = set(included)
+    rows: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    for keyword in keywords:
+        if keyword in seen or not is_extra_keyword(keyword):
+            continue
+        seen.add(keyword)
+        key = lookup_key(keyword)
+        assert key is not None
+        rows.append(
+            {
+                "keyword": keyword,
+                "label": key.label,
+                "tag": key.tag,
+                "vr": key.vr,
+                "creator": key.private_creator,
+                "placeholder": key.placeholder,
+                "checked": keyword in included_set,
+                "value": str(values.get(keyword, "")),
+            }
+        )
+    return rows
+
+
 def default_return_keys(level: str) -> list[str]:
     return [key.keyword for key in keys_for_level(level) if key.default_return]
 
@@ -1088,7 +1303,7 @@ def normalize_tm(value: str) -> str:
 
 
 def normalize_value(keyword: str, value: str) -> str:
-    key = _KEYS_BY_KEYWORD.get(keyword)
+    key = lookup_key(keyword)
     text = (value or "").strip()
     if not key or not text:
         return text
@@ -1096,7 +1311,7 @@ def normalize_value(keyword: str, value: str) -> str:
         return normalize_da(text)
     if key.vr == "TM":
         return normalize_tm(text)
-    if key.vr == "CS":
+    if key.vr in ("CS", "AS"):
         return text.upper()
     return text
 
@@ -1141,6 +1356,14 @@ def options_from_form(form: Mapping[str, Any]) -> dict[str, Any]:
             values[key.keyword] = raw
         if key.keyword in included or raw:
             return_keys.append(key.keyword)
+    submitted = [*included, *(name[len("key_"):] for name in form.keys() if str(name).startswith("key_"))]
+    extras = [kw for kw in dict.fromkeys(submitted) if is_extra_keyword(kw)][:EXTRA_MAX]
+    for keyword in extras:
+        raw = str(form.get(f"key_{keyword}") or "").strip()
+        if raw:
+            values[keyword] = raw
+        if keyword in included or raw:
+            return_keys.append(keyword)
     payload: dict[str, Any] = {"level": level, "values": values, "return_keys": return_keys}
     follow = str(form.get("follow") or "").strip()
     if follow:
@@ -1200,11 +1423,13 @@ def options_from_payload(options: Mapping[str, Any] | None) -> dict[str, Any]:
     requested = options.get("return_keys")
     if isinstance(requested, list) and requested:
         allowed = {key.keyword for key in keys_for_level(level)}
-        return_keys = [str(item) for item in requested if str(item) in allowed]
+        return_keys = [str(item) for item in requested if str(item) in allowed or is_extra_keyword(str(item))]
     else:
         return_keys = default_return_keys(level)
     for keyword in values:
-        if keyword not in return_keys and any(keyword == key.keyword for key in keys_for_level(level)):
+        if keyword not in return_keys and (
+            any(keyword == key.keyword for key in keys_for_level(level)) or is_extra_keyword(keyword)
+        ):
             return_keys.append(keyword)
     payload: dict[str, Any] = {"level": level, "values": values, "return_keys": return_keys}
     follow = str(options.get("follow") or "").strip()
@@ -1264,8 +1489,8 @@ def key_unlocked(key: FindKey, values: Mapping[str, str]) -> tuple[bool, str]:
 
 def selected_keywords(level: str, values: Mapping[str, str], return_keys: Iterable[str]) -> list[str]:
     wanted = list(dict.fromkeys([*LEVEL_PARENTS[normalize_level(level)], *return_keys, *values]))
-    allowed = [key.keyword for key in keys_for_level(level)]
-    return [keyword for keyword in wanted if keyword in allowed]
+    allowed = {key.keyword for key in keys_for_level(level)}
+    return [keyword for keyword in wanted if keyword in allowed or is_extra_keyword(keyword)]
 
 
 def _parse_tag(tag: str) -> tuple[int, int]:
@@ -1285,12 +1510,20 @@ def _coerce_vr(vr: str, text: str) -> Any:
 
 
 def apply_key(dataset: Dataset, keyword: str, value: str) -> None:
-    key = _KEYS_BY_KEYWORD.get(keyword)
+    key = lookup_key(keyword)
     text = normalize_value(keyword, value)
     if key and key.private_creator:
         group, element = _parse_tag(key.tag)
         block = dataset.private_block(group, key.private_creator, create=True)
         block.add_new(element & 0xFF, key.vr, _coerce_vr(key.vr, text))
+        return
+    if key and keyword not in _KEYS_BY_KEYWORD:
+        # An added standard tag: its single concrete VR, not the dictionary's "US or SS".
+        group, element = _parse_tag(key.tag)
+        try:
+            dataset.add_new(Tag(group, element), key.vr, _coerce_vr(key.vr, text))
+        except (ValueError, TypeError) as exc:
+            raise ValueError(f"{key.label}: {text!r} is not a valid {key.vr} value ({exc})") from exc
         return
     tag = tag_for_keyword(keyword)
     if tag is None:
@@ -1321,7 +1554,7 @@ def _stringify(value: Any) -> str:
 
 
 def _read_key(dataset: Dataset, keyword: str) -> str:
-    key = _KEYS_BY_KEYWORD.get(keyword)
+    key = lookup_key(keyword)
     if key and key.private_creator:
         group, element = _parse_tag(key.tag)
         try:
@@ -1342,7 +1575,7 @@ def record_from_dataset(dataset: Dataset, columns: list[str]) -> dict[str, str]:
 def column_labels(columns: Iterable[str]) -> list[str]:
     labels: list[str] = []
     for keyword in columns:
-        key = _KEYS_BY_KEYWORD.get(keyword)
+        key = lookup_key(keyword)
         labels.append(key.label if key else keyword)
     return labels
 
@@ -1377,4 +1610,5 @@ def catalog_payload() -> dict[str, Any]:
         ],
         "groups": list(GROUPS),
         "search_keys": [asdict(key) for key in KEYS],
+        "extra_vrs": list(EXTRA_PRIVATE_VRS),
     }

@@ -130,10 +130,10 @@
       {% set ns = namespace(more_open=false) %}
       {% if saved_query %}
         {% for kw in saved_query.values.keys() %}
-          {% if kw not in primary_keywords %}{% set ns.more_open = true %}{% endif %}
+          {% if kw not in primary_keywords and kw not in (find_extra_keywords | default([])) %}{% set ns.more_open = true %}{% endif %}
         {% endfor %}
         {% for kw in saved_query.include %}
-          {% if kw not in primary_keywords %}{% set ns.more_open = true %}{% endif %}
+          {% if kw not in primary_keywords and kw not in (find_extra_keywords | default([])) %}{% set ns.more_open = true %}{% endif %}
         {% endfor %}
       {% endif %}
 
@@ -232,6 +232,20 @@
       </label>
       {% endmacro %}
 
+      {# One added tag. The script builds the same markup for tags added on the page. #}
+      {% macro extra_row(row) %}
+      <div class="find-extra-row" data-find-extra-row data-keyword="{{ row.keyword }}">
+        <label class="find-extra-head" title="{{ row.label }} {{ row.tag }}">
+          <input type="checkbox" name="include" value="{{ row.keyword }}"{% if row.checked %} checked{% endif %} aria-label="Return {{ row.label }} as a column">
+          <span class="find-key-title">{{ row.label }}</span>
+          <code class="find-extra-tag">{{ row.tag }}</code>
+          <span class="find-extra-vr">{{ row.vr }}</span>
+        </label>
+        <input name="key_{{ row.keyword }}" value="{{ row.value }}" placeholder="{{ row.placeholder }}" spellcheck="false" autocomplete="off" aria-label="Match {{ row.label }}">
+        <button type="button" class="link-button danger" data-find-extra-remove>Remove</button>
+      </div>
+      {% endmacro %}
+
       <div class="find-primary">
         {% for key in find_catalog.search_keys if key.keyword in primary_keywords %}
         {{ find_key_row(key) }}
@@ -271,6 +285,40 @@
             </div>
             {% endif %}
           </nav>
+        </div>
+      </details>
+
+      <details class="find-more-filters find-extra" data-find-extra{% if find_extra_rows | default([]) %} open{% endif %}>
+        <summary>Add other DICOM tags<span class="find-more-count" data-find-extra-count>{% if find_extra_rows | default([]) %} · {{ find_extra_rows | length }} added{% endif %}</span></summary>
+        <div class="find-extra-body">
+          <p class="hint">Search the standard DICOM dictionary, tick one or more tags and add them. An added tag can be returned as a column, matched on a value, or both, at the query level chosen above. A PACS ignores tags it does not support.</p>
+          <input type="search" class="find-extra-search" data-find-tag-search placeholder="Search by name, keyword or tag, e.g. patient weight or 0010,1030" autocomplete="off" spellcheck="false" aria-label="Search DICOM tags">
+          <div class="find-tag-results" data-find-tag-results hidden>
+            <div class="find-tag-results-head">
+              <span class="muted small" data-find-tag-status></span>
+              <button type="button" class="link-button" data-find-tag-select-all>Select all shown</button>
+              <button type="button" class="button compact primary" data-find-tag-add>Add selected</button>
+            </div>
+            <ul class="find-tag-list" data-find-tag-list></ul>
+          </div>
+          <details class="find-private">
+            <summary>Add a private (vendor) tag</summary>
+            <div class="find-private-grid">
+              <label>Tag <input data-find-private-tag placeholder="(07a1,102a)" spellcheck="false" autocomplete="off"></label>
+              <label>Private creator <input data-find-private-creator placeholder="ELSCINT1" spellcheck="false" autocomplete="off"></label>
+              <label>Type
+                <select data-find-private-vr>
+                  {% for vr in find_catalog.extra_vrs %}<option value="{{ vr }}"{% if vr == "LO" %} selected{% endif %}>{{ vr }}</option>{% endfor %}
+                </select>
+              </label>
+              <button type="button" class="button compact" data-find-private-add>Add tag</button>
+            </div>
+            <p class="hint" data-find-private-hint>Private tags have an odd group number. Give the tag as shown by your DICOM viewer, the creator string, and the value type (VR).</p>
+          </details>
+          <div class="find-extra-list" data-find-extra-list>
+            {% for row in find_extra_rows | default([]) %}{{ extra_row(row) }}{% endfor %}
+          </div>
+          <p class="hint" data-find-extra-empty{% if find_extra_rows | default([]) %} hidden{% endif %}>No added tags yet.</p>
         </div>
       </details>
 

@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+## 0.10.9
+
+### Dicomtag Analytics
+
+- **Add other DICOM tags**: a new section under More filters searches the whole standard DICOM dictionary by name, keyword or tag number. Tick one or more matches (ticks are kept across searches) and add them; each added tag can be returned as a column, matched on a value, or both. **Select all shown** adds every match at once, **Remove** takes a tag off again.
+- **Private (vendor) tags**: add a tag with an odd group number, its private creator and its value type, such as `(07a1,102a)`, `ELSCINT1`, `CS`.
+- Added tags are saved with a saved query, reopen with it, and carry into a Dicom Router rule loaded from it. They also appear as columns in the results and in the CSV / JSON export.
+- Sequences and binary data are not offered as keys. A value that does not fit its type, for example text in a number field, gives a readable error instead of a failed query.
+
 ## 0.10.8
 
 ### Send image
