@@ -32,8 +32,10 @@ def tile_for_rule(rule: RouteRule, run: RouteRun | None, now: datetime | None = 
         state = "ok" if run.ok else "error"
     if rule.status_key:
         by_status = dict(run.status_counts)
+        modalities = dict(run.modality_counts)
     else:
         by_status = {"Matched": run.matched_count}
+        modalities = {"Matched": run.modality_counts.get("", {})}
     return {
         **base,
         "state": state,
@@ -41,5 +43,6 @@ def tile_for_rule(rule: RouteRule, run: RouteRun | None, now: datetime | None = 
         "age_seconds": int(age),
         "total": run.matched_count,
         "by_status": by_status,
+        "modalities": modalities,
         "error": run.error,
     }

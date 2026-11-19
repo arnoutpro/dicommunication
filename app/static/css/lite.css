@@ -9,7 +9,11 @@ main{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:
 .tile{background:var(--card);border:1px solid var(--line);border-left:8px solid var(--stale);border-radius:8px;padding:14px}
 .tile.ok{border-left-color:var(--ok)}.tile.error{border-left-color:var(--err)}
 .name{font-weight:600}.meta{color:var(--mute);font-size:13px;margin-bottom:8px}
-.row{display:flex;justify-content:space-between;align-items:baseline;padding:4px 0;border-top:1px solid var(--line)}
+.item{border-top:1px solid var(--line);padding:4px 0 6px}
+.row{display:flex;justify-content:space-between;align-items:baseline}
 .row b{font-size:28px;font-variant-numeric:tabular-nums}
+.mods{display:flex;flex-wrap:wrap;gap:6px;margin-top:2px}
+.chip{background:var(--bg);border:1px solid var(--line);border-radius:999px;padding:1px 10px;font-size:13px}
+.chip b{font-variant-numeric:tabular-nums}
 .msg{color:var(--err);font-size:13px;margin-top:6px}.msg.mute{color:var(--mute)}
 .empty{padding:40px 16px;color:var(--mute)}

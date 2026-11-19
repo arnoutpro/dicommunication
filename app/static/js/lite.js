@@ -26,10 +26,22 @@
     var entries = Object.keys(x.by_status || {});
     if (!entries.length) entries = null;
     (entries || ["No exams"]).forEach(function (k) {
+      var item = el("div", "item");
       var row = el("div", "row");
       row.appendChild(el("span", "", k === "(none)" ? "No status returned" : k));
       row.appendChild(el("b", "", entries ? x.by_status[k] : 0));
-      t.appendChild(row);
+      item.appendChild(row);
+      var kinds = entries && x.modalities ? x.modalities[k] : null;
+      if (kinds && Object.keys(kinds).length) {
+        var mods = el("div", "mods");
+        Object.keys(kinds).forEach(function (m) {
+          var chip = el("span", "chip", m + " ");
+          chip.appendChild(el("b", "", kinds[m]));
+          mods.appendChild(chip);
+        });
+        item.appendChild(mods);
+      }
+      t.appendChild(item);
     });
     if (x.state === "stale") {
       t.appendChild(el("div", "msg mute", "No new check since " + ago(x.age_seconds)));

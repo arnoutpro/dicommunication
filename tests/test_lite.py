@@ -36,6 +36,17 @@ def test_rule_with_status_key_shows_status_counts():
     assert tile["by_status"] == {"PENDING FINAL": 2}
 
 
+def test_tiles_carry_the_modality_breakdown():
+    keyed = tile_for_rule(
+        _rule(status_key="TamarStudyStatus"),
+        _run(matched_count=2, status_counts={"PENDING FINAL": 2}, modality_counts={"PENDING FINAL": {"CT": 1, "MR": 1}}),
+        NOW,
+    )
+    assert keyed["modalities"] == {"PENDING FINAL": {"CT": 1, "MR": 1}}
+    plain = tile_for_rule(_rule(), _run(matched_count=3, modality_counts={"": {"DX+SR": 3}}), NOW)
+    assert plain["modalities"] == {"Matched": {"DX+SR": 3}}
+
+
 def test_daily_rule_is_not_stale_after_a_few_hours():
     rule = RouteRule(name="r", source_remote_id="x", schedule_mode="daily", daily_times=["08:00"])
     assert tile_for_rule(rule, _run(age_seconds=3 * 3600), NOW)["state"] == "ok"

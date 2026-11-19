@@ -624,7 +624,9 @@ def test_run_rule_writes_status_snapshot_with_counts_only(store: ConfigStore, tm
         )
         scheduler = RouterScheduler(store, WorklistSCP(store))
         now = datetime(2026, 3, 15, 12, 0, tzinfo=timezone.utc)
-        assert scheduler.run_rule(rule, now=now).ok
+        first = scheduler.run_rule(rule, now=now)
+        assert first.ok
+        assert first.modality_counts == {"INCOMPLETE": {"CT": 1}, "UNREAD": {"CT": 2}}
         # Second run: studies are already "seen", the snapshot must still be complete.
         assert scheduler.run_rule(rule, now=now + timedelta(minutes=1)).ok
         raw = (out / "open-exams.status.json").read_text()
@@ -695,5 +697,6 @@ def test_multivalued_modality_is_joined_and_no_status_key_means_no_status_counts
         run = RouterScheduler(store, WorklistSCP(store)).run_rule(rule)
         assert run.ok and run.matches[0].modality == "DX, SR"
         assert run.status_counts == {}
+        assert run.modality_counts == {"": {"DX+SR": 1}}
     finally:
         server.shutdown()
