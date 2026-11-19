@@ -6,7 +6,17 @@ sub-menus; Configuration is no longer nested under every product's own page.
 
 from __future__ import annotations
 
-from app.shell import TAB_ANALYTICS, TAB_ANONYMIZER, TAB_CLEANER, TAB_CONFIG, TAB_DICOMM, TAB_ROUTER, active_tab
+from app.shell import (
+    TAB_ANALYTICS,
+    TAB_ANONYMIZER,
+    TAB_CLEANER,
+    TAB_CONFIG,
+    TAB_DICOMM,
+    TAB_IMPORT,
+    TAB_ORDER,
+    TAB_ROUTER,
+    active_tab,
+)
 
 
 def test_active_tab_maps_nav_and_tool_id() -> None:
@@ -19,6 +29,7 @@ def test_active_tab_maps_nav_and_tool_id() -> None:
     assert active_tab("tools", "c-find-advanced") == TAB_ANALYTICS
     assert active_tab("tools", "anonymize") == TAB_ANONYMIZER
     assert active_tab("tools", "dicom-cleaner") == TAB_CLEANER
+    assert active_tab("tools", "dicom-import") == TAB_IMPORT
     assert active_tab("router") == TAB_ROUTER
     assert active_tab("config") == TAB_CONFIG
     assert active_tab("config-local") == TAB_CONFIG
@@ -32,7 +43,7 @@ def test_active_tab_maps_nav_and_tool_id() -> None:
 
 
 def test_every_page_shows_the_tab_row_with_one_active_tab(client) -> None:
-    for path in ("/", "/testbench", "/tools/c-find-advanced", "/tools/anonymize", "/router"):
+    for path in ("/", "/testbench", "/tools/c-find-advanced", "/tools/anonymize", "/tools/dicom-import", "/router"):
         response = client.get(path)
         assert response.status_code == 200, path
         body = response.text
@@ -78,6 +89,16 @@ def test_cleaner_tab_active_and_isolated(client) -> None:
     assert 'href="/testbench"' not in body
 
 
+def test_import_tab_is_last_below_the_cleaner_and_isolated(client) -> None:
+    assert TAB_ORDER[-2:] == (TAB_CLEANER, TAB_IMPORT)
+    body = client.get("/tools/dicom-import").text
+    assert '<a href="/tools/dicom-import" class="tab-item active">' in body
+    assert "</svg>Dicom Import</a>" in body
+    assert body.index("</svg>Dicom Cleaner</a>") < body.index("</svg>Dicom Import</a>")
+    assert "Configured nodes" not in body
+    assert 'href="/testbench"' not in body
+
+
 def test_router_tab_active_and_isolated(client) -> None:
     body = client.get("/router").text
     assert '<a href="/router" class="tab-item active">' in body
@@ -116,3 +137,4 @@ def test_dicommunication_tab_sidebar_has_test_tools_but_not_promoted_products(cl
     assert body.count('href="/tools/c-find-advanced"') == 1
     assert body.count('href="/tools/anonymize"') == 1
     assert body.count('href="/tools/dicom-cleaner"') == 1
+    assert body.count('href="/tools/dicom-import"') == 1  # its own tab, not also in the DIMSE list

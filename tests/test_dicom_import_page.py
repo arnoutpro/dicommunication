@@ -1,4 +1,4 @@
-"""The DICOM Import page: scan, review, edit, send (app/routes/dicom_import.py)."""
+"""The Dicom Import page: scan, review, edit, send (app/routes/dicom_import.py)."""
 
 from __future__ import annotations
 
@@ -62,7 +62,7 @@ def _form(body: str) -> dict[str, str]:
 def test_the_tool_is_in_the_sidebar_and_the_start_page_renders(client: TestClient) -> None:
     page = client.get("/tools/dicom-import")
     assert page.status_code == 200
-    assert "Choose the folder" in page.text and 'name="folder"' in page.text and "DICOM Import" in page.text
+    assert "Choose the folder" in page.text and 'name="folder"' in page.text and "Dicom Import" in page.text
     assert 'href="/tools/dicom-import"' in client.get("/").text
 
 

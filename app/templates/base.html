@@ -122,6 +122,8 @@
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 12h-4l-3 9L9 3l-3 9H2"></path></svg>
       {%- elif t == 'cleaner' -%}
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 2v14a2 2 0 0 0 2 2h14"></path><path d="M18 22V8a2 2 0 0 0-2-2H2"></path></svg>
+      {%- elif t == 'import' -%}
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 15v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4"></path><path d="M7 10l5 5 5-5"></path><path d="M12 15V3"></path></svg>
       {%- endif -%}
       {%- endmacro %}
       <div class="sidebar-tools">
@@ -167,6 +169,9 @@
 
         {% elif tab == 'cleaner' %}
         <a href="{{ href('/tools/dicom-cleaner') }}" class="active">Query</a>
+
+        {% elif tab == 'import' %}
+        <a href="{{ href('/tools/dicom-import') }}" class="active">Import</a>
 
         {% elif tab == 'router' %}
         <a href="{{ href('/router') }}" class="{% if nav == 'router' and rule is not defined %}active{% endif %}">Route rules</a>

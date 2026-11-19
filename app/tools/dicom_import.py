@@ -1,4 +1,4 @@
-"""DICOM Import: scan a folder for a DICOMDIR and/or DICOM files, summarise them,
+"""Dicom Import: scan a folder for a DICOMDIR and/or DICOM files, summarise them,
 change patient and exam details, and send them to a PACS.
 
 The work is in ``app/dicom_import.py`` (engine), ``app/import_session.py``
@@ -17,7 +17,7 @@ from app.tools.registry import register
 
 class DicomImportTool(BaseTool):
     id = "dicom-import"
-    name = "DICOM Import"
+    name = "Dicom Import"
     description = (
         "Scan a folder for a DICOMDIR and/or DICOM files, see what is in it, change "
         "patient and exam details if needed, and send the images to a PACS. "
@@ -37,7 +37,7 @@ class DicomImportTool(BaseTool):
             tool_id=self.id,
             tool_name=self.name,
             ok=False,
-            summary="DICOM Import is used from its page: choose a folder, review it, then send.",
+            summary="Dicom Import is used from its page: choose a folder, review it, then send.",
         )
 
 

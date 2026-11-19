@@ -1,4 +1,4 @@
-"""DICOM Import page: scan a folder, review, change details, send to a PACS.
+"""Dicom Import page: scan a folder, review, change details, send to a PACS.
 
 Reached at ``/tools/dicom-import``. The scan and the send run in background
 threads (app/import_session.py); the page polls a small partial while one is

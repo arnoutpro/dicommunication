@@ -2,7 +2,7 @@
 
 Everything that used to be five separate windows sharing one process —
 Dicommunication itself, Dicomtag Analytics, Dicom Anonymizer, Dicom Router,
-and Dicom Cleaner — is now reachable from the single main window's own
+and Dicom Cleaner (and now Dicom Import) — is now reachable from the single main window's own
 navigation. There's exactly one Start-menu shortcut / .app bundle / uvicorn
 process; every tool page lives at its plain path (``/tools/<id>``, or
 ``/router`` for Dicom Router, which isn't a `BaseTool`).
@@ -63,12 +63,13 @@ TAB_ANALYTICS = "analytics"
 TAB_ANONYMIZER = "anonymizer"
 TAB_ROUTER = "router"
 TAB_CLEANER = "cleaner"
+TAB_IMPORT = "import"
 TAB_CONFIG = "config"
 
 # The tab row lists the products. Configuration is shared by all of them, so
 # it isn't a tab: it opens from a button in the top bar (DESIGN.md: Help and
 # Config on the right), and its pages still get TAB_CONFIG for their sidebar.
-TAB_ORDER = (TAB_DICOMM, TAB_ANALYTICS, TAB_ANONYMIZER, TAB_ROUTER, TAB_CLEANER)
+TAB_ORDER = (TAB_DICOMM, TAB_ANALYTICS, TAB_ANONYMIZER, TAB_ROUTER, TAB_CLEANER, TAB_IMPORT)
 
 TAB_LABELS = {
     TAB_DICOMM: PRODUCT_DICOMM,
@@ -76,6 +77,7 @@ TAB_LABELS = {
     TAB_ANONYMIZER: "Dicom Anonymizer",
     TAB_ROUTER: "Dicom Router",
     TAB_CLEANER: "Dicom Cleaner",
+    TAB_IMPORT: "Dicom Import",
     TAB_CONFIG: "Configuration",
 }
 
@@ -86,14 +88,15 @@ TAB_HREFS = {
     TAB_ANONYMIZER: "/tools/anonymize",
     TAB_ROUTER: "/router",
     TAB_CLEANER: "/tools/dicom-cleaner",
+    TAB_IMPORT: "/tools/dicom-import",
     TAB_CONFIG: "/config",
 }
 
-# These three used to be the "single-tool shell" products; they're full tabs
+# The first three used to be the "single-tool shell" products; they're full tabs
 # now, so the Dicommunication tab's own Test tools list (and its "registered
 # tools" summary on the dashboard) no longer lists them — each has its own
-# tab-level home instead.
-PROMOTED_TAB_TOOL_IDS = frozenset({"c-find-advanced", "anonymize", "dicom-cleaner"})
+# tab-level home instead. Dicom Import has its own tab as well.
+PROMOTED_TAB_TOOL_IDS = frozenset({"c-find-advanced", "anonymize", "dicom-cleaner", "dicom-import"})
 
 _CONFIG_NAV_VALUES = frozenset({"config", "config-local", "config-identities", "config-remotes", "logs"})
 
@@ -101,6 +104,7 @@ _TOOL_ID_TABS = {
     "c-find-advanced": TAB_ANALYTICS,
     "anonymize": TAB_ANONYMIZER,
     "dicom-cleaner": TAB_CLEANER,
+    "dicom-import": TAB_IMPORT,
 }
 
 
