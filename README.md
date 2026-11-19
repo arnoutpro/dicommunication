@@ -56,6 +56,12 @@ Synthetic lab studies (not clinical data). Light theme, in the arnout.pro "Readi
 
 ![HL7 send with an ORM order update and Change existing order set to SC](docs/screenshots/hl7-send.webp)
 
+## What's new in 0.10.11
+
+Details in [CHANGELOG.md](CHANGELOG.md#01011).
+
+- **The background edition is now called "headless"**: the installer is `dicommunication-headless-<version>-win64.msi`, and it shows as "Dicommunication Tool (headless)" in Programs and Features. Nothing else changes: it still runs as a Windows service named Dicommunication.
+
 ## What's new in 0.10.10
 
 Details in [CHANGELOG.md](CHANGELOG.md#01010).
@@ -175,6 +181,7 @@ And in 0.5.1 ([CHANGELOG.md](CHANGELOG.md#051)):
 ## Contents
 
 - [Screenshots](#screenshots)
+- [What's new in 0.10.11](#whats-new-in-01011)
 - [What's new in 0.10.10](#whats-new-in-01010)
 - [What's new in 0.10.9](#whats-new-in-0109)
 - [What's new in 0.10.8](#whats-new-in-0108)

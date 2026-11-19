@@ -162,7 +162,7 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help=argparse.SUPPRESS,  # Windows MSI uninstall hook, not a user-facing flag.
     )
-    # Windows service edition (packaging/windows/Service.wxs): not user-facing flags.
+    # Windows headless edition (packaging/windows/Headless.wxs): not user-facing flags.
     parser.add_argument("--configure-service", action="store_true", help=argparse.SUPPRESS)
     parser.add_argument("--service-data", action="store_true", help=argparse.SUPPRESS)
     parser.add_argument("--listen", choices=("local", "network"), default="local", help=argparse.SUPPRESS)

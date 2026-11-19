@@ -19,9 +19,9 @@ If you need it reachable from more than the machine it runs on, put an
 authenticating reverse proxy in front of it and treat that proxy as the security
 boundary.
 
-## Service edition (Windows)
+## Headless edition (Windows)
 
-`dicommunication-service-<version>-win64.msi` runs the same program as a background
+`dicommunication-headless-<version>-win64.msi` runs the same program as a background
 Windows service (see `packaging/windows/README.md`). The threat model above is
 unchanged, and two things matter more because nobody is watching a window:
 

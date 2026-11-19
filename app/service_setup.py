@@ -1,6 +1,6 @@
-"""Windows service edition: the setup the service installer runs after copying files.
+"""Windows headless edition: the setup its installer runs after copying files.
 
-`packaging/windows/Service.wxs` installs the program plus WinSW (a small
+`packaging/windows/Headless.wxs` installs the program plus WinSW (a small
 service host) and registers a Windows service that runs
 `dicommunication.exe --no-browser` in the background. WinSW reads its
 settings from `dicommunication-service.xml` next to it; this module writes
@@ -98,7 +98,7 @@ def render_service_xml(
         env.append(("DICOMM_ALLOWED_HOSTS", ",".join(hostnames)))
     lines = [
         '<?xml version="1.0" encoding="utf-8"?>',
-        "<!-- Written by the Dicommunication service setup. Changed on reinstall; use the installer to change the port. -->",
+        "<!-- Written by the Dicommunication headless setup. Changed on reinstall; use the installer to change the port. -->",
         "<service>",
         f"  <id>{escape(SERVICE_NAME)}</id>",
         f"  <name>{escape(SERVICE_NAME)}</name>",

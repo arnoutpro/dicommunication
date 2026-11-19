@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+## 0.10.11
+
+### Windows
+
+- **The service edition is now called the headless edition.** The installer file is `dicommunication-headless-<version>-win64.msi`, the CI artifact is `dicommunication-headless-msi`, the product shows as "Arnout.pro Dicommunication Tool (headless)" in Programs and Features, and the wizard page is "Port and network settings". It behaves exactly as before and still runs as a Windows service named Dicommunication; it still replaces the desktop edition (same upgrade code), so installing it over the 0.10.10 build upgrades cleanly.
+
 ## 0.10.10
 
 ### Windows
