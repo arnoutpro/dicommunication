@@ -2,6 +2,20 @@
 
 ## Unreleased
 
+## 0.14.0
+
+### Look and feel (a flat, dense style)
+
+Users said the interface looked machine-made: rounded corners, pill shapes and large text. This is the first step of a redesign, and it changes the look only, not what anything does. The sidebar stays.
+
+- **Square corners and thin lines everywhere.** Buttons, fields, panels, tables, tabs, badges and the step numbers are square, with 1px borders. Pills, round chips and round dots are gone, and so are the blur, the glow and the pulsing animation.
+- **Smaller text.** The working size is 13px (it was 16px), labels are 12px and page titles 18px (they were 28px). Tables, fields and buttons are tighter.
+- **The system font** (Segoe UI on Windows, San Francisco on a Mac) instead of a bundled web font. Nothing is downloaded and the font files are removed from the program.
+- **A plain blue on neutral greys** instead of indigo and lavender tints on navy. The light theme is white panels on a light grey page; the dark theme is charcoal. The Professional (amber) theme keeps its colours and gets the same shapes.
+- **No icon tile next to page titles, no striped table rows**, and the table header is a plain grey bar. Empty states are left-aligned.
+- The sidebar keeps its layout; its items are smaller and the selected one has a bar on the left.
+- Still to come: long explanations under fields become tooltips, and the individual tools get a closer look.
+
 ## 0.13.2
 
 ### Fixes

@@ -392,6 +392,8 @@ Clinical and calm: every tool should feel like the same instrument.
 
 ## In Dicommunication
 
+> **Since 0.14 Dicommunication uses a flat, dense style, and the bullets below that say otherwise are superseded.** Square corners everywhere (`--radius*` are all `0`; no pills, no round chips or dots), 1px lines and no shadows, glow or blur, a 13px working text size with 18px page titles and 12px labels, the operating system's own UI font (Segoe UI on Windows, San Francisco on a Mac; nothing is bundled), and a plain blue accent on neutral greys in place of Signal Indigo on navy. There is no icon tile beside page titles, no zebra rows, and the table header is a plain grey bar. Explanations that used to be paragraphs under a field move into tooltips over time. The sidebar layout stays. The old values are kept below for the history of the system; `app/static/css/app.css` is what is true. A test (`tests/test_flat_style.py`) fails if a pill radius, a rounded token or a bundled font comes back.
+
 Dicommunication is the installed member of the family (Docker, Windows MSI, macOS DMG), a FastAPI + HTMX app that runs on the admin's own network. It follows "The Reading Room console" like the browser tools, with a few differences in how it's built.
 
 - **One stylesheet, same roles.** `app/static/css/app.css` doesn't load `tool-shell.css`; it carries its own custom properties, and those map onto the shell's `--az-*` roles in all three themes (`html` for dark, `html.light-mode`, `html.professional-mode`):
