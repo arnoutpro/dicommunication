@@ -67,26 +67,15 @@ jobs:
           dotnet tool install --global wix --version 5.0.2
           wix extension add -g WixToolset.UI.wixext/5.0.2
 
-      - name: Build MSI
-        run: >
-          wix build
-          packaging/windows/Product.wxs
-          packaging/windows/harvested.wxs
-          -ext WixToolset.UI.wixext
-          -arch x64
-          -d ProductVersion=${{ steps.version.outputs.value }}
-          -bindpath dist/dicommunication
-          -o dist/dicommunication-${{ steps.version.outputs.value }}-win64.msi
-
       - name: Fetch the service host (WinSW, checksum-pinned)
         run: python packaging/windows/fetch_winsw.py dist/service-host
 
-      - name: Install WiX extensions for the headless edition
+      - name: Install the other WiX extensions
         run: |
           wix extension add -g WixToolset.Util.wixext/5.0.2
           wix extension add -g WixToolset.Firewall.wixext/5.0.2
 
-      - name: Build headless MSI
+      - name: Build MSI
         run: >
           wix build
           packaging/windows/Headless.wxs
@@ -103,18 +92,11 @@ jobs:
       - name: Pack NuGet package
         run: >
           python packaging/windows/pack_nuget.py
-          dist/dicommunication-${{ steps.version.outputs.value }}-win64.msi
+          dist/dicommunication-headless-${{ steps.version.outputs.value }}-win64.msi
           --version ${{ steps.version.outputs.value }}
           --output dist
 
       - name: Upload MSI
-        uses: actions/upload-artifact@v7
-        with:
-          name: dicommunication-msi
-          path: dist/dicommunication-[0-9]*-win64.msi
-          if-no-files-found: error
-
-      - name: Upload headless MSI
         uses: actions/upload-artifact@v7
         with:
           name: dicommunication-headless-msi
@@ -168,7 +150,7 @@ jobs:
           mkdir -p dist
           gh release download "${{ github.event.inputs.nuget_from_release }}" \
             --repo "${{ github.repository }}" \
-            --pattern "*.msi" \
+            --pattern "dicommunication-headless-*-win64.msi" \
             --dir dist
 
       - name: Pack and publish NuGet package
@@ -179,7 +161,7 @@ jobs:
           VER="${{ github.event.inputs.nuget_from_release }}"
           VER="${VER#v}"
           shopt -s nullglob
-          msis=(dist/dicommunication-*-win64.msi)
+          msis=(dist/dicommunication-headless-*-win64.msi)
           if [[ ${#msis[@]} -ne 1 ]]; then
             echo "expected one MSI under dist/, found ${#msis[@]}: ${msis[*]}" >&2
             exit 1

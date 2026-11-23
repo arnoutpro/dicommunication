@@ -2,19 +2,15 @@
 
 Hospital PACS PCs often cannot run Docker. This folder freezes the FastAPI app with PyInstaller and wraps the onedir payload in a per-machine WiX MSI.
 
-The MSI **bundles a private Python runtime**. The UI opens in the app’s own window. They do not install Python from python.org.
+There is **one Windows installer**: `dicommunication-headless-<version>-win64.msi`. It installs the program as a Windows service (see below). Up to 0.11.2 there was also a desktop installer with its own window; it is no longer built. Installing the current MSI over an old desktop install replaces it (same upgrade code). The old desktop data in `%LOCALAPPDATA%\dicommunication` is not carried over: use **Configuration > Import / export** on the old version to export the settings, and import them in the new one.
 
-The installer cannot live *inside* this app’s webpage. That page is served by the already-running Python server. Ship the MSI through IT (Intune / GPO / a USB stick), not through a button on localhost.
+The MSI **bundles a private Python runtime**. Nobody installs Python from python.org.
 
-## What the user does
-
-1. Install `dicommunication-<version>-win64.msi` (admin rights; lands in `Program Files\Dicommunication`). The setup wizard shows a single **Dicommunication** feature (on by default) with an off-by-default **Desktop shortcut** sub-feature (check it to also get an icon on the Desktop, not just the Start Menu). Upgrading from an older, multi-shortcut install removes the old Dicomtag Analytics / Dicom Anonymizer / Dicom Router / Dicom Cleaner shortcuts automatically.
-2. Start **Dicommunication** from the Start menu (or the Desktop, if that shortcut was selected) — arnout.pro brand mark icon, same as the watermark. Dicomtag Analytics, Dicom Anonymizer, Dicom Router, and Dicom Cleaner are all reachable from this one window's own navigation, not separate shortcuts.
-3. The UI opens in its own window (Edge WebView2, not a browser tab). Close that window to stop the server if it started it. Config lives in `%LOCALAPPDATA%\dicommunication`.
+The installer cannot live *inside* this app's webpage. That page is served by the already-running Python server. Ship the MSI through IT (Intune / GPO / a USB stick), not through a button on localhost.
 
 `ping.exe` is already on Windows. ICMP uses `-n` / `-w`; TCP to the DICOM port is still the useful check on clinical networks.
 
-If a modality must C-FIND this workstation (local MWL SCP on port 11112), allow inbound TCP for `dicommunication.exe` in Windows Firewall.
+If a modality must C-FIND this workstation (local MWL SCP on port 11112), allow inbound TCP for `dicommunication.exe` in Windows Firewall. The installer only opens the web port (see below).
 
 ## Build (Windows)
 
@@ -24,19 +20,19 @@ Needs Python 3.12+ and the .NET SDK (for `dotnet tool install`).
 .\packaging\windows\build.ps1
 ```
 
-It installs WiX and the UI extension itself if they are not already there. CI does the same on `windows-latest` and uploads `dicommunication-*-win64.msi`. Local `build.ps1` also wraps the MSI as `dicommunication.msi.<version>.nupkg`.
+It installs WiX and its extensions itself if they are not already there. CI does the same on `windows-latest` and uploads `dicommunication-headless-*-win64.msi` (artifact `dicommunication-headless-msi`). `build.ps1` also wraps the MSI as `dicommunication.msi.<version>.nupkg`.
 
-A `v*` tag publishes that nupkg to GitHub Packages (`https://nuget.pkg.github.com/arnoutpro/index.json`, package id `dicommunication.msi`) and attaches it to the GitHub Release. GitHub has no native MSI feed; this is a NuGet package whose `tools/` folder holds the installer. Installing from GitHub Packages requires a PAT even when the repo is public — use the Release asset for anonymous downloads.
+A `v*` tag publishes that nupkg to GitHub Packages (`https://nuget.pkg.github.com/arnoutpro/index.json`, package id `dicommunication.msi`) and attaches the MSI and the nupkg to the GitHub Release. GitHub has no native MSI feed; this is a NuGet package whose `tools/` folder holds the installer. Installing from GitHub Packages requires a PAT even when the repo is public, so use the Release asset for anonymous downloads.
 
-To publish an already-cut GitHub Release as a package without rebuilding, run **Windows MSI** with `nuget_from_release` set to the tag (for example `v0.2.0`).
+To publish an already-cut GitHub Release as a package without rebuilding, run **Windows MSI** with `nuget_from_release` set to the tag. Releases up to 0.11.2 hold the old desktop MSI under another file name, so this only works for a release that has a `dicommunication-headless-*-win64.msi`.
 
 Unsigned MSIs trigger SmartScreen. Code signing is a follow-up; keep the certificate out of git.
 
 macOS also has a DMG (`packaging/macos`). Linux remains on Docker Compose.
 
-## Headless edition (runs in the background, opened in the browser)
+## The installer (a Windows service, opened in the browser)
 
-A second installer, `dicommunication-headless-<version>-win64.msi`, for a workstation that should keep working with nobody at the keyboard: the Dicom Router rules and the status dashboard run all the time, not only while a window is open.
+`dicommunication-headless-<version>-win64.msi` is for a workstation that should keep working with nobody at the keyboard: the Dicom Router rules and the status dashboard run all the time, not only while a window is open.
 
 It installs the same program, but as a Windows service named **Dicommunication**. It starts with Windows, has no window, and you open it in a browser.
 
@@ -61,7 +57,7 @@ Unattended: `msiexec /i dicommunication-headless-<version>-win64.msi /qn PORT=80
 
 **Good to know**
 
-- It has the **same upgrade code as the desktop MSI**, so installing it replaces the desktop edition on that PC, and the other way round. The headless edition has its own data folder, so remote nodes saved in the desktop edition must be entered again.
+- It has the **same upgrade code as the old desktop MSI**, so installing it replaces a desktop install on that PC. The service has its own data folder (`C:\ProgramData\Dicommunication`), so export the settings from the old version first and import them here.
 - Sign-in (users with viewer / operator / administrator roles) is always on in this edition. Local only is the default. With "other computers" ticked the app also turns on HTTPS with a self-made certificate and the audit log (see `SECURITY.md`), and the installer opens Windows Firewall for the web port **to the local subnet only**. The DICOM listen ports (Storage and Worklist) are separate and are not opened for you.
 - If the service does not start, the usual cause is that the port is taken. Check the logs above, then reinstall with another port.
 - On uninstall the installer asks once whether to delete the data folder; the default is to keep it.
