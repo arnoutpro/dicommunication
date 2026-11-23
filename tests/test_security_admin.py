@@ -113,20 +113,22 @@ def test_the_security_page_says_whether_sign_in_is_on_and_why(app, client: TestC
 
 
 def test_retention_and_folders_are_saved_and_checked(app, admin: TestClient, tmp_path: Path) -> None:
-    saved = admin.post("/config/security", data={"retention_minutes": "45", "import_roots": f"{tmp_path}\n\n{tmp_path}\n/data/imports"})
+    saved = admin.post("/config/security", data={"retention_minutes": "45", "history_days": "14", "import_roots": f"{tmp_path}\n\n{tmp_path}\n/data/imports"})
     assert saved.status_code == 200 and "Saved." in saved.text
     settings = json.loads((app.state.store.data_dir / "security.json").read_text())
-    assert settings["retention_minutes"] == 45 and settings["import_roots"] == [str(tmp_path), "/data/imports"]
+    assert settings["retention_minutes"] == 45 and settings["history_days"] == 14 and settings["import_roots"] == [str(tmp_path), "/data/imports"]
     for bad_minutes in ("", "soon", "-5", "1441"):
-        assert admin.post("/config/security", data={"retention_minutes": bad_minutes, "import_roots": ""}).status_code == 400, bad_minutes
-    relative = admin.post("/config/security", data={"retention_minutes": "30", "import_roots": "imports/here"})
+        assert admin.post("/config/security", data={"retention_minutes": bad_minutes, "history_days": "30", "import_roots": ""}).status_code == 400, bad_minutes
+    for bad_days in ("", "x", "-1", "3651"):
+        assert admin.post("/config/security", data={"retention_minutes": "30", "history_days": bad_days, "import_roots": ""}).status_code == 400, bad_days
+    relative = admin.post("/config/security", data={"retention_minutes": "30", "history_days": "30", "import_roots": "imports/here"})
     assert relative.status_code == 400 and "not a full path" in relative.text and "imports/here" in relative.text  # what was typed is kept
     assert json.loads((app.state.store.data_dir / "security.json").read_text())["retention_minutes"] == 45
     assert any(r["action"] == "Security settings changed" for r in app.state.audit.entries())
 
 
-def test_the_default_retention_is_thirty_minutes(app) -> None:
-    assert app.state.security_settings.load().retention_minutes == 30 and app.state.security_settings.load().import_roots == []
+def test_the_defaults_are_thirty_minutes_and_thirty_days(app) -> None:
+    assert app.state.security_settings.load().retention_minutes == 30 and app.state.security_settings.load().history_days == 30 and app.state.security_settings.load().import_roots == []
 
 
 # --- HTTPS certificate ---------------------------------------------------------

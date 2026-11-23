@@ -436,35 +436,48 @@ class ConfigStore:
             return next(item for item in updated if item.id == rule_id)
 
     def add_route_run(self, run: RouteRun) -> RouteRun:
-        if self._keeps_nothing():
-            run = run.model_copy(update={"matches": []})
+        # Only counts go to disk: the matched studies (names, IDs) stay in memory.
+        outcomes: dict[str, int] = {}
+        errors: dict[str, int] = {}
+        for match in run.matches:
+            outcomes[match.status] = outcomes.get(match.status, 0) + 1
+            if match.error:
+                message = match.error.strip()[:200]
+                errors[message] = errors.get(message, 0) + 1
+        run.outcome_counts, run.error_counts = outcomes, errors
         with self._lock:
             runs = self._load_route_runs_unlocked()
             payload = run.model_dump(mode="json")
             self._write_json(self.route_runs_path, ([payload] + runs)[: self._max_route_runs])
             return run
 
-    def scrub_patient_details(self, cutoff: datetime) -> dict[str, int]:
-        """Empty the patient rows of everything collected before ``cutoff``.
+    def scrub_patient_details(self, cutoff: datetime, delete_before: datetime | None = None) -> dict[str, int]:
+        """Remove what should not stay on disk. Returns how many of each were touched.
 
-        A Router run keeps its counts but loses the list of matched studies (names,
-        IDs, accession numbers); a tool result keeps its summary and steps but
-        loses the rows it fetched. Returns how many of each were emptied.
+        * A tool result collected before ``cutoff`` keeps its summary and steps but
+          loses the rows it fetched.
+        * A Router run never keeps the list of studies; a file written by an earlier
+          version that still has one is emptied here, whatever its age.
+        * With ``delete_before``, runs and results started before it are deleted.
         """
-        emptied = {"runs": 0, "results": 0}
+        emptied = {"runs": 0, "results": 0, "deleted": 0}
         with self._lock:
-            for path, field_name, key, loader in (
-                (self.route_runs_path, "matches", "runs", self._load_route_runs_unlocked),
-                (self.results_path, "records", "results", self._load_results_unlocked),
+            for path, field_name, key, loader, always in (
+                (self.route_runs_path, "matches", "runs", self._load_route_runs_unlocked, True),
+                (self.results_path, "records", "results", self._load_results_unlocked, False),
             ):
                 items = loader()
                 changed = 0
                 for item in items:
-                    if isinstance(item, dict) and item.get(field_name) and _collected_before(item.get("started_at"), cutoff):
+                    if isinstance(item, dict) and item.get(field_name) and (always or _collected_before(item.get("started_at"), cutoff)):
                         item[field_name] = []
                         changed += 1
-                if changed:
-                    self._write_json(path, items)
+                kept = items
+                if delete_before is not None:
+                    kept = [item for item in items if not (isinstance(item, dict) and _collected_before(item.get("started_at"), delete_before))]
+                    emptied["deleted"] += len(items) - len(kept)
+                if changed or len(kept) != len(items):
+                    self._write_json(path, kept)
                     emptied[key] = changed
         return emptied
 

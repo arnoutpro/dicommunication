@@ -1,11 +1,11 @@
 """Keeping patient details only as long as they are needed.
 
-The Dicom Router's run history lists each matched study with the patient's name,
-ID and accession number, and the recent tool results keep the rows they fetched.
-The status dashboard needs only the counts. So after the retention time set under
-Configuration > Security (30 minutes unless changed) those lists are emptied and
-the counts stay. A background sweeper does it every minute; a setting of 0 keeps
-nothing from the start.
+The Dicom Router's run history keeps counts only (the matched studies with their
+names and IDs are never written), and the recent tool results keep the rows they
+fetched. After the retention time set under Configuration > Security (30 minutes
+unless changed) those rows are emptied and the counts stay. Runs and results older
+than the history days (30 unless changed) are deleted. A background sweeper does it
+every minute; a setting of 0 minutes keeps no rows from the start.
 """
 
 from __future__ import annotations
@@ -28,11 +28,12 @@ class RetentionSweeper:
         store.retention_provider = lambda: settings.load().retention_minutes
 
     def sweep_once(self, now: datetime | None = None) -> dict[str, int]:
-        minutes = self.settings.load().retention_minutes
-        cutoff = (now or datetime.now(timezone.utc)) - timedelta(minutes=minutes)
-        emptied = self.store.scrub_patient_details(cutoff)
+        settings = self.settings.load()
+        now = now or datetime.now(timezone.utc)
+        delete_before = now - timedelta(days=settings.history_days) if settings.history_days else None
+        emptied = self.store.scrub_patient_details(now - timedelta(minutes=settings.retention_minutes), delete_before)
         if any(emptied.values()):
-            log.info("Retention: emptied patient details of %s run(s) and %s result(s)", emptied["runs"], emptied["results"])  # counts only
+            log.info("Retention: emptied %s run(s) and %s result(s), deleted %s old entr(ies)", emptied["runs"], emptied["results"], emptied["deleted"])  # counts only
         return emptied
 
     def _loop(self) -> None:
