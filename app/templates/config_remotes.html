@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "partials/fields.html" import field, check %}
 {% block title %}Remote nodes · {{ product_name }}{% endblock %}
 {% block content %}
 <header class="page-head">
@@ -17,54 +18,42 @@
     <h2>{% if editing %}Edit remote node{% else %}Add remote DICOM node{% endif %}</h2>
     {% if editing %}<a href="{{ href('/config/remotes') }}">Cancel</a>{% endif %}
   </header>
-  <form method="post" action="{{ href('/config/remotes') }}" class="form-grid" autocomplete="off">
+  <form method="post" action="{{ href('/config/remotes') }}" class="fields cols-2" autocomplete="off">
     {% if editing %}
     <input type="hidden" name="remote_id" value="{{ editing.id }}">
     {% endif %}
-    <label>
-      Display name
-      <input name="name" required placeholder="PACS production" value="{{ editing.name if editing else '' }}">
-    </label>
-    <label>
-      AE Title
-      <input name="ae_title" maxlength="16" required placeholder="ORTHANC" value="{{ editing.ae_title if editing else '' }}">
-    </label>
-    <label>
-      Hostname
-      <input name="hostname" placeholder="pacs.hospital.local" value="{{ editing.hostname if editing else '' }}">
-    </label>
-    <label>
-      IP address
-      <input name="host" placeholder="192.168.1.10" value="{{ editing.host if editing else '' }}">
-      <span class="hint">Fill hostname, IP, or both. Connection uses IP when set, otherwise hostname.</span>
-    </label>
-    <label>
-      Port
-      <input name="port" type="number" min="1" max="65535" required value="{{ editing.port if editing else 11112 }}">
-      <span class="hint">Common values: 104, 11112, 4242 (Orthanc).</span>
-    </label>
+    {% call field("Display name", "name", required=True) %}
+    <input id="name" name="name" class="w-md" required placeholder="PACS production" value="{{ editing.name if editing else '' }}">
+    {% endcall %}
+    {% call field("AE Title", "ae_title", required=True) %}
+    <input id="ae_title" name="ae_title" class="w-sm" maxlength="16" required placeholder="ORTHANC" value="{{ editing.ae_title if editing else '' }}">
+    {% endcall %}
+    {% call field("Hostname", "hostname", "Fill hostname, IP, or both. Connection uses IP when set, otherwise hostname.") %}
+    <input id="hostname" name="hostname" class="w-lg" placeholder="pacs.hospital.local" value="{{ editing.hostname if editing else '' }}">
+    {% endcall %}
+    {% call field("IP address", "host", "Fill hostname, IP, or both. Connection uses IP when set, otherwise hostname.") %}
+    <input id="host" name="host" class="w-md" placeholder="192.168.1.10" value="{{ editing.host if editing else '' }}">
+    {% endcall %}
+    {% call field("Port", "port", "Common values: 104, 11112, 4242 (Orthanc).", required=True) %}
+    <input id="port" name="port" class="w-xs" type="number" min="1" max="65535" required value="{{ editing.port if editing else 11112 }}">
+    {% endcall %}
     <details class="advanced" {% if editing %}open{% endif %}>
       <summary>Advanced settings</summary>
-      <div class="form-grid">
-        <label>
-          Node type
-          <select name="kind">
-            {% set kind = editing.kind if editing else 'other' %}
-            <option value="other" {% if kind == 'other' %}selected{% endif %}>Other</option>
-            <option value="pacs" {% if kind == 'pacs' %}selected{% endif %}>PACS</option>
-            <option value="mwl" {% if kind == 'mwl' %}selected{% endif %}>Modality Worklist (DMWL)</option>
-            <option value="modality" {% if kind == 'modality' %}selected{% endif %}>Modality</option>
-            <option value="vna" {% if kind == 'vna' %}selected{% endif %}>VNA</option>
-          </select>
-        </label>
-        <label class="checkbox">
-          <input type="checkbox" name="provides_mwl" value="on" {% if editing and editing.provides_mwl %}checked{% endif %}>
-          This node provides DICOM Modality Worklist
-        </label>
-        <label class="span-2">
-          Notes
-          <input name="notes" placeholder="VLAN, TLS, vendor, contact…" value="{{ editing.notes if editing else '' }}">
-        </label>
+      <div class="fields cols-2">
+        {% set kind = editing.kind if editing else 'other' %}
+        {% call field("Node type", "kind") %}
+        <select id="kind" name="kind" class="w-md">
+          <option value="other" {% if kind == 'other' %}selected{% endif %}>Other</option>
+          <option value="pacs" {% if kind == 'pacs' %}selected{% endif %}>PACS</option>
+          <option value="mwl" {% if kind == 'mwl' %}selected{% endif %}>Modality Worklist (DMWL)</option>
+          <option value="modality" {% if kind == 'modality' %}selected{% endif %}>Modality</option>
+          <option value="vna" {% if kind == 'vna' %}selected{% endif %}>VNA</option>
+        </select>
+        {% endcall %}
+        {{ check("Provides worklist", "provides_mwl", "provides_mwl", editing and editing.provides_mwl, "This node provides DICOM Modality Worklist.") }}
+        {% call field("Notes", "notes", wide=True) %}
+        <input id="notes" name="notes" class="w-full" placeholder="VLAN, TLS, vendor, contact…" value="{{ editing.notes if editing else '' }}">
+        {% endcall %}
       </div>
     </details>
     <div class="form-actions">

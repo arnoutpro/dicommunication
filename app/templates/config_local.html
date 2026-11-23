@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "partials/fields.html" import field, check %}
 {% block title %}Local DICOM AE · {{ product_name }}{% endblock %}
 {% block content %}
 <header class="page-head">
@@ -17,55 +18,36 @@
     <h2>Workstation identity</h2>
     <span class="muted">Calling AE when you are not impersonating a modality</span>
   </header>
-  <form method="post" action="{{ href('/config/local') }}" class="form-grid" autocomplete="off">
-    <label>
-      AE Title
-      <input name="ae_title" maxlength="16" required value="{{ config.local.ae_title }}">
-      <span class="hint">1–16 characters. Remote nodes must accept this calling AE.</span>
-    </label>
-    <label>
-      Port
-      <input name="port" type="number" min="1" max="65535" required value="{{ config.local.port }}">
-    </label>
-    <label>
-      IP address
-      <input name="host" required value="{{ config.local.host }}" placeholder="0.0.0.0">
-      <span class="hint">Bind / listen address. Use 0.0.0.0 to listen on all interfaces.</span>
-    </label>
-    <label>
-      Hostname
-      <input name="hostname" value="{{ config.local.hostname }}" placeholder="workstation.hospital.local">
-          <span class="hint">Optional. For documentation; DICOM listen still uses the IP address.</span>
-    </label>
-    <label class="checkbox span-2">
-      <input type="checkbox" name="storage_scp_enabled" value="on" {% if config.local.storage_scp_enabled %}checked{% endif %}>
-      Accept C-STORE of Structured Reports (same listen port)
-      <span class="hint">Required to retrieve SR text. Vue must list this AE Title as a C-MOVE destination at this host:port. Imaging series are not stored.</span>
-    </label>
+  <form method="post" action="{{ href('/config/local') }}" class="fields cols-2" autocomplete="off">
+    {% call field("AE Title", "ae_title", "1–16 characters. Remote nodes must accept this calling AE.", required=True) %}
+    <input id="ae_title" name="ae_title" class="w-sm" maxlength="16" required value="{{ config.local.ae_title }}">
+    {% endcall %}
+    {% call field("Port", "port", required=True) %}
+    <input id="port" name="port" class="w-xs" type="number" min="1" max="65535" required value="{{ config.local.port }}">
+    {% endcall %}
+    {% call field("IP address", "host", "Bind / listen address. Use 0.0.0.0 to listen on all interfaces.", required=True) %}
+    <input id="host" name="host" class="w-md" required value="{{ config.local.host }}" placeholder="0.0.0.0">
+    {% endcall %}
+    {% call field("Hostname", "hostname", "Optional. For documentation; DICOM listen still uses the IP address.") %}
+    <input id="hostname" name="hostname" class="w-lg" value="{{ config.local.hostname }}" placeholder="workstation.hospital.local">
+    {% endcall %}
+    {{ check("Accept SR C-STORE", "storage_scp_enabled", "storage_scp_enabled", config.local.storage_scp_enabled, "Accept C-STORE of Structured Reports on the same listen port. Required to retrieve SR text. Vue must list this AE Title as a C-MOVE destination at this host:port. Imaging series are not stored.", wide=True) }}
     <details class="advanced">
       <summary>Advanced settings</summary>
-      <div class="form-grid">
-        <label>
-          Timeout (seconds)
-          <input name="timeout_seconds" type="number" min="1" max="120" step="0.5" required value="{{ config.local.timeout_seconds }}">
-        </label>
-        <label>
-          Max PDU size
-          <input name="max_pdu" type="number" min="4096" max="131072" required value="{{ config.local.max_pdu }}">
-        </label>
-        <label>
-          Implementation version
-          <input name="implementation_version" maxlength="16" value="{{ config.local.implementation_version }}">
-        </label>
-        <label>
-          Station AE Title
-          <input name="station_ae_title" maxlength="16" value="{{ config.local.station_ae_title }}" placeholder="CTSCANNER">
-          <span class="hint">Default Scheduled Station AE Title for worklist queries.</span>
-        </label>
-        <label class="checkbox span-2">
-          <input type="checkbox" name="mwl_scp_enabled" value="on" {% if config.local.mwl_scp_enabled %}checked{% endif %}>
-          Serve the web worklist over DICOM (MWL SCP on the listen port)
-        </label>
+      <div class="fields cols-2">
+        {% call field("Timeout", "timeout_seconds", required=True, unit="seconds") %}
+        <input id="timeout_seconds" name="timeout_seconds" class="w-xs" type="number" min="1" max="120" step="0.5" required value="{{ config.local.timeout_seconds }}">
+        {% endcall %}
+        {% call field("Max PDU size", "max_pdu", required=True, unit="bytes") %}
+        <input id="max_pdu" name="max_pdu" class="w-sm" type="number" min="4096" max="131072" required value="{{ config.local.max_pdu }}">
+        {% endcall %}
+        {% call field("Implementation version", "implementation_version") %}
+        <input id="implementation_version" name="implementation_version" class="w-sm" maxlength="16" value="{{ config.local.implementation_version }}">
+        {% endcall %}
+        {% call field("Station AE Title", "station_ae_title", "Default Scheduled Station AE Title for worklist queries.") %}
+        <input id="station_ae_title" name="station_ae_title" class="w-sm" maxlength="16" value="{{ config.local.station_ae_title }}" placeholder="CTSCANNER">
+        {% endcall %}
+        {{ check("Worklist over DICOM", "mwl_scp_enabled", "mwl_scp_enabled", config.local.mwl_scp_enabled, "Serve the web worklist over DICOM (MWL SCP on the listen port).", wide=True) }}
       </div>
     </details>
     <div class="form-actions">

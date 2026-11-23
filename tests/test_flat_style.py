@@ -60,3 +60,24 @@ def test_the_sidebar_is_a_tree_with_a_solid_selected_row() -> None:
 
 def test_buttons_inside_an_actions_row_keep_their_button_style() -> None:
     assert ".actions a:not(.button), .link-button {" in CSS  # plain action links, but never real buttons
+
+
+def test_no_page_asks_for_a_font_file_that_is_not_there() -> None:
+    for template in (ROOT / "app" / "templates").rglob("*.html"):
+        assert "/static/fonts/" not in template.read_text(encoding="utf-8"), template.name
+    assert "fonts/" not in CSS
+
+
+def test_the_field_system_is_in_place() -> None:
+    macros = (ROOT / "app" / "templates" / "partials" / "fields.html").read_text(encoding="utf-8")
+    for name in ("macro tip(", "macro field(", "macro check("):
+        assert name in macros
+    for rule in (".fld {", ".fld-label", ".tip {", ".w-xs {", ".w-lg {", ".fields.cols-2"):
+        assert rule in CSS, rule
+    # The first two pages written with it keep every form field name they had.
+    local = (ROOT / "app" / "templates" / "config_local.html").read_text(encoding="utf-8")
+    for name in ("ae_title", "port", "host", "hostname", "storage_scp_enabled", "timeout_seconds", "max_pdu", "implementation_version", "station_ae_title", "mwl_scp_enabled"):
+        assert f'"{name}"' in local, name  # as name="…" or as a macro argument
+    remotes = (ROOT / "app" / "templates" / "config_remotes.html").read_text(encoding="utf-8")
+    for name in ("name", "ae_title", "hostname", "host", "port", "kind", "provides_mwl", "notes"):
+        assert f'"{name}"' in remotes, name

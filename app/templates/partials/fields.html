@@ -1,0 +1,26 @@
+{#- The field system (see app/static/css/app.css, "Fields"): a label on the left, the control beside it,
+    the control as wide as its content, and the explanation in a tooltip instead of grey text.
+
+    {% from "partials/fields.html" import field, check %}
+    <form class="fields cols-2"> ... </form>
+
+    field(label, id, tip, required, wide, unit): wrap the control in {% call field(...) %} ... {% endcall %}
+      give the control the same id, and a width class: w-xs (port), w-sm (AE title), w-md, w-lg, w-full.
+    check(label, id, name, checked, tip, wide): a checkbox in the control column. -#}
+{% macro tip(text) -%}
+<span class="tip" tabindex="0" role="note" aria-label="{{ text }}" data-tip="{{ text }}">?</span>
+{%- endmacro %}
+
+{% macro field(label, id, tip_text="", required=False, wide=False, unit="") -%}
+<div class="fld{% if wide %} fld-wide{% endif %}">
+  <span class="fld-label"><label for="{{ id }}">{{ label }}</label>{% if required %}<span class="req" aria-hidden="true">*</span>{% endif %}{% if tip_text %}{{ tip(tip_text) }}{% endif %}</span>
+  <div class="fld-control">{{ caller() }}{% if unit %}<span class="fld-unit">{{ unit }}</span>{% endif %}</div>
+</div>
+{%- endmacro %}
+
+{% macro check(label, id, name, checked=False, tip_text="", wide=False) -%}
+<div class="fld{% if wide %} fld-wide{% endif %}">
+  <span class="fld-label"><label for="{{ id }}">{{ label }}</label>{% if tip_text %}{{ tip(tip_text) }}{% endif %}</span>
+  <div class="fld-control"><input type="checkbox" id="{{ id }}" name="{{ name }}" value="on"{% if checked %} checked{% endif %}></div>
+</div>
+{%- endmacro %}

@@ -14,7 +14,9 @@ Users said the interface looked machine-made: rounded corners, pill shapes and l
 - **A plain blue on neutral greys** instead of indigo and lavender tints on navy. The light theme is white panels on a light grey page; the dark theme is charcoal. The Professional (amber) theme keeps its colours and gets the same shapes.
 - **No icon tile next to page titles, no striped table rows**, and the table header is a plain grey bar. Empty states are left-aligned.
 - **The sidebar is a tree**, like a file explorer: 22px rows, a hollow triangle in front of a closed folder and a solid one when it is open, no guide lines or pills, deeper levels indented, and a solid blue row across the full width for the selected page. The layout and the entries are unchanged.
-- Still to come: long explanations under fields become tooltips, and the individual tools get a closer look.
+- **A new field system, first on Local DICOM AE and Remote nodes.** The label is on the left and the control beside it, aligned in columns (two columns on a wide screen, one on a narrow one). Each box is as wide as what goes in it: a port number gets a short box, an AE Title a medium one, a hostname a long one, where before every box stretched across the page. The grey explanation under each field is now a small `?` that shows the text on hover or keyboard focus, and units (seconds, bytes) sit after the box. "Advanced settings" is a plain line with a triangle instead of a grey box, and an empty state is plain text instead of a box inside a box. Every panel title now has a thin line under it. The other pages keep their old layout until they are converted, one at a time.
+- **Fixed:** every page asked the browser for a font file that was removed in this version, which made a failed request on each page load.
+- Still to come: the other pages on the new field system, with fewer controls shown at once (a period menu instead of preset buttons and date pickers, one menu for the modalities, and so on).
 
 ## 0.13.2
 

@@ -54,6 +54,9 @@
   --brand-letter: #ffffff;
   --brand-copy: rgb(226 232 240 / 0.92);
   font-family: var(--font-ui);
+  /* The triangles of a tree and of a disclosure: hollow when closed, solid when open. */
+  --tri-closed: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10'%3E%3Cpath d='M2.75 1.5L7.25 5L2.75 8.5Z' fill='none' stroke='black' stroke-width='1'/%3E%3C/svg%3E");
+  --tri-open: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10'%3E%3Cpath d='M8.5 1.5V8.5H1.5Z' fill='black'/%3E%3C/svg%3E");
   --font-ui: "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
   font-family: var(--font-ui);
   font-size: 16px;
@@ -347,15 +350,15 @@ h1, h2, h3, h4 {
   width: 0.62rem;
   height: 0.62rem;
   background: currentColor;
-  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10'%3E%3Cpath d='M2.75 1.5L7.25 5L2.75 8.5Z' fill='none' stroke='black' stroke-width='1'/%3E%3C/svg%3E") center / contain no-repeat;
-  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10'%3E%3Cpath d='M2.75 1.5L7.25 5L2.75 8.5Z' fill='none' stroke='black' stroke-width='1'/%3E%3C/svg%3E") center / contain no-repeat;
+  -webkit-mask: var(--tri-closed) center / contain no-repeat;
+  mask: var(--tri-closed) center / contain no-repeat;
 }
 .nav-fold-check:checked ~ .nav-row > .nav-twist::before,
 .nav-fold-check:checked ~ .nav-fold > .nav-twist::before,
 .nav-branch.is-open > .nav-row > .nav-twist::before,
 .nav-branch.is-open > .nav-fold > .nav-twist::before {
-  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10'%3E%3Cpath d='M8.5 1.5V8.5H1.5Z' fill='black'/%3E%3C/svg%3E") center / contain no-repeat;
-  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10'%3E%3Cpath d='M8.5 1.5V8.5H1.5Z' fill='black'/%3E%3C/svg%3E") center / contain no-repeat;
+  -webkit-mask: var(--tri-open) center / contain no-repeat;
+  mask: var(--tri-open) center / contain no-repeat;
   color: var(--text);
 }
 .nav-fold-check:focus-visible + .nav-fold,
@@ -608,6 +611,8 @@ td .badge + .muted.small { margin-left: 0.35rem; }
   align-items: baseline;
   gap: 0.6rem;
   margin-bottom: 0.5rem;
+  padding-bottom: 0.3rem;
+  border-bottom: 1px solid var(--line);
 }
 .panel-head a { color: var(--accent); font-weight: 700; text-decoration: none; font-size: var(--text-sm); }
 .panel-head .muted { font-size: var(--text-sm); }
@@ -932,27 +937,31 @@ summary::-webkit-details-marker { display: none; }
 summary::before {
   content: "";
   flex-shrink: 0;
-  width: 0.38rem;
-  height: 0.38rem;
-  border-right: 2px solid currentColor;
-  border-bottom: 2px solid currentColor;
-  transform: rotate(-45deg);
-  transition: transform 0.15s;
+  width: 0.62rem;
+  height: 0.62rem;
+  background: currentColor;
+  -webkit-mask: var(--tri-closed) center / contain no-repeat;
+  mask: var(--tri-closed) center / contain no-repeat;
 }
-details[open] > summary::before { transform: rotate(45deg); }
+details[open] > summary::before {
+  -webkit-mask: var(--tri-open) center / contain no-repeat;
+  mask: var(--tri-open) center / contain no-repeat;
+}
 
 .advanced {
   grid-column: 1 / -1;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-sm);
-  padding: 0 0.75rem 0.65rem;
-  background: var(--glass);
+  margin-top: 0.3rem;
+  border: 0;
+  border-top: 1px solid var(--line);
+  padding: 0 0 0.3rem;
+  background: none;
 }
-.advanced:not([open]) { padding-bottom: 0; }
 .advanced > summary {
-  color: var(--subtle);
+  width: 100%;
+  color: var(--text);
   font-size: var(--text-md);
-  padding: 0.55rem 0;
+  font-weight: 600;
+  padding: 0.4rem 0;
 }
 .advanced > summary:hover { color: var(--accent); }
 .advanced > .hint {
@@ -1245,7 +1254,7 @@ label:has(> .input-with-action > input:focus),
   color: var(--primary-fg);
 }
 
-.empty { padding: 0.6rem 0.75rem; text-align: left; }
+.empty { padding: 0.35rem 0; text-align: left; border: 0; background: none; }
 .empty p { color: var(--muted); font-size: var(--text-sm); }
 .flash { padding: 0.55rem 0.8rem; margin-bottom: 0.65rem; font-size: var(--text-md); }
 .flash.ok { border-color: color-mix(in srgb, var(--ok) 40%, transparent); background: color-mix(in srgb, var(--ok) 8%, transparent); }
@@ -2716,3 +2725,76 @@ body.page-find .find-head {
 .topbar-user form { margin: 0; }
 
 .fingerprint { display: block; overflow-wrap: anywhere; word-break: break-all; }
+
+
+/* Fields: a label on the left, the control beside it, the control as wide as its
+   content, the explanation in a tooltip. Opt in with class="fields" (see
+   templates/partials/fields.html); other forms keep their old layout until converted.
+   One surface per section: groups are separated by a line, never by another box. */
+.fields { --label-w: 10.5rem; display: grid; grid-template-columns: minmax(0, 1fr); column-gap: 2.5rem; align-items: start; }
+.fields.cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.fields > .fld-wide, .fields > details, .fields > .form-actions { grid-column: 1 / -1; }
+.fields .fields { margin-top: 0.1rem; }
+.fld {
+  display: grid;
+  grid-template-columns: var(--label-w) minmax(0, 1fr);
+  column-gap: 0.75rem;
+  align-items: center;
+  min-height: 1.9rem;
+  padding: 0.15rem 0;
+}
+.fld-label { display: flex; align-items: center; gap: 0.35rem; min-width: 0; color: var(--text); }
+.fld-label label { color: inherit; font-weight: 400; cursor: default; }
+.fld-control { display: flex; align-items: center; gap: 0.5rem; min-width: 0; }
+.fld-control > input:not([type="checkbox"], [type="radio"]),
+.fld-control > select,
+.fld-control > textarea,
+.fld-control > .choice { width: var(--w, 100%); max-width: 100%; }
+.fld-control > textarea { align-self: stretch; }
+.fld-unit { color: var(--muted); font-size: var(--text-sm); white-space: nowrap; }
+.w-xs { --w: 5.5rem; }
+.w-sm { --w: 9rem; }
+.w-md { --w: 15rem; }
+.w-lg { --w: 24rem; }
+.w-full { --w: 100%; }
+.fields input[type="number"] { max-width: 100%; }
+/* The explanation: a small square question mark that shows its text on hover or focus. */
+.tip {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 0.95rem;
+  height: 0.95rem;
+  border: 1px solid var(--line-strong);
+  color: var(--muted);
+  font-size: 0.65rem;
+  font-weight: 700;
+  line-height: 1;
+  cursor: help;
+}
+.tip:hover, .tip:focus-visible { color: var(--accent); border-color: var(--accent); outline: none; }
+.tip::after {
+  content: attr(data-tip);
+  display: none;
+  position: absolute;
+  z-index: 30;
+  top: calc(100% + 0.35rem);
+  left: -0.2rem;
+  width: max-content;
+  max-width: 21rem;
+  padding: 0.35rem 0.55rem;
+  background: var(--text);
+  color: var(--bg);
+  font-size: var(--text-sm);
+  font-weight: 400;
+  line-height: 1.35;
+  white-space: normal;
+  text-align: left;
+}
+.tip:hover::after, .tip:focus-visible::after { display: block; }
+@media (max-width: 900px) {
+  .fields.cols-2 { grid-template-columns: minmax(0, 1fr); }
+  .fld { grid-template-columns: minmax(0, 1fr); row-gap: 0.1rem; }
+}
