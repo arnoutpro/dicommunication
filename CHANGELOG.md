@@ -2,6 +2,21 @@
 
 ## Unreleased
 
+## 0.11.0
+
+### Security (for use on a network with patient data)
+
+- **Sign-in with roles.** Required whenever the app can be reached from another computer, and once any account exists; one computer without accounts opens as before. Roles: *viewer* (dashboard, echo board, simplified page), *operator* (run tools and Router rules) and *administrator* (configuration, users, security, audit). Passwords are 12+ characters, stored as scrypt hashes; sessions are idle-limited (30 min) and time-limited (12 h); five wrong attempts lock a name or address for five minutes. The first administrator is made on the computer itself or with `--create-admin NAME --password-file FILE` (add `--service-data` for the headless edition). Every route has an entry in a permission table, and a test fails if one does not.
+- **HTTPS built in.** On a network address the app serves HTTPS with a certificate it makes itself (name- and address-aware, renewed automatically, private key owner-only). Configuration > Security shows the fingerprint and offers the certificate for download. New `--https` / `--no-https` flags.
+- **Audit log** (Configuration > Audit log): who signed in, was denied, changed or ran something, without patient data or passwords; each line is chained to the one before so edits and deletions are detected. Filterable and downloadable.
+- **Patient details are kept 30 minutes.** The Router's run history and tool results lose names, IDs and accession numbers after the retention time (Configuration > Security; 0 keeps nothing); counts and summaries stay. Idle Dicom Import sessions now end after 30 minutes.
+- **Operator limits.** Operators may only use saved nodes and folders an administrator lists under Configuration > Security; the folder Browse dialog is for administrators.
+- **Users page** (Configuration > Users): add, change role, disable, reset password, delete, with protection for the last administrator.
+
+### Windows
+
+- The headless installer's firewall rule now allows the **local subnet only** (it was any address), says so in the wizard, and the Start-menu shortcut opens `https://` when the network option is ticked.
+
 ## 0.10.14
 
 ### Desktop window

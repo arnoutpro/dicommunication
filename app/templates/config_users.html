@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block title %}Users · {{ product_name }}{% endblock %}
+{% block content %}
+<header class="page-head">
+  <div class="page-head-hero">
+    {% include "partials/page_icon.html" %}
+    <div>
+    <h1>Users</h1>
+    <p class="lede">Who may sign in, and what each person may do. Passwords are stored only as salted hashes, and there is always at least one administrator.</p>
+    </div>
+  </div>
+</header>
+{% if flash %}<div class="flash {{ 'ok' if flash_ok else 'fail' }}">{{ flash }}</div>{% endif %}
+{% if not login_on %}
+<div class="flash fail">Sign-in is not turned on yet. It turns on as soon as the first account exists, or when the app can be reached from other computers. <a href="{{ href('/setup') }}">Create the first administrator</a> (this has to be done on this computer).</div>
+{% endif %}
+
+<section class="panel step">
+  <header class="panel-head"><h2 class="step-title">Accounts</h2></header>
+  {% if users %}
+  <div class="table-wrap">
+    <table class="import-table">
+      <thead><tr><th>User</th><th>Role and actions</th></tr></thead>
+      <tbody>
+        {% for u in users %}
+        <tr>
+          <td>{{ u.username }}{% if u.id == me %} <span class="muted small">(you)</span>{% endif %}{% if u.disabled %} <span class="badge">Disabled</span>{% endif %}<br><span class="muted small">{{ ('Last sign-in ' ~ u.last_login[:16].replace('T', ' ')) if u.last_login else 'Never signed in' }}</span></td>
+          <td>
+            <form method="post" action="{{ href('/config/users/' ~ u.id ~ '/update') }}" class="inline user-row">
+              <select name="role" aria-label="Role of {{ u.username }}">
+                {% for r in roles %}<option value="{{ r }}"{% if r == u.role %} selected{% endif %}>{{ role_labels[r] }}</option>{% endfor %}
+              </select>
+              <label class="checkline"><input type="checkbox" name="disabled"{% if u.disabled %} checked{% endif %}> Disabled</label>
+              <button class="button compact" type="submit">Save</button>
+            </form>
+            <form method="post" action="{{ href('/config/users/' ~ u.id ~ '/password') }}" class="inline user-row" autocomplete="off">
+              <input name="password" type="password" placeholder="New password" minlength="12" autocomplete="new-password" aria-label="New password for {{ u.username }}">
+              <button class="button compact" type="submit">Set password</button>
+            </form>
+            {% if u.id != me %}
+            <form method="post" action="{{ href('/config/users/' ~ u.id ~ '/delete') }}" class="inline" data-confirm="Delete the account {{ u.username }}?">
+              <button class="link-button danger" type="submit">Delete</button>
+            </form>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p class="muted">No accounts yet.</p>
+  {% endif %}
+</section>
+
+<section class="panel step">
+  <header class="panel-head"><h2 class="step-title">Add a user</h2></header>
+  <form method="post" action="{{ href('/config/users') }}" autocomplete="off">
+    <div class="form-grid">
+      <label>Username <input name="username" required autocomplete="off"></label>
+      <label>Password <input name="password" type="password" required minlength="12" autocomplete="new-password"></label>
+      <label>Role
+        <select name="role">{% for r in roles %}<option value="{{ r }}"{% if r == 'operator' %} selected{% endif %}>{{ role_labels[r] }}</option>{% endfor %}</select>
+      </label>
+    </div>
+    <p class="hint">At least 12 characters. Tell the person their password in person, not by email, and ask them to change it under Account.</p>
+    <div class="form-actions"><button class="button primary" type="submit">Add user</button></div>
+  </form>
+</section>
+{% endblock %}

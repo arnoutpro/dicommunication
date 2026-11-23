@@ -122,6 +122,22 @@ def study_query_from_form(form: Any) -> dict[str, Any]:
     }
 
 
+def _check_operator_limits(request: Request, tool_id: str, options: dict[str, Any] | None, manual_remote: RemoteNode | None) -> None:
+    """An operator may not aim a tool at an address or folder an administrator has not approved."""
+    from app.access import ADHOC_DENIED, FOLDER_DENIED, folder_allowed, is_admin, node_known
+
+    if is_admin(request):
+        return
+    opts = options or {}
+    if manual_remote is not None:
+        raise HTTPException(status_code=403, detail=ADHOC_DENIED)
+    folder = str(opts.get("directory") or "") if tool_id == "pdf-store" else str(opts.get("output_dir") or "") if tool_id == "anonymize" else ""
+    if folder.strip() and not folder_allowed(request, folder):
+        raise HTTPException(status_code=403, detail=FOLDER_DENIED)
+    if tool_id == "hl7-send" and not node_known(request, str(opts.get("host") or ""), opts.get("port")):
+        raise HTTPException(status_code=403, detail=ADHOC_DENIED)
+
+
 def execute_tool(
     request: Request,
     tool_id: str,
@@ -136,6 +152,7 @@ def execute_tool(
         tool = get_tool(tool_id)
     except KeyError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
+    _check_operator_limits(request, tool_id, options, manual_remote)
     # A manually-entered node (currently C-ECHO only) is ephemeral: it is
     # used for this one run and never saved to config.remotes.
     remote = manual_remote or (config.get_remote(remote_id) if remote_id else None)

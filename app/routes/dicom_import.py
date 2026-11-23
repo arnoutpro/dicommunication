@@ -210,6 +210,10 @@ async def import_scan(request: Request):
     headerless = bool(form.get("include_headerless"))
     if not folder:
         return _render(request, None, folder=folder, include_headerless=headerless, flash="Enter the folder to scan.", partial=False, status_code=400)
+    from app.access import FOLDER_DENIED, folder_allowed
+
+    if not folder_allowed(request, folder):
+        return _render(request, None, folder=folder, include_headerless=headerless, flash=FOLDER_DENIED, partial=False, status_code=403)
     try:
         session = _sessions(request).start_scan(folder, headerless)
     except ImportProblem as exc:

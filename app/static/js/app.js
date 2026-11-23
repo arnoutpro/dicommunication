@@ -2351,7 +2351,10 @@ function initDicomImport() {
           }
         } else if (status) {
           status.hidden = false;
-          status.textContent = "No folder dialog in this session. Type the path instead.";
+          status.textContent =
+            response.status === 403
+              ? "Only an administrator can browse. Type a folder from the allowed list."
+              : "No folder dialog in this session. Type the path instead.";
         }
       } catch (error) {
         if (status) {

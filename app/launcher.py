@@ -89,8 +89,14 @@ def keep_alive_hint(mode: str | None = None, *, title: str = "Dicommunication") 
 
 
 def server_is_up(url: str, timeout: float = 0.4) -> bool:
+    context = None
+    if url.startswith("https://"):
+        import ssl
+
+        # Only ever used to ask this computer's own server whether it is up; its certificate is self-signed.
+        context = ssl._create_unverified_context()  # noqa: S323
     try:
-        with urllib.request.urlopen(url, timeout=timeout) as response:
+        with urllib.request.urlopen(url, timeout=timeout, context=context) as response:
             return 200 <= int(response.status) < 500
     except (OSError, urllib.error.URLError, ValueError):
         return False
@@ -109,10 +115,10 @@ def open_browser_when_ready(url: str, attempts: int = 50) -> None:
         webbrowser.open(url)
 
 
-def _serve(app, host: str, port: int) -> None:
+def _serve(app, host: str, port: int, **ssl_kwargs) -> None:
     import uvicorn
 
-    uvicorn.run(app, host=host, port=port, log_level="info")
+    uvicorn.run(app, host=host, port=port, log_level="info", **ssl_kwargs)
 
 
 def _hold_server() -> int:
@@ -122,6 +128,46 @@ def _hold_server() -> int:
             time.sleep(3600)
     except KeyboardInterrupt:
         return 0
+
+
+def _prepare_tls(app, use_https: bool) -> dict:
+    """The certificate to serve with (made if needed), or nothing for plain HTTP."""
+    if not use_https:
+        app.state.tls_info = {"enabled": False}
+        return {}
+    from app.security import configured_hosts
+    from app.tls import describe, ensure_certificate
+
+    files = ensure_certificate(app.state.store.data_dir, sorted(configured_hosts()))
+    app.state.tls_info = describe(files.cert)
+    return {"ssl_certfile": str(files.cert), "ssl_keyfile": str(files.key)}
+
+
+def create_admin_from_file(name: str, password_file: str | None) -> int:
+    """``--create-admin NAME --password-file FILE``: for a server nobody can browse from, and for a lost password."""
+    from app.auth import ADMIN, AuthError, UserStore
+    from app.store import DEFAULT_DATA_DIR
+
+    try:
+        password = Path(password_file or "").read_text(encoding="utf-8").splitlines()[0] if password_file else ""
+    except (OSError, IndexError):
+        print("Could not read the first line of the password file.", flush=True)
+        return 2
+    users = UserStore(DEFAULT_DATA_DIR)
+    try:
+        existing = users.by_username(name)
+        if existing is None:
+            users.add(name, password, ADMIN)
+            print(f"Created the administrator {name}.", flush=True)
+        else:
+            users.set_password(existing.id, password)
+            users.set_role(existing.id, ADMIN)
+            users.set_disabled(existing.id, False)
+            print(f"Reset {existing.username}: new password, administrator, enabled.", flush=True)
+    except AuthError as exc:
+        print(f"Not done: {exc}", flush=True)
+        return 1
+    return 0
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -162,6 +208,11 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help=argparse.SUPPRESS,  # Windows MSI uninstall hook, not a user-facing flag.
     )
+    tls = parser.add_mutually_exclusive_group()
+    tls.add_argument("--https", action="store_true", help="Serve over HTTPS with a self-signed certificate (automatic when the app listens beyond this computer).")
+    tls.add_argument("--no-https", action="store_true", help="Serve plain HTTP even when listening beyond this computer, for a reverse proxy that handles HTTPS.")
+    parser.add_argument("--create-admin", metavar="NAME", help="Create an administrator, or reset the password of that account, from --password-file.")
+    parser.add_argument("--password-file", metavar="FILE", help="With --create-admin: a text file whose first line is the password. Delete it afterwards.")
     # Windows headless edition (packaging/windows/Headless.wxs): not user-facing flags.
     parser.add_argument("--configure-service", action="store_true", help=argparse.SUPPRESS)
     parser.add_argument("--service-data", action="store_true", help=argparse.SUPPRESS)
@@ -172,6 +223,15 @@ def main(argv: list[str] | None = None) -> int:
         from app.service_setup import run_configure
 
         return run_configure(args.port, args.listen)
+
+    if args.create_admin:
+        if args.service_data:
+            from app.service_setup import service_data_dir
+
+            os.environ["DICOMM_DATA_DIR"] = str(service_data_dir())
+        apply_runtime_env()
+        redirect_frozen_stdio()
+        return create_admin_from_file(args.create_admin, args.password_file)
 
     if args.uninstall_cleanup:
         from app.uninstall import run_uninstall_cleanup
@@ -188,8 +248,15 @@ def main(argv: list[str] | None = None) -> int:
 
     profile = args.profile
     title = profile_window_title(profile)
-    ui_url = f"http://{args.host}:{args.port}{profile_start_path(profile)}"
-    health = f"http://{args.host}:{args.port}/health"
+    from app.auth import LOOPBACK
+
+    on_network = args.host not in LOOPBACK and args.host != "[::1]"
+    use_https = (args.https or on_network) and not args.no_https and mode != UI_WINDOW
+    scheme = "https" if use_https else "http"
+    # The app reads this to decide that sign-in is required when other computers can reach it.
+    os.environ["DICOMM_LISTEN_HOST"] = args.host
+    ui_url = f"{scheme}://{args.host}:{args.port}{profile_start_path(profile)}"
+    health = f"{scheme}://{args.host}:{args.port}/health"
     if server_is_up(health):
         print(f"Already running at {ui_url}", flush=True)
         if mode == UI_NONE:
@@ -225,9 +292,10 @@ def main(argv: list[str] | None = None) -> int:
     if mode == UI_BROWSER:
         threading.Thread(target=open_browser_when_ready, args=(ui_url,), daemon=True).start()
 
+    ssl_kwargs = _prepare_tls(app, use_https)
     print(f"{title} UI: {ui_url}", flush=True)
     print(keep_alive_hint(mode, title=title), flush=True)
-    uvicorn.run(app, host=args.host, port=args.port, log_level="info")
+    uvicorn.run(app, host=args.host, port=args.port, log_level="info", **ssl_kwargs)
     return 0
 
 

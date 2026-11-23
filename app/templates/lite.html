@@ -11,7 +11,11 @@
   <header>
     <h1>Status dashboard</h1>
     <span id="summary">…</span>
-    <a href="/router" class="back">Dicom Router</a>
+    {% if request.state.role != 'viewer' %}<a href="/router" class="back">Dicom Router</a>{% endif %}
+    {% if request.state.auth_required and request.state.user %}
+    <span class="who"><a href="/account">{{ request.state.user.username }}</a>
+      <form method="post" action="/logout"><button type="submit">Sign out</button></form></span>
+    {% endif %}
   </header>
   <main id="tiles"></main>
   <script src="{{ static_url('js/lite.js') }}"></script>

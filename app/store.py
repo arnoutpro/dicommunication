@@ -9,7 +9,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from threading import Lock
 
-from typing import TypeVar
+from typing import Callable, TypeVar
 
 from pydantic import BaseModel, ValidationError
 
@@ -52,6 +52,17 @@ DEFAULT_DATA_DIR = _default_data_dir()
 ModelT = TypeVar("ModelT", bound=BaseModel)
 
 _UNSET = object()
+
+
+def _collected_before(stamp: object, cutoff: datetime) -> bool:
+    """Whether an ISO timestamp is older than ``cutoff``. One that cannot be read counts as old."""
+    try:
+        moment = datetime.fromisoformat(str(stamp).replace("Z", "+00:00"))
+    except ValueError:
+        return True
+    if moment.tzinfo is None:
+        moment = moment.replace(tzinfo=cutoff.tzinfo)
+    return moment < cutoff
 
 
 def _ensure_unique_id(record, existing: list) -> None:
@@ -102,6 +113,8 @@ class ConfigStore:
         self._lock = Lock()
         self._max_results = 200
         self._max_route_runs = 500
+        # Set by the app: how many minutes patient details may be kept (0 = not at all).
+        self.retention_provider: Callable[[], int] | None = None
 
     def load(self) -> AppConfig:
         with self._lock:
@@ -198,9 +211,14 @@ class ConfigStore:
     def add_result(self, result: ToolResult) -> None:
         self.add_results([result])
 
+    def _keeps_nothing(self) -> bool:
+        return self.retention_provider is not None and self.retention_provider() == 0
+
     def add_results(self, new_results: list[ToolResult]) -> None:
         if not new_results:
             return
+        if self._keeps_nothing():
+            new_results = [item.model_copy(update={"records": []}) for item in new_results]
         with self._lock:
             results = self._load_results_unlocked()
             payload = [item.model_dump(mode="json") for item in new_results]
@@ -418,11 +436,37 @@ class ConfigStore:
             return next(item for item in updated if item.id == rule_id)
 
     def add_route_run(self, run: RouteRun) -> RouteRun:
+        if self._keeps_nothing():
+            run = run.model_copy(update={"matches": []})
         with self._lock:
             runs = self._load_route_runs_unlocked()
             payload = run.model_dump(mode="json")
             self._write_json(self.route_runs_path, ([payload] + runs)[: self._max_route_runs])
             return run
+
+    def scrub_patient_details(self, cutoff: datetime) -> dict[str, int]:
+        """Empty the patient rows of everything collected before ``cutoff``.
+
+        A Router run keeps its counts but loses the list of matched studies (names,
+        IDs, accession numbers); a tool result keeps its summary and steps but
+        loses the rows it fetched. Returns how many of each were emptied.
+        """
+        emptied = {"runs": 0, "results": 0}
+        with self._lock:
+            for path, field_name, key, loader in (
+                (self.route_runs_path, "matches", "runs", self._load_route_runs_unlocked),
+                (self.results_path, "records", "results", self._load_results_unlocked),
+            ):
+                items = loader()
+                changed = 0
+                for item in items:
+                    if isinstance(item, dict) and item.get(field_name) and _collected_before(item.get("started_at"), cutoff):
+                        item[field_name] = []
+                        changed += 1
+                if changed:
+                    self._write_json(path, items)
+                    emptied[key] = changed
+        return emptied
 
     def list_route_runs(self, rule_id: str | None = None, limit: int = 50) -> list[RouteRun]:
         with self._lock:

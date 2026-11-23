@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <?ifndef ProductVersion ?>
-<?define ProductVersion = "0.10.14" ?>
+<?define ProductVersion = "0.11.0" ?>
 <?endif?>
 <!--
   Dicommunication, headless edition.
@@ -63,6 +63,9 @@
       <RegistrySearch Id="PreviousPort" Root="HKLM" Key="Software\Arnout.pro\Dicommunication\Service"
                       Name="Port" Type="raw" Bitness="always64" />
     </Property>
+    <!-- The Start-menu shortcut opens https when other computers may connect (the app then serves HTTPS), else http. -->
+    <Property Id="SHORTCUTSCHEME" Value="http" />
+    <SetProperty Id="SHORTCUTSCHEME" Value="https" Before="CostFinalize" Sequence="both" Condition="ALLOWNETWORK" />
     <Property Id="ALLOWNETWORK" Secure="yes">
       <RegistrySearch Id="PreviousAllowNetwork" Root="HKLM" Key="Software\Arnout.pro\Dicommunication\Service"
                       Name="AllowNetwork" Type="raw" Bitness="always64" />
@@ -106,14 +109,14 @@
       </Component>
     </ComponentGroup>
 
-    <!-- Only when other computers may connect: open the port in Windows Firewall. -->
+    <!-- Only when other computers may connect: open the port in Windows Firewall, for the local subnet only. -->
     <ComponentGroup Id="FirewallRule" Directory="INSTALLFOLDER">
       <Component Id="WebInterfaceFirewallRule" Guid="6a3e9c10-84d2-4b75-9f0e-1c5d7b2a8e43" Bitness="always64"
                  Condition="ALLOWNETWORK">
         <RegistryValue Root="HKLM" Key="Software\Arnout.pro\Dicommunication\Service"
                        Name="FirewallRule" Type="integer" Value="1" KeyPath="yes" />
         <fw:FirewallException Id="WebInterfaceException" Name="Dicommunication web interface"
-                              Port="[PORT]" Protocol="tcp" Scope="any" IgnoreFailure="yes" />
+                              Port="[PORT]" Protocol="tcp" Scope="localSubnet" IgnoreFailure="yes" />
       </Component>
     </ComponentGroup>
 
@@ -121,7 +124,7 @@
     <ComponentGroup Id="Shortcuts" Directory="ApplicationProgramsFolder">
       <Component Id="OpenInBrowserShortcut" Guid="e7d41b36-9a58-4c2f-b0e3-5f81a6c9d274" Bitness="always64">
         <util:InternetShortcut Id="OpenDicommunication" Name="Dicommunication"
-                               Target="http://localhost:[PORT]/" Type="url" />
+                               Target="[SHORTCUTSCHEME]://localhost:[PORT]/" Type="url" />
         <RemoveFolder Id="RemoveApplicationProgramsFolder" On="uninstall" />
         <RegistryValue Root="HKLM" Key="Software\Arnout.pro\Dicommunication\Service"
                        Name="Shortcut" Type="integer" Value="1" KeyPath="yes" />
@@ -180,13 +183,13 @@
                  Text="Port for the web interface (1024 - 65535):" />
         <Control Id="PortEdit" Type="Edit" X="20" Y="80" Width="70" Height="18" Property="PORT" Text="{5}" />
         <Control Id="PortHint" Type="Text" X="100" Y="82" Width="250" Height="16" NoPrefix="yes"
-                 Text="You will open http://localhost:[PORT]/" />
+                 Text="You will open localhost:[PORT] in a browser." />
 
         <Control Id="NetworkCheck" Type="CheckBox" X="20" Y="120" Width="330" Height="18"
                  Property="ALLOWNETWORK" CheckBoxValue="1"
-                 Text="Allow other computers on the network to connect" />
-        <Control Id="NetworkWarning" Type="Text" X="38" Y="140" Width="312" Height="64" NoPrefix="yes"
-                 Text="Leave this off unless you need it. Dicommunication has no login: anyone who can reach the port can use it, including sending DICOM and reading patient data. If you turn it on, the Windows Firewall is opened for this port; put it behind a login or a VPN." />
+                 Text="Allow other computers on the same network to connect" />
+        <Control Id="NetworkWarning" Type="Text" X="38" Y="140" Width="312" Height="88" NoPrefix="yes"
+                 Text="Leave this off unless you need it. When on: everyone must sign in, traffic is encrypted (HTTPS; the browser warns once about the certificate the app makes itself), and the Windows Firewall lets in only your own subnet. Create the first administrator in a browser on this computer." />
 
         <Control Id="BottomLine" Type="Line" X="0" Y="234" Width="370" Height="0" />
         <Control Id="Back" Type="PushButton" X="180" Y="243" Width="56" Height="17" Text="!(loc.WixUIBack)">

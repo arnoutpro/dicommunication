@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block title %}Security · {{ product_name }}{% endblock %}
+{% block content %}
+<header class="page-head">
+  <div class="page-head-hero">
+    {% include "partials/page_icon.html" %}
+    <div>
+    <h1>Security</h1>
+    <p class="lede">How this installation protects patient data: sign-in, how long patient details are kept, and which folders operators may read.</p>
+    </div>
+  </div>
+</header>
+{% if flash %}<div class="flash {{ 'ok' if flash_ok else 'fail' }}">{{ flash }}</div>{% endif %}
+
+<section class="panel step">
+  <header class="panel-head"><h2 class="step-title">Sign-in</h2><a href="{{ href('/config/users') }}">Manage users</a></header>
+  {% if login_on %}
+  <p><span class="badge ok">On</span> Everyone signs in{% if login_reason %}, because {{ login_reason }}{% endif %}. {{ users_count }} account{{ '' if users_count == 1 else 's' }}. A session ends after 30 minutes without use, and after five wrong passwords an account is locked for five minutes.</p>
+  {% else %}
+  <p><span class="badge">Off</span> Only this computer can reach the app, so it is open to whoever uses it. It turns on when the first account is created. <a href="{{ href('/setup') }}">Create the first administrator</a>.</p>
+  {% endif %}
+  <p class="hint">{% if exposed %}Other computers can connect to this app.{% else %}Only this computer can connect to this app.{% endif %}</p>
+</section>
+
+{% if tls %}
+<section class="panel step">
+  <header class="panel-head"><h2 class="step-title">HTTPS</h2></header>
+  {% if tls.enabled %}
+  <p><span class="badge ok">On</span> Traffic to this app is encrypted. The certificate was made by this app (self-signed, because there is no company certificate authority), so a browser warns about it the first time.</p>
+  <p class="hint">To check you are talking to the right computer, compare this fingerprint with the one the browser shows:</p>
+  <p><code class="fingerprint">{{ tls.fingerprint }}</code></p>
+  <p class="hint">Valid until {{ tls.not_after }} for {{ tls.names | join(', ') }}. <a href="{{ href('/config/security/certificate') }}">Download the certificate</a>, and install it as a trusted root on the computers that use this app to stop the warning.</p>
+  {% else %}
+  <p><span class="badge">Off</span> Only this computer can connect, so the traffic never leaves it.</p>
+  {% endif %}
+</section>
+{% endif %}
+
+<form method="post" action="{{ href('/config/security') }}" autocomplete="off">
+  <section class="panel step">
+    <header class="panel-head"><h2 class="step-title">Patient details</h2></header>
+    <label>Keep patient details for (minutes)
+      <input name="retention_minutes" type="number" min="0" max="1440" value="{{ settings.retention_minutes }}" required>
+    </label>
+    <p class="hint">After this time the Dicom Router's run history and the recent tool results lose the names, IDs and studies they list. Counts stay, so the status dashboard keeps working. 0 keeps nothing. Dicom Import keeps what it scanned only in memory and drops it after 30 minutes idle.</p>
+  </section>
+  <section class="panel step">
+    <header class="panel-head"><h2 class="step-title">Folders operators may read</h2></header>
+    <label>One folder per line
+      <textarea name="import_roots" rows="4" spellcheck="false" placeholder="D:\Imports">{{ roots_text }}</textarea>
+    </label>
+    <p class="hint">Dicom Import and PDF to DICOM read files from a folder on this computer. An operator may only pick a folder listed here, or inside one. Administrators are not limited. With nothing listed, only administrators can pick a folder.</p>
+    <div class="form-actions"><button class="button primary" type="submit">Save</button></div>
+  </section>
+</form>
+{% endblock %}

@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Set up · Dicommunication</title>
+  <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+  <link rel="stylesheet" href="{{ static_url('css/app.css') }}">
+</head>
+<body class="auth-body">
+  <main class="auth-card">
+    <h1>Create the administrator</h1>
+    {% if remote %}
+    <div class="flash fail">This has to be done on the computer Dicommunication runs on, so nobody else on the network can claim the account first. Open <code>localhost:&lt;port&gt;/setup</code> in a browser there. If you cannot, see the documentation for <code>--create-admin</code>.</div>
+    {% else %}
+    <p class="muted">Dicommunication handles patient data, so it asks for a sign-in. This first account can do everything and add the others.</p>
+    {% if error %}<div class="flash fail" role="alert">{{ error }}</div>{% endif %}
+    <form method="post" action="/setup" autocomplete="off">
+      <label>Username <input name="username" value="{{ username }}" autocomplete="username" autofocus required></label>
+      <label>Password <input name="password" type="password" autocomplete="new-password" minlength="12" required></label>
+      <p class="hint">At least 12 characters. A few random words make a good one.</p>
+      <label>Repeat the password <input name="confirm" type="password" autocomplete="new-password" required></label>
+      <button class="button primary" type="submit">Create account and sign in</button>
+    </form>
+    {% endif %}
+  </main>
+</body>
+</html>
