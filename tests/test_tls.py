@@ -107,3 +107,35 @@ def test_a_real_https_server_answers_and_a_client_that_trusts_the_certificate_co
     finally:
         server.should_exit = True
         thread.join(timeout=5)
+
+
+# --- host names that do not fit in a Common Name --------------------------------------
+
+
+def test_a_computer_name_longer_than_64_characters_still_gets_a_certificate(tmp_path: Path) -> None:
+    long_name = "a-very-long-computer-name-that-the-runner-was-given-for-this-job.local"  # 70 characters
+    assert len(long_name) > 64
+    files = tls.ensure_certificate(tmp_path, extra_names=[long_name])
+    cert = _load(files.cert)
+    common_name = cert.subject.get_attributes_for_oid(x509.oid.NameOID.COMMON_NAME)[0].value
+    assert len(common_name) <= 64
+    assert long_name in tls._san(cert)[0]  # browsers check the SAN, which has room for the whole name
+    assert tls.ensure_certificate(tmp_path, extra_names=[long_name]).cert.read_bytes() == files.cert.read_bytes()  # and it is reused, not remade
+
+
+def test_the_common_name_is_the_first_name_that_fits() -> None:
+    assert tls._common_name(["localhost", "pacs-pc", "pacs-pc.lan"]) == "pacs-pc"
+    assert tls._common_name(["localhost", "x" * 70, "short.lan"]) == "short.lan"
+    assert tls._common_name(["localhost", "x" * 70]) == "localhost"
+    assert tls._common_name(["x" * 70]) == "Dicommunication"
+    assert tls._common_name([]) == "Dicommunication"
+
+
+def test_a_name_too_long_for_dns_is_left_out_of_the_certificate_and_the_certificate_is_still_reused(tmp_path: Path) -> None:
+    not_a_name = "x" * 300
+    first = tls.ensure_certificate(tmp_path, extra_names=[not_a_name, "pacs-pc.lan"])
+    before = first.cert.read_bytes()
+    names = tls._san(_load(first.cert))[0]
+    assert "pacs-pc.lan" in names and not_a_name not in names
+    second = tls.ensure_certificate(tmp_path, extra_names=[not_a_name, "pacs-pc.lan"])
+    assert second.cert.read_bytes() == before  # not remade at the next start, so the fingerprint stays the same

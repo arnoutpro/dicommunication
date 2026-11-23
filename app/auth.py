@@ -35,6 +35,7 @@ import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Callable
 
 VIEWER, OPERATOR, ADMIN = "viewer", "operator", "admin"
 ROLES = (VIEWER, OPERATOR, ADMIN)
@@ -264,9 +265,10 @@ class Session:
 class SessionStore:
     """Sessions held in memory: a restart signs everyone out, which is the safe default."""
 
-    def __init__(self, idle_seconds: float = IDLE_SECONDS, absolute_seconds: float = ABSOLUTE_SECONDS) -> None:
+    def __init__(self, idle_seconds: float = IDLE_SECONDS, absolute_seconds: float = ABSOLUTE_SECONDS, clock: Callable[[], float] = time.monotonic) -> None:
         self.idle_seconds = idle_seconds
         self.absolute_seconds = absolute_seconds
+        self._clock = clock  # tests give a fake one, so they do not depend on how fast the machine is
         self._sessions: dict[str, Session] = {}
         self._lock = threading.Lock()
 
@@ -276,7 +278,7 @@ class SessionStore:
 
     def create(self, user_id: str) -> str:
         token = secrets.token_urlsafe(32)
-        now = time.monotonic()
+        now = self._clock()
         with self._lock:
             self._sessions[self._key(token)] = Session(user_id, now, now)
         return token
@@ -285,7 +287,7 @@ class SessionStore:
         if not token:
             return None
         key = self._key(token)
-        now = time.monotonic()
+        now = self._clock()
         with self._lock:
             session = self._sessions.get(key)
             if session is None:

@@ -17,13 +17,13 @@ administrators, SYSTEM and the service account.
 from __future__ import annotations
 
 import os
-import socket
 import subprocess
 import sys
 from datetime import datetime, timezone
 from pathlib import Path, PureWindowsPath
 from xml.sax.saxutils import escape, quoteattr
 
+from app.netutil import own_names
 from app.paths import is_macos, no_console_kwargs, runtime_os_name
 
 SERVICE_NAME = "Dicommunication"
@@ -72,15 +72,7 @@ def listen_host(listen: str) -> str:
 
 def computer_names() -> list[str]:
     """This computer's names, for the app's Host check when it listens on the network."""
-    names: list[str] = []
-    for getter in (socket.gethostname, socket.getfqdn):
-        try:
-            name = getter().strip().lower()
-        except OSError:
-            continue
-        if name and name not in names:
-            names.append(name)
-    return names
+    return own_names()
 
 
 def render_service_xml(

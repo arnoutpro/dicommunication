@@ -18,7 +18,6 @@ from __future__ import annotations
 import datetime as dt
 import ipaddress
 import os
-import socket
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -26,6 +25,8 @@ from cryptography import x509
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import ec
 from cryptography.x509.oid import ExtendedKeyUsageOID, NameOID
+
+from app.netutil import own_addresses, own_names
 
 VALID_DAYS = 730
 RENEW_BEFORE_DAYS = 30
@@ -41,12 +42,8 @@ def local_identity(extra_names: list[str] | None = None) -> tuple[list[str], lis
     """This computer's DNS names and IP addresses, for the certificate."""
     names: list[str] = ["localhost"]
     addresses: list[str] = ["127.0.0.1", "::1"]
-    for getter in (socket.gethostname, socket.getfqdn):
-        try:
-            name = getter().strip().lower()
-        except OSError:
-            continue
-        if name and name not in names:
+    for name in own_names():
+        if name not in names:
             names.append(name)
     for name in extra_names or []:
         name = name.strip().lower()
@@ -57,13 +54,9 @@ def local_identity(extra_names: list[str] | None = None) -> tuple[list[str], lis
                     addresses.append(name)
             except ValueError:
                 names.append(name)
-    try:
-        for info in socket.getaddrinfo(socket.gethostname(), None, socket.AF_INET):
-            address = info[4][0]
-            if address not in addresses:
-                addresses.append(address)
-    except OSError:
-        pass
+    for address in own_addresses():
+        if address not in addresses:
+            addresses.append(address)
     return names, addresses
 
 
@@ -90,9 +83,22 @@ def _usable(cert_path: Path, key_path: Path, names: list[str], addresses: list[s
     return set(names) <= have_names and {str(ipaddress.ip_address(a)) for a in addresses} <= have_addresses
 
 
+COMMON_NAME_MAX = 64  # X.509 allows at most 64 characters in a Common Name
+DNS_NAME_MAX = 253
+
+
+def _common_name(names: list[str]) -> str:
+    """The first name that fits in a Common Name (other than localhost if there is one); browsers use the SAN, so this is only a label."""
+    for name in [*names[1:], *names[:1]]:
+        if 1 <= len(name) <= COMMON_NAME_MAX:
+            return name
+    return "Dicommunication"
+
+
 def _generate(cert_path: Path, key_path: Path, names: list[str], addresses: list[str]) -> None:
     key = ec.generate_private_key(ec.SECP256R1())
-    subject = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, names[1] if len(names) > 1 else names[0]), x509.NameAttribute(NameOID.ORGANIZATION_NAME, "Dicommunication (self-signed)")])
+    names = [name for name in names if 1 <= len(name) <= DNS_NAME_MAX]  # a longer one is not a DNS name
+    subject = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, _common_name(names)), x509.NameAttribute(NameOID.ORGANIZATION_NAME, "Dicommunication (self-signed)")])
     now = dt.datetime.now(dt.timezone.utc)
     alt = [x509.DNSName(name) for name in names] + [x509.IPAddress(ipaddress.ip_address(a)) for a in addresses]
     cert = (
@@ -124,6 +130,7 @@ def ensure_certificate(data_dir: Path | str, extra_names: list[str] | None = Non
     folder = Path(data_dir) / "tls"
     files = TlsFiles(cert=folder / "cert.pem", key=folder / "key.pem")
     names, addresses = local_identity(extra_names)
+    names = [name for name in names if 1 <= len(name) <= DNS_NAME_MAX]  # the same names are checked and written, or it would be remade at every start
     if not _usable(files.cert, files.key, names, addresses):
         _generate(files.cert, files.key, names, addresses)
     return files
