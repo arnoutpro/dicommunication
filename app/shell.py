@@ -99,7 +99,17 @@ TAB_HREFS = {
 PROMOTED_TAB_TOOL_IDS = frozenset({"c-find-advanced", "anonymize", "dicom-cleaner", "dicom-import"})
 
 _CONFIG_NAV_VALUES = frozenset(
-    {"config", "config-local", "config-identities", "config-remotes", "config-transfer", "logs"}
+    {
+        "config",
+        "config-local",
+        "config-identities",
+        "config-remotes",
+        "config-transfer",
+        "config-users",
+        "config-security",
+        "config-audit",
+        "logs",
+    }
 )
 
 _TOOL_ID_TABS = {

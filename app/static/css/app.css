@@ -2799,3 +2799,14 @@ body.page-find .find-head {
 .import-toolbar { display: flex; gap: 0.5rem; margin: 0.3rem 0; }
 .import-progress { width: 100%; height: 0.8rem; }
 .import-current { min-height: 1.2em; overflow-wrap: anywhere; }
+
+/* Sign in and first-administrator setup */
+.auth-body { display: grid; place-items: center; min-height: 100vh; padding: 1rem; }
+.auth-card { width: min(26rem, 100%); padding: 1.5rem 1.6rem; border: 1px solid var(--line-strong); border-radius: var(--radius); background: var(--bg-elev); }
+.auth-card h1 { margin: 0 0 0.3rem; font-size: 1.4rem; }
+.auth-card form { display: grid; gap: 0.7rem; margin-top: 0.8rem; }
+.auth-card label { display: grid; gap: 0.25rem; font-weight: 600; }
+.topbar-user { display: inline-flex; align-items: center; gap: 0.4rem; }
+.topbar-user form { margin: 0; }
+
+.fingerprint { display: block; overflow-wrap: anywhere; word-break: break-all; }

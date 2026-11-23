@@ -13,10 +13,15 @@ from fastapi.staticfiles import StaticFiles
 from app import __version__
 from app.applog import configure as configure_logging, log, should_skip_http_log
 from app.import_session import ImportSessions
+from app.auth import AuthState, UserStore, network_exposed
+from app.audit import AuditLog
+from app.auth_middleware import AuthMiddleware
 from app.mwl_scp import WorklistSCP
+from app.retention import RetentionSweeper
+from app.security_settings import SecuritySettingsStore
 from app.paths import package_dir
 from app.router_scheduler import RouterScheduler
-from app.routes import anonymize, api, cleaner, config, dicom_import, echo_board, lite, logs, misc, route_rules, send_image, settings_transfer, testbench, tools, worklist
+from app.routes import anonymize, api, auth_pages, cleaner, config, dicom_import, echo_board, lite, logs, misc, route_rules, security_admin, send_image, settings_transfer, testbench, tools, worklist
 from app.security import SecurityMiddleware
 from app.store import ConfigStore
 
@@ -56,6 +61,8 @@ def create_app(store: ConfigStore | None = None) -> FastAPI:
     store = store or ConfigStore()
     scp = WorklistSCP(store)
     router_scheduler = RouterScheduler(store, scp)
+    security_settings = SecuritySettingsStore(store.data_dir)
+    retention = RetentionSweeper(store, security_settings)
     configure_logging(store.data_dir, store.load().logging)
 
     @asynccontextmanager
@@ -78,8 +85,10 @@ def create_app(store: ConfigStore | None = None) -> FastAPI:
             log.warning("%s", scp.last_error)
         router_scheduler.start()
         log.info("Dicom Router scheduler started")
+        retention.start()
         yield
         log.info("Dicommunication stopping")
+        retention.stop()
         router_scheduler.stop()
         scp.stop()
 
@@ -130,13 +139,22 @@ def create_app(store: ConfigStore | None = None) -> FastAPI:
     # Added last, so it runs first and also covers /static: refuses foreign
     # Host headers (DNS rebinding) and cross-site form posts (CSRF), and sets
     # the Content-Security-Policy and other headers. See app/security.py.
+    auth_state = AuthState(users=UserStore(store.data_dir), exposed=network_exposed())
+    audit_log = AuditLog(store.data_dir)
+    app.state.auth = auth_state
+    app.state.audit = audit_log
+    app.state.security_settings = security_settings
+    app.state.retention = retention
+    app.add_middleware(AuthMiddleware, state=auth_state, audit=audit_log)
     app.add_middleware(SecurityMiddleware)
 
     app.include_router(misc.router)
+    app.include_router(auth_pages.router)
     app.include_router(logs.router)
     app.include_router(echo_board.router)
     app.include_router(config.router)
     app.include_router(settings_transfer.router)
+    app.include_router(security_admin.router)
     app.include_router(testbench.router)
     app.include_router(worklist.router)
     app.include_router(route_rules.router)

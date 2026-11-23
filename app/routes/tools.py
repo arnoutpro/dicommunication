@@ -613,7 +613,11 @@ def pdf_store_run(
 
 @router.post("/tools/pdf-store/scan")
 def pdf_store_scan(request: Request, directory: str = Form("")):
+    from app.access import FOLDER_DENIED, folder_allowed
+
     try:
+        if not folder_allowed(request, directory):
+            raise CollectError(FOLDER_DENIED)
         scan = list_directory_pdfs(directory)
     except CollectError as exc:
         scan = {"ok": False, "error": str(exc), "files": [], "pdf_count": 0}
@@ -627,7 +631,11 @@ def pdf_store_scan(request: Request, directory: str = Form("")):
 
 
 @router.get("/api/tools/pdf-store/scan")
-def api_pdf_store_scan(directory: str = ""):
+def api_pdf_store_scan(request: Request, directory: str = ""):
+    from app.access import FOLDER_DENIED, folder_allowed
+
+    if not folder_allowed(request, directory):
+        raise HTTPException(status_code=403, detail=FOLDER_DENIED)
     try:
         return list_directory_pdfs(directory)
     except CollectError as exc:

@@ -27,7 +27,7 @@ from app.dicom_import import (
 )
 from app.models import LocalAE, RemoteNode
 
-IDLE_SECONDS = 2 * 60 * 60
+IDLE_SECONDS = 30 * 60  # what was scanned (patient details) is dropped after half an hour idle
 MAX_SESSIONS = 4
 
 SCANNING, READY, SENDING, DONE, FAILED = "scanning", "ready", "sending", "done", "error"

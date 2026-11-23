@@ -2,22 +2,103 @@
 
 Dicommunication is a **trusted-network admin workstation tool**. It talks to PACS,
 RIS, and modalities on a clinical VLAN so an administrator can prove a link works.
-It is not a PACS, not a viewer, not an archive, and not a multi-user service.
+It is not a PACS, not a viewer, and not an archive.
 
 Read this before pointing it at anything that holds real patient data.
 
 ## Threat model
 
-**Designed for:** one operator, on one machine, on a network they are already
-trusted on — a PACS VLAN, a lab bench, or a jumphost that can reach DICOM ports.
+**Designed for:** one operator on one machine, or a small team on a hospital
+network they are already trusted on — a PACS VLAN, a lab bench, or a jumphost that
+can reach DICOM ports.
 
-**Not designed for:** exposure to the internet, shared/multi-tenant use, or a
-network where other users are untrusted. There is no login, no user model, and
-no audit trail of who did what.
+**Not designed for:** exposure to the internet, or a network where other users are
+untrusted. It has its own sign-in, roles and audit log (next section), but it is not
+hardened for hostile traffic.
 
-If you need it reachable from more than the machine it runs on, put an
-authenticating reverse proxy in front of it and treat that proxy as the security
-boundary.
+When it is reachable from more than the computer it runs on, sign-in is **always
+on** and cannot be turned off.
+
+## Sign-in, roles, HTTPS and the audit log
+
+Added in 0.11.0, for running the app on a network with patient data. None of it
+needs another system (no Entra ID, no certificate authority).
+
+**When sign-in applies.** It is required as soon as the app can be reached from
+another computer (`--host 0.0.0.0`, the headless installer's network option,
+`DICOMM_HTTP_BIND`) or as soon as any account exists. On one computer with no
+accounts the app opens as before. While no account exists on a network-reachable
+app, every page answers *Setup needed*; the first administrator is created from the
+computer itself (`/setup`, only from the loopback address), or from a command line:
+
+```bash
+dicommunication.exe --create-admin NAME --password-file password.txt
+# the headless edition, run as an administrator: add --service-data
+```
+
+It reads the first line of the file, creates the administrator (or, for a name that
+exists, resets it to an enabled administrator with that password), and prints the
+result. Delete the file afterwards. This is also the way back in after losing the
+last administrator's password.
+
+**Accounts.** Passwords are at least 12 characters and stored only as scrypt hashes
+in `users.json`. Five wrong passwords for a name, or from an address, lock that name
+or address for five minutes; the answer is the same for a wrong name and a wrong
+password. A session ends after 30 minutes idle or 12 hours in all, is kept in memory
+(restarting the app signs everyone out), and uses an `HttpOnly`, `SameSite=Strict`
+cookie that is `Secure` on HTTPS. Changing a person's role, disabling them or
+resetting their password signs them out. The last active administrator cannot be
+disabled, demoted or deleted, and nobody can delete their own account.
+
+**Roles.**
+
+| Role | May |
+| --- | --- |
+| **Viewer** | Read the status dashboard, the C-ECHO board and the simplified `/lite` page; change their own password |
+| **Operator** | Everything a viewer may, plus run the tools, start and stop Router rules and send. Limited as below. |
+| **Administrator** | Everything, including configuration, users, security settings and the audit log |
+
+Every route is listed in a permission table (`app/auth.py`); a route nobody listed
+needs an administrator, and a test fails if one is missing.
+
+**Operator limits.** Without them an operator could make the server read any folder
+it can, or send to any address. So an operator may only use **saved nodes** (no typed
+C-ECHO address, and an HL7 host and port must match a saved node) and **folders an
+administrator listed** under Configuration > Security: the PDF directory, the
+Anonymizer's output folder, and Dicom Import / PDF scans. The folder Browse dialog
+is for administrators.
+
+**HTTPS.** When the app listens on a network address it serves **HTTPS
+automatically**, with a certificate it makes for itself (EC P-256, valid for this
+computer's names and addresses, renewed before it expires, private key readable only
+by the owner, kept in `tls/` in the data folder). Browsers warn once about a
+self-signed certificate. Configuration > Security shows its **fingerprint**: compare
+it with what the browser shows, then install the downloadable certificate on the
+computers that use the app (or accept the warning once) to keep the warning away.
+Use `--no-https` only behind a proxy that terminates TLS. The desktop window talks to
+`127.0.0.1` and stays plain HTTP. DICOM and HL7 traffic to the PACS is still not
+encrypted.
+
+**Audit log.** `audit.log` in the data folder records who did what and when: every
+sign-in and failed sign-in, every denial, every change and every run, with the
+person, role, address, action and target names. It never holds form values, patient
+data or passwords. Each line carries a hash of the line before it, so editing or
+deleting a line is detected: Configuration > Audit log checks the chain and says
+where it breaks. It rolls over at 5 MB and keeps ten files. It is for review, not
+tamper-proof against someone who can replace the whole folder; copy it elsewhere if
+you must keep it. This is meant to support NEN 7510 / 7513 and the AVG; whether it
+is enough is a decision for your information security officer.
+
+**Retention.** The Router's run history and the tool results keep patient names,
+IDs and accession numbers only for **30 minutes** (Configuration > Security: 0 keeps
+nothing, up to 1440). After that the rows are emptied and the counts, times and
+results remain, so the dashboard and echo board keep working. An import review lives
+in memory and is dropped after 30 minutes idle.
+
+**What this does not do.** It does not encrypt files at rest (use BitLocker / an
+encrypted volume), does not protect DICOM or HL7 on the wire, does not do two-factor
+login or single sign-on, and cannot stop an administrator or someone with access to
+the computer itself.
 
 ## Headless edition (Windows)
 
@@ -26,10 +107,11 @@ Windows service (see `packaging/windows/README.md`). The threat model above is
 unchanged, and two things matter more because nobody is watching a window:
 
 - **Local only by default.** The service listens on `127.0.0.1`. The installer's
-  "allow other computers" option makes it listen on every interface and opens the
-  Windows Firewall for that port. There is still no login, so anyone who can reach
-  the port can send DICOM, change nodes and read patient data. Use it only on a
-  network you already trust, or put an authenticating reverse proxy in front.
+  "allow other computers" option makes it listen on every interface, turns on HTTPS
+  and sign-in (above) and opens the Windows Firewall for that port **to the local
+  subnet only**. Create the first administrator with `--create-admin ... --service-data`
+  (or `/setup` on the server itself) before anyone can use it. The Start-menu
+  shortcut opens `https://localhost:<port>/`.
 - **Its data folder.** The service keeps settings, results and logs in
   `C:\ProgramData\Dicommunication`, which can contain patient data in cleartext.
   The installer limits that folder to administrators, SYSTEM and the service
@@ -97,9 +179,9 @@ vulnerabilities — but do factor them into where you deploy it.
 
 | Property | Why | What to do about it |
 | --- | --- | --- |
-| The web UI and JSON API have **no login** | It is a diagnostic console for one operator, like a serial terminal | Docker publishes it on `127.0.0.1` only. Front it with an authenticating proxy to go wider. Other websites in the same browser are refused ([above](#protection-against-other-websites)); software already running on the machine is not. |
+| On one computer with **no accounts** the UI and JSON API need no login | It is a diagnostic console for one operator, like a serial terminal | Sign-in is always on when the app is reachable from the network ([above](#sign-in-roles-https-and-the-audit-log)). Other websites in the same browser are refused ([below](#protection-against-other-websites)); software already running on the machine is not. |
 | DICOM and HL7 are sent **in the clear** | The protocols are used as the peers speak them; this tool is for reproducing what a modality does | Terminate TLS elsewhere, or stay on the clinical VLAN |
-| **PDF to DICOM** reads any path you type, and `/api/tools/pdf-store/scan` will list any directory | It is a local file picker for the operator's own machine | Do not expose the UI beyond the workstation. A page on another site cannot call it ([above](#protection-against-other-websites)). |
+| **PDF to DICOM** reads any path an **administrator** types, and `/api/tools/pdf-store/scan` will list any directory | It is a local file picker for the person at the machine | Operators are limited to the folders listed under Configuration > Security. A page on another site cannot call it ([above](#protection-against-other-websites)). |
 | `/api/logs` returns absolute host paths | Diagnostic output for the person at the keyboard | Same as above |
 | The MWL SCP listens on all interfaces | A modality has to be able to C-FIND this workstation or the feature is pointless | It only listens once enabled in Configuration. `DICOMM_DICOM_BIND` pins it to one NIC. |
 | **Tag Editor** writes patient study data back to the configured PACS, with no confirmation beyond the browser prompt | It exists specifically to correct stuck report-workflow metadata on a real archive | Only overwrites a tag already present, never invents one. Against a real Vue archive, Push has been observed to report success without the stored object actually changing — Fetch and check the current values before *and after* every Push. Use **Seed test studies** (synthetic `ARNPRO^TESTBENCH` patient, not a real one) to try Push before ever running it against a real study. |
@@ -127,8 +209,10 @@ Everything lives unencrypted under the data directory (`~/.dicommunication`,
 - `dicommunication.log` records what you ran, against which AE titles and
   endpoints.
 
-There is no retention policy and no encryption at rest. On a machine that touches
-production data, treat the data directory as containing PHI: put it on encrypted
+Since 0.11.0 the patient rows in `results.json` and `route_runs.json` are emptied
+after 30 minutes by default (see *Retention* above), and `users.json` and `audit.log`
+hold accounts and actions but no patient data. Nothing is encrypted at rest. On a
+machine that touches production data, treat the data directory as containing PHI: put it on encrypted
 storage, and clear it when you are done. **Logs → Clear** empties the log file;
 deleting `results.json` clears the result history, and deleting `route_runs.json`
 clears Dicom Router's. Uninstalling the Windows MSI
@@ -147,7 +231,7 @@ Two bind addresses look like findings and are not. Both are asserted by tests in
 
 | Port | Default | Override |
 | --- | --- | --- |
-| `8080` web UI | `127.0.0.1` — the UI has no login | `DICOMM_HTTP_BIND` |
+| `8080` web UI | `127.0.0.1`. Any other address turns sign-in and HTTPS on | `DICOMM_HTTP_BIND` |
 | `11112` MWL SCP | all interfaces — modalities must reach it | `DICOMM_DICOM_BIND` |
 
 Startup logs which address the UI was published on, so `docker compose logs`

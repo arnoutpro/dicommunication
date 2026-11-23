@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}Your account · {{ product_name }}{% endblock %}
+{% block content %}
+<header class="page-head">
+  <div class="page-head-hero">
+    {% include "partials/page_icon.html" %}
+    <div>
+    <h1>Your account</h1>
+    <p class="lede">{% if request.state.user %}Signed in as <strong>{{ request.state.user.username }}</strong> ({{ request.state.user.role }}).{% else %}Sign-in is not turned on for this installation.{% endif %}</p>
+    </div>
+  </div>
+</header>
+{% if done %}<div class="flash ok">Your password was changed. Other places you were signed in were signed out.</div>{% endif %}
+{% if error %}<div class="flash fail">{{ error }}</div>{% endif %}
+{% if request.state.user %}
+<section class="panel step">
+  <header class="panel-head"><h2 class="step-title">Change your password</h2></header>
+  <form method="post" action="{{ href('/account/password') }}" autocomplete="off">
+    <div class="form-grid">
+      <label>Current password <input name="current" type="password" autocomplete="current-password" required></label>
+      <label>New password <input name="new" type="password" autocomplete="new-password" minlength="12" required></label>
+      <label>Repeat the new password <input name="confirm" type="password" autocomplete="new-password" required></label>
+    </div>
+    <p class="hint">At least 12 characters. A few random words make a good one.</p>
+    <div class="form-actions"><button class="button primary" type="submit">Change password</button></div>
+  </form>
+</section>
+{% endif %}
+{% endblock %}

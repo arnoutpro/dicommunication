@@ -78,7 +78,7 @@ Details in [CHANGELOG.md](CHANGELOG.md#01011).
 
 Details in [CHANGELOG.md](CHANGELOG.md#01010).
 
-- **Windows service edition**: a second installer that runs Dicommunication in the background as a Windows service, opened in the browser. You choose the port in the wizard; it listens on this computer only unless you tick the network option. See [packaging/windows](packaging/windows/README.md).
+- **Windows service edition**: a second installer that runs Dicommunication in the background as a Windows service, opened in the browser. You choose the port in the wizard; it listens on this computer only unless you tick the network option, which turns on sign-in, HTTPS and the audit log. See [packaging/windows](packaging/windows/README.md).
 
 ## What's new in 0.10.9
 
@@ -786,7 +786,7 @@ C-ECHO, C-STORE, PDF to DICOM, Study Root C-FIND (including Dicomtag Analytics a
 
 Full threat model, what has no protection by design, and how patient data is stored on disk: [`SECURITY.md`](SECURITY.md).
 
-This is a trusted-network admin tool. The web UI has no login, so Compose publishes it on `127.0.0.1` only; `DICOMM_HTTP_BIND=0.0.0.0` opens it up and should only be used behind an authenticating reverse proxy. Do not publish port 8080 to the internet without one. Do not point it at production archives unless you intend to send the test C-STORE instance (`ARNPRO^TESTBENCH`) or Encapsulated PDF documents you import. DICOM and HL7 are sent in the clear unless you terminate TLS elsewhere. HL7 send transmits whatever you paste. PDF to DICOM reads uploaded files, ZIP contents, and any workstation path you type.
+This is a trusted-network admin tool. Compose publishes the UI on `127.0.0.1` only; `DICOMM_HTTP_BIND=0.0.0.0` opens it to the network, which turns on sign-in with roles, HTTPS (self-made certificate) and the audit log (create the first administrator with `--create-admin`, see [SECURITY.md](SECURITY.md)). Do not publish port 8080 to the internet without one. Do not point it at production archives unless you intend to send the test C-STORE instance (`ARNPRO^TESTBENCH`) or Encapsulated PDF documents you import. DICOM and HL7 are sent in the clear unless you terminate TLS elsewhere. HL7 send transmits whatever you paste. PDF to DICOM reads uploaded files, ZIP contents, and any workstation path you type.
 
 No login does not mean any website can use it. Since 0.5.1 a page open in another tab of your browser can neither drive the app (cross-site request forgery) nor read it (DNS rebinding), every page carries a strict Content-Security-Policy, and the app only answers to `localhost` and IP addresses unless you add a host name to `DICOMM_ALLOWED_HOSTS`. What the 0.5.1 security review found and fixed, and what it checked: [`SECURITY.md`](SECURITY.md#security-review-051-september-2026).
 

@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}Audit log · {{ product_name }}{% endblock %}
+{% block content %}
+<header class="page-head">
+  <div class="page-head-hero">
+    {% include "partials/page_icon.html" %}
+    <div>
+    <h1>Audit log</h1>
+    <p class="lede">Who signed in, and who changed or used what, newest first. It records what happened and who did it, never patient data, and it cannot be cleared from here.</p>
+    </div>
+  </div>
+  <a class="button nowrap" href="{{ href('/config/audit/download') }}">Download</a>
+</header>
+{% if intact %}
+<div class="flash ok">The chain of entries is intact: nothing was edited, removed or reordered in the current file.</div>
+{% else %}
+<div class="flash fail">The chain is broken: {{ why }}. The file was changed outside the app.</div>
+{% endif %}
+<form method="get" action="{{ href('/config/audit') }}" class="form-grid">
+  <label>User <input name="user" value="{{ user }}"></label>
+  <label>Action contains <input name="action" value="{{ action }}"></label>
+  <div class="form-actions"><button class="button compact" type="submit">Filter</button></div>
+</form>
+<section class="panel step">
+  {% if rows %}
+  <div class="table-wrap">
+    <table class="import-table">
+      <thead><tr><th>Time (UTC)</th><th>User</th><th>Address</th><th>Action</th><th>Request</th><th>Result</th></tr></thead>
+      <tbody>
+        {% for r in rows %}
+        <tr>
+          <td class="nowrap">{{ r.ts[:19].replace('T', ' ') }}</td>
+          <td>{{ r.user or '–' }}{% if r.role %} <span class="muted small">{{ r.role }}</span>{% endif %}</td>
+          <td>{{ r.ip }}</td>
+          <td>{{ r.action }}{% if r.detail %}<div class="muted small">{{ r.detail }}</div>{% endif %}</td>
+          <td class="small"><code>{{ r.method }} {{ r.path }}</code></td>
+          <td>{{ r.status }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p class="muted">Nothing recorded yet.</p>
+  {% endif %}
+</section>
+{% endblock %}
