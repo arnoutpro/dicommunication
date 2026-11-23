@@ -450,6 +450,44 @@ def test_run_native_window_starts_webview(monkeypatch, tmp_path) -> None:
     assert (tmp_path / "webview").is_dir()
 
 
+def test_the_native_window_allows_downloads_so_an_export_can_be_saved(monkeypatch, tmp_path) -> None:
+    import types
+
+    from app.desktop import run_native_window
+
+    class Window:
+        events = types.SimpleNamespace()
+
+    mod = types.ModuleType("webview")
+    mod.settings = {"ALLOW_DOWNLOADS": False}  # pywebview's default: every download is cancelled
+    mod.create_window = lambda title, url, **kwargs: Window()
+    mod.start = lambda **kwargs: None
+    monkeypatch.setitem(sys.modules, "webview", mod)
+    monkeypatch.setenv("DICOMM_DATA_DIR", str(tmp_path))
+    monkeypatch.setattr("app.desktop.native_gui", lambda: None)
+    assert run_native_window("http://127.0.0.1:8080/") is True
+    assert mod.settings["ALLOW_DOWNLOADS"] is True
+
+
+def test_a_pywebview_without_the_downloads_setting_still_opens(monkeypatch, tmp_path) -> None:
+    import types
+
+    from app.desktop import run_native_window
+
+    class NoSuchSetting(dict):
+        def __setitem__(self, key, value):  # as pywebview's own settings object does for an unknown key
+            raise KeyError(key)
+
+    mod = types.ModuleType("webview")
+    mod.settings = NoSuchSetting()
+    mod.create_window = lambda title, url, **kwargs: types.SimpleNamespace(events=types.SimpleNamespace())
+    mod.start = lambda **kwargs: None
+    monkeypatch.setitem(sys.modules, "webview", mod)
+    monkeypatch.setenv("DICOMM_DATA_DIR", str(tmp_path))
+    monkeypatch.setattr("app.desktop.native_gui", lambda: None)
+    assert run_native_window("http://127.0.0.1:8080/") is True
+
+
 def test_macos_run_until_windows_close_pumps_when_app_already_running(monkeypatch) -> None:
     import types
 

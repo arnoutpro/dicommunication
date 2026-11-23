@@ -17,7 +17,7 @@
   <header class="panel-head">
     <h2 class="step-title">Export</h2>
   </header>
-  <form autocomplete="off" method="post" action="{{ href(base ~ '/export') }}">
+  <form autocomplete="off" method="post" action="{{ href(base ~ '/export') }}" data-download>
     <p class="hint">Choose what goes in the file.</p>
     {% for section in sections %}
     <label class="checkline">
