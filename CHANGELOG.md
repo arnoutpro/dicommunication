@@ -13,7 +13,7 @@ Users said the interface looked machine-made: rounded corners, pill shapes and l
 - **The system font** (Segoe UI on Windows, San Francisco on a Mac) instead of a bundled web font. Nothing is downloaded and the font files are removed from the program.
 - **A plain blue on neutral greys** instead of indigo and lavender tints on navy. The light theme is white panels on a light grey page; the dark theme is charcoal. The Professional (amber) theme keeps its colours and gets the same shapes.
 - **No icon tile next to page titles, no striped table rows**, and the table header is a plain grey bar. Empty states are left-aligned.
-- The sidebar keeps its layout; its items are smaller and the selected one has a bar on the left.
+- **The sidebar is a tree**, like a file explorer: 22px rows, a hollow triangle in front of a closed folder and a solid one when it is open, no guide lines or pills, deeper levels indented, and a solid blue row across the full width for the selected page. The layout and the entries are unchanged.
 - Still to come: long explanations under fields become tooltips, and the individual tools get a closer look.
 
 ## 0.13.2

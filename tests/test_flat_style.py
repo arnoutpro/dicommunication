@@ -47,3 +47,16 @@ def test_the_status_dashboard_for_viewers_is_flat_too() -> None:
     lite = (ROOT / "app" / "static" / "css" / "lite.css").read_text(encoding="utf-8")
     assert "999px" not in lite and not re.search(r"border-radius:\s*[1-9]", lite)
     assert "font:13px" in lite and "font-size:28px" not in lite
+
+
+def test_the_sidebar_is_a_tree_with_a_solid_selected_row() -> None:
+    assert ".sidebar { --tree-pad: 0.75rem; }" in CSS
+    selected = CSS[CSS.index(".sidebar nav a.active,") : CSS.index("}", CSS.index(".sidebar nav a.active,"))]
+    assert "background: var(--accent-fill);" in selected and "color: var(--primary-fg);" in selected
+    twist = CSS[CSS.index(".nav-twist::before {") : CSS.index("}", CSS.index(".nav-twist::before {"))]
+    assert "mask:" in twist and "rotate" not in twist  # a triangle, no longer a chevron
+    assert "border-left: 1px solid var(--line)" not in CSS[CSS.index(".nav-children {") : CSS.index(".nav-children .nav-children")]  # no guide lines
+
+
+def test_buttons_inside_an_actions_row_keep_their_button_style() -> None:
+    assert ".actions a:not(.button), .link-button {" in CSS  # plain action links, but never real buttons
