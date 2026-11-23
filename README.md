@@ -390,7 +390,7 @@ dotnet nuget install dicommunication.msi --version 0.12.0 --source github-arnout
 
 Uninstalling asks, once, whether to also delete the data folder, because it can hold patient data (see [`SECURITY.md`](SECURITY.md#patient-data-on-disk)); answering No (the default) leaves it in place.
 
-Unsigned builds trigger SmartScreen until a code-signing certificate is used. If a modality must C-FIND this workstation, allow inbound TCP for `dicommunication.exe` (listen port 11112). A local build script is in [`packaging/windows/build.ps1`](packaging/windows/build.ps1).
+The MSI is **not code-signed, and will not be** (a certificate costs money every year, which a hobby project does not have), so Windows SmartScreen warns about it; see [Troubleshooting](#troubleshooting) for how to get past that. If a modality must C-FIND this workstation, allow inbound TCP for `dicommunication.exe` (listen port 11112). A local build script is in [`packaging/windows/build.ps1`](packaging/windows/build.ps1).
 
 ## macOS DMG
 
@@ -812,7 +812,7 @@ The data directory is not encrypted, and `results.json` keeps the last 200 tool 
 | `docker compose --build` fails at `apt-get` with exit 100 | Debian mirrors were unreachable from the Docker builder. Current images copy a static `ping` and do not run apt. Pull/rebuild from this change. |
 | Cannot reach Orthanc from Docker | Use `host.docker.internal` (same Mac/host) or the LAN IP; publish/check `4242`. |
 | Config vanished after image rebuild | Config should be in `~/.dicommunication` (Windows MSI: `C:\ProgramData\Dicommunication`). Legacy `./data` is only used until the home folder exists. |
-| Windows SmartScreen blocks the MSI | Unsigned first builds are expected. Use an Authenticode certificate for hospital rollout, or IT can allow the publisher. |
+| Windows SmartScreen blocks the MSI ("Windows protected your PC") | The MSI is not code-signed and never will be, so this is expected. Download it from the GitHub Release, then choose **More info > Run anyway**, or right-click the file > Properties > tick **Unblock**. For a rollout, IT can push it with Intune or GPO (a file installed that way is not flagged as downloaded from the internet), or allow that exact file by its hash (`Get-FileHash <file>`) in Defender or AppLocker. Allowing by publisher is not possible without a signature. |
 | Nothing opens after installing the MSI | It runs as a service with no window. Open `http://localhost:<port>/` (the Start-menu shortcut does), and check the service in `services.msc` and the logs in `C:\ProgramData\Dicommunication\logs`. |
 | macOS Gatekeeper blocks the app | Unsigned first builds are expected. Right-click **Open**, or run `xattr -dr com.apple.quarantine /Applications/Dicommunication.app`. |
 | Mac Dock icon is live, no window | Quit from the Dock, then install a DMG built after the argv-emulation fix. Check `~/.dicommunication/launch.log`. Rebuild: **Actions → macOS DMG** with `release_tag=v0.2.0`. |

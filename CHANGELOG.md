@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Documentation
+
+- The docs no longer promise a code-signed Windows MSI: it stays unsigned. They now explain how to get past the SmartScreen warning (Run anyway, Unblock, Intune / GPO, allow by file hash).
+
 ## 0.12.0
 
 ### Windows

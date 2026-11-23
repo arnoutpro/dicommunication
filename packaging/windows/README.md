@@ -26,7 +26,7 @@ A `v*` tag publishes that nupkg to GitHub Packages (`https://nuget.pkg.github.co
 
 To publish an already-cut GitHub Release as a package without rebuilding, run **Windows MSI** with `nuget_from_release` set to the tag. Releases up to 0.11.2 hold the old desktop MSI under another file name, so this only works for a release that has a `dicommunication-headless-*-win64.msi`.
 
-Unsigned MSIs trigger SmartScreen. Code signing is a follow-up; keep the certificate out of git.
+The MSI is **not code-signed, and will not be**: a signing certificate costs money every year and this is a hobby project. Windows SmartScreen therefore warns about a downloaded MSI. Choose **More info > Run anyway**, or right-click the file > Properties > **Unblock**. For a rollout, push it with Intune or GPO (a file installed that way is not flagged as downloaded) or allow that exact file by hash (`Get-FileHash`) in Defender or AppLocker; allowing by publisher needs a signature. Trust comes from where the file is downloaded (the GitHub Release of this repository) and from the open source and the CI workflow that builds it.
 
 macOS also has a DMG (`packaging/macos`). Linux remains on Docker Compose.
 
