@@ -5,6 +5,7 @@ from __future__ import annotations
 import importlib.util
 import shutil
 import subprocess
+import sys
 import xml.dom.minidom
 from pathlib import Path
 
@@ -58,7 +59,9 @@ def test_the_staged_package_has_the_program_the_link_the_scripts_and_the_resourc
     assert link.is_symlink() and link.resolve() == (payload / "usr/local/lib/dicommunication/dicommunication").resolve()
     for name in ("preinstall", "postinstall"):
         script = parts["scripts"] / name
-        assert script.is_file() and script.stat().st_mode & 0o111  # the installer only runs executable scripts
+        assert script.is_file()
+        if sys.platform != "win32":  # Windows has no execute bit; make_pkg runs on a Mac
+            assert script.stat().st_mode & 0o111  # the installer only runs executable scripts
     for name in ("welcome.html", "conclusion.html", "License.rtf"):
         assert (parts["resources"] / name).is_file()
     assert "sign-in" in (ROOT / "packaging" / "windows" / "License.rtf").read_text(encoding="utf-8")
@@ -104,7 +107,8 @@ def test_the_stage_only_command_lays_out_the_package_and_the_disk_image(tmp_path
 # --- the scripts -----------------------------------------------------------------
 
 
-@pytest.mark.skipif(shutil.which("bash") is None, reason="needs bash")
+# On a Windows runner "bash" is the WSL stub, which cannot read these files; Linux and macOS check them.
+@pytest.mark.skipif(shutil.which("bash") is None or sys.platform == "win32", reason="needs a real bash")
 @pytest.mark.parametrize("path", ["scripts/preinstall", "scripts/postinstall", "build.sh", "smoke_test.sh"])
 def test_the_shell_scripts_have_valid_syntax(path: str) -> None:
     assert subprocess.run(["bash", "-n", str(MAC / path)], capture_output=True).returncode == 0
