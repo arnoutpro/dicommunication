@@ -81,3 +81,12 @@ def test_the_field_system_is_in_place() -> None:
     remotes = (ROOT / "app" / "templates" / "config_remotes.html").read_text(encoding="utf-8")
     for name in ("name", "ae_title", "hostname", "host", "port", "kind", "provides_mwl", "notes"):
         assert f'"{name}"' in remotes, name
+
+
+def test_boxes_follow_their_content_instead_of_filling_the_page() -> None:
+    for rule in ('[maxlength="16"] { max-width: 11rem; }', '[type="date"] { max-width: 10.5rem; }', '[type="number"] { max-width: 7rem; }'):
+        assert rule in CSS, rule
+    assert "max-width: 24rem; }" in CSS  # the general cap for a text box or a menu
+    assert ".wide" in CSS  # the opt-out for a path or a sentence
+    field = CSS[CSS.index("input, select, textarea, .choice-toggle {") : CSS.index("}", CSS.index("input, select, textarea, .choice-toggle {"))]
+    assert "padding: 0.12rem 0.4rem;" in field  # a compact box, about 22px high
