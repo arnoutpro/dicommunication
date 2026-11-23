@@ -281,3 +281,43 @@ def test_no_route_depends_on_the_default_rule(app) -> None:
     assert len(routes) > 80
     unplanned = [f"{m} {p}" for m, p in routes if auth.policy_for(m, p) is auth.DEFAULT_RULE]
     assert not unplanned, f"These routes have no rule in app/auth.py POLICY: {unplanned}"
+
+
+# --- the headless edition always asks for sign-in --------------------------------
+
+
+def test_the_service_flag_turns_sign_in_on_even_for_this_computer_only() -> None:
+    assert auth.login_always_required({"DICOMM_REQUIRE_LOGIN": "1"}) and not auth.login_always_required({}) and not auth.login_always_required({"DICOMM_REQUIRE_LOGIN": "0"})
+
+
+def test_the_headless_edition_sends_the_person_at_the_server_to_setup(store, monkeypatch) -> None:
+    from app.main import create_app
+
+    monkeypatch.setenv("DICOMM_REQUIRE_LOGIN", "1")
+    monkeypatch.delenv("DICOMM_LISTEN_HOST", raising=False)
+    monkeypatch.delenv("DICOMM_HTTP_BIND", raising=False)
+    app = create_app(store)
+    assert app.state.auth.always and not app.state.auth.exposed and app.state.auth.required()
+    here = TestClient(app, client=("127.0.0.1", 50000))
+    redirected = here.get("/", follow_redirects=False)
+    assert redirected.status_code == 303 and redirected.headers["location"] == "/setup"
+    assert here.get("/setup").status_code == 200
+    elsewhere = TestClient(app, client=("10.0.0.9", 50000))
+    page = elsewhere.get("/")
+    assert page.status_code == 503 and "Setup needed" in page.text  # only the server itself may set it up
+    assert elsewhere.get("/setup", follow_redirects=False).status_code in (403, 404, 503)
+    done = here.post("/setup", data={"username": "boss", "password": PASSWORD, "confirm": PASSWORD}, follow_redirects=False)
+    assert done.status_code == 303
+    assert here.get("/", follow_redirects=False).status_code == 200  # signed in by setup
+    assert TestClient(app, client=("127.0.0.1", 50001)).get("/", follow_redirects=False).headers["location"].startswith("/login")  # and now everyone else must sign in
+
+
+def test_the_security_page_explains_why_sign_in_is_on_in_the_headless_edition(store, monkeypatch) -> None:
+    from app.main import create_app
+
+    monkeypatch.setenv("DICOMM_REQUIRE_LOGIN", "1")
+    app = create_app(store)
+    app.state.auth.users.add("alice", PASSWORD, ADMIN)
+    client = make_client(app, "127.0.0.1")
+    assert sign_in(client, "alice").status_code == 303
+    assert "headless edition" in client.get("/config/security").text

@@ -13,7 +13,7 @@ from fastapi.staticfiles import StaticFiles
 from app import __version__
 from app.applog import configure as configure_logging, log, should_skip_http_log
 from app.import_session import ImportSessions
-from app.auth import AuthState, UserStore, network_exposed
+from app.auth import AuthState, UserStore, login_always_required, network_exposed
 from app.audit import AuditLog
 from app.auth_middleware import AuthMiddleware
 from app.mwl_scp import WorklistSCP
@@ -139,7 +139,7 @@ def create_app(store: ConfigStore | None = None) -> FastAPI:
     # Added last, so it runs first and also covers /static: refuses foreign
     # Host headers (DNS rebinding) and cross-site form posts (CSRF), and sets
     # the Content-Security-Policy and other headers. See app/security.py.
-    auth_state = AuthState(users=UserStore(store.data_dir), exposed=network_exposed())
+    auth_state = AuthState(users=UserStore(store.data_dir), exposed=network_exposed(), always=login_always_required())
     audit_log = AuditLog(store.data_dir)
     app.state.auth = auth_state
     app.state.audit = audit_log

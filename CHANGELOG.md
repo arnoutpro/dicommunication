@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+## 0.11.2
+
+### Windows (headless edition)
+
+- **The service always asks for sign-in**, also when only this computer can reach it. Before, with "other computers" unticked, anyone who could open a browser on the server (Remote Desktop, for example) got in without a login and could see patient data. The first visit to `http://localhost:<port>/` on the server now goes straight to **Setup** to create the first administrator; from another computer the pages say *Setup needed* until that is done. Upgrading an existing install with accounts changes nothing for those users. The desktop edition is unchanged: it opens without a login until the first user is created.
+
 ### Maintenance
 
 - **Weekly dependency check** (`.github/workflows/dependency-check.yml`): every Monday, on demand, and on pull requests that change a requirements file, it audits what a build would install for known security advisories (Linux and Windows) and runs the test suite against the newest versions the requirements allow. No change to the app or the installers.
