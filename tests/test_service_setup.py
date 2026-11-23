@@ -38,7 +38,7 @@ def test_service_xml_for_this_computer_only() -> None:
     assert root.findtext("executable") == "%BASE%\\dicommunication.exe"
     assert root.findtext("arguments") == "--no-browser --host 127.0.0.1 --port 8090"
     env = {e.get("name"): e.get("value") for e in root.findall("env")}
-    assert env == {"DICOMM_DATA_DIR": r"C:\ProgramData\Dicommunication"}
+    assert env == {"DICOMM_DATA_DIR": r"C:\ProgramData\Dicommunication", "DICOMM_REQUIRE_LOGIN": "1"}  # sign-in is on even for "this computer only"
     assert root.findtext("logpath") == r"C:\ProgramData\Dicommunication\logs"
 
 

@@ -44,7 +44,7 @@ It installs the same program, but as a Windows service named **Dicommunication**
 
 1. Run the MSI. After the folder page the wizard asks for the **port** (default 8080) and whether **other computers on the same network may connect** (off by default).
 2. Open **Dicommunication** from the Start menu, or go to `http://localhost:<port>/` (`https://` when the network option is ticked).
-3. With the network option, create the first administrator before anyone signs in: open the page on the server itself and follow *Setup*, or run, as an administrator, `dicommunication.exe --create-admin NAME --password-file C:\path\password.txt --service-data` and delete the file.
+3. Create the first administrator before anyone signs in (sign-in is always on in this edition, also without the network option): the first visit to the page on the server itself goes to *Setup*, or run, as an administrator, `dicommunication.exe --create-admin NAME --password-file C:\path\password.txt --service-data` and delete the file.
 
 Unattended: `msiexec /i dicommunication-headless-<version>-win64.msi /qn PORT=8090 ALLOWNETWORK=1` (leave `ALLOWNETWORK` out for this computer only). To change the port later, run the MSI again with the new value.
 
@@ -62,7 +62,7 @@ Unattended: `msiexec /i dicommunication-headless-<version>-win64.msi /qn PORT=80
 **Good to know**
 
 - It has the **same upgrade code as the desktop MSI**, so installing it replaces the desktop edition on that PC, and the other way round. The headless edition has its own data folder, so remote nodes saved in the desktop edition must be entered again.
-- Local only is the default. With "other computers" ticked the app turns on sign-in (users with viewer / operator / administrator roles), HTTPS with a self-made certificate and the audit log (see `SECURITY.md`), and the installer opens Windows Firewall for the web port **to the local subnet only**. The DICOM listen ports (Storage and Worklist) are separate and are not opened for you.
+- Sign-in (users with viewer / operator / administrator roles) is always on in this edition. Local only is the default. With "other computers" ticked the app also turns on HTTPS with a self-made certificate and the audit log (see `SECURITY.md`), and the installer opens Windows Firewall for the web port **to the local subnet only**. The DICOM listen ports (Storage and Worklist) are separate and are not opened for you.
 - If the service does not start, the usual cause is that the port is taken. Check the logs above, then reinstall with another port.
 - On uninstall the installer asks once whether to delete the data folder; the default is to keep it.
 

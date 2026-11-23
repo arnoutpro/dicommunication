@@ -92,7 +92,9 @@ def render_service_xml(
     data = str(PureWindowsPath(str(data_dir)))
     logs = str(PureWindowsPath(data) / "logs")
     arguments = f"--no-browser --host {listen_host(listen)} --port {validate_port(port)}"
-    env = [("DICOMM_DATA_DIR", data)]
+    # The service always asks for sign-in, also when only this computer can reach it:
+    # anyone logged in to the server (Remote Desktop) could otherwise use it.
+    env = [("DICOMM_DATA_DIR", data), ("DICOMM_REQUIRE_LOGIN", "1")]
     if listen == LISTEN_NETWORK and hostnames:
         # The app only answers to localhost and IP addresses unless told a name.
         env.append(("DICOMM_ALLOWED_HOSTS", ",".join(hostnames)))

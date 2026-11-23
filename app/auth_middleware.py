@@ -18,14 +18,14 @@ from urllib.parse import quote
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from app.audit import AuditLog
-from app.auth import ADMIN, PUBLIC, SESSION_COOKIE, AuthState, User, allows, policy_for
+from app.auth import ADMIN, LOOPBACK, PUBLIC, SESSION_COOKIE, AuthState, User, allows, policy_for
 
 # Reading these shows patient data or the audit trail, so they are logged although they only read.
 AUDIT_GETS = re.compile(r"^/(logs/download|router/[^/]+/runs|config/audit(/download)?|tools/dicom-import/[^/]+)$")
 SETUP_NEEDED = (
     "<!doctype html><meta charset=utf-8><title>Setup needed</title>"
     "<body style='font:16px system-ui;max-width:42rem;margin:4rem auto;padding:0 1rem'>"
-    "<h1>Setup needed</h1><p>Dicommunication can be reached from other computers, so it needs an administrator "
+    "<h1>Setup needed</h1><p>Dicommunication asks for sign-in here, so it needs an administrator "
     "account before anyone can use it.</p><p>On the computer it runs on, open "
     "<code>http://localhost:{port}/setup</code> in a browser (or <code>https://localhost:{port}/setup</code> if "
     "the address needs https). See the documentation for <code>--create-admin</code> if you cannot open a browser there.</p></body>"
@@ -88,6 +88,9 @@ class AuthMiddleware:
             scope["state"].update(user=user, role=user.role if user else None, auth_required=True)
             if rule.role != PUBLIC:
                 if not self.state.users.has_users():
+                    if method in ("GET", "HEAD") and ip in LOOPBACK and _header(scope, b"hx-request") != "true":
+                        await _respond(send, 303, "", "text/plain", [(b"location", b"/setup")])  # on the server itself: go and create the administrator
+                        return
                     port = (scope.get("server") or ("", 8080))[1]
                     await _respond(send, 503, SETUP_NEEDED.format(port=port))
                     return

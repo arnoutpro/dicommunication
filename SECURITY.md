@@ -111,12 +111,17 @@ the computer itself.
 Windows service (see `packaging/windows/README.md`). The threat model above is
 unchanged, and two things matter more because nobody is watching a window:
 
+- **Sign-in is always on.** Since 0.11.2 the service asks for sign-in even when only
+  this computer can reach it, because anyone logged in to the server (for example
+  over Remote Desktop) could otherwise use the app and see patient data. The first
+  visit to `http://localhost:<port>/` on the server goes straight to **Setup**, where
+  you create the first administrator; nobody else can do that, and until it is done
+  every page says *Setup needed*. Or use `--create-admin ... --service-data`.
 - **Local only by default.** The service listens on `127.0.0.1`. The installer's
   "allow other computers" option makes it listen on every interface, turns on HTTPS
-  and sign-in (above) and opens the Windows Firewall for that port **to the local
-  subnet only**. Create the first administrator with `--create-admin ... --service-data`
-  (or `/setup` on the server itself) before anyone can use it. The Start-menu
-  shortcut opens `https://localhost:<port>/`.
+  and opens the Windows Firewall for that port **to the local subnet only**. The
+  Start-menu shortcut then opens `https://localhost:<port>/`. (The desktop edition
+  still opens without a login until you create the first user.)
 - **Its data folder.** The service keeps settings, results and logs in
   `C:\ProgramData\Dicommunication`, which can contain patient data in cleartext.
   The installer limits that folder to administrators, SYSTEM and the service
