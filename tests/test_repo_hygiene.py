@@ -35,3 +35,11 @@ def test_no_tracked_path_is_invalid_on_windows() -> None:
                 bad.append(name)
                 break
     assert not bad, f"These tracked paths cannot be checked out on Windows: {bad}"
+
+
+def test_the_weekly_dependency_check_is_in_place() -> None:
+    text = (ROOT / ".github" / "workflows" / "dependency-check.yml").read_text(encoding="utf-8")
+    assert "schedule:" in text and "cron:" in text and "workflow_dispatch:" in text
+    assert "pip-audit --local" in text and "-r requirements-desktop.txt" in text  # audits what a build installs, desktop extras included
+    assert "windows-latest" in text and "python -m pytest" in text
+    assert re.search(r"permissions:\s+contents: read", text)  # it never needs to write

@@ -1,0 +1,72 @@
+name: Dependency check
+
+# Two questions, asked every week and whenever a requirements file changes:
+#   1. Does any dependency we would install today have a published security advisory?
+#   2. Does the test suite still pass with the newest versions the requirements allow?
+# requirements*.txt only set minimum versions, so a fresh install picks up whatever
+# is newest. Dependabot (see dependabot.yml) proposes the version bumps; this
+# workflow is what notices a new advisory or a breaking release. A failed scheduled
+# run is emailed to the repository owner by GitHub.
+
+on:
+  schedule:
+    - cron: "17 5 * * 1"   # Mondays, 05:17 UTC
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "requirements*.txt"
+      - ".github/workflows/dependency-check.yml"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  advisories:
+    name: Known vulnerabilities (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+    strategy:
+      fail-fast: false
+      matrix:
+        # Windows too: pythonnet is installed there only, and the MSI is built there.
+        os: [ubuntu-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - name: Install what a build would install
+        run: |
+          python -m venv .audit-venv
+          .audit-venv/${{ runner.os == 'Windows' && 'Scripts' || 'bin' }}/python -m pip install --upgrade pip
+          .audit-venv/${{ runner.os == 'Windows' && 'Scripts' || 'bin' }}/python -m pip install -r requirements-dev.txt -r requirements-desktop.txt pip-audit
+
+      - name: Audit the installed packages
+        run: .audit-venv/${{ runner.os == 'Windows' && 'Scripts' || 'bin' }}/pip-audit --local --strict
+
+  tests-on-latest:
+    name: Tests with the newest allowed versions
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - name: Install the newest versions the requirements allow
+        run: python -m pip install --upgrade pip && python -m pip install -r requirements-dev.txt
+
+      - name: Show what was installed
+        run: python -m pip list
+
+      - name: Run the tests
+        run: python -m pytest -q
