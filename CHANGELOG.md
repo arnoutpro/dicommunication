@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+## 0.13.1
+
+### PDF to DICOM
+
+- **Choose the Modality the PDF is stored with.** A new field in step 3, *Stored as (Modality)*, sets the Modality tag of the Encapsulated PDF: `DOC` (the default, as before), `SR` or `OT` from the list, or any other valid code (capital letters, digits, spaces or underscores, up to 16). It helps with a PACS that files or lists documents by modality, for example one that only shows `SR` in a report list. An invalid code is refused with a message before anything is built or sent, and what you chose stays in the form. The result shows the modality used.
+- The object is still an Encapsulated PDF. Storing the PDF's text as a real Structured Report, or its pages as images, was considered and not built.
+
 ## 0.13.0
 
 ### macOS

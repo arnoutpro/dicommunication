@@ -372,6 +372,25 @@ def collect_pdfs(options: dict[str, Any] | None) -> tuple[list[PdfSource], list[
     return sources, warnings
 
 
+DEFAULT_MODALITY = "DOC"
+# Offered in the form; any valid code string may be typed. DOC is what DICOM defines for documents;
+# SR and OT are what some PACS file documents under.
+MODALITY_SUGGESTIONS = ("DOC", "SR", "OT")
+_MODALITY = re.compile(r"[A-Z0-9_ ]{1,16}")
+
+
+def normalize_modality(value: str | None) -> str:
+    """The Modality to store: blank means DOC; otherwise a DICOM code string (capitals, digits, space or underscore, up to 16)."""
+    text = (value or "").strip().upper()
+    if not text:
+        return DEFAULT_MODALITY
+    if not _MODALITY.fullmatch(text):
+        raise CollectError(
+            f"“{(value or '').strip()[:20]}” is not a valid Modality. Use up to 16 capital letters, digits, spaces or underscores, such as DOC, SR or OT."
+        )
+    return text
+
+
 def _dicom_lo(value: str, length: int = 64) -> str:
     return value.strip()[:length]
 
@@ -393,6 +412,7 @@ def encapsulate_pdf(
     study_uid: str | None = None,
     series_uid: str | None = None,
     instance_number: int = 1,
+    modality: str = DEFAULT_MODALITY,
 ) -> Dataset:
     now = datetime.now(timezone.utc)
     sop_uid = generate_uid()
@@ -422,7 +442,7 @@ def encapsulate_pdf(
     ds.AccessionNumber = _dicom_lo(accession_number, 16)
     ds.ReferringPhysicianName = ""
     ds.StudyDescription = _dicom_lo(study_description)
-    ds.Modality = "DOC"
+    ds.Modality = normalize_modality(modality)
     ds.SeriesNumber = 1
     ds.SeriesDescription = "Encapsulated PDF"
     ds.InstanceNumber = int(instance_number)
@@ -509,6 +529,7 @@ def encapsulate_sources(
     generate_accession: bool = False,
     generate_study_description: bool = False,
     generate_document_title: bool = False,
+    modality: str = DEFAULT_MODALITY,
 ) -> list[Dataset]:
     """Wrap each PDF. A typed value goes on every document as it is; a
     generated one is made per study (Accession Number, Study Description) or
@@ -545,6 +566,7 @@ def encapsulate_sources(
                 study_uid=study_uid,
                 series_uid=series_uid,
                 instance_number=index,
+                modality=modality,
             )
         )
     return datasets

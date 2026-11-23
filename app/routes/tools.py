@@ -16,9 +16,11 @@ from app.hl7 import DEFAULT_PORT, display_hl7, sample_adt_a01
 from app.models import Hl7Message, RemoteNode, SavedQuery, ToolResult
 from app.pdf_dicom import (
     CollectError,
+    DEFAULT_MODALITY,
     MAX_FILES,
     MAX_PDF_BYTES,
     MAX_ZIP_BYTES,
+    MODALITY_SUGGESTIONS,
     is_pdf_filename,
     list_directory_pdfs,
 )
@@ -71,6 +73,7 @@ def _pdf_store_options(
     generate_accession: bool = False,
     generate_study_description: bool = False,
     generate_document_title: bool = False,
+    modality: str = DEFAULT_MODALITY,
 ) -> dict[str, Any]:
     items: list[dict[str, Any]] = []
     accepted = 0
@@ -102,6 +105,7 @@ def _pdf_store_options(
         "accession_number": accession_number,
         "study_description": study_description,
         "document_title": document_title,
+        "modality": modality,
         "directory": directory,
         "same_study": same_study,
         "send": send,
@@ -466,6 +470,7 @@ def _pdf_store_page(
     generate_accession: bool = False,
     generate_study_description: bool = False,
     generate_document_title: bool = True,
+    modality: str = DEFAULT_MODALITY,
     scan: dict | None = None,
     status_code: int = 200,
 ):
@@ -498,6 +503,8 @@ def _pdf_store_page(
             generate_accession=generate_accession,
             generate_study_description=generate_study_description,
             generate_document_title=generate_document_title,
+            modality=modality,
+            modality_suggestions=MODALITY_SUGGESTIONS,
             scan=scan,
         ),
         status_code=status_code,
@@ -523,6 +530,7 @@ def pdf_store_run(
     generate_accession: str | None = Form(None),
     generate_study_description: str | None = Form(None),
     generate_document_title: str | None = Form(None),
+    modality: str = Form(DEFAULT_MODALITY),
     pdfs: list[UploadFile] = File(default=[]),
     zip_file: UploadFile | None = File(default=None),
     folder: list[UploadFile] = File(default=[]),
@@ -542,6 +550,7 @@ def pdf_store_run(
         generate_accession=_as_bool(generate_accession),
         generate_study_description=_as_bool(generate_study_description),
         generate_document_title=_as_bool(generate_document_title),
+        modality=modality,
         pdfs=pdfs,
         zip_file=zip_file,
         folder=folder,
@@ -581,6 +590,7 @@ def pdf_store_run(
             generate_accession=_as_bool(generate_accession),
             generate_study_description=_as_bool(generate_study_description),
             generate_document_title=_as_bool(generate_document_title),
+            modality=modality,
             status_code=exc.status_code,
         )
     if _hx(request):
@@ -608,6 +618,7 @@ def pdf_store_run(
         generate_accession=_as_bool(generate_accession),
         generate_study_description=_as_bool(generate_study_description),
         generate_document_title=_as_bool(generate_document_title),
+        modality=modality,
     )
 
 

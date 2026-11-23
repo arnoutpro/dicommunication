@@ -115,7 +115,7 @@
           <td><strong>PDF to DICOM</strong></td>
           <td>C-STORE</td>
           <td>Encapsulated PDF Storage <code>1.2.840.10008.5.1.4.1.1.104.1</code></td>
-          <td>Wrap a PDF as a DICOM document (modality <code>DOC</code>) and store it. A peer that takes Secondary Capture may still reject Encapsulated PDF.</td>
+          <td>Wrap a PDF as a DICOM document (modality <code>DOC</code> unless you choose another) and store it. A peer that takes Secondary Capture may still reject Encapsulated PDF.</td>
         </tr>
         <tr>
           <td><strong>C-FIND</strong></td>
@@ -445,7 +445,7 @@
     <h2>PDF to DICOM</h2>
     <a href="/tools/pdf-store">Open</a>
   </header>
-  <p>Import PDF bytes, wrap each file as <strong>Encapsulated PDF Storage</strong> (SOP Class <code>1.2.840.10008.5.1.4.1.1.104.1</code>, modality <code>DOC</code>), then optionally C-STORE the instances to a selected PACS. This is not the Testbench Secondary Capture image, and it does not rasterize PDF pages into pixel data.</p>
+  <p>Import PDF bytes, wrap each file as <strong>Encapsulated PDF Storage</strong> (SOP Class <code>1.2.840.10008.5.1.4.1.1.104.1</code>), then optionally C-STORE the instances to a selected PACS. This is not the Testbench Secondary Capture image, and it does not rasterize PDF pages into pixel data. The <strong>Stored as (Modality)</strong> field in step 3 sets the object's Modality tag: <code>DOC</code> (the DICOM code for documents, and the default), <code>SR</code> or <code>OT</code>, or another code of up to 16 capital letters, digits, spaces or underscores. It is still an Encapsulated PDF; only the tag changes, for PACS that file or list documents by modality.</p>
   <p>The page runs in four steps: choose the PDFs, the patient, the study and document, and where to send them. Step 1 takes PDFs from one source at a time. Choose it under <strong>Take PDFs from</strong>:</p>
   <ul>
     <li><strong>Files</strong> — one or more <code>.pdf</code> uploads only. Other types are rejected.</li>

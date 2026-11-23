@@ -122,6 +122,16 @@
         </div>
         <input id="pdf-document_title" name="document_title" value="{{ document_title }}" placeholder="Referral letter" data-placeholder="Referral letter" data-generated-placeholder="Each PDF’s file name"{% if generate_document_title %} disabled{% endif %}>
       </div>
+      <div class="field span-2">
+        <div class="field-head">
+          <label for="pdf-modality">Stored as (Modality)</label>
+        </div>
+        <input id="pdf-modality" name="modality" value="{{ modality }}" list="pdf-modality-options" maxlength="16" autocomplete="off" spellcheck="false" placeholder="DOC" pattern="[A-Za-z0-9_ ]*">
+        <datalist id="pdf-modality-options">
+          {% for choice in modality_suggestions %}<option value="{{ choice }}"></option>{% endfor %}
+        </datalist>
+        <span class="hint">The object is always an Encapsulated PDF; this sets its Modality tag. <code>DOC</code> is the DICOM code for documents. Some PACS only list a document under <code>SR</code> or <code>OT</code> (other). You can type another code.</span>
+      </div>
       <p class="hint span-2">A value you type goes on every PDF as it is. Generate makes one per study, or per PDF for the title.</p>
       <label class="checkbox span-2">
         <input type="checkbox" name="same_study" value="on" {% if same_study %}checked{% endif %} data-same-study>
