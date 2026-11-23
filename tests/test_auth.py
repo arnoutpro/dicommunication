@@ -93,17 +93,26 @@ def test_a_damaged_users_file_reads_as_no_users(tmp_path: Path) -> None:
 
 
 def test_a_session_expires_when_idle_and_when_old() -> None:
-    sessions = auth.SessionStore(idle_seconds=0.15, absolute_seconds=0.5)
+    now = [1000.0]  # a fake clock: the test must not depend on how fast the machine runs
+    sessions = auth.SessionStore(idle_seconds=15, absolute_seconds=50, clock=lambda: now[0])
     token = sessions.create("u1")
     assert sessions.get(token).user_id == "u1" and sessions.get("wrong") is None and sessions.get("") is None
-    time.sleep(0.1)
+    now[0] += 10
     assert sessions.get(token) is not None  # seen again: the idle clock restarts
-    time.sleep(0.2)
+    now[0] += 20
     assert sessions.get(token) is None  # idle too long
-    long = auth.SessionStore(idle_seconds=5, absolute_seconds=0.2)
+    long = auth.SessionStore(idle_seconds=500, absolute_seconds=20, clock=lambda: now[0])
     token = long.create("u1")
-    time.sleep(0.3)
+    now[0] += 12
+    assert long.get(token) is not None  # in use, and still young
+    now[0] += 12
     assert long.get(token) is None  # too old even though it was in use
+    edge = auth.SessionStore(idle_seconds=15, absolute_seconds=50, clock=lambda: now[0])
+    token = edge.create("u1")
+    now[0] += 15
+    assert edge.get(token) is not None  # exactly the limit is still fine; only longer expires
+    now[0] += 15.01
+    assert edge.get(token) is None
 
 
 def test_signing_out_and_changing_a_password_end_sessions() -> None:

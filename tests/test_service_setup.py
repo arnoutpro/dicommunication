@@ -105,6 +105,7 @@ def test_missing_install_folder_fails_setup(tmp_path: Path) -> None:
 
 
 def test_launcher_runs_the_setup_step(monkeypatch) -> None:
+    monkeypatch.setattr("app.launcher.is_macos", lambda: False)  # this is the Windows step; a Mac runs its own
     seen: dict[str, object] = {}
     monkeypatch.setattr(ss, "run_configure", lambda port, listen: seen.update(port=port, listen=listen) or 0)
     assert main(["--configure-service", "--port", "8090", "--listen", "network"]) == 0
@@ -117,6 +118,7 @@ def test_uninstall_cleanup_for_the_service_targets_programdata(monkeypatch, tmp_
     purged: list[Path | None] = []
     monkeypatch.setattr(un, "confirm_purge_data", lambda: True)
     monkeypatch.setattr(un, "purge_data_dir", lambda path=None: purged.append(path))
+    monkeypatch.setattr(ss, "is_macos", lambda: False)  # on a Mac the service data lives in /Library, not ProgramData
     monkeypatch.setenv("PROGRAMDATA", str(tmp_path))
     assert un.run_uninstall_cleanup(service=True) == 0
     assert purged == [tmp_path / "Dicommunication"]

@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+## 0.13.2
+
+### Fixes
+
+- **HTTPS could not start on a computer with a long name.** The certificate's Common Name was the computer's host name, and X.509 allows at most 64 characters, so a name of 65 or more characters (the macOS build runner's is 67) made the certificate, and so the network option, fail with an error. The Common Name is now the first name that fits (it is only a label; browsers check the full list of names in the certificate), and a name that is not a valid DNS name is left out.
+- **Looking up this computer's own names can no longer hang start-up.** The full computer name and its addresses come from DNS, which on a machine whose name does not resolve can block for many seconds with no timeout. Each lookup now gives up after 3 seconds and the app carries on with `localhost` and the plain host name. Used for the certificate and for the allowed host names.
+- Tests: a session test used real sleeps and could fail on a slow machine (it now uses a fake clock), and two service-setup tests assumed the Windows path and failed on a Mac.
+- The macOS DMG for v0.13.1 was not built because its test step failed on these points; use 0.13.2.
+
 ## 0.13.1
 
 ### PDF to DICOM
