@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import plistlib
 import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -29,6 +30,9 @@ class FakeRunner:
         return any(call[: len(prefix)] == list(prefix) for call in self.calls)
 
 
+POSIX = sys.platform != "win32"  # file modes and ownership only mean something on a Unix; the service only ever runs on a Mac
+
+
 @pytest.fixture(autouse=True)
 def chowns(monkeypatch) -> list[tuple[str, int, int]]:
     """Record ownership changes instead of making them, so these tests give the same result for any user.
@@ -37,7 +41,8 @@ def chowns(monkeypatch) -> list[tuple[str, int, int]]:
     allowed for root, so it must never run in a test.)
     """
     calls: list[tuple[str, int, int]] = []
-    monkeypatch.setattr(ms.os, "chown", lambda path, uid, gid, **_kw: calls.append((str(path), uid, gid)))
+    # raising=False: Windows has no os.chown (this suite also runs there, in the MSI build).
+    monkeypatch.setattr(ms.os, "chown", lambda path, uid, gid, **_kw: calls.append((str(path), uid, gid)), raising=False)
     monkeypatch.setattr(ms, "_service_ids", lambda: None)  # the account does not exist unless a test says so
     monkeypatch.setattr(ms, "_is_root", lambda: False)
     return calls
@@ -99,8 +104,9 @@ def test_a_first_install_uses_the_defaults_and_writes_everything(layout) -> None
     assert json.loads(layout.settings_file.read_text()) == {"port": 8080, "listen": "local"}
     assert (layout.data_dir / "logs").is_dir() and layout.log_dir.is_dir()
     assert layout.newsyslog.is_file() and plistlib.loads(layout.shortcut.read_bytes())["URL"] == "http://localhost:8080/"
-    assert oct(layout.data_dir.stat().st_mode & 0o777) == "0o700"  # patient data: owner only
-    assert oct(layout.plist.stat().st_mode & 0o777) == "0o644"
+    if POSIX:
+        assert oct(layout.data_dir.stat().st_mode & 0o777) == "0o700"  # patient data: owner only
+        assert oct(layout.plist.stat().st_mode & 0o777) == "0o644"
     assert not runner.calls  # no reload asked for, and no firewall exception for this computer only
 
 
@@ -188,7 +194,10 @@ def test_uninstall_keeps_the_data_unless_told_otherwise(layout) -> None:
     layout.program_dir.mkdir(parents=True)
     layout.executable.write_text("x")
     layout.command_link.parent.mkdir(parents=True)
-    layout.command_link.symlink_to(layout.executable)
+    try:
+        layout.command_link.symlink_to(layout.executable)
+    except OSError:  # Windows without the symlink privilege
+        layout.command_link.write_text("link")
     runner, said = FakeRunner(), []
     assert ms.uninstall(layout, delete_data=False, runner=runner, say=said.append) == 0
     assert runner.ran("launchctl", "bootout") and runner.ran("pkgutil", "--forget", "pro.arnout.dicommunication")
