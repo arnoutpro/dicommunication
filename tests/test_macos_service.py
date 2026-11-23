@@ -29,6 +29,20 @@ class FakeRunner:
         return any(call[: len(prefix)] == list(prefix) for call in self.calls)
 
 
+@pytest.fixture(autouse=True)
+def chowns(monkeypatch) -> list[tuple[str, int, int]]:
+    """Record ownership changes instead of making them, so these tests give the same result for any user.
+
+    (The CI runner is not root and a developer's container may be; the real chown is only
+    allowed for root, so it must never run in a test.)
+    """
+    calls: list[tuple[str, int, int]] = []
+    monkeypatch.setattr(ms.os, "chown", lambda path, uid, gid, **_kw: calls.append((str(path), uid, gid)))
+    monkeypatch.setattr(ms, "_service_ids", lambda: None)  # the account does not exist unless a test says so
+    monkeypatch.setattr(ms, "_is_root", lambda: False)
+    return calls
+
+
 @pytest.fixture
 def layout(tmp_path: Path) -> ms.Layout:
     return ms.Layout(root=tmp_path)
@@ -113,6 +127,23 @@ def test_reload_stops_then_loads_the_job_and_the_network_option_opens_the_firewa
     bootstrap = next(i for i, c in enumerate(runner.calls) if c[1:2] == ["bootstrap"])
     assert bootout < bootstrap
     assert runner.ran(ms.FIREWALL_TOOL, "--add", str(layout.executable)) and runner.ran(ms.FIREWALL_TOOL, "--unblockapp", str(layout.executable))
+
+
+def test_as_root_with_the_service_account_the_files_get_the_right_owners(layout, monkeypatch, chowns) -> None:
+    monkeypatch.setattr(ms, "_is_root", lambda: True)
+    monkeypatch.setattr(ms, "_service_ids", lambda: (301, 302))
+    assert ms.configure(layout, runner=FakeRunner(), hostnames=[]) == 0
+    owners = {Path(path): (uid, gid) for path, uid, gid in chowns}
+    assert owners[layout.plist] == (0, 0)  # launchd refuses a job that root does not own
+    for private in (layout.data_dir, layout.data_dir / "logs", layout.log_dir, layout.settings_file):
+        assert owners[private] == (301, 302), private  # the service account, and nobody else, may read patient data
+
+
+def test_without_the_service_account_the_folders_are_left_alone_and_it_is_logged(layout, monkeypatch, chowns) -> None:
+    monkeypatch.setattr(ms, "_is_root", lambda: True)
+    assert ms.configure(layout, runner=FakeRunner(), hostnames=[]) == 0
+    assert [Path(path) for path, _u, _g in chowns] == [layout.plist]
+    assert "does not exist" in (layout.log_dir / ms.SETUP_LOG_NAME).read_text()
 
 
 def test_a_failing_launchctl_is_reported_but_the_files_stay_in_place(layout, capsys) -> None:
