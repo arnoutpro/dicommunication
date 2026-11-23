@@ -24,7 +24,7 @@ from datetime import datetime, timezone
 from pathlib import Path, PureWindowsPath
 from xml.sax.saxutils import escape, quoteattr
 
-from app.paths import no_console_kwargs, runtime_os_name
+from app.paths import is_macos, no_console_kwargs, runtime_os_name
 
 SERVICE_NAME = "Dicommunication"
 SERVICE_XML_NAME = "dicommunication-service.xml"
@@ -45,6 +45,8 @@ SID_LOCAL_SERVICE = "*S-1-5-19"
 
 def service_data_dir() -> Path:
     """Where the service keeps its settings, history and logs."""
+    if is_macos():
+        return Path("/Library/Application Support/Dicommunication")
     base = os.environ.get("PROGRAMDATA") or r"C:\ProgramData"
     return Path(base) / "Dicommunication"
 

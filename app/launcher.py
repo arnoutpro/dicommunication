@@ -27,7 +27,7 @@ from app.desktop import (
     resolve_ui_mode,
     run_native_window,
 )
-from app.paths import runtime_os_name
+from app.paths import is_macos, runtime_os_name
 from app.shell import (
     PROFILE_DICOMM,
     PROFILES,
@@ -145,15 +145,21 @@ def _prepare_tls(app, use_https: bool) -> dict:
 
 def create_admin_from_file(name: str, password_file: str | None) -> int:
     """``--create-admin NAME --password-file FILE``: for a server nobody can browse from, and for a lost password."""
-    from app.auth import ADMIN, AuthError, UserStore
-    from app.store import DEFAULT_DATA_DIR
-
     try:
         password = Path(password_file or "").read_text(encoding="utf-8").splitlines()[0] if password_file else ""
     except (OSError, IndexError):
         print("Could not read the first line of the password file.", flush=True)
         return 2
-    users = UserStore(DEFAULT_DATA_DIR)
+    return create_admin(name, password)
+
+
+def create_admin(name: str, password: str, data_dir: Path | str | None = None) -> int:
+    """Create an administrator, or reset that account to an enabled administrator with this password."""
+    from app.auth import ADMIN, AuthError, UserStore
+
+    if data_dir is None:
+        from app.store import DEFAULT_DATA_DIR as data_dir  # noqa: N811
+    users = UserStore(data_dir)
     try:
         existing = users.by_username(name)
         if existing is None:
@@ -171,6 +177,12 @@ def create_admin_from_file(name: str, password_file: str | None) -> int:
 
 
 def main(argv: list[str] | None = None) -> int:
+    given = list(sys.argv[1:] if argv is None else argv)
+    if given[:1] == ["service"]:
+        # `dicommunication service status|network|port|create-admin|uninstall`: managing the macOS background service.
+        from app.macos_service import service_main
+
+        return service_main(given[1:])
     parser = argparse.ArgumentParser(
         prog="dicommunication",
         description="Arnout.pro Dicommunication Tool — local DICOM workstation UI.",
@@ -217,9 +229,15 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--configure-service", action="store_true", help=argparse.SUPPRESS)
     parser.add_argument("--service-data", action="store_true", help=argparse.SUPPRESS)
     parser.add_argument("--listen", choices=("local", "network"), default="local", help=argparse.SUPPRESS)
+    parser.add_argument("--from-saved", action="store_true", help=argparse.SUPPRESS)  # macOS installer: keep the saved port and network option
+    parser.add_argument("--reload", action="store_true", help=argparse.SUPPRESS)  # macOS installer: (re)start the service afterwards
     args = parser.parse_args(argv)
 
     if args.configure_service:
+        if is_macos():
+            from app.macos_service import run_configure as run_configure_macos
+
+            return run_configure_macos(port=args.port, listen=args.listen, from_saved=args.from_saved, reload=args.reload)
         from app.service_setup import run_configure
 
         return run_configure(args.port, args.listen)
@@ -231,7 +249,13 @@ def main(argv: list[str] | None = None) -> int:
             os.environ["DICOMM_DATA_DIR"] = str(service_data_dir())
         apply_runtime_env()
         redirect_frozen_stdio()
-        return create_admin_from_file(args.create_admin, args.password_file)
+        code = create_admin_from_file(args.create_admin, args.password_file)
+        if args.service_data and is_macos():
+            from app.macos_service import fix_ownership
+            from app.service_setup import service_data_dir
+
+            fix_ownership(service_data_dir())  # made by root; the service account must be able to use it
+        return code
 
     if args.uninstall_cleanup:
         from app.uninstall import run_uninstall_cleanup

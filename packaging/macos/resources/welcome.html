@@ -1,0 +1,12 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><style>body{font-family:-apple-system,Helvetica,sans-serif;font-size:13px}</style></head>
+<body>
+<h2>Arnout.pro Dicommunication</h2>
+<p>This installs Dicommunication as a <b>background service</b>. It starts with this Mac, needs nobody to be logged in, has no window, and you open it in a browser.</p>
+<ul>
+<li>It runs as its own account, <code>_dicommunication</code>, and keeps its data in <code>/Library/Application Support/Dicommunication</code>.</li>
+<li>It always asks for sign-in. You create the first administrator after the installation.</li>
+<li>By default only this Mac can connect, on port 8080. You can change that afterwards.</li>
+</ul>
+<p>An old <b>Dicommunication.app</b> in Applications (versions up to 0.12) is replaced by this service. Its settings are not carried over: export them first with Configuration &gt; Import / export.</p>
+</body></html>

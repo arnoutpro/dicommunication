@@ -13,6 +13,11 @@ def runtime_os_name() -> str:
     return os.name
 
 
+def is_macos() -> bool:
+    """`sys.platform` wrapper so tests can fake macOS."""
+    return sys.platform == "darwin"
+
+
 def no_console_kwargs() -> dict:
     """`subprocess.run`/`Popen` kwargs that stop a console app from flashing its
     own window when this process itself has no console (the frozen desktop

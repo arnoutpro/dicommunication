@@ -1,5 +1,9 @@
 # -*- mode: python ; coding: utf-8 -*-
-"""PyInstaller onedir spec for the macOS .app inside the DMG."""
+"""PyInstaller onedir spec for the macOS service: a command-line program, no window, no .app bundle.
+
+The installer package (make_pkg.py) puts this folder in /usr/local/lib/dicommunication and a LaunchDaemon
+runs it in the background. Nothing here needs the desktop-window libraries (pywebview, PyObjC).
+"""
 
 from __future__ import annotations
 
@@ -56,24 +60,6 @@ datas = [
 ]
 datas += collect_data_files("pydicom")
 datas += collect_data_files("pynetdicom")
-datas += collect_data_files("webview")
-
-hiddenimports = (
-    list(hiddenimports)
-    + collect_submodules("webview")
-    + [
-        "bottle",
-        "proxy_tools",
-        "webview.platforms.cocoa",
-        "objc",
-        "AppKit",
-        "Foundation",
-        "WebKit",
-        "CoreFoundation",
-        "PyObjCTools",
-        "PyObjCTools.AppHelper",
-    ]
-)
 
 a = Analysis(
     [str(ROOT / "app" / "launcher.py")],
@@ -83,8 +69,8 @@ a = Analysis(
     hiddenimports=hiddenimports,
     hookspath=[],
     hooksconfig={},
-    runtime_hooks=[str(SPECDIR / "rthook_cocoa.py")],
-    excludes=["tkinter", "matplotlib", "numpy.tests", "pytest", "pygments"],
+    runtime_hooks=[],
+    excludes=["tkinter", "matplotlib", "numpy.tests", "pytest", "pygments", "webview", "objc", "AppKit", "WebKit"],
     noarchive=False,
 )
 
@@ -100,10 +86,9 @@ exe = EXE(
     bootloader_ignore_signals=False,
     strip=False,
     upx=False,
-    console=False,
-    disable_windowed_traceback=False,
-    # Must stay False. Argv emulation starts NSApplication in the bootloader and
-    # fights pywebview: Dock icon + live process, no visible window.
+    # A command-line program: the service runs it with no terminal, and an administrator
+    # runs `dicommunication service ...` from one, so it needs a console, not a windowed bootloader.
+    console=True,
     argv_emulation=False,
     target_arch=None,
     codesign_identity=None,
@@ -119,23 +104,4 @@ coll = COLLECT(
     upx=False,
     upx_exclude=[],
     name="dicommunication",
-)
-
-app = BUNDLE(
-    coll,
-    name="Dicommunication.app",
-    icon=ICON,
-    bundle_identifier="pro.arnout.dicommunication",
-    info_plist={
-        "CFBundleName": "Dicommunication",
-        "CFBundleDisplayName": "Dicommunication",
-        "CFBundleGetInfoString": "Arnout.pro Dicommunication Tool",
-        "CFBundleIdentifier": "pro.arnout.dicommunication",
-        "CFBundleShortVersionString": VERSION,
-        "CFBundleVersion": VERSION,
-        "NSHighResolutionCapable": True,
-        "NSPrincipalClass": "NSApplication",
-        "NSSupportsAutomaticGraphicsSwitching": True,
-        "NSAppTransportSecurity": {"NSAllowsLocalNetworking": True},
-    },
 )

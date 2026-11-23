@@ -60,7 +60,7 @@
     <h2>What this is (and is not)</h2>
   </header>
   <p>Dicommunication is a <strong>trusted-network admin workstation</strong>. Use it on the PACS VLAN, a lab, or a jumphost that can reach DICOM and HL7 ports. Configure this machine as a DICOM Application Entity, register remote nodes, impersonate extra calling AE Titles when a modality identity is required, and run the checks a connectivity ticket actually needs.</p>
-  <p>It is <strong>not</strong> a PACS, not a viewer, and not a replacement for vendor modality simulators. It does not keep a clinical image archive. Frozen Windows (MSI) and macOS (DMG) builds open the UI in a native window. Docker Compose and a local Python process serve the same UI in a browser. The page only exists after the backend is already running — you cannot install Python from inside this UI.</p>
+  <p>It is <strong>not</strong> a PACS, not a viewer, and not a replacement for vendor modality simulators. It does not keep a clinical image archive. The Windows (MSI) and macOS (DMG) installers run it as a background service that you open in a browser, with sign-in always on. Docker Compose and a local Python process serve the same UI in a browser too. The page only exists after the backend is already running — you cannot install Python from inside this UI.</p>
   <p>See <a href="/about">About</a> for the version of this process, the calling AE Title, the listen port, and the data directory on this computer.</p>
 </section>
 
@@ -196,7 +196,7 @@
     <h2>Configured nodes</h2>
     <a href="/config">Open</a>
   </header>
-  <p>This is the station identity: this workstation, virtual calling AEs, and remote DICOM nodes. Settings are saved on disk in the data directory and kept when you rebuild Docker or upgrade the MSI / DMG. The overview lists everything at a glance. Add or edit on the child pages: Local DICOM AE, Virtual AEs, Remote nodes. On Local AE, <strong>Accept C-STORE (Structured Reports)</strong> is on the main form; <strong>Advanced settings</strong> hides PDU, timeouts, and the MWL SCP.</p>
+  <p>This is the station identity: this workstation, virtual calling AEs, and remote DICOM nodes. Settings are saved on disk in the data directory and kept when you rebuild Docker or upgrade the MSI / DMG (an installer upgrade keeps the service's data folder). The overview lists everything at a glance. Add or edit on the child pages: Local DICOM AE, Virtual AEs, Remote nodes. On Local AE, <strong>Accept C-STORE (Structured Reports)</strong> is on the main form; <strong>Advanced settings</strong> hides PDU, timeouts, and the MWL SCP.</p>
 </section>
 
 <section class="panel help-section" id="local-ae">
