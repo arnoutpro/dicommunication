@@ -1,4 +1,4 @@
-# Desktop-only extras for the Windows MSI and macOS DMG (native app window).
+# Desktop-window extras (pywebview). The macOS installer no longer bundles them; the Windows build still does.
 # Docker and `make run` do not need these.
 pywebview>=6.2.1,<7
 pythonnet>=3.0,<4; sys_platform == "win32"

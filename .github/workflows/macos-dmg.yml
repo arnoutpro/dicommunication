@@ -33,7 +33,7 @@ jobs:
       - name: Install Python dependencies
         run: |
           python -m pip install --upgrade pip
-          python -m pip install -r requirements-dev.txt -r requirements-desktop.txt pyinstaller
+          python -m pip install -r requirements-dev.txt pyinstaller
 
       - name: Test
         run: python -m pytest -q
@@ -48,7 +48,7 @@ jobs:
             python -c "from app import __version__; print(f'value={__version__}')" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Build app and DMG
+      - name: Build the installer package and DMG
         env:
           PYTHON: python
           DICOMM_SKIP_PIP: "1"
@@ -61,6 +61,18 @@ jobs:
           name: dicommunication-dmg-arm64
           path: dist/*.dmg
           if-no-files-found: error
+
+      # Installs the package on this runner, checks the service and removes it again. After the
+      # upload, so a failure here is visible without losing the artifact.
+      - name: Smoke-test the installed service
+        run: bash packaging/macos/smoke_test.sh dist/dicommunication-${{ steps.version.outputs.value }}-macos-arm64.dmg
+
+      - name: Show the service logs after a failed smoke test
+        if: failure()
+        run: |
+          sudo tail -n 80 /var/log/dicommunication/service.log || true
+          sudo tail -n 40 /var/log/dicommunication-install.log || true
+          sudo launchctl print system/pro.arnout.dicommunication || true
 
       - name: Attach DMG to GitHub Release
         if: startsWith(github.ref, 'refs/tags/v')

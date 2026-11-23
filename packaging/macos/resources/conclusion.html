@@ -1,0 +1,13 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><style>body{font-family:-apple-system,Helvetica,sans-serif;font-size:13px}code{background:#eee;padding:1px 4px}</style></head>
+<body>
+<h2>Installed</h2>
+<p>The service is running. Open <b>http://localhost:8080/</b> in a browser on this Mac (or the <b>Dicommunication</b> shortcut in Applications). The first visit goes to <b>Setup</b>, where you create the first administrator.</p>
+<p>In Terminal:</p>
+<pre>sudo dicommunication service status
+sudo dicommunication service create-admin NAME
+sudo dicommunication service network on     # let other computers connect (HTTPS)
+sudo dicommunication service port 8090
+sudo dicommunication service uninstall</pre>
+<p>If something does not work: <code>/var/log/dicommunication/service.log</code> and <code>/var/log/dicommunication-install.log</code>.</p>
+</body></html>

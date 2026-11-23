@@ -120,8 +120,17 @@ unchanged, and two things matter more because nobody is watching a window:
 - **Local only by default.** The service listens on `127.0.0.1`. The installer's
   "allow other computers" option makes it listen on every interface, turns on HTTPS
   and opens the Windows Firewall for that port **to the local subnet only**. The
-  Start-menu shortcut then opens `https://localhost:<port>/`. (The macOS app and a plain
-  `make run` still open without a login until you create the first user.)
+  Start-menu shortcut then opens `https://localhost:<port>/`. (A plain `make run` or Docker
+  still opens without a login until you create the first user.)
+- **macOS is the same idea.** The DMG's installer package registers a launchd service
+  that starts with the Mac, runs as the hidden account `_dicommunication`, always asks
+  for sign-in, and keeps its data in `/Library/Application Support/Dicommunication`
+  (mode 0700, that account only). `sudo dicommunication service network on` turns on
+  HTTPS and listening on the network and adds the macOS firewall exception. Unlike the
+  Windows rule, that exception cannot be limited to the local subnet, so on a shared
+  network rely on sign-in and HTTPS, the Mac's own firewall and network segmentation.
+  Create the first administrator at `http://localhost:<port>/` on the Mac or with
+  `sudo dicommunication service create-admin NAME`.
 - **Its data folder.** The service keeps settings, results and logs in
   `C:\ProgramData\Dicommunication`, which can contain patient data in cleartext.
   The installer limits that folder to administrators, SYSTEM and the service

@@ -1,0 +1,20 @@
+#!/bin/bash
+# Runs as root before the files are copied. Never fails the install: at worst the
+# old service keeps running until the post-install script reloads it.
+
+LABEL="pro.arnout.dicommunication"
+
+# An upgrade: stop the running service first so its files can be replaced.
+/bin/launchctl bootout "system/${LABEL}" >/dev/null 2>&1
+
+# The old drag-to-Applications app (versions up to 0.12) would start a second server on the
+# same port, so it is replaced by this service, as the Windows installer replaces its old edition.
+OLD_APP="/Applications/Dicommunication.app"
+if [ -d "$OLD_APP" ]; then
+  ID="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$OLD_APP/Contents/Info.plist" 2>/dev/null)"
+  if [ "$ID" = "$LABEL" ]; then
+    /bin/rm -rf "$OLD_APP"
+  fi
+fi
+
+exit 0

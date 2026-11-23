@@ -1,0 +1,50 @@
+#!/bin/bash
+# Runs as root after the files are copied: make the service account, then write the launchd
+# job and start the service (the same step as `dicommunication --configure-service`).
+
+LABEL="pro.arnout.dicommunication"
+SERVICE_USER="_dicommunication"
+EXE="/usr/local/lib/dicommunication/dicommunication"
+LOG="/var/log/dicommunication-install.log"
+
+say() { echo "$(/bin/date -u +%Y-%m-%dT%H:%M:%SZ) $*" >> "$LOG"; }
+
+# A hidden account that cannot log in, like the other _service accounts. Created once; an
+# upgrade finds it. The numbers come from the 300-399 range macOS keeps for such accounts.
+if ! /usr/bin/id -u "$SERVICE_USER" >/dev/null 2>&1; then
+  ID=""
+  for candidate in $(/usr/bin/seq 300 399); do
+    if [ -z "$(/usr/bin/dscl . -search /Users UniqueID "$candidate" 2>/dev/null)" ] \
+       && [ -z "$(/usr/bin/dscl . -search /Groups PrimaryGroupID "$candidate" 2>/dev/null)" ]; then
+      ID="$candidate"
+      break
+    fi
+  done
+  if [ -z "$ID" ]; then
+    say "no free user id between 300 and 399 for $SERVICE_USER"
+    exit 1
+  fi
+  /usr/bin/dscl . -create "/Groups/$SERVICE_USER" \
+    && /usr/bin/dscl . -create "/Groups/$SERVICE_USER" PrimaryGroupID "$ID" \
+    && /usr/bin/dscl . -create "/Groups/$SERVICE_USER" RealName "Dicommunication service" \
+    && /usr/bin/dscl . -create "/Users/$SERVICE_USER" \
+    && /usr/bin/dscl . -create "/Users/$SERVICE_USER" UniqueID "$ID" \
+    && /usr/bin/dscl . -create "/Users/$SERVICE_USER" PrimaryGroupID "$ID" \
+    && /usr/bin/dscl . -create "/Users/$SERVICE_USER" RealName "Dicommunication service" \
+    && /usr/bin/dscl . -create "/Users/$SERVICE_USER" UserShell /usr/bin/false \
+    && /usr/bin/dscl . -create "/Users/$SERVICE_USER" NFSHomeDirectory /var/empty \
+    && /usr/bin/dscl . -create "/Users/$SERVICE_USER" IsHidden 1 \
+    || { say "could not create the account $SERVICE_USER"; exit 1; }
+  say "created the account $SERVICE_USER ($ID)"
+fi
+
+if [ ! -x "$EXE" ]; then
+  say "the program is missing: $EXE"
+  exit 1
+fi
+
+# Writes the job (keeping the port and network option of an earlier install) and starts it.
+"$EXE" --configure-service --from-saved --reload >> "$LOG" 2>&1
+STATUS=$?
+say "configure-service finished with status $STATUS"
+exit $STATUS

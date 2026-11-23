@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <?ifndef ProductVersion ?>
-<?define ProductVersion = "0.12.0" ?>
+<?define ProductVersion = "0.13.0" ?>
 <?endif?>
 <!--
   Dicommunication, headless edition.

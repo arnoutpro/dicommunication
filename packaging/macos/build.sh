@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Freeze Dicommunication.app and wrap it in a UDZO DMG. Run on macOS.
-# Requires: Python 3.12+ (CI uses actions/setup-python).
+# Freeze the program, wrap it in an installer package (a launchd service) and put that in a DMG.
+# Run on macOS. Requires: Python 3.12+ (CI uses actions/setup-python).
 
 set -euo pipefail
 
@@ -21,19 +21,24 @@ fi
 
 if [[ "$SKIP_PIP" != "1" ]]; then
   "$PYTHON" -m pip install --upgrade pip
-  "$PYTHON" -m pip install -r requirements.txt -r requirements-desktop.txt pyinstaller
+  "$PYTHON" -m pip install -r requirements.txt pyinstaller
 fi
 
 "$PYTHON" -m PyInstaller --noconfirm --clean packaging/macos/dicommunication.spec
 
-APP="dist/Dicommunication.app"
-if [[ ! -x "$APP/Contents/MacOS/dicommunication" ]]; then
-  echo "frozen launcher missing: $APP/Contents/MacOS/dicommunication" >&2
+ONEDIR="dist/dicommunication"
+if [[ ! -x "$ONEDIR/dicommunication" ]]; then
+  echo "frozen program missing: $ONEDIR/dicommunication" >&2
   exit 1
 fi
-"$APP/Contents/MacOS/dicommunication" --help >/dev/null
+"$ONEDIR/dicommunication" --help >/dev/null
 
-"$PYTHON" packaging/macos/make_dmg.py "$APP" \
+"$PYTHON" packaging/macos/make_pkg.py "$ONEDIR" \
+  --version "$DICOMM_DMG_VERSION" \
+  --arch "$DICOMM_DMG_ARCH" \
+  --output dist
+
+"$PYTHON" packaging/macos/make_dmg.py "dist/dicommunication-${DICOMM_DMG_VERSION}-macos-${DICOMM_DMG_ARCH}.pkg" \
   --version "$DICOMM_DMG_VERSION" \
   --arch "$DICOMM_DMG_ARCH" \
   --output dist

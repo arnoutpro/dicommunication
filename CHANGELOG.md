@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+## 0.13.0
+
+### macOS
+
+- **The macOS download now behaves like the Windows headless installer.** `dicommunication-<version>-macos-arm64.dmg` holds `Dicommunication.pkg`, which installs the program and a launchd service that starts with the Mac, needs nobody logged in, has no window and is opened in the browser. Sign-in is always on. It runs as its own hidden account `_dicommunication` and keeps its data in `/Library/Application Support/Dicommunication` (owner only). The first visit to `http://localhost:8080/` goes to Setup.
+- **`sudo dicommunication service ...`**: `status`, `network on|off` (HTTPS and listening on the network, with the macOS firewall exception), `port N`, `create-admin NAME` (asks for the password, or `--password-file`) and `uninstall` (keeps the data unless you say otherwise or pass `--delete-data`). Settings are kept across upgrades. For an unattended install, pre-create `service.json` (see the README).
+- The old drag-to-Applications app (up to 0.12) is removed by the installer and its settings in `~/.dicommunication` are not carried over: export them first (Configuration > Import / export).
+- The macOS build no longer bundles the desktop-window libraries. The macOS CI job now installs the package on the runner and checks the service end to end (setup page, sign-in, upgrade, uninstall); the DMG is uploaded before that test, so a failing test does not lose it.
+- Not the same as Windows: the macOS firewall exception cannot be limited to the local subnet. The Windows installer's licence text no longer says the UI has no login.
+- This could not be run on a real Mac while it was written: the Python side and the package layout are covered by tests on Linux, and the macOS CI job is the first real install.
+
 ## 0.12.0
 
 ### Windows
