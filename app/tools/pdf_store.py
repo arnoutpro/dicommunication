@@ -20,6 +20,7 @@ from app.pdf_dicom import (
     CollectError,
     collect_pdfs,
     encapsulate_sources,
+    normalize_modality,
     resolve_patient_identities,
 )
 from app.tools.base import BaseTool, elapsed_ms
@@ -155,6 +156,7 @@ class PdfStoreTool(BaseTool):
 
         encapsulate_started = time.perf_counter()
         try:
+            modality = normalize_modality(options.get("modality"))
             identities = resolve_patient_identities(
                 sources,
                 patient_name=patient_name,
@@ -184,6 +186,7 @@ class PdfStoreTool(BaseTool):
             generate_accession=_flag(options.get("generate_accession")),
             generate_study_description=_flag(options.get("generate_study_description")),
             generate_document_title=_flag(options.get("generate_document_title")),
+            modality=modality,
         )
         steps.append(
             ToolStep(
@@ -191,7 +194,7 @@ class PdfStoreTool(BaseTool):
                 ok=True,
                 message=(
                     f"{len(instances)} Encapsulated PDF Storage instance"
-                    f"{'s' if len(instances) != 1 else ''}"
+                    f"{'s' if len(instances) != 1 else ''}, modality {modality}"
                 ),
                 duration_ms=elapsed_ms(encapsulate_started),
             )
@@ -207,6 +210,7 @@ class PdfStoreTool(BaseTool):
                 "sop_instance_uid": str(instance.SOPInstanceUID),
                 "study_instance_uid": str(instance.StudyInstanceUID),
                 "sop_class": "Encapsulated PDF Storage",
+                "modality": str(instance.Modality),
                 "status": "encapsulated",
             }
             for source, instance in zip(sources, instances)
