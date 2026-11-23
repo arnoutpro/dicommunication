@@ -227,8 +227,8 @@ def test_run_now_runs_in_background_and_history_page_shows_it(
 
         history = client.get(f"/router/{rule.id}/runs")
         assert history.status_code == 200
-        assert "DOE" in history.text
-        assert "ACC1" in history.text
+        assert "DOE" not in history.text and "ACC1" not in history.text  # patient rows are never kept
+        assert "1 matched" in history.text and "Found: 1" in history.text and "Only counts are kept" in history.text
 
         again = client.post(f"/router/{rule.id}/run-now", follow_redirects=False)
         assert again.status_code == 303

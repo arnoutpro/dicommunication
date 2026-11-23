@@ -164,7 +164,7 @@ def test_store_roundtrip_route_runs(tmp_path) -> None:
     all_runs = ConfigStore(tmp_path).list_route_runs()
     assert len(all_runs) == 1
     assert all_runs[0].id == run.id
-    assert all_runs[0].matches[0].study_instance_uid == "1.2.3"
+    assert all_runs[0].matches == [] and all_runs[0].outcome_counts == {"found": 1}  # patient rows are never stored
 
     scoped = store.list_route_runs(rule_id=rule.id)
     assert len(scoped) == 1

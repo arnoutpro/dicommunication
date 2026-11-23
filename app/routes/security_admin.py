@@ -159,13 +159,14 @@ async def security_save(request: Request):
     roots_text = str(form.get("import_roots") or "")
     try:
         minutes = int(str(form.get("retention_minutes") or "").strip())
-        settings = SecuritySettings(retention_minutes=minutes, import_roots=[line for line in roots_text.splitlines()])
+        days = int(str(form.get("history_days") or "").strip())
+        settings = SecuritySettings(retention_minutes=minutes, history_days=days, import_roots=[line for line in roots_text.splitlines()])
     except (ValueError, ValidationError) as exc:
-        message = "Keep patient details for a whole number of minutes, 0 to 1440." if isinstance(exc, ValueError) and not isinstance(exc, ValidationError) else _first(exc)
+        message = "Use whole numbers: 0 to 1440 minutes for patient rows, 0 to 3650 days for history." if isinstance(exc, ValueError) and not isinstance(exc, ValidationError) else _first(exc)
         return _security_page(request, flash=message, error_roots=roots_text, status_code=400)
     request.app.state.security_settings.save(settings)
     request.app.state.retention.sweep_once()  # a shorter time takes effect now
-    _note(request, "Security settings changed", f"retention {settings.retention_minutes} min, {len(settings.import_roots)} allowed folder(s)")
+    _note(request, "Security settings changed", f"rows {settings.retention_minutes} min, history {settings.history_days} days, {len(settings.import_roots)} allowed folder(s)")
     return _security_page(request, flash="Saved.", ok=True)
 
 

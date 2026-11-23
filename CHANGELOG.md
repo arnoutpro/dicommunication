@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+## 0.11.1
+
+### Less patient data kept
+
+- **The Dicom Router history keeps counts only.** A run records how many studies matched, were new, were forwarded or failed, and how often each failure message occurred. The list of matched studies with patient name, ID and accession number is no longer written to disk, and the run-history page no longer shows it (the export file, which never held names, is unchanged). A history file from 0.11.0 that still has those rows is cleaned at the next sweep, which runs at start-up.
+- **Automatic deletion after N days.** Configuration > Security has a new *Delete run history and results after (days)* setting, 30 by default, 0 to 3650; 0 keeps entries until the fixed limits (500 runs, 200 results) push them out. The *minutes* setting now applies to the rows a tool fetched.
+
 ## 0.11.0
 
 ### Security (for use on a network with patient data)

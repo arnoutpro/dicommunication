@@ -89,41 +89,12 @@
     <p class="small">{% for value, count in run.status_counts.items() %}<span class="badge{% if value == '(none)' %} fail{% endif %}">{{ value }}: {{ count }}</span> {% endfor %}</p>
     {% if rule.status_key and run.status_counts.get('(none)') %}<p class="muted small">{{ run.status_counts['(none)'] }} matched stud{{ 'y' if run.status_counts['(none)'] == 1 else 'ies' }} came back without the status value. The PACS may ignore this key on C-FIND.</p>{% endif %}
     {% endif %}
-    {% if run.ok and run.matched_count and not run.matches %}
-    <p class="muted small">All {{ run.matched_count }} matched studies were already seen in an earlier run, so none are listed here.</p>
-    {% endif %}
     {% if run.skipped_keys %}<p class="muted small">Skipped keys: {{ run.skipped_keys | join(', ') }}</p>{% endif %}
-    {% if run.matches %}
-    <div class="table-wrap">
-      <table>
-        <thead>
-          <tr>
-            <th>Patient</th>
-            <th>Study date</th>
-            <th>Accession</th>
-            <th>Modality</th>
-            <th>UID</th>
-            <th>Status</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for match in run.matches %}
-          <tr>
-            <td>{{ match.patient_name }} <span class="muted small">{{ match.patient_id }}</span></td>
-            <td>{{ match.study_date }}</td>
-            <td>{{ match.accession_number }}</td>
-            <td>{{ match.modality }}</td>
-            <td><code class="small">{{ match.series_instance_uid or match.study_instance_uid }}</code></td>
-            <td>
-              <span class="badge {% if match.status == 'forwarded' %}ok{% elif match.status == 'failed' %}fail{% endif %}">{{ match.status | capitalize }}</span>
-              {% if match.error %}<div class="muted small">{{ match.error }}</div>{% endif %}
-            </td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
+    {% if run.outcome_counts %}
+    <p class="small">{% for value, count in run.outcome_counts.items() %}<span class="badge {% if value in ('forwarded', 'retrieved') %}ok{% elif value == 'failed' %}fail{% endif %}">{{ value | capitalize }}: {{ count }}</span> {% endfor %}</p>
     {% endif %}
+    {% for message, count in run.error_counts.items() %}<p class="muted small">{{ count }}× {{ message }}</p>{% endfor %}
+    <p class="muted small">Only counts are kept. The studies themselves are not stored.</p>
   </div>
   {% endfor %}
   {% else %}

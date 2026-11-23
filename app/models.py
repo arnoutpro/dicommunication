@@ -398,7 +398,14 @@ class RouteRun(BaseModel):
     status: Literal["completed", "interrupted"] = "completed"
     matched_count: int = 0
     new_count: int = 0
-    matches: list[RouteMatch] = Field(default_factory=list)
+    # The studies found, with patient details. Used while the run is in memory (the
+    # export file, forwarding) and never written to the history: exclude=True keeps
+    # it out of every dump, so only the counts below are stored.
+    matches: list[RouteMatch] = Field(default_factory=list, exclude=True)
+    # Counts of what happened to the studies (found / retrieved / forwarded / failed),
+    # and how often each failure message occurred. No patient data.
+    outcome_counts: dict[str, int] = Field(default_factory=dict)
+    error_counts: dict[str, int] = Field(default_factory=dict)
     # Proof of what this run asked and got, without patient data: the keys
     # sent to the PACS, rule keys the app could not apply, and a count per
     # value of the rule's status key (when it has one).

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import os
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -34,54 +35,89 @@ def result_at(when: datetime) -> ToolResult:
 # --- retention -----------------------------------------------------------------
 
 
-def test_old_patient_rows_are_emptied_and_the_counts_stay(app) -> None:
+def stored(app, name: str) -> str:
+    return getattr(app.state.store, name).read_text()
+
+
+def test_the_router_history_keeps_counts_only(app) -> None:
     store = app.state.store
-    store.add_route_run(run_at(NOW - timedelta(minutes=45), 2))
-    store.add_route_run(run_at(NOW - timedelta(minutes=5)))
+    run = RouteRun(rule_id="r1", matched_count=3, new_count=3, matches=[match(), match("ROE^JANE"), match("POE^EDGAR")])
+    run.matches[0].status, run.matches[1].status, run.matches[2].status = "forwarded", "failed", "failed"
+    run.matches[1].error = run.matches[2].error = "Storage SCP refused"
+    returned = store.add_route_run(run)
+    assert len(returned.matches) == 3  # still there for the export file while the run is in memory
+    on_disk = stored(app, "route_runs_path")
+    assert "DOE" not in on_disk and "ROE" not in on_disk and "P1" not in on_disk and "1.2.3" not in on_disk
+    saved = store.list_route_runs()[0]
+    assert saved.matches == [] and saved.matched_count == 3
+    assert saved.outcome_counts == {"forwarded": 1, "failed": 2} and saved.error_counts == {"Storage SCP refused": 2}
+
+
+def test_old_tool_rows_are_emptied_and_the_summaries_stay(app) -> None:
+    store = app.state.store
     store.add_result(result_at(NOW - timedelta(minutes=45)))
     store.add_result(result_at(NOW))
-    emptied = app.state.retention.sweep_once()
-    assert emptied == {"runs": 1, "results": 1}
-    runs = store.list_route_runs()
-    assert [len(r.matches) for r in runs] == [1, 0] and runs[1].matched_count == 2 and runs[1].new_count == 2  # newest first
+    assert app.state.retention.sweep_once()["results"] == 1
     results = store.list_results()
-    assert [len(r.records) for r in results] == [1, 0] and results[1].summary == "1 record"
-    assert app.state.retention.sweep_once() == {"runs": 0, "results": 0}  # nothing left to do
+    assert [len(r.records) for r in results] == [1, 0] and results[1].summary == "1 record"  # newest first
+    assert app.state.retention.sweep_once()["results"] == 0  # nothing left to do
+
+
+def test_a_history_file_from_0_11_0_loses_its_patient_rows_at_the_next_sweep(app) -> None:
+    legacy = [{"id": "x", "rule_id": "r1", "started_at": NOW.isoformat(), "matched_count": 2, "new_count": 2,
+               "matches": [{"study_instance_uid": "1.2.3", "patient_name": "DOE^JOHN", "patient_id": "P1"}]}]
+    app.state.store.route_runs_path.write_text(json.dumps(legacy))
+    assert app.state.retention.sweep_once()["runs"] == 1
+    assert "DOE" not in stored(app, "route_runs_path") and app.state.store.list_route_runs()[0].matched_count == 2
+
+
+def test_runs_and_results_are_deleted_after_the_history_days(app) -> None:
+    store = app.state.store
+    store.add_route_run(run_at(NOW - timedelta(days=40)))
+    store.add_route_run(run_at(NOW - timedelta(days=2)))
+    store.add_result(result_at(NOW - timedelta(days=40)))
+    store.add_result(result_at(NOW))
+    assert app.state.retention.sweep_once()["deleted"] == 2
+    assert len(store.list_route_runs()) == 1 and len(store.list_results()) == 1
+    app.state.security_settings.save(SecuritySettings(history_days=1))
+    assert app.state.retention.sweep_once()["deleted"] == 1 and store.list_route_runs() == []
+    store.add_route_run(run_at(NOW - timedelta(days=900)))
+    app.state.security_settings.save(SecuritySettings(history_days=0))  # 0 = keep until the fixed limits
+    assert app.state.retention.sweep_once()["deleted"] == 0 and len(store.list_route_runs()) == 1
 
 
 def test_retention_follows_the_setting(app) -> None:
     app.state.security_settings.save(SecuritySettings(retention_minutes=120, import_roots=[]))
-    app.state.store.add_route_run(run_at(NOW - timedelta(minutes=45)))
-    assert app.state.retention.sweep_once() == {"runs": 0, "results": 0}
-    assert len(app.state.store.list_route_runs()[0].matches) == 1
+    app.state.store.add_result(result_at(NOW - timedelta(minutes=45)))
+    assert app.state.retention.sweep_once()["results"] == 0
     app.state.security_settings.save(SecuritySettings(retention_minutes=10, import_roots=[]))
-    assert app.state.retention.sweep_once()["runs"] == 1
+    assert app.state.retention.sweep_once()["results"] == 1
 
 
-def test_keep_nothing_never_stores_patient_rows(app) -> None:
+def test_keep_nothing_never_stores_tool_rows(app) -> None:
     app.state.security_settings.save(SecuritySettings(retention_minutes=0, import_roots=[]))
     app.state.store.add_route_run(run_at(NOW, 3))
     app.state.store.add_result(result_at(NOW))
     run, result = app.state.store.list_route_runs()[0], app.state.store.list_results()[0]
     assert run.matches == [] and run.matched_count == 3 and result.records == [] and result.summary == "1 record"
-    assert "DOE" not in app.state.store.route_runs_path.read_text() + app.state.store.results_path.read_text()
+    assert "DOE" not in stored(app, "route_runs_path") + stored(app, "results_path")
 
 
-def test_saving_the_setting_sweeps_at_once_and_the_echo_board_still_works(app, client: TestClient, remote: RemoteNode) -> None:
-    app.state.store.add_route_run(run_at(NOW - timedelta(minutes=45)))
-    app.state.store.add_result(ToolResult(tool_id="c-echo", tool_name="C-ECHO", ok=True, summary="ok", remote_id=remote.id, started_at=NOW - timedelta(minutes=45)))
-    assert client.post("/config/security", data={"retention_minutes": "10", "import_roots": ""}).status_code == 200
-    assert app.state.store.list_route_runs()[0].matches == []
+def test_saving_the_settings_sweeps_at_once_and_the_echo_board_still_works(app, client: TestClient, remote: RemoteNode) -> None:
+    app.state.store.add_result(ToolResult(tool_id="c-echo", tool_name="C-ECHO", ok=True, summary="ok", remote_id=remote.id, started_at=NOW - timedelta(days=3)))
+    app.state.store.add_result(result_at(NOW - timedelta(minutes=45)))
+    assert client.post("/config/security", data={"retention_minutes": "10", "history_days": "1", "import_roots": ""}).status_code == 200
+    assert [len(r.records) for r in app.state.store.list_results()] == [0]  # the 3-day-old echo is gone, the other lost its rows
     assert client.get("/echo-board").status_code == 200
 
 
 def test_the_sweeper_runs_on_its_own_and_stops(app) -> None:
-    app.state.store.add_route_run(run_at(NOW - timedelta(minutes=45)))
+    app.state.store.add_result(result_at(NOW - timedelta(minutes=45)))
     sweeper = RetentionSweeper(app.state.store, app.state.security_settings, interval_seconds=0.05)
     sweeper.start()
     try:
-        assert app.state.store.list_route_runs()[0].matches == []  # start() sweeps what piled up while the app was off
-        app.state.store.add_result(result_at(NOW - timedelta(minutes=45)))
+        assert app.state.store.list_results()[0].records == []  # start() sweeps what piled up while the app was off
+        app.state.store.add_result(result_at(NOW - timedelta(minutes=46)))
         for _ in range(100):
             if not app.state.store.list_results()[0].records:
                 break

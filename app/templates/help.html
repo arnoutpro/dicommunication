@@ -70,7 +70,7 @@
   </header>
   <p>On one computer with no accounts the app opens without a login. As soon as it can be reached from another computer, <strong>sign-in is required and HTTPS is used</strong> (a certificate the app makes itself, so the browser warns once; Configuration &gt; Security shows its fingerprint and offers it for download). Docker Compose publishes port 8080 on <code>127.0.0.1</code> only; <code>DICOMM_HTTP_BIND=0.0.0.0</code> opens it to the network. Do not publish port 8080 to the internet.</p>
   <p><strong>Roles.</strong> A <em>viewer</em> sees the status dashboard, the C-ECHO board and the simplified page. An <em>operator</em> also runs the tools and Router rules, but only against saved nodes and the folders an administrator lists under Configuration &gt; Security. An <em>administrator</em> does everything, including Users, Security and the Audit log. The first administrator is created on the computer itself, or with <code>--create-admin NAME --password-file FILE</code>.</p>
-  <p><strong>Audit and retention.</strong> The audit log records who did what, never patient data, and detects edited lines. Patient names, IDs and accession numbers in the Router history and tool results are emptied after 30 minutes (adjustable; 0 keeps nothing). See <code>SECURITY.md</code> for the details and what this does not cover.</p>
+  <p><strong>Audit and retention.</strong> The audit log records who did what, never patient data, and detects edited lines. The Router history keeps counts only, never patient names or IDs. Rows fetched by a tool are emptied after 30 minutes (adjustable; 0 keeps none), and runs and results are deleted after 30 days (adjustable). See <code>SECURITY.md</code> for the details and what this does not cover.</p>
   <p> Do not point it at production archives unless you intend to send the test C-STORE instance (patient <code>ARNPRO^TESTBENCH</code> / ID <code>ARNPRO-TEST</code>) or real Encapsulated PDF documents you import.</p>
   <p>DICOM and HL7 are sent in the clear unless you terminate TLS elsewhere. HL7 send transmits whatever you paste. <strong>PDF to DICOM</strong> reads files you upload, ZIP contents, and any workstation path you type — treat that like a diagnostic console, not a public website.</p>
 </section>
@@ -685,7 +685,7 @@
         </tr>
         <tr>
           <td><code>route_runs.json</code></td>
-          <td>Dicom Router run history (capped at 500), including matched studies' patient/accession data</td>
+          <td>Dicom Router run history (capped at 500, deleted after 30 days by default): counts only, no patient data</td>
         </tr>
         <tr>
           <td><code>dicommunication.log</code></td>

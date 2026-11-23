@@ -1,7 +1,9 @@
 """Security settings an administrator can change, kept in ``security.json``.
 
-* ``retention_minutes``: how long patient details are kept on disk after they were
-  collected (Router run history, recent tool results). 0 keeps nothing.
+* ``retention_minutes``: how long the rows a tool fetched (names, IDs) are kept on
+  disk. 0 keeps nothing. The Router history never keeps patient rows at all.
+* ``history_days``: after how many days Router runs and tool results are deleted
+  altogether. 0 keeps them until the fixed limits (500 runs, 200 results) push them out.
 * ``import_roots``: the folders an operator may read files from (Dicom Import, PDF
   to DICOM). An administrator is not limited to them; with no folders listed, only
   an administrator can pick a folder.
@@ -18,10 +20,12 @@ from pathlib import Path, PurePosixPath, PureWindowsPath
 from pydantic import BaseModel, Field, ValidationError, field_validator
 
 DEFAULT_RETENTION_MINUTES = 30
+DEFAULT_HISTORY_DAYS = 30
 
 
 class SecuritySettings(BaseModel):
     retention_minutes: int = Field(default=DEFAULT_RETENTION_MINUTES, ge=0, le=24 * 60)
+    history_days: int = Field(default=DEFAULT_HISTORY_DAYS, ge=0, le=3650)
     import_roots: list[str] = Field(default_factory=list)
 
     @field_validator("import_roots")

@@ -420,7 +420,7 @@ Linux keeps using Docker Compose.
 | `hl7_messages.json` | Saved HL7 v2 drafts for the sender |
 | `saved_queries.json` | Dicomtag Analytics saved queries (node, level, columns, filters, date preset) |
 | `route_rules.json` | Dicom Router rule definitions (source PACS, filters, schedule, destinations, status) |
-| `route_runs.json` | Dicom Router run history (capped at 500), including matched studies' patient/accession data |
+| `route_runs.json` | Dicom Router run history (capped at 500, deleted after 30 days by default): counts only, no patient data |
 | `dicommunication.log` | Rotating application log (level and size set on **Logs**) |
 
 Default directory:

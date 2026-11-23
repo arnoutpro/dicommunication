@@ -89,11 +89,16 @@ tamper-proof against someone who can replace the whole folder; copy it elsewhere
 you must keep it. This is meant to support NEN 7510 / 7513 and the AVG; whether it
 is enough is a decision for your information security officer.
 
-**Retention.** The Router's run history and the tool results keep patient names,
-IDs and accession numbers only for **30 minutes** (Configuration > Security: 0 keeps
-nothing, up to 1440). After that the rows are emptied and the counts, times and
-results remain, so the dashboard and echo board keep working. An import review lives
-in memory and is dropped after 30 minutes idle.
+**Retention.** The Router's run history keeps **counts only** (matched, new,
+forwarded, failed, and how often each failure message occurred); the studies it found,
+with names, IDs and accession numbers, are never written to disk. The tool results
+keep the rows they fetched for **30 minutes** (Configuration > Security: 0 keeps none,
+up to 1440), then the rows are emptied and the summary stays, so the dashboard and
+echo board keep working. Runs and results older than **30 days** are deleted
+altogether (adjustable, 0 to 3650; 0 keeps them until the fixed limits of 500 runs and
+200 results push them out). An import review lives in memory and is dropped after 30
+minutes idle. The rules themselves remember the Study Instance UIDs they have already
+handled, so they do not forward a study twice; a UID is an identifier, not a name.
 
 **What this does not do.** It does not encrypt files at rest (use BitLocker / an
 encrypted volume), does not protect DICOM or HL7 on the wire, does not do two-factor
@@ -199,18 +204,18 @@ Everything lives unencrypted under the data directory (`~/.dicommunication`,
   real worklist, or retrieve real reports, patient identifiers and report text
   are written to this file in cleartext.
 - `worklist.json` holds whatever you typed into the local worklist.
-- **`route_runs.json` keeps the last 500 Dicom Router run records, including
-  the patient name, patient ID, accession number, and study date of every
-  study a rule matched.** A rule that runs against real patient data writes
-  those identifiers to this file in cleartext on every run, whether or not
-  the rule forwards anywhere. `route_rules.json` (the rule definitions
+- **`route_runs.json` keeps the last 500 Dicom Router run records as counts
+  only.** Before 0.11.1 it also held the patient name, ID, accession number and
+  study date of every matched study; the first sweep after upgrading removes
+  those from an existing file. `route_rules.json` (the rule definitions
   themselves — source PACS, filters, schedule, destination AE titles) holds
-  configuration, not patient data.
+  configuration, plus the Study Instance UIDs a rule has already handled.
 - `dicommunication.log` records what you ran, against which AE titles and
   endpoints.
 
-Since 0.11.0 the patient rows in `results.json` and `route_runs.json` are emptied
-after 30 minutes by default (see *Retention* above), and `users.json` and `audit.log`
+Since 0.11.1 `route_runs.json` holds no patient rows, the rows in `results.json` are
+emptied after 30 minutes by default and old entries are deleted after 30 days (see
+*Retention* above), and `users.json` and `audit.log`
 hold accounts and actions but no patient data. Nothing is encrypted at rest. On a
 machine that touches production data, treat the data directory as containing PHI: put it on encrypted
 storage, and clear it when you are done. **Logs → Clear** empties the log file;
