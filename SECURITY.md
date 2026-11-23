@@ -257,7 +257,7 @@ pip install -r requirements-dev.txt
 python -m pytest                 # full suite
 python -m pytest tests/test_security.py   # the attacks from the security review
 pip install pip-audit bandit
-pip-audit -r requirements.txt    # known advisories in declared dependencies
+pip-audit --local --strict       # known advisories in what is installed (run it in a venv)
 bandit -r app                    # static analysis
 ```
 
@@ -268,6 +268,26 @@ accept associations) and one `urllib.urlopen` (the launcher polling its own
 
 `pytest` skips one ICMP test where the host does not allow raw sockets, which is
 normal in a container without `CAP_NET_RAW`.
+
+## Automatic dependency checks
+
+`.github/workflows/dependency-check.yml` runs every Monday, on request (Actions >
+Dependency check > Run workflow), and on any pull request that changes a
+`requirements*.txt` file:
+
+- **Advisories.** It installs what a build would install (including the desktop
+  extras) on Linux and on Windows and runs `pip-audit` on the result. The
+  requirement files only set minimum versions, so this audits the newest versions a
+  new build would really get, not the minimums.
+- **Breakage.** It runs the whole test suite against those newest versions, so a
+  release that breaks the app shows up here and not in the next installer build.
+
+A failed scheduled run is emailed by GitHub to the repository owner (check
+Settings > Notifications > Actions if it is not). Dependabot (`dependabot.yml`)
+proposes the version bumps as pull requests, and now gets the same two checks. Two
+limits: it checks Python packages only (not the WinSW service wrapper, which is
+pinned by checksum, nor the base Docker image), and it finds *published* advisories,
+so it cannot warn about a flaw nobody has reported yet.
 
 ## Supported versions
 

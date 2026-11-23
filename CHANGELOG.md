@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Maintenance
+
+- **Weekly dependency check** (`.github/workflows/dependency-check.yml`): every Monday, on demand, and on pull requests that change a requirements file, it audits what a build would install for known security advisories (Linux and Windows) and runs the test suite against the newest versions the requirements allow. No change to the app or the installers.
+
 ## 0.11.1
 
 ### Less patient data kept
