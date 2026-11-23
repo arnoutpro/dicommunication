@@ -177,17 +177,15 @@ def test_winsw_pin_is_a_sha256_and_a_version() -> None:
     assert fetch.WINSW_VERSION in fetch.WINSW_URL
 
 
-def test_service_installer_replaces_the_desktop_one_and_matches_its_version_rules() -> None:
-    product = (ROOT / "packaging" / "windows" / "Product.wxs").read_text(encoding="utf-8")
+def test_installer_keeps_the_upgrade_code_of_the_old_desktop_installer() -> None:
     service = (ROOT / "packaging" / "windows" / "Headless.wxs").read_text(encoding="utf-8")
-    code = re.search(r'UpgradeCode="([^"]+)"', product).group(1)
-    assert f'UpgradeCode="{code}"' in service  # installing one replaces the other
+    # Never change this: it is how an old desktop install is replaced instead of left next to the service.
+    assert 'UpgradeCode="8f3c2a91-6d4e-4b17-9e5a-1c7d0f8a2b63"' in service
     from app import __version__
 
-    for text in (product, service):
-        assert f'<?define ProductVersion = "{__version__}" ?>' in text
+    assert f'<?define ProductVersion = "{__version__}" ?>' in service
     assert 'AllowSameVersionUpgrades="yes"' in service
-    assert "AppFiles" in service  # the same harvested program files
+    assert "AppFiles" in service  # the harvested program files
 
 
 def test_service_installer_settings_agree_with_the_setup_step() -> None:
@@ -206,5 +204,6 @@ def test_workflow_builds_and_publishes_the_service_msi() -> None:
     workflow = (ROOT / ".github" / "workflows" / "windows-msi.yml").read_text(encoding="utf-8")
     assert "fetch_winsw.py" in workflow and "Headless.wxs" in workflow
     assert "dicommunication-headless-" in workflow and "dicommunication-service-" not in workflow
-    # The desktop artifact must not pick the headless MSI up by accident.
-    assert "dist/dicommunication-[0-9]*-win64.msi" in workflow
+    # Only the service installer is built; the desktop one is gone, and nothing may still look for it.
+    assert "Product.wxs" not in workflow and "dist/dicommunication-[0-9]*-win64.msi" not in workflow
+    assert 'dicommunication-headless-*-win64.msi' in workflow  # also what the NuGet step and the release job pick up

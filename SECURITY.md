@@ -120,8 +120,8 @@ unchanged, and two things matter more because nobody is watching a window:
 - **Local only by default.** The service listens on `127.0.0.1`. The installer's
   "allow other computers" option makes it listen on every interface, turns on HTTPS
   and opens the Windows Firewall for that port **to the local subnet only**. The
-  Start-menu shortcut then opens `https://localhost:<port>/`. (The desktop edition
-  still opens without a login until you create the first user.)
+  Start-menu shortcut then opens `https://localhost:<port>/`. (The macOS app and a plain
+  `make run` still open without a login until you create the first user.)
 - **Its data folder.** The service keeps settings, results and logs in
   `C:\ProgramData\Dicommunication`, which can contain patient data in cleartext.
   The installer limits that folder to administrators, SYSTEM and the service

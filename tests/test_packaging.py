@@ -682,12 +682,11 @@ def test_packaging_icons_have_every_size() -> None:
 
 def test_windows_spec_and_wix_use_app_icon() -> None:
     spec = (ROOT / "packaging" / "windows" / "dicommunication.spec").read_text(encoding="utf-8")
-    wxs = (ROOT / "packaging" / "windows" / "Product.wxs").read_text(encoding="utf-8")
+    wxs = (ROOT / "packaging" / "windows" / "Headless.wxs").read_text(encoding="utf-8")
     assert "app.ico" in spec
     assert 'icon=ICON' in spec
     assert 'SourceFile="packaging\\icons\\app.ico"' in wxs
-    assert 'Icon="AppIcon"' in wxs
-    assert "ARPPRODUCTICON" in wxs
+    assert 'Property Id="ARPPRODUCTICON" Value="AppIcon"' in wxs  # the icon in Programs and Features
     assert 'Name="Dicomtag Analytics"' not in wxs
     assert 'Arguments="--profile' not in wxs
 
@@ -697,7 +696,7 @@ def test_windows_wxs_comments_have_no_double_hyphen() -> None:
     comment body, and a comment can't end in "-" either — real failure seen
     in CI: a comment mentioning a CLI flag like "--profile" broke the build.
     """
-    wxs = (ROOT / "packaging" / "windows" / "Product.wxs").read_text(encoding="utf-8")
+    wxs = (ROOT / "packaging" / "windows" / "Headless.wxs").read_text(encoding="utf-8")
     for match in re.finditer(r"<!--(.*?)-->", wxs, re.S):
         body = match.group(1)
         assert "--" not in body, body
@@ -705,50 +704,8 @@ def test_windows_wxs_comments_have_no_double_hyphen() -> None:
 
 
 def test_windows_wxs_upgrades_replace_a_same_version_install() -> None:
-    wxs = (ROOT / "packaging" / "windows" / "Product.wxs").read_text(encoding="utf-8")
+    wxs = (ROOT / "packaging" / "windows" / "Headless.wxs").read_text(encoding="utf-8")
     assert 'AllowSameVersionUpgrades="yes"' in wxs
-
-
-def test_windows_wxs_removes_stale_shortcuts_from_pre_merge_installs() -> None:
-    wxs = (ROOT / "packaging" / "windows" / "Product.wxs").read_text(encoding="utf-8")
-    assert '<RemoveFile' in wxs
-    # This tool's own former "Vue PACS Database Analytics" name only ever
-    # had a Start Menu shortcut (no Desktop one existed under that name).
-    assert wxs.count('Name="Vue PACS Database Analytics.lnk"') == 1
-    # Every other pre-merge product had both a Start Menu and (optional)
-    # Desktop shortcut; both .lnk files must be cleaned up on upgrade.
-    for stale_name in (
-        "Dicomtag Analytics.lnk",
-        "Dicom Anonymizer.lnk",
-        "Dicom Router.lnk",
-        "Dicom Cleaner.lnk",
-    ):
-        assert wxs.count(f'Name="{stale_name}"') == 2, stale_name
-
-
-def test_windows_wxs_offers_one_feature_with_a_desktop_shortcut() -> None:
-    wxs = (ROOT / "packaging" / "windows" / "Product.wxs").read_text(encoding="utf-8")
-    assert 'Feature Id="Dicommunication" Title="Dicommunication"' in wxs
-    assert 'Feature Id="DicomtagAnalytics"' not in wxs
-    assert 'Feature Id="DicomAnonymizer"' not in wxs
-    assert 'Feature Id="DicomRouter"' not in wxs
-    assert 'Feature Id="DicomCleaner"' not in wxs
-    assert 'Feature Id="Main"' not in wxs
-    # FeatureTree (not InstallDir) is what actually shows the checkbox tree,
-    # even for a single top-level Feature with a Desktop-shortcut sub-feature.
-    assert 'Id="WixUI_FeatureTree"' in wxs
-    assert wxs.count('<ComponentGroupRef Id="AppFiles" />') == 1
-
-
-def test_windows_wxs_offers_optional_desktop_shortcut() -> None:
-    wxs = (ROOT / "packaging" / "windows" / "Product.wxs").read_text(encoding="utf-8")
-    assert '<StandardDirectory Id="DesktopFolder" />' in wxs
-    assert 'Feature Id="DicommunicationDesktop" Title="Desktop shortcut" Level="1000"' in wxs
-    assert 'Id="DesktopShortcutDicommunication"' in wxs
-    assert 'Id="DesktopShortcutDicomtagAnalytics"' not in wxs
-    # One top-level Feature defaults on (Typical install keeps today's
-    # behavior); only the Desktop sub-feature is opt-in.
-    assert wxs.count('Level="1"') == 1
 
 
 def test_htmx_is_served_from_this_app_not_a_cdn() -> None:
@@ -1001,7 +958,7 @@ def test_uninstall_cleanup_flag_skips_the_server(monkeypatch) -> None:
 
 
 def test_windows_wxs_prompts_before_deleting_data_on_uninstall() -> None:
-    wxs = (ROOT / "packaging" / "windows" / "Product.wxs").read_text(encoding="utf-8")
+    wxs = (ROOT / "packaging" / "windows" / "Headless.wxs").read_text(encoding="utf-8")
     assert '--uninstall-cleanup' in wxs
     assert 'Execute="deferred"' in wxs
     assert 'Return="ignore"' in wxs

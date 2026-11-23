@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+## 0.12.0
+
+### Windows
+
+- **The desktop MSI is no longer built.** There is one Windows installer, `dicommunication-headless-<version>-win64.msi`, which installs the program as a Windows service (opened in the browser, sign-in always on). It keeps the upgrade code of the old desktop installer, so installing it over a desktop install replaces that install. The desktop data in `%LOCALAPPDATA%\dicommunication` is not carried over: export the settings first (Configuration > Import / export) and import them after installing. The macOS DMG and Docker are unaffected.
+- The CI artifact `dicommunication-msi` is gone (use `dicommunication-headless-msi`). The NuGet package `dicommunication.msi` and the GitHub Release now carry the headless MSI.
+- Removed with it: the optional Desktop shortcut and the clean-up of shortcuts from very old multi-shortcut installs. Tests that guarded those were removed; the ones guarding the upgrade code, icon, same-version upgrades and the data-folder prompt on uninstall now check the headless installer.
+
 ## 0.11.2
 
 ### Windows (headless edition)

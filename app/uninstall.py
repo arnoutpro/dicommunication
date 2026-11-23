@@ -1,6 +1,6 @@
 """Windows MSI uninstall hook: ask whether to delete the local data directory.
 
-Wired into packaging/windows/Product.wxs as a deferred custom action that
+Wired into packaging/windows/Headless.wxs as a deferred custom action that
 runs `dicommunication.exe --uninstall-cleanup` before files are removed, on a
 genuine uninstall only (the WiX condition excludes the RemoveExistingProducts
 step of an upgrade, which also sets REMOVE=ALL for the old version).

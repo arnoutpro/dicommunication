@@ -1,18 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
 <?ifndef ProductVersion ?>
-<?define ProductVersion = "0.11.2" ?>
+<?define ProductVersion = "0.12.0" ?>
 <?endif?>
 <!--
   Dicommunication, headless edition.
 
-  The same program as Product.wxs, but installed as a Windows service instead of
-  a desktop app: it starts with Windows, needs nobody logged in, has no window,
-  and you open it in a browser at http://localhost:<port>. So the Dicom Router
-  rules and the status dashboard keep running without a window left open.
+  The only Windows installer. The program is installed as a Windows service: it
+  starts with Windows, needs nobody logged in, has no window, and you open it in
+  a browser at http://localhost:<port>. So the Dicom Router rules and the status
+  dashboard keep running without a window left open.
 
   How it fits together:
-    * dicommunication.exe is the same frozen program (harvested.wxs, shared with
-      Product.wxs). It runs with the no-browser option.
+    * dicommunication.exe is the same frozen program (harvested.wxs). It runs
+      with the no-browser option.
     * dicommunication-service.exe is WinSW, a small MIT-licensed service host
       (packaging/windows/fetch_winsw.py). Windows starts it; it reads
       dicommunication-service.xml and runs dicommunication.exe.
@@ -21,12 +21,13 @@
       and locks down the data folder (app/service_setup.py), before the service
       is started.
 
-  It uses the SAME UpgradeCode as Product.wxs on purpose: installing this over
-  the desktop edition replaces it (and the other way round), so a workstation has
-  one or the other, never both fighting for the same ports.
+  The UpgradeCode is the one the former desktop installer used, and must stay
+  that way: installing this over an old desktop install replaces it, so a
+  workstation never has both fighting for the same ports. Do not change it.
 
   Runs as NT AUTHORITY\LocalService. Its data lives in C:\ProgramData\Dicommunication,
-  not in a user's profile, so settings of the desktop edition are not carried over.
+  not in a user's profile, so settings of the old desktop edition are not carried
+  over (use Import / export of settings to move them).
 -->
 <Wix xmlns="http://wixtoolset.org/schemas/v4/wxs"
      xmlns:ui="http://wixtoolset.org/schemas/v4/wxs/ui"
