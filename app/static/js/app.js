@@ -653,6 +653,19 @@ function initAnonymizeForm(scope) {
   });
   syncModeVisibility();
 
+  // The study and series folder names only matter when there are folders.
+  const namesRows = form.querySelectorAll("[data-series-names-row]");
+  function syncLayout() {
+    const flat = form.querySelector('input[name="layout"][value="flat"]')?.checked;
+    namesRows.forEach((row) => {
+      if (row instanceof HTMLElement) {
+        row.hidden = Boolean(flat);
+      }
+    });
+  }
+  form.querySelectorAll('input[name="layout"]').forEach((radio) => radio.addEventListener("change", syncLayout));
+  syncLayout();
+
   const browseBtn = form.querySelector("[data-anon-browse]");
   const browseStatus = form.querySelector("[data-anon-browse-status]");
   const directoryInput = form.querySelector("[data-anon-output-dir]");

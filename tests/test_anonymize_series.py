@@ -26,6 +26,7 @@ def _instances() -> dict[str, Dataset]:
     for number, uid in enumerate(SERIES, start=1):
         ds = _make_instance(STUDY, uid, uid + ".1")
         ds.SeriesNumber = number
+        ds.SeriesDescription = f"Series {number} desc"
         ds.Modality = "CT" if number == 1 else "MR"
         out[uid] = ds
     return out
@@ -225,5 +226,109 @@ def test_the_anonymizer_says_when_there_is_no_folder_dialog(tmp_path, monkeypatc
             assert "Output folder" in page
             assert ("There is no folder dialog here" in page) is expect
             assert ("disabled title=\"No desktop folder dialog" in page) is expect
+    finally:
+        server.shutdown()
+
+
+def test_series_folders_can_be_named_by_description() -> None:
+    from app.tools.anonymize import _folder_text
+
+    first, second = _instances().values()
+    names = _series_folder_names([first, second], {(STUDY, SERIES[0]): "TLC Inspiratory 0,6", (STUDY, SERIES[1]): "RV Expiratory 0,6"})
+    assert names == {(STUDY, SERIES[0]): "TLC Inspiratory 0,6", (STUDY, SERIES[1]): "RV Expiratory 0,6"}
+    assert _folder_text('A/B: C? "x" <y>  ') == "A_B_ C_ _x_ _y_"
+    assert _folder_text("Dose Report.") == "Dose Report" and len(_folder_text("x" * 300)) == 80
+
+
+def test_a_missing_description_falls_back_and_equal_descriptions_stay_apart() -> None:
+    first, second = _instances().values()
+    names = _series_folder_names([first, second], {(STUDY, SERIES[0]): "", (STUDY, SERIES[1]): "  "})
+    assert sorted(names.values()) == ["series-1-CT", "series-2-MR"]
+    same = _series_folder_names([first, second], {(STUDY, SERIES[0]): "Lung", (STUDY, SERIES[1]): "lung"})
+    assert sorted(same.values()) == ["Lung - 1", "lung - 2"]
+    for ds in (first, second):
+        ds.SeriesNumber = 7
+    twice = _series_folder_names([first, second], {(STUDY, SERIES[0]): "Lung", (STUDY, SERIES[1]): "Lung"})
+    assert len(set(name.lower() for name in twice.values())) == 2
+
+
+def test_the_description_names_the_folder_even_when_the_mode_removes_it(tmp_path) -> None:
+    client, remote, server, _moves = _client(tmp_path)
+    out = tmp_path / "out"
+    try:
+        with client:
+            run = client.post(
+                "/tools/anonymize/run",
+                data={
+                    "action": "run", "remote_id": remote.id, "level": "STUDY", "study_uid": [STUDY],
+                    "mode": "nuke", "output_dir": str(out), "archive": "none", "layout": "series", "series_names": "description",
+                },
+            )
+        assert "Anonymized and exported 2 instance" in run.text, run.text
+        assert sorted(path.parent.name for path in out.rglob("*.dcm")) == ["Series 1 desc", "Series 2 desc"]
+    finally:
+        server.shutdown()
+
+
+def test_by_default_the_description_is_not_used(tmp_path) -> None:
+    client, remote, server, _moves = _client(tmp_path)
+    out = tmp_path / "out"
+    try:
+        with client:
+            client.post(
+                "/tools/anonymize/run",
+                data={"action": "run", "remote_id": remote.id, "level": "STUDY", "study_uid": [STUDY], "mode": "remove_patient",
+                      "remove_patient_action": "erase", "output_dir": str(out), "archive": "none"},
+            )
+        assert sorted(path.parent.name for path in out.rglob("*.dcm")) == ["series-1-CT", "series-2-MR"]
+    finally:
+        server.shutdown()
+
+
+def test_study_folders_can_be_named_by_description() -> None:
+    from app.tools.anonymize import _study_folder_names
+
+    first, second = _instances().values()
+    other = _make_instance("1.2.826.0.1.3680043.8.498.6000", "1.2.826.0.1.3680043.8.498.6001", "1.2.826.0.1.3680043.8.498.6002")
+    uid_only = _study_folder_names([first, other])
+    assert uid_only == {STUDY: STUDY, other.StudyInstanceUID: str(other.StudyInstanceUID)}
+    named = _study_folder_names([first, second, other], {STUDY: "CT Thorax 2026", str(other.StudyInstanceUID): "  "})
+    assert named[STUDY] == "CT Thorax 2026" and named[str(other.StudyInstanceUID)] == str(other.StudyInstanceUID)  # no description: the UID
+    twin = _study_folder_names([first, other], {STUDY: "CT", str(other.StudyInstanceUID): "ct"})
+    assert len(set(name.lower() for name in twin.values())) == 2 and all(name[:2].lower() == "ct" for name in twin.values())
+
+
+def test_the_study_description_names_the_study_folder(tmp_path) -> None:
+    client, remote, server, _moves = _client(tmp_path)
+    out = tmp_path / "out"
+    try:
+        with client:
+            run = client.post(
+                "/tools/anonymize/run",
+                data={
+                    "action": "run", "remote_id": remote.id, "level": "STUDY", "study_uid": [STUDY],
+                    "mode": "nuke", "output_dir": str(out), "archive": "none", "layout": "series",
+                    "study_names": "description", "series_names": "description",
+                },
+            )
+        assert "Anonymized and exported 2 instance" in run.text, run.text
+        parts = sorted(path.relative_to(out).parts[1:] for path in out.rglob("*.dcm"))
+        assert [part[:2] for part in parts] == [("CT CHEST", "Series 1 desc"), ("CT CHEST", "Series 2 desc")]
+    finally:
+        server.shutdown()
+
+
+def test_by_default_the_study_folder_is_the_uid(tmp_path) -> None:
+    client, remote, server, _moves = _client(tmp_path)
+    out = tmp_path / "out"
+    try:
+        with client:
+            client.post(
+                "/tools/anonymize/run",
+                data={"action": "run", "remote_id": remote.id, "level": "STUDY", "study_uid": [STUDY], "mode": "remove_patient",
+                      "remove_patient_action": "erase", "output_dir": str(out), "archive": "none"},
+            )
+        folders = {path.relative_to(out).parts[1] for path in out.rglob("*.dcm")}
+        assert len(folders) == 1 and next(iter(folders)).startswith("1.2.826.")
     finally:
         server.shutdown()

@@ -303,34 +303,85 @@ def _safe_uid_component(value: str) -> str:
 LAYOUTS = ("series", "flat")
 
 
-def _series_folder_names(datasets: list[Dataset]) -> dict[tuple[str, str], str]:
-    """A readable folder name per (study, series): ``series-3-CT``. Built from the series
-    number and modality (neither identifies a patient); a missing number, or two series
-    that would share a name, get the tail of their (anonymized) Series UID added."""
+_FOLDER_BAD = set('<>:"/\\|?*')
+
+
+def _folder_text(value: str, limit: int = 80) -> str:
+    """Text that is safe as a folder name on Windows, macOS and Linux (and keeps spaces and commas)."""
+    cleaned = "".join("_" if (ch in _FOLDER_BAD or ord(ch) < 32) else ch for ch in str(value or ""))
+    return " ".join(cleaned.split()).strip(" .")[:limit].strip(" .")
+
+
+def _series_folder_names(
+    datasets: list[Dataset], descriptions: dict[tuple[str, str], str] | None = None
+) -> dict[tuple[str, str], str]:
+    """A readable folder name per (study, series).
+
+    By default ``series-3-CT``: the series number and modality, neither of which identifies a
+    patient. With ``descriptions`` (original Series Descriptions, chosen by the operator) the
+    description is the name. Either way a missing name, or two series that would share one,
+    get the number or the tail of their (anonymized) Series UID added."""
     found: dict[tuple[str, str], tuple[str, str]] = {}
     for dataset in datasets:
         key = (str(getattr(dataset, "StudyInstanceUID", "study")), str(getattr(dataset, "SeriesInstanceUID", "series")))
         if key not in found:
             number = getattr(dataset, "SeriesNumber", None)
             found[key] = ("" if number in (None, "") else str(number), str(getattr(dataset, "Modality", "") or ""))
+    bases: dict[tuple[str, str], str] = {}
+    for key, (number, modality) in found.items():
+        text = _folder_text((descriptions or {}).get(key, ""))
+        bases[key] = text or ("series" + (f"-{number}" if number else "") + (f"-{_safe_uid_component(modality)}" if modality else ""))
+    counts: dict[tuple[str, str], int] = {}
+    for key, base in bases.items():
+        counts[(key[0], base.lower())] = counts.get((key[0], base.lower()), 0) + 1
     names: dict[tuple[str, str], str] = {}
-    taken: dict[str, int] = {}
-    for key, (number, modality) in found.items():
-        base = "series" + (f"-{number}" if number else "") + (f"-{_safe_uid_component(modality)}" if modality else "")
-        taken[(key[0], base)] = taken.get((key[0], base), 0) + 1
-    for key, (number, modality) in found.items():
-        base = "series" + (f"-{number}" if number else "") + (f"-{_safe_uid_component(modality)}" if modality else "")
-        if not number or taken[(key[0], base)] > 1:
-            base = f"{base}-{_safe_uid_component(key[1])[-6:]}"
+    for key, base in bases.items():
+        number = found[key][0]
+        described = bool(_folder_text((descriptions or {}).get(key, "")))
+        if counts[(key[0], base.lower())] > 1 or (not described and not number):
+            base = f"{base} - {number}" if (described and number) else f"{base}-{_safe_uid_component(key[1])[-6:]}"
         names[key] = base
+    # Two that still collide (the same description and number twice): tell them apart by the UID tail.
+    seen: dict[tuple[str, str], int] = {}
+    for key, name in names.items():
+        seen[(key[0], name.lower())] = seen.get((key[0], name.lower()), 0) + 1
+    for key, name in list(names.items()):
+        if seen[(key[0], name.lower())] > 1:
+            names[key] = f"{name}-{_safe_uid_component(key[1])[-6:]}"
     return names
 
 
-def _write_anonymized(datasets: list[Dataset], staging: Path, layout: str = "series") -> list[Path]:
+def _study_folder_names(datasets: list[Dataset], descriptions: dict[str, str] | None = None) -> dict[str, str]:
+    """A folder name per study: its (anonymized) Study UID, or with ``descriptions`` (original Study
+    Descriptions, chosen by the operator) the description. A study with no usable description keeps
+    its UID, and two studies that would share a name get the tail of their UID added."""
+    uids: list[str] = []
+    for dataset in datasets:
+        uid = str(getattr(dataset, "StudyInstanceUID", "study"))
+        if uid not in uids:
+            uids.append(uid)
+    bases = {uid: _folder_text((descriptions or {}).get(uid, "")) or _safe_uid_component(uid) for uid in uids}
+    counts: dict[str, int] = {}
+    for base in bases.values():
+        counts[base.lower()] = counts.get(base.lower(), 0) + 1
+    return {
+        uid: (f"{base}-{_safe_uid_component(uid)[-6:]}" if counts[base.lower()] > 1 and base != _safe_uid_component(uid) else base)
+        for uid, base in bases.items()
+    }
+
+
+def _write_anonymized(
+    datasets: list[Dataset],
+    staging: Path,
+    layout: str = "series",
+    descriptions: dict[tuple[str, str], str] | None = None,
+    study_descriptions: dict[str, str] | None = None,
+) -> list[Path]:
     """Write the files. ``series``: one folder per study, a folder per series inside it.
     ``flat``: every file directly in the export folder. Names come from anonymized UIDs only."""
     written: list[Path] = []
-    names = _series_folder_names(datasets) if layout != "flat" else {}
+    names = _series_folder_names(datasets, descriptions) if layout != "flat" else {}
+    study_names = _study_folder_names(datasets, study_descriptions) if layout != "flat" else {}
     used: set[Path] = set()
     for dataset in datasets:
         study_uid = str(getattr(dataset, "StudyInstanceUID", "study"))
@@ -338,7 +389,7 @@ def _write_anonymized(datasets: list[Dataset], staging: Path, layout: str = "ser
         if layout == "flat":
             folder = staging
         else:
-            folder = staging / _safe_uid_component(study_uid) / names[(study_uid, series_uid)]
+            folder = staging / study_names[study_uid] / names[(study_uid, series_uid)]
         folder.mkdir(parents=True, exist_ok=True)
         sop_uid = _safe_uid_component(getattr(dataset, "SOPInstanceUID", f"instance-{len(written)}"))
         path = folder / f"{sop_uid}.dcm"
@@ -517,6 +568,8 @@ class AnonymizeTool(BaseTool):
         layout = str(options.get("layout") or "series").strip()
         if layout not in LAYOUTS:
             layout = "series"
+        by_description = str(options.get("series_names") or "number").strip() == "description"
+        study_by_description = str(options.get("study_names") or "uid").strip() == "description"
 
         dest_ae = str(options.get("_listen_ae") or local.ae_title).strip() or local.ae_title
         storage_enabled = bool(
@@ -569,15 +622,26 @@ class AnonymizeTool(BaseTool):
             anonymized: list[Dataset] = []
             failed = 0
             last_error = ""
+            descriptions: dict[tuple[str, str], str] = {}
+            study_descriptions: dict[str, str] = {}
             for dataset in datasets:
                 try:
-                    anonymized.append(
-                        batch.anonymize(
-                            dataset, mode,
-                            remove_patient_erase=remove_patient_erase,
-                            custom_actions=custom_actions,
-                        )
+                    result_ds = batch.anonymize(
+                        dataset, mode,
+                        remove_patient_erase=remove_patient_erase,
+                        custom_actions=custom_actions,
                     )
+                    anonymized.append(result_ds)
+                    if study_by_description:
+                        study_descriptions.setdefault(
+                            str(getattr(result_ds, "StudyInstanceUID", "")), str(getattr(dataset, "StudyDescription", "") or "")
+                        )
+                    if by_description:
+                        # The description comes from the original series (the anonymized copy may have lost it).
+                        descriptions.setdefault(
+                            (str(getattr(result_ds, "StudyInstanceUID", "")), str(getattr(result_ds, "SeriesInstanceUID", ""))),
+                            str(getattr(dataset, "SeriesDescription", "") or ""),
+                        )
                 except Exception as exc:  # noqa: BLE001
                     failed += 1
                     last_error = str(exc)
@@ -594,7 +658,11 @@ class AnonymizeTool(BaseTool):
             write_started = time.perf_counter()
             staging = Path(tempfile.mkdtemp(prefix="dicomm-anon-"))
             try:
-                written = _write_anonymized(anonymized, staging, layout)
+                written = _write_anonymized(
+                    anonymized, staging, layout,
+                    descriptions if by_description else None,
+                    study_descriptions if study_by_description else None,
+                )
                 final_path = _archive(staging, output_dir, archive)
             except Exception as exc:  # noqa: BLE001
                 shutil.rmtree(staging, ignore_errors=True)

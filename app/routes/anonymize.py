@@ -120,6 +120,8 @@ async def anonymize_run(request: Request) -> HTMLResponse:
         options["output_dir"] = str(form.get("output_dir") or "")
         options["archive"] = str(form.get("archive") or "none")
         options["layout"] = str(form.get("layout") or "series")
+        options["series_names"] = str(form.get("series_names") or "number")
+        options["study_names"] = str(form.get("study_names") or "uid")
         options["custom_actions_json"] = _custom_actions_from_form(form)
     else:
         options["patient_id"] = query["patient_id"]
