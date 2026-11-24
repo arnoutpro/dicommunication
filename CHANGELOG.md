@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Searching with wildcards
+
+- **`%123%` finds every Patient ID that contains 123**, as in Vue's own search boxes. A `%` in a text match value is sent to the PACS as the DICOM wildcard `*` (DICOM does not know `%`, and a `%` sent as it is would only match a literal `%`). `*` and `?` work as before. This applies to every text field (Patient ID, Patient Name, Accession Number, descriptions and so on, not to dates, times and UIDs) and to everything that builds its query the same way: Dicomtag Analytics, saved queries, Router rules, and the "Find studies" step of the Anonymizer and Cleaner. The Patient ID box says so in its tooltip.
+
 ### PDF to DICOM and Dicom Import: the folder button
 
 - **Same behaviour as the Dicom Anonymizer's Browse button.** In the service editions (no desktop) the "…" button is greyed and a line says there is no folder dialog and to type the path; before, PDF to DICOM left the button active and it just seemed to do nothing. When the dialog fails, the page now says why (cancelled or no dialog, your account may not use it, or the server's reason) in the same words on all three pages. The PDF page also puts the message in as text, not as HTML.
