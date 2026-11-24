@@ -6,203 +6,61 @@ A low-code DICOM communication validator and PACS admin toolkit.
 
 **Published as-is. All rights reserved.** The source is public so you can read it and download builds. This is not an invitation to use it as a library, fork it, or send patches. Issues and pull requests are not accepted. See [CONTRIBUTING.md](CONTRIBUTING.md).
 
-Configure this workstation as a DICOM Application Entity, register remote nodes (PACS, Orthanc, RIS/MWL, modalities), impersonate extra calling AE Titles, and run the checks a connectivity ticket actually needs: network PING, C-ECHO, simulated C-STORE, PDF to Encapsulated PDF Storage, Study Root C-FIND (including Study / Series / Image), Modality Worklist C-FIND, and HL7 v2 send over MLLP.
+Dicommunication is a web application for PACS administrators, imaging IT and biomedical engineering. Configure this computer as a DICOM Application Entity, register remote nodes (PACS, Orthanc, RIS/MWL, modalities), impersonate extra calling AE Titles, and run the checks a connectivity ticket actually needs: network PING, C-ECHO, simulated C-STORE, PDF to Encapsulated PDF Storage, Study Root C-FIND (Study, Series and Image level), Modality Worklist C-FIND, and HL7 v2 send over MLLP. On top of that it works on studies: query, retrieve and **anonymize** them, **redact** burned-in pixel data, **route** new studies on a schedule, and **import** a folder of DICOM files into a PACS.
 
-Dicommunication is **one application**, with a sidebar tool switcher for each product and a shared **Configuration**, opened from the gear button in the top bar: **Dicommunication** (the network/DIMSE/HL7 workstation tools), **Dicomtag Analytics** (Study Root C-FIND, including Vue ELSCINT1 keys, plus listing and retrieving DICOM Structured Reports), **Dicom Anonymizer** (query, retrieve, and anonymize studies/series/images — see below), **Dicom Router** (scheduled C-FIND rules with optional retrieve/forward — see below), **Dicom Cleaner** (query, retrieve, redact a rectangle of burned-in pixel data, and send the result back over C-STORE — see below), and **Dicom Import** (scan a folder for a DICOMDIR and/or DICOM files, change patient and exam details, and send them to a PACS). Each tool's content area has its own left sidebar with that product's own pages, below the tool switcher. Local AE, virtual identities, remote nodes, and logs are configured once, under Configuration, and shared by every product. The Windows MSI installs a service you open in the browser; the macOS DMG installs a background service the same way.
+It is **one application with six products**, picked with the tool switcher at the top of the left sidebar. Each product has its own pages in the sidebar below it:
 
-The web UI is FastAPI + HTMX. DICOM uses pynetdicom/pydicom. New test tools are Python plugins: drop a file in `app/tools/` and it appears in the Dicommunication sidebar. The top bar's **About** button shows the running version; **Help** is the in-app administrator guide.
+| Product | What it is for |
+| --- | --- |
+| **Dicommunication** | The network, DIMSE and HL7 workstation tools: Dashboard, Testbench, C-ECHO board, Worklist, Network PING, C-ECHO, C-STORE, PDF to DICOM, C-FIND, MWL C-FIND, Send Image to PACS, Tag Editor and HL7 send |
+| **Dicomtag Analytics** | Study Root C-FIND at Study, Series or Image level with any DICOM tag (including Vue ELSCINT1 keys), saved queries, and listing and retrieving DICOM Structured Reports |
+| **Dicom Anonymizer** | Query a PACS, pick studies and series, retrieve them, anonymize them (four modes) and export them to a folder or a ZIP |
+| **Dicom Router** | Scheduled C-FIND rules with optional retrieve-and-forward, and a status dashboard with a chart per rule |
+| **Dicom Cleaner** | Query, retrieve, black out a rectangle of burned-in pixel data and send the result back over C-STORE |
+| **Dicom Import** | Scan a folder (DICOMDIR and/or loose DICOM files), change patient and exam details, and send the images to a PACS |
+
+**Configuration** (Local AE, virtual AE titles, remote nodes, import / export of settings, users, security, audit log and logs) sits at the bottom of the left sidebar and is shared by every product. It is for administrators. **About** (the running version) and **Help** (the in-app guide) are in the top bar, next to the theme switcher (light, dark, follows the device, professional dark).
+
+Three ways to run it:
+
+- **Windows**: an MSI that installs a background service you open in the browser ([Windows MSI](#windows-msi)).
+- **macOS** (Apple Silicon): a DMG with a package that installs a background service the same way ([macOS DMG](#macos-dmg)).
+- **Docker Compose**: everywhere else, and for development ([Run it](#run-it)).
+
+Sign-in with roles, HTTPS and an audit log are built in and turn on when the app can be reached from another computer, or always in the two installers ([Security](#security)).
+
+The web UI is FastAPI + HTMX. DICOM uses pynetdicom/pydicom. New test tools are Python plugins: drop a file in `app/tools/` and it appears in the Dicommunication sidebar. The look is deliberately flat and dense (square corners, thin lines, small type, tooltips instead of long help text); see [DESIGN.md](DESIGN.md).
 
 Open [http://127.0.0.1:8080](http://127.0.0.1:8080).
 
 ## Screenshots
 
-Synthetic lab studies (not clinical data). Light theme, in the arnout.pro "Reading Room" design shared with the browser tools (see [DESIGN.md](DESIGN.md)), with Dicommunication's indigo accent. The theme switcher (top right) also has dark and professional-dark modes: same layout, different palette. The product switcher sits at the top of the sidebar; **Configuration** is the gear button on the right of the top bar.
-
-**Dicommunication** — dashboard: this workstation, each remote node's last C-ECHO in words, a one-click C-ECHO of every node, and a suggested next step.
-
-![Dicommunication dashboard](docs/screenshots/dicommunication-dashboard.webp)
-
-**Dicomtag Analytics** — Study Root C-FIND, then retrieve Structured Report text (Findings / Impression, Copy / CSV / JSON). A query that ran can be saved and reopened from the sidebar.
-
-![Dicomtag Analytics query with five studies](docs/screenshots/vue-query.webp)
-
-![Five Structured Reports with Findings, Impression, and export](docs/screenshots/vue-sr-reports.webp)
-
-**Dicom Anonymizer** — four numbered steps: find studies, choose studies, choose how (Nuke / Fuzz / Remove patient info / Custom), export.
-
-![Dicom Anonymizer steps with two of five studies selected](docs/screenshots/anonymizer.webp)
-
-**Dicom Cleaner** — the same steps: find studies, choose studies, set the redact rectangle, send the cleaned instances back.
-
-![Dicom Cleaner steps with redact-region fields and send-back options](docs/screenshots/cleaner.webp)
-
-**Dicom Router** — the rules list with each rule's state, schedule, last and next run and its actions, and the add-rule form on request; the sidebar names each rule's state next to its dot.
-
-![Dicom Router rule list and add-rule form](docs/screenshots/router.webp)
-
-**Configuration** — opened from the gear in the top bar: Local DICOM AE, virtual identities, and remote nodes, shared by every tab above.
-
-![Configuration overview with local AE and two remote nodes](docs/screenshots/configuration.webp)
-
-**PDF to DICOM** — four steps: choose the PDFs (one source at a time), the patient, the study and document (each with **Generate**), and where to send them.
-
-![PDF to DICOM steps with a patient filled in and a generated accession number](docs/screenshots/pdf-to-dicom.webp)
-
-**Tag Editor** — four steps for the two Tamar report tags: connect, find the study, fetch the current values, push new ones.
-
-![Tag Editor steps with a study and new tag values filled in](docs/screenshots/tag-editor.webp)
-
-**HL7 send** — four steps: destination, message (with saved messages), the optional rewrites in "Adjust before sending" (off by default; the heading lists what is on), and send.
-
-![HL7 send with an ORM order update and Change existing order set to SC](docs/screenshots/hl7-send.webp)
-
-## What's new in 0.10.13
-
-Details in [CHANGELOG.md](CHANGELOG.md#01013).
-
-- **Import / export of settings** (Configuration): move remote nodes, virtual AEs, saved queries and router rules between computers, or into the headless edition, in one file. A preview shows what would change before anything is written; nothing is deleted, and nothing that can hold patient data is exported.
-
-## What's new in 0.10.12
-
-Details in [CHANGELOG.md](CHANGELOG.md#01012).
-
-- **Dicom Import** (its own product in the left menu, below Dicom Cleaner): scan a folder for a DICOMDIR and/or DICOM files, see what is in it, change patient and exam details, and send the images to a PACS. Nothing is stored; edits are applied while sending.
-
-## What's new in 0.10.11
-
-Details in [CHANGELOG.md](CHANGELOG.md#01011).
-
-- **The background edition is now called "headless"**: the installer is `dicommunication-headless-<version>-win64.msi`, and it shows as "Dicommunication Tool (headless)" in Programs and Features. Nothing else changes: it still runs as a Windows service named Dicommunication.
-
-## What's new in 0.10.10
-
-Details in [CHANGELOG.md](CHANGELOG.md#01010).
-
-- **Windows service edition**: a second installer that runs Dicommunication in the background as a Windows service, opened in the browser. You choose the port in the wizard; it listens on this computer only unless you tick the network option, which turns on sign-in, HTTPS and the audit log. See [packaging/windows](packaging/windows/README.md).
-
-## What's new in 0.10.9
-
-Details in [CHANGELOG.md](CHANGELOG.md#0109).
-
-- **Dicomtag Analytics can query any DICOM tag**: search the standard dictionary under More filters, tick several tags and add them, as return columns, filters, or both. Private vendor tags can be added with their creator and type. Added tags are saved with the query.
-
-## What's new in 0.10.8
-
-Details in [CHANGELOG.md](CHANGELOG.md#0108).
-
-- **The status dashboard lists every Dicom Router rule**, from its latest run, with no export folder needed. Rules without a status check key show their matched count.
-- Run notes and the modality column read correctly for rules without a status check key and for studies with several modalities.
-
-## What's new in 0.10.7
-
-Details in [CHANGELOG.md](CHANGELOG.md#0107).
-
-- **Status dashboard** (`/lite`, button on the Dicom Router page): one tile per rule with a status check key, showing the exam count per status at a glance. Counts only, nothing stored.
-
-## What's new in 0.10.6
-
-Details in [CHANGELOG.md](CHANGELOG.md#0106).
-
-- **Dicom Router**: a rule whose Status check key is also one of its filters (for example `TamarStudyStatus = Pending Final`) now sends the filter. Before, the status was sent empty and the PACS returned every study.
-
-## What's new in 0.10.5
-
-Details in [CHANGELOG.md](CHANGELOG.md#0105).
-
-- **Dicom Router shows what a rule asks the PACS**: the exact keys sent, a warning for any key the app can't apply, a count per status value for each run, and why a run lists no studies.
-- **Number of days** is always visible in the rule form.
-
-## What's new in 0.10.4
-
-Details in [CHANGELOG.md](CHANGELOG.md#0104).
-
-- **Dicomtag Analytics** is now two screens: build the query full-width, then "Run query" lets the results take over, with "Edit query" to go back. The results page has a green/red status banner, one action bar, a styled records grid and Diagnostics in a popup.
-- **Export dialog**: Export opens a dialog with a checkbox per column. Quick buttons remove patient info, site info or both; "Report only" keeps just Findings and Impression on Structured Report results. Copy, CSV and JSON export only the ticked columns.
-- The icon-tile page headers, striped tables, coloured result banners and filled step numbers apply on every page; the mid-screen scrollbar strip is gone and forms no longer suggest previously typed values.
-
-And in 0.10.0 ([CHANGELOG.md](CHANGELOG.md#0100)):
-
-A layout and visual redesign pass:
-
-- The product switcher moved from the top bar into the sidebar, each with its own icon.
-- **Dicomtag Analytics**: the filter form only shows Study Date, Accession Number, Modality and Series Description by default; every other field sits behind "More filters" (one flat list, with a live count), and the private Vue/ELSCINT1 tags collapse behind their own toggle. "Also search series" is one line instead of a permanent paragraph.
-- Modality chips (Dicomtag Analytics, Dicom Anonymizer, Dicom Cleaner) collapse to the 6 most common codes plus a "+7 more" toggle.
-- A bolder visual direction: the Dashboard and Dicomtag Analytics get an icon tile beside a bigger page title, a large stat numeral and segmented status bar on the Dashboard; every status badge and the one primary button per screen are now pill-shaped, across every tool.
-
-And in 0.9.3 ([CHANGELOG.md](CHANGELOG.md#093)):
-
-- **Dicomtag Analytics**: Series Description now accepts several comma-separated values (e.g. `POSITIVE, NEGATIVE, DOUBT`, OR'd together), and a series-level result no longer hides the List SR reports / List series buttons.
-
-And in 0.9.1 ([CHANGELOG.md](CHANGELOG.md#091)):
-
-- **Dicomtag Analytics**: check "Also search series" under Level and running a Study query now does the Study find and a per-study Series find together in one click, instead of needing a separate "List series" step afterward.
-
-And in 0.9.0 ([CHANGELOG.md](CHANGELOG.md#090)):
-
-- **Dicomtag Analytics**: a Study-level result now offers **List series** — search Series Description (e.g. a result an AI tool wrote there, like "POSITIVE") across every matched study, without typing in a Study Instance UID.
-
-And in 0.8.0 ([CHANGELOG.md](CHANGELOG.md#080)):
-
-- **Dicom Router**: a new rule can now load its filters from a saved Dicomtag Analytics query (Study level only) — a one-time copy of the remote node, Modality, and every other filter the query had.
-
-And in 0.7.0 ([CHANGELOG.md](CHANGELOG.md#070)):
-
-- **C-ECHO**: can now be run against a node entered on the spot (AE Title, host, port) instead of requiring it to be added under Configuration → Remote nodes first — a one-off entry, never saved.
-- **Dicom Router**: a route rule can now export its matches to a dated JSON file — a plain data drop for a separate reporting/graphing tool to read, not a report viewed in this app.
-
-And in 0.6.0 ([CHANGELOG.md](CHANGELOG.md#060)):
-
-- **Top bar**: the product tabs now sit in the same row as the brand mark and the About/Help/Configuration/theme buttons, instead of their own row underneath.
-
-And in 0.5.7 ([CHANGELOG.md](CHANGELOG.md#057)):
-
-- **Send Image to PACS**: fixed the placeholder image rendering solid white instead of solid black in some viewers (confirmed with MicroDicom) — it now carries an explicit Window Center/Width.
-
-And in 0.5.6 ([CHANGELOG.md](CHANGELOG.md#056)):
-
-- **Send Image to PACS**: Step 1 can now look up a patient (Patient Root C-FIND, finds a patient even with zero studies) or skip lookup entirely and enter details by hand — for an order whose study has no image yet stored.
-- **Dicom Anonymizer**: results summarize one row per study instead of one per instance.
-- **Dicom Cleaner**: a new "Assign a new Series Instance UID" option on send-back; also fixes the redact rectangle's Label field, which never actually reached the sent-back images.
-
-And in 0.5.5 ([CHANGELOG.md](CHANGELOG.md#055)):
-
-- **Send Image to PACS**: now finds the target study with Study Root C-FIND against the PACS archive instead of Modality Worklist, so it can attach an image to a study whose order is already closed/completed, not just an open scheduled order.
-
-And in 0.5.4 ([CHANGELOG.md](CHANGELOG.md#054)):
-
-- **Send Image to PACS**: fixed re-querying after an order list was shown — the browser's required-field validation was blocking "Find orders" from being clicked again.
-
-And in 0.5.3 ([CHANGELOG.md](CHANGELOG.md#053)):
-
-- **Send Image to PACS**: new DIMSE test tool — query a Modality Worklist SCP for a scheduled order, pick it, choose a modality and a few descriptive tags, and C-STORE a small solid-black placeholder image carrying that order's Patient/Study/Accession identifiers, simulating a modality completing the exam.
-- **Dicom Cleaner**: the redact rectangle can carry a label (e.g. "REDACTED"), stamped across the same black box on every retrieved image.
-
-And in 0.5.2 ([CHANGELOG.md](CHANGELOG.md#052)):
-
-- **A new app icon** on macOS and Windows: the brand "A", now a sharp vector, on a deep navy tile where its colours glow, so the app stands out in the Dock, Finder and the Start menu.
-
-And in 0.5.1 ([CHANGELOG.md](CHANGELOG.md#051)):
-
-- **Security**: a full review before 0.5.1 closed the ways a web page in another browser tab could drive or read the app, added a strict Content-Security-Policy, and stopped PACS data from ever running as script. What was found, fixed and checked: [SECURITY.md](SECURITY.md#security-review-051-september-2026).
-- **Dicom Router** opens on a table of rules (state in words, schedule, last and next run, actions per row); the add form shows on request, hides fields that don't apply, and keeps what you typed when a save fails.
-- **Dicomtag Analytics** can save a query after it runs and list it in the sidebar; a Study Date preset stays relative. Long key names (the ELSCINT1 tags) no longer get cut off, and the date presets use the local date.
-- **PDF to DICOM**, **Tag Editor** and **HL7 send** follow the same numbered steps as Dicom Anonymizer and Dicom Cleaner. PDF to DICOM can **Generate** Accession Number, Study Description and Document Title.
-- **HL7 send**: the rewrites are off by default, and their codes come from the HL7 tables and the IS Link specification. **Still to be tested against a live IS Link server**: see [To verify](#to-verify).
-- **Interface**: Configuration is a gear button in the top bar, the active tab and the field you're typing in stand out, the accent is indigo, and browsers always load the current script and styles.
+Screenshots of the new flat design (0.14) are being retaken and will be added here. The earlier ones were removed because they show the old look.
+
+## What's new in 0.14
+
+The full list is in [CHANGELOG.md](CHANGELOG.md).
+
+- **A new, flatter look.** Square corners and thin lines everywhere, 13 px type in the system font, plain blue on neutral greys, no icon tiles or striped rows. The sidebar is a tree with a solid colour on the selected row. Configuration moved from the top bar to the bottom of the left menu. The area where data is shown is one flat surface in every theme (white in the light theme).
+- **Forms with the label on the left and the box beside it**, as wide as its content, with the explanation in a `?` tooltip instead of grey paragraphs, and advanced options folded away. Every tool and configuration page uses it. Dicomtag Analytics is now one flat table (Return, Field, Match value) with a Study Date period menu, a Modalities dropdown and a shortcuts menu instead of rows of buttons.
+- **Dicom Anonymizer: see and pick the series.** Under each study, "Show series" lists its series (number, modality, description, images); only the ticked ones are anonymized. New export options: *All files in one folder* or *a subfolder per series*, and study and series folders named by their **description** (off by default, because a description can contain identifying text).
+- **Nothing is lost silently when a PACS drops the connection.** Some PACS close the association after a few C-MOVEs. The Anonymizer and the Cleaner now reconnect, list every series with how many images came back, and report a run with anything missing as a **Fail** that names what is missing.
+- **Status dashboard (`/lite`) with history charts.** One bar chart per rule (and per status value) of exams per day for the last 7, 14 or 30 days, from counts the Router now keeps per study date. A dashed mark means no check that day. No patient data is stored.
+- **Searching with wildcards in the Vue style.** `%123%` finds every Patient ID that contains 123; it is sent to the PACS as the DICOM wildcard `*123*`. `*` and `?` work as before.
+- **Folder buttons say why they do nothing.** In the service editions there is no desktop, so the folder dialog cannot open there: the button is greyed and a line says to type the path.
+- Dropdown lists are compact, scroll when long and open upwards when there is no room below. The README and Help no longer say the app has no login.
+
+Earlier highlights, each with its details in the changelog:
+
+- **0.13**: the macOS download became a background service like the Windows one; PDF to DICOM can set the Modality of the document.
+- **0.12 and 0.11**: one Windows installer (the headless service); sign-in with viewer / operator / administrator roles, HTTPS with a certificate the app makes itself, a tamper-evident audit log, and much less patient data kept (the Router history holds counts only).
+- **0.10**: Dicom Import; import / export of settings; the status dashboard; any DICOM tag in Dicomtag Analytics; the Windows service edition.
+- **Before 0.10**: Dicom Router, Dicom Cleaner, Dicom Anonymizer, Send Image to PACS, Tag Editor, saved Analytics queries, and the 0.5.1 security review ([SECURITY.md](SECURITY.md#security-review-051-september-2026)).
 
 ## Contents
 
 - [Screenshots](#screenshots)
-- [What's new in 0.10.13](#whats-new-in-01013)
-- [What's new in 0.10.12](#whats-new-in-01012)
-- [What's new in 0.10.11](#whats-new-in-01011)
-- [What's new in 0.10.10](#whats-new-in-01010)
-- [What's new in 0.10.9](#whats-new-in-0109)
-- [What's new in 0.10.8](#whats-new-in-0108)
-- [What's new in 0.10.7](#whats-new-in-0107)
-- [What's new in 0.10.6](#whats-new-in-0106)
-- [What's new in 0.10.5](#whats-new-in-0105)
-- [What's new in 0.10.4](#whats-new-in-0104)
+- [What's new in 0.14](#whats-new-in-014)
 - [What this is (and is not)](#what-this-is-and-is-not)
 - [How it's made](#how-its-made)
 - [DICOM services this tool distinguishes](#dicom-services-this-tool-distinguishes)
@@ -233,14 +91,18 @@ It **does**:
 - Associate with a remote AE and show which SOP Classes were accepted or rejected
 - Send Verification (C-ECHO), a tiny Secondary Capture (C-STORE), Encapsulated PDF Storage (PDF to DICOM), Study Root Query/Retrieve C-FIND at Study, Series, or Image level, and Modality Worklist C-FIND
 - Optionally serve a local web worklist as an MWL SCP on the listen port
-- Optionally accept C-STORE of Structured Reports on that same port, and C-MOVE SR series from Dicomtag Analytics so the Content Sequence can be parsed (no language model)
+- Optionally accept C-STORE on that same port, so it can receive what a PACS moves to it: Structured Reports for Dicomtag Analytics (the Content Sequence is parsed, no language model), and the images that the Anonymizer, Cleaner and Router retrieve
+- Retrieve studies, series and images with C-MOVE to this workstation, then anonymize them and write files to a folder or ZIP (Dicom Anonymizer), black out a rectangle and send them back (Dicom Cleaner), or forward them to other nodes on a schedule (Dicom Router)
+- Scan a folder of DICOM files and send them to a PACS, with optional edits applied on the way (Dicom Import)
 - Send an HL7 v2 message over TCP (MLLP by default) to a host:port
+- Ask for a sign-in, with roles, over HTTPS, and keep an audit log, when it can be reached from other computers ([Security](#security))
 
 It **does not**:
 
-- Implement C-GET, or C-MOVE of imaging series (only SR series used for report text)
-- Store a real archive of clinical images
+- Use C-GET. Every retrieve is a C-MOVE to this workstation's own Storage SCP, which must be enabled and registered on the PACS as a destination
+- Keep an archive of clinical images. Retrieved images are held in memory while a run is going; what the Anonymizer exports is written where you tell it, and Dicom Import only reads
 - Speak DICOM TLS (DICOM and HL7 traffic to the PACS is not encrypted)
+- Encrypt its own data folder (use an encrypted volume; see [Security](#security))
 - Parse, validate, or map HL7 fields — paste a message and send it
 
 A successful C-ECHO only proves Verification. Orthanc (or any PACS) can accept C-ECHO and still reject Storage, Query/Retrieve, or Modality Worklist. That difference is the point of the Testbench.
@@ -253,7 +115,7 @@ In practice the split looks like this:
 
 - **I decide what gets built and why.** The problems come from real connectivity tickets and reading-room workflows: a node that answers C-ECHO but rejects Storage, a report stuck in Vue, a study that needs anonymizing before it leaves the hospital. I set the requirements, the order of the steps on each page, and what counts as safe.
 - **The AI writes most of the code, tests and documentation** under that direction: the FastAPI and HTMX pages, the pynetdicom and pydicom work, the design, this README and the in-app Help.
-- **I review and test it**, and so does the test suite: several hundred automated tests, including ones that talk to small DICOM and HL7 servers running on the same machine. Where it matters, behaviour is checked against the standards themselves, such as the HL7 v2 code tables and the DICOM data dictionary, and against vendor documentation.
+- **I review and test it**, and so does the test suite: about 800 automated tests, including ones that talk to small DICOM and HL7 servers running on the same machine. Where it matters, behaviour is checked against the standards themselves, such as the HL7 v2 code tables and the DICOM data dictionary, and against vendor documentation.
 - **Anything not yet proven on a real system says so.** For example, the HL7 send options for Philips IS Link are still on a [To verify](#to-verify) list until they have been tested on a live server.
 
 AI makes it possible for one person with domain knowledge to build a tool like this. It doesn't replace that knowledge, or the testing against real equipment before anything touches clinical data.
@@ -271,6 +133,9 @@ AI makes it possible for one person with domain knowledge to build a tool like t
 | Send Image to PACS | C-FIND (Study or Patient Root, or none for manual entry), C-STORE | Study Root Query/Retrieve FIND, Patient Root Query/Retrieve FIND, then Secondary Capture Image Storage | Reached at `/tools/send-image` in the sidebar. Find a study — by Study Root C-FIND (open or already closed), by Patient Root C-FIND (for an order with no image yet stored at all, but a registered patient), or typed in by hand — pick it, choose a modality and a few descriptive tags, and C-STORE a small solid-black placeholder image carrying that study's Patient/Study/Accession identifiers. |
 | Dicom Router | C-FIND, optional C-MOVE + C-STORE | Study Root Query/Retrieve FIND (MOVE/STORE for retrieve-and-forward) | Reached at `/router` in the sidebar. Same FIND as Dicomtag Analytics, but scheduled/automatic instead of manual, with an optional automatic retrieve-and-forward to one or more destination nodes. |
 | Dicom Cleaner | C-FIND, C-MOVE, C-STORE | Study Root Query/Retrieve FIND/MOVE, then Storage back out | Reached at `/tools/dicom-cleaner` in the sidebar. Study-level C-FIND, C-MOVE retrieve, blacks out one operator-configured rectangle of pixel data on every retrieved instance (PyDicom + numpy), then C-STOREs the cleaned instances back to a PACS. |
+| Dicom Anonymizer | C-FIND, C-MOVE | Study Root Query/Retrieve FIND and MOVE | Reached at `/tools/anonymize` in the sidebar. A Study-level C-FIND, an optional Series-level C-FIND to list a study's series, then a C-MOVE of the chosen studies or series to this workstation's local Storage SCP. The instances are anonymized in memory and written to a folder or ZIP; nothing is sent back. |
+| Dicom Import | C-STORE | Storage (each file's own SOP Class) | Reached at `/tools/dicom-import` in the sidebar. Scans a folder and C-STOREs its files to a PACS, with optional edits; there is no query. |
+| Tag Editor | C-FIND, C-MOVE, C-STORE | Study Root Query/Retrieve FIND and MOVE, then storage back | Reached at `/tools/tag-editor` in the sidebar. Corrects two private Vue report tags on a study and stores it back. |
 
 **MWL C-FIND and the Worklist page are the same SOP Class.** Study Root C-FIND is not. Orthanc without the worklist plugin typically accepts Verification, Storage, and Q/R, then rejects MWL. The Testbench and Worklist results show accepted vs rejected presentation contexts so that is visible.
 
@@ -283,7 +148,7 @@ Two AE Titles matter on a worklist query:
 
 ### Docker Compose (recommended)
 
-The image already contains Python 3.12, FastAPI, pynetdicom, pydicom, and `ping`. You do not need a local virtualenv.
+The image already contains Python, FastAPI, pynetdicom, pydicom, and `ping`. You do not need a local virtualenv.
 
 ```bash
 git clone https://github.com/arnoutpro/dicommunication.git
@@ -321,7 +186,7 @@ DICOMM_HTTP_BIND=0.0.0.0 DICOMM_ALLOWED_HOSTS=dicomm.example.org docker compose 
 Startup names the address the UI was published on, so `docker compose logs` answers "why can I not reach this from my laptop":
 
 ```
-Dicommunication 0.3.0 started (data dir /app/data, log level INFO)
+Dicommunication 0.14.0 started (data dir /app/data, log level INFO)
 Web UI published on 127.0.0.1:8080 — reachable from the Docker host only. This is the
 default. To reach it from another machine, restart with DICOMM_HTTP_BIND=0.0.0.0
 (that turns on sign-in and HTTPS).
@@ -385,7 +250,7 @@ A `v*` tag attaches the MSI to the GitHub Release and also publishes **`dicommun
 
 ```text
 dotnet nuget add source --name github-arnoutpro --username YOUR_GITHUB_USERNAME --password YOUR_PAT --store-password-in-clear-text https://nuget.pkg.github.com/arnoutpro/index.json
-dotnet nuget install dicommunication.msi --version 0.12.0 --source github-arnoutpro
+dotnet nuget install dicommunication.msi --version <version> --source github-arnoutpro
 ```
 
 Uninstalling asks, once, whether to also delete the data folder, because it can hold patient data (see [`SECURITY.md`](SECURITY.md#patient-data-on-disk)); answering No (the default) leaves it in place.
@@ -415,30 +280,42 @@ Apple Silicon only for now. Intel Macs keep using Docker Compose. If a modality 
 | File | Contents |
 | --- | --- |
 | `config.json` | Local AE, virtual identities, remote nodes, logging settings |
-| `results.json` | Recent tool runs (capped at 200) |
+| `users.json` | Accounts (scrypt-hashed passwords, roles). No patient data |
+| `security.json` | Retention times and the folders operators may read (Configuration > Security) |
+| `audit.log` | The audit log, a hash chain; who did what, never patient data (rolls over at 5 MB, ten files kept) |
+| `tls/` | The self-made HTTPS certificate and its private key (only created when HTTPS is used) |
+| `results.json` | Recent tool runs (capped at 200). The rows they fetched are emptied after 30 minutes by default |
 | `worklist.json` | Local web worklist entries |
 | `hl7_messages.json` | Saved HL7 v2 drafts for the sender |
 | `saved_queries.json` | Dicomtag Analytics saved queries (node, level, columns, filters, date preset) |
 | `route_rules.json` | Dicom Router rule definitions (source PACS, filters, schedule, destinations, status) |
 | `route_runs.json` | Dicom Router run history (capped at 500, deleted after 30 days by default): counts only, no patient data |
+| `route_daily.json` | Exams per study date and status for each rule, for the status dashboard charts (deleted after 30 days by default, like the run history): counts only |
 | `dicommunication.log` | Rotating application log (level and size set on **Logs**) |
 
 Default directory:
 
-1. `$DICOMM_DATA_DIR` if set (Docker Compose sets this to `/app/data`; the Windows launcher sets `%LOCALAPPDATA%\dicommunication` when unset)
-2. else `%LOCALAPPDATA%\dicommunication` on Windows
-3. else `~/.dicommunication` on the host (`/app/data` in the container, bind-mounted to `~/.dicommunication`)
-4. else legacy `./data` if that folder already has `config.json` and `~/.dicommunication/config.json` does not exist (non-Windows only)
+1. `$DICOMM_DATA_DIR` if set (Docker Compose sets this to `/app/data`)
+2. the Windows service: `C:\ProgramData\Dicommunication`; the macOS service: `/Library/Application Support/Dicommunication` (readable only by its own account)
+3. else `%LOCALAPPDATA%\dicommunication` on Windows
+4. else `~/.dicommunication` on the host (`/app/data` in the container, bind-mounted to `~/.dicommunication`)
+5. else legacy `./data` if that folder already has `config.json` and `~/.dicommunication/config.json` does not exist (non-Windows only)
 
-Writes are atomic (temp file + replace). Replacing the Docker image does not reset this folder.
+Writes are atomic (temp file + replace). Replacing the Docker image does not reset this folder. Nothing in it is encrypted: see [Security](#security) for what can contain patient data.
 
 ## Configuration
 
-Open **Configuration** with the gear button in the top bar. Child links stay visible in its own left sidebar: Configured nodes, Local DICOM AE, Virtual AEs, Remote nodes, and Logs — shared across every product tab, so it's configured once. The overview (`/config`) lists everything at a glance. Add or edit on the child pages:
+**Configuration** is at the bottom of the left sidebar and is for administrators. Its own pages replace the product menu while you are in it, and it is shared by every product, so it is configured once:
 
-- `/config/local` — Local DICOM AE
-- `/config/identities` — virtual local AE titles
-- `/config/remotes` — remote DICOM nodes
+- **Configured nodes** (`/config`) — an overview of the local AE, virtual AEs and remote nodes
+- **Local DICOM AE** (`/config/local`) — the workstation's own AE
+- **Virtual AEs** (`/config/identities`) — extra calling AE titles
+- **Remote nodes** (`/config/remotes`) — the PACS, modalities and other peers
+- **Import / export** (`/config/transfer`) — move settings to another computer or into a service edition in one file. A preview shows what would change before anything is written; nothing is deleted; nothing that can hold patient data is exported
+- **Users** (`/config/users`) — accounts and roles (viewer, operator, administrator)
+- **Security** (`/config/security`) — sign-in and HTTPS status, how long fetched rows and run history are kept, and the folders operators may read
+- **Audit log** (`/config/audit`) — the log of who did what, with a check that nobody edited it
+- **Logs** (`/logs`) — the application log
 
 On Local AE, **Advanced settings** hides PDU, timeouts, and MWL SCP options.
 
@@ -478,7 +355,7 @@ From Docker, a PACS on the same Mac or Linux host is usually `host.docker.intern
 
 ## Logs
 
-Open **Logs** under Configuration (the gear in the top bar, then Logs; `/logs`).
+Open **Logs** under Configuration (`/logs`).
 
 The page has two parts:
 
@@ -512,7 +389,7 @@ Every virtual calling AE must be allowed on the remote, the same way the worksta
 
 ## Test tools
 
-The **Dicommunication** tab's own left sidebar lists these directly (no separate "Test tools" fold — that's the whole point of this tab): Dashboard, Testbench, C-ECHO board, Worklist, then **Connectivity** (PING), **DIMSE** (C-ECHO, C-STORE, PDF to DICOM, C-FIND, MWL C-FIND, Send Image to PACS, Tag Editor), and **HL7** (HL7 send), each category foldable. Dicomtag Analytics, Dicom Anonymizer, and Dicom Cleaner have their own tabs instead of living in this list. The category that contains the current page stays open. New plugin tools appear under their `category`, unless promoted to their own tab.
+The **Dicommunication** product's left sidebar lists these directly: Dashboard, Testbench, C-ECHO board, Worklist, then **Connectivity** (PING), **DIMSE** (C-ECHO, C-STORE, PDF to DICOM, C-FIND, MWL C-FIND, Send Image to PACS, Tag Editor), and **HL7** (HL7 send), each category foldable. Dicomtag Analytics, Dicom Anonymizer, Dicom Router, Dicom Cleaner and Dicom Import are products of their own, picked with the tool switcher at the top of the sidebar. The category that contains the current page stays open. New plugin tools appear under their `category`, unless promoted to their own product.
 
 ### Testbench (`/testbench`)
 
@@ -537,27 +414,40 @@ Same engines as the Testbench, one page each: `/tools/c-echo`, `/tools/c-store`,
 
 ### Dicomtag Analytics (`/tools/c-find-advanced`)
 
-Study Root Query/Retrieve FIND at **Study**, **Series**, or **Image**, with the searchable keys for that level. Checked keys are sent as return columns; a typed value is also a matching key.
+Study Root Query/Retrieve FIND at **Study**, **Series**, or **Image** level. The query is one flat table: a **Return** checkbox, the **Field**, and a **Match value**. A ticked row comes back as a result column; a typed value is also a matching key.
 
-Hierarchical FIND (no relational queries): Series keys unlock after **Study Instance UID** is present; Image keys unlock after **Study Instance UID** and **Series Instance UID**. MR-only keys such as Repetition Time stay locked unless Modality is `MR` or empty. Keys are grouped by Study / Series / Image as a list (not a grid). Collapsed **Vue PACS (ELSCINT1)** lists expose Tamar private study and series tags as optional return/match keys. Vue’s DCS does not list them. **Tamar Assign To Doctor** is a confirmed matching key on Vue 12.2.8 (used with Modalities in Study); other Vue tags may still come back empty. Grid Token sequences are not sent. Results are a column-aligned table. **Copy table** is tab-separated for Excel; **Download CSV** and **Download JSON** export the same rows. Click a result row to copy parent UIDs into the next level.
+- **Study Date** has a period menu (Any date, Today, Yesterday, Last 7 days, Last 30 days, This month, or a date range). A preset stays relative when you save the query. At Study level a Study Date is required.
+- **Modalities** is a dropdown checklist of the usual codes. The value box beside it takes any code or a backslash-separated list.
+- **Shortcuts** is one menu: usual columns, all columns, SR series, or clear the filter values.
+- **More filters** holds every other key for the level; the Vue PACS (ELSCINT1) private study and series tags are in their own collapsed groups. **Add other DICOM tags** searches the standard dictionary (tick one or more and add them as return columns, filters, or both) and can add a private vendor tag with its creator and type. Added tags are saved with the query.
+- **Wildcards.** Text values take `*` (any characters) and `?` (one character), for example `*123*` finds every Patient ID that contains 123. A `%` works as `*`, as in Vue's own search boxes (`%123%`); it is sent to the PACS as `*123*`. Dates, times and UIDs are not wildcarded.
 
-**Saved queries.** After a Study, Series or Image query returns, **Save this query** under the results keeps it by name: remote node, Present as identity, level, checked columns, filter values and report-text options. The tab's sidebar lists saved queries under **New query**; opening one fills the form in, and it runs only when you press **Run query**. A Study Date set with a preset (Today, Last 7 days, …) stays relative, so "Last 7 days" is recomputed each time; typed or picked dates stay fixed. Saving under an existing name replaces that query. They are kept in `saved_queries.json`.
+Hierarchical FIND (no relational queries): Series keys unlock after **Study Instance UID** is present; Image keys unlock after **Study Instance UID** and **Series Instance UID**. MR-only keys such as Repetition Time stay locked unless Modality is `MR` or empty. Vue's DCS does not list the Tamar private tags. **Tamar Assign To Doctor** is a confirmed matching key on Vue 12.2.8 (used with Modalities in Study); other Vue tags may still come back empty. Grid Token sequences are not sent. Results are a column-aligned table. **Copy table** is tab-separated for Excel; **Download CSV** and **Download JSON** export the same rows, and an export dialog lets you tick which columns go in. Click a result row to copy parent UIDs into the next level.
 
-In the Vue PACS groups the key list drops the repeated "Tamar " prefix (the group says they are Tamar / ELSCINT1 tags; hover shows the full name), and every key name fits on one line.
+**Saved queries.** After a Study, Series or Image query returns, **Save this query** under the results keeps it by name: remote node, Present as identity, level, checked columns, filter values and report-text options. The product's sidebar lists saved queries under **New query**; opening one fills the form in, and it runs only when you press **Run query**. Saving under an existing name replaces that query. They are kept in `saved_queries.json`. A Dicom Router rule can start from a Study-level saved query.
 
-Radiology reports stored as DICOM SR are a series in the same study (same Study Instance UID, different Series Instance UID, modality `SR`). After a Study query (for example today’s CTs), **List SR reports** runs Series C-FIND with `Modality=SR` for every study in the table (cap 200). **Retrieve report text** C-MOVEs each listed SR on its own association so Vue cannot stop after the first exam. Enable **Accept C-STORE (Structured Reports)** on Local DICOM AE, and register that AE Title (not a virtual Present as title) in Vue as a C-MOVE destination at this host:listen-port. The Content Sequence is flattened into concept / type / value rows — no language model. **Download JSON** (and CSV) include **Findings** and **Impression** as their own fields, plus `sr_text` for the full report. Imaging series are not stored. C-GET is not used.
+Radiology reports stored as DICOM SR are a series in the same study (same Study Instance UID, different Series Instance UID, modality `SR`). After a Study query (for example today’s CTs), **List SR reports** runs Series C-FIND with `Modality=SR` for every study in the table (cap 200). **Retrieve report text** C-MOVEs each listed SR on its own association so Vue cannot stop after the first exam. Enable **Accept C-STORE** on Local DICOM AE, and register that AE Title (not a virtual Present as title) in Vue as a C-MOVE destination at this host:listen-port. The Content Sequence is flattened into concept / type / value rows — no language model. **Download JSON** (and CSV) include **Findings** and **Impression** as their own fields, plus `sr_text` for the full report. Imaging series are not stored by this tool. C-GET is not used.
 
 ### Dicom Anonymizer (`/tools/anonymize`)
 
-Study-level C-FIND on Patient ID / Accession Number / Study Date (required) / Modality, same fields and rules as Dicomtag Analytics. Pick studies from the result table and a level — **Study** anonymizes exactly what you checked; **Series** or **Image** C-MOVEs every series or image inside those studies (no per-series/per-image picker yet). Four modes: **Nuke** (keep only what a viewer needs to open the image, drop everything else, fresh UIDs), **Fuzz** (keep every tag, scramble its value, pixel data untouched), **Remove patient information** (erase or scramble only a curated ~50-tag patient-identifying list), and **Custom** (per-tag keep / erase / replace, same list). Study/Series/SOP Instance UIDs are remapped consistently across one run so a multi-instance study stays one coherent study afterward. Output is loose `.dcm` files or a ZIP in a folder you choose (7z not implemented yet); filenames are always built from the anonymized UIDs, never the originals. The result table summarizes one row per anonymized study (series count, instance count), not one row per instance.
+Four numbered steps: **find studies**, **choose studies** (and series), **choose how**, **export**.
+
+1. **Find studies.** Study-level C-FIND on Patient ID / Accession Number / Study Date (required) / Modality, with the same wildcards as Dicomtag Analytics (`*123*`, or `%123%`).
+2. **Choose studies.** Check the studies in the result table and pick a level: **Study** anonymizes exactly what you checked; **Series** or **Image** retrieves every series or image inside those studies. To choose series yourself, open **Show series** under a study: it lists the series (number, modality, description, number of images), all ticked; untick what to leave out and only the ticked series are retrieved and anonymized, one C-MOVE per series. A study whose series you never opened is handled by the level as above.
+3. **Choose how.** Four modes: **Nuke** (keep only what a viewer needs to open the image, drop everything else, fresh UIDs), **Fuzz** (keep every tag, scramble its value, pixel data untouched), **Remove patient information** (erase or scramble only a curated ~50-tag patient-identifying list), and **Custom** (per-tag keep / erase / replace, same list). Study, Series and SOP Instance UIDs are remapped consistently across one run so a multi-instance study stays one coherent study afterward.
+4. **Export.** Type the **output folder** (a folder on the computer the app runs on; the app's own account must be allowed to write there) and choose the **folder layout**: a *subfolder per series* (a folder per study with a folder per series inside, the default) or *all files in one folder*. With subfolders, you can name the **study folder** by its Study UID (default) or its description, and the **series folder** by number and modality (default, e.g. `series-3-CT`) or by its description (e.g. `TLC Inspiratory 0,6`). Characters Windows does not allow become `_`, names are cut at 80 characters, and two series with the same name get the series number added. The description is taken from the original and is **not** anonymized, so it can contain identifying text; that is why the default is off. The output is loose `.dcm` files or a ZIP (7z not implemented yet). File names are always built from the anonymized UIDs, never the originals.
+
+In the Windows and macOS services there is no desktop, so the **Browse…** button is greyed out and you type the path. Operators can only use output folders an administrator lists under Configuration > Security.
+
+**What the result tells you.** The result lists every selection with how many images came back. Some PACS close the association after a few C-MOVEs; a selection that gets nothing for that reason is retried once on a new association. If a selection still returns nothing (it is named with the reason, for example `601 · TLC Inspiratory 0,5 (C-MOVE status 0xC000)`), or some images could not be anonymized, the run is shown as a **Fail** that says what was exported and what was not. A table summarizes one row per anonymized study (series count, instance count), not one row per instance.
 
 The simple C-FIND tool and Testbench stay STUDY-level with a short filter list.
 
 ### Dicom Router (`/router`)
 
-A background service you manage alongside everything else, not a one-off query form. `/router` opens on a table of every rule: name, source and destinations, state in words (Active, Paused, Stopped, Running), schedule, last run (**OK** / **Failed** and when) and next run, with Start / Resume, Run now, Pause, Stop and Edit on each row. **Add route rule** opens the form above the list; the form shows straight away when there are no rules yet. It shows **Number of days** only for "Last N days" and **Station Name filter** only at Series level, and a save that fails keeps what you typed and shows the message under the field it concerns (a daily schedule needs at least one time of day, which the browser also checks).
+A background service you manage alongside everything else, not a one-off query form. `/router` opens on a table of every rule: name, source and destinations, state in words (Active, Paused, Stopped, Running), schedule, last run (**OK** / **Failed** and when) and next run, with Start / Resume, Run now, Pause, Stop and Edit on each row. **Add route rule** opens the form above the list; the form shows straight away when there are no rules yet. The main fields are Name, Source PACS, Modality, Query level, Study date and Number of days, and **Station Name filter** shows only at Series level. **Schedule**, **Forwarding** and **Export matches to a file** are folded sections, and a rule can start from a saved Dicomtag Analytics query. A save that fails keeps what you typed and shows the message under the field it concerns (a daily schedule needs at least one time of day, which the browser also checks). The **Status dashboard** button opens [the status dashboard](#status-dashboard-lite).
 
-The tab's left sidebar lists the same rules on every page under this tab, each with its state in words next to a dot — green (active), amber (paused), gray (stopped), pulsing accent while a run is executing.
+The product's left sidebar lists the same rules on every page under it, each with its state in words next to a dot — green (active), amber (paused), gray (stopped), pulsing accent while a run is executing.
 
 A **route rule** is a scheduled Study Root C-FIND (interval in minutes, or specific times of day with optional days-of-week) against a configured PACS, filtered by modality / study date scope / query level. The scheduler runs due rules automatically and records what's new since the rule last ran.
 
@@ -579,13 +469,15 @@ Study-level C-FIND on Patient ID / Accession Number / Study Date (required) / Mo
 
 Each retrieved instance's pixel data (PyDicom + numpy) has one operator-configured rectangle — **X**, **Y**, **Width**, **Height** in pixels, top-left origin, width/height `0` meaning "to the edge" — blacked out to zero, for redacting burned-in patient info or device overlays that live in the image itself rather than in DICOM tags. The same rectangle is applied to every retrieved instance, so setting it once covers every image in the checked study/series. An optional **Label** burns a short text stamp (e.g. "REDACTED") into the same black box, in white at the pixel data's own brightest value. It works from the pixel geometry the dataset's own tags describe (`NumberOfFrames`, `SamplesPerPixel`), not the array shape alone, so a multi-frame grayscale cine and a single-frame color image are never confused with each other. Compressed Transfer Syntaxes (JPEG Baseline/Lossless, RLE, …) are decompressed first; that needs `pylibjpeg` or `gdcm` installed, same as any other pydicom `pixel_array` read of those syntaxes. Burned-In Annotation (0028,0301) is set to `NO` on every cleaned instance. Sending back can optionally **assign a new Series Instance UID** — every image from the same source series shares one new series UID, and this always forces a fresh SOP Instance UID too (avoids a SOP Instance UID claimed by two series). Dicom Cleaner only touches pixel data and that one tag — it does not scrub PatientName/PatientID/other tags the way Dicom Anonymizer's modes do; combine the two tools if a study needs both.
 
-Typing coordinates blind is optional — **Preview & pick region** retrieves one image from the first checked study and renders it (a plain min-max stretch, not a diagnostic display) so you can drag a rectangle on the actual image instead; the drag is translated back to full-resolution pixel coordinates and fills in the X/Y/Width/Height fields above.
+**What the result tells you.** The cleaned images are written back to a PACS, so a gap matters. If the PACS closes the association part-way, a selection that got nothing is retried once on a new association, and the result lists every series (or image) with how many images came back. If anything is missing, or an image could not be redacted, the run is shown as a **Fail** that says how many instances were sent and what was not, instead of a plain success.
+
+Typing coordinates blind is optional — **Pick the region on an image** (then **Browse images in first checked study**) retrieves one image from the first checked study and renders it (a plain min-max stretch, not a diagnostic display) so you can drag a rectangle on the actual image instead; the drag is translated back to full-resolution pixel coordinates and fills in the X/Y/Width/Height fields above.
 
 The cleaned instances are then C-STOREd back out, by default to the same PACS the study was retrieved from — override this with the **Send to** destination picker if it should go somewhere else instead. **Send back as** chooses between a fresh SOP Instance UID (default; the cleaned image lands as a new object next to the original, which stays untouched on the PACS) or the original SOP Instance UID (the PACS is expected to overwrite the existing instance — only do this against a PACS that actually replaces on a duplicate SOP Instance UID C-STORE, rather than rejecting or duplicating it).
 
 ### PDF to DICOM (`/tools/pdf-store`)
 
-Four steps: choose the PDFs, the patient, the study and document, and where to send them. PDFs come from one source at a time: files, a ZIP, a browser folder, or a directory path on this workstation (**…** opens a native folder dialog on this machine; **Scan** lists PDF files only). Each PDF is wrapped as Encapsulated PDF Storage. **Stored as (Modality)** sets its Modality tag: `DOC` (the DICOM code for documents, the default), `SR` or `OT`, or any other code of up to 16 capital letters, digits, spaces or underscores, for a PACS that files or lists documents by modality. Only the tag changes; it is still an Encapsulated PDF. **Generate** next to Patient Name or Patient ID fills that field; next to Accession Number, Study Description or Document Title it has one made per study (or per PDF, for the title). A typed value goes on every PDF as it is. **One patient per PDF** derives identities from file names so a directory of reports does not stack as one person. **Keep all PDFs in one study** (on by default) gives the batch one Study and Series Instance UID. **Store on a PACS** C-STOREs those instances to the selected remote. Uncheck it to encapsulate only. The peer must accept Encapsulated PDF Storage — C-ECHO or the Secondary Capture test image is a different SOP Class.
+Four steps: choose the PDFs, the patient, the study and document, and where to send them. PDFs come from one source at a time: files, a ZIP, a browser folder, or a directory path on this workstation (**…** opens a native folder dialog on this machine, which the Windows and macOS services cannot do, so type the path there; **Scan** lists PDF files only). Each PDF is wrapped as Encapsulated PDF Storage. **Stored as (Modality)** sets its Modality tag: `DOC` (the DICOM code for documents, the default), `SR` or `OT`, or any other code of up to 16 capital letters, digits, spaces or underscores, for a PACS that files or lists documents by modality. Only the tag changes; it is still an Encapsulated PDF. **Generate** next to Patient Name or Patient ID fills that field; next to Accession Number, Study Description or Document Title it has one made per study (or per PDF, for the title). A typed value goes on every PDF as it is. **One patient per PDF** derives identities from file names so a directory of reports does not stack as one person. **Keep all PDFs in one study** (on by default) gives the batch one Study and Series Instance UID. **Store on a PACS** C-STOREs those instances to the selected remote. Uncheck it to encapsulate only. The peer must accept Encapsulated PDF Storage — C-ECHO or the Secondary Capture test image is a different SOP Class.
 
 Caps: 25 MB per PDF, 40 files, 40 MB ZIP. Only `.pdf` files are imported. ZIP entries with `..`, `__MACOSX`, or a non-PDF extension are skipped. The directory path is read by this process. An operator can only pick a folder an administrator lists under Configuration > Security.
 
@@ -599,6 +491,27 @@ Corrects the two private ELSCINT1 tags Vue's CS PACS REPORT writes onto every in
 4. **Push new values** — retrieves fresh, overwrites only the field(s) you filled in, and C-STOREs every retrieved instance back. It only overwrites a tag that is already present; it never adds one. Whether Vue treats a C-STORE of a known SOP Instance UID as a replacement or a duplicate is PACS-specific, so Fetch first.
 
 **Practise on test studies** (folded, at the bottom) seeds two throwaway studies for patient `ARNPRO^TESTBENCH`, one with both tags present but blank and one without them, so Push can be tried without touching a real patient. A first test on a real Vue archive, on an already-complete study, showed C-MOVE and C-STORE succeeding but the stored values unchanged; see the in-app Help for details.
+
+### Dicom Import (`/tools/dicom-import`)
+
+Brings DICOM files from a folder into a PACS, in four steps:
+
+1. **Choose the folder.** A folder on the computer the app runs on: a `DICOMDIR` (a CD or DVD export), loose DICOM files, or both, at any depth. The scan runs in the background with live progress and can be stopped. Files without the standard DICOM marker are skipped unless you tick the option to try them. In the Windows and macOS services the **…** button is greyed out (no desktop); type the path.
+2. **What was found.** A summary from the DICOM tags: patients, studies, series, images, size, and a table per study, with warnings for non-DICOM files, files without UIDs, repeated SOP Instance UIDs, one patient ID with different names or birth dates, and a DICOMDIR that lists missing files.
+3. **Review and change details** (optional). Each patient and each study has a folded **Change … details** section: patient name, ID, birth date and sex; study description, accession number, date, time, referring physician and study ID. Values are checked and normalised, and **Check changes** reports how many fields would change without sending anything. Untick a study to leave it out.
+4. **Send to the PACS** over C-STORE as a calling AE you choose, with progress, **Stop** and a per-file list of any failure. Optionally give the studies, series and images new UIDs (references between images follow them), and decompress an image the PACS does not take in its own format.
+
+Nothing is stored. The source files are only read; edits are applied to each file as it is sent, so no edited copy is made. The scan lives in memory and is dropped when you start over or after a while idle. Operators can only scan folders an administrator lists under Configuration > Security.
+
+### Status dashboard (`/lite`)
+
+A simple page for a screen on the wall, opened with the **Status dashboard** button on the Dicom Router page (it is also where a viewer account lands). One tile per Dicom Router rule, refreshed every few seconds, built from the rule's newest run, so it needs no export folder:
+
+- A small coloured square in front of the rule name says the state: green (ok), red (the last check failed), grey (no recent check, or waiting for the first one).
+- The tile shows how many exams the last check found, per status when the rule has a **Status check key** (for example `TamarStudyStatus`), with the modalities for each status; without a key it shows one matched count.
+- Under the counts is a **history chart**: exams per day for the last **7, 14 or 30 days** (buttons in the header, remembered in the browser). A rule with a status key gets one chart per status value, so a rule that counts `PENDING FINAL` shows that status on its own. The day is the exam's study date; a dashed mark means the rule had no successful check that day, which is not the same as zero. Hover a bar for the exact number.
+
+The charts come from counts the Router keeps per study date (`route_daily.json`): counts only, no patient data, deleted after 30 days by default like the run history. There is no way to rebuild days from before this was added, so a rule that looks back several days fills its chart at its first check, and a "today" rule builds one bar per day from then on.
 
 ## Worklist
 
@@ -683,7 +596,7 @@ If the association is rejected entirely, the calling AE is not in Orthanc’s al
 
 ## JSON API
 
-Same operations as the UI. `GET /health` returns `{"status":"ok","version":"..."}`. There are no interactive API docs in a shipped build: `/docs` and `/openapi.json` are switched off, and the table below lists every endpoint. Scripts and `curl` on the same machine can call the API; a web page on another site cannot (see [SECURITY.md](SECURITY.md#protection-against-other-websites)).
+Same operations as the UI. `GET /health` returns `{"status":"ok","version":"..."}`. There are no interactive API docs in a shipped build: `/docs` and `/openapi.json` are switched off, and the table below lists every endpoint. Scripts and `curl` on the same machine can call the API; a web page on another site cannot (see [SECURITY.md](SECURITY.md#protection-against-other-websites)). The API follows the same sign-in and roles as the UI: on one computer with no account it opens without a login, and once sign-in is on a request needs the session cookie from signing in (there are no API keys), and an account may only call what its role allows.
 
 | Method | Path | Purpose |
 | --- | --- | --- |
@@ -699,9 +612,11 @@ Same operations as the UI. `GET /health` returns `{"status":"ok","version":"..."
 | POST | `/api/echo-board/run` | C-ECHO every remote |
 | GET/POST/DELETE | `/api/worklist`, `/api/worklist/{id}` | Local worklist items |
 | POST | `/api/worklist/query` | MWL query (local or remote) |
+| GET | `/lite/api/status` | The status dashboard's tiles, one per Router rule (also open to viewers) |
+| GET | `/lite/api/history?days=7` | Exams per day per rule for the charts; `days` is 7, 14 or 30 |
 | GET/POST/DELETE | `/api/hl7/messages`, `/api/hl7/messages/{id}` | Saved HL7 v2 drafts |
 
-Tool ids: `ping`, `c-echo`, `c-store`, `pdf-store`, `c-find`, `c-find-advanced`, `mwl-find`, `hl7-send`. `hl7-send` does not need `remote_id`; pass `options.host`, `options.port`, and `options.message`. `pdf-store` takes `options.patient_name`, `options.patient_id`, plus `options.pdfs` (`filename` + `content_b64`), `options.zip_b64`, or `options.directory`, and `options.send` (default true). `c-find-advanced` takes `options.level` (`STUDY`, `SERIES`, `IMAGE`), `options.values` (DICOM keywords to match), and optional `options.return_keys`. At `STUDY`, `StudyDate` is required.
+Tool ids: `ping`, `c-echo`, `c-store`, `pdf-store`, `c-find`, `c-find-advanced`, `mwl-find`, `hl7-send`, `tag-editor`. The Anonymizer, Cleaner, Import and Send Image (`anonymize`, `dicom-cleaner`, `dicom-import`, `send-image`) are registered tools too, but they are built around their pages; use the UI for those. `hl7-send` does not need `remote_id`; pass `options.host`, `options.port`, and `options.message`. `pdf-store` takes `options.patient_name`, `options.patient_id`, plus `options.pdfs` (`filename` + `content_b64`), `options.zip_b64`, or `options.directory`, and `options.send` (default true). `c-find-advanced` takes `options.level` (`STUDY`, `SERIES`, `IMAGE`), `options.values` (DICOM keywords to match), and optional `options.return_keys`. At `STUDY`, `StudyDate` is required.
 
 Run a tool as a virtual AE:
 
@@ -780,17 +695,20 @@ pip install -r requirements-dev.txt
 make test
 ```
 
-C-ECHO, C-STORE, PDF to DICOM, Study Root C-FIND (including Dicomtag Analytics at Series/Image), and MWL tests start in-process SCPs. PING uses loopback ICMP and a local TCP listener. HL7 send uses a loopback MLLP listener. Identity tests check that a virtual AE is the calling AE Title and the worklist station filter.
+C-ECHO, C-STORE, PDF to DICOM, Study Root C-FIND (including Dicomtag Analytics at Series/Image), C-MOVE (Anonymizer, Cleaner, Router, including a PACS that drops the association) and MWL tests start in-process SCPs. PING uses loopback ICMP and a local TCP listener. HL7 send uses a loopback MLLP listener. Identity tests check that a virtual AE is the calling AE Title and the worklist station filter.
 
 ## Security
 
 Full threat model, what has no protection by design, and how patient data is stored on disk: [`SECURITY.md`](SECURITY.md).
 
-This is a trusted-network admin tool. Compose publishes the UI on `127.0.0.1` only; `DICOMM_HTTP_BIND=0.0.0.0` opens it to the network, which turns on sign-in with roles, HTTPS (self-made certificate) and the audit log (create the first administrator with `--create-admin`, see [SECURITY.md](SECURITY.md)). Do not publish port 8080 to the internet without one. Do not point it at production archives unless you intend to send the test C-STORE instance (`ARNPRO^TESTBENCH`) or Encapsulated PDF documents you import. DICOM and HL7 are sent in the clear unless you terminate TLS elsewhere. HL7 send transmits whatever you paste. PDF to DICOM reads uploaded files, ZIP contents, and any workstation path you type.
+This is a trusted-network admin tool, not something to publish on the internet. In short:
 
-Whether sign-in is on or not, no website can use it. Since 0.5.1 a page open in another tab of your browser can neither drive the app (cross-site request forgery) nor read it (DNS rebinding), every page carries a strict Content-Security-Policy, and the app only answers to `localhost` and IP addresses unless you add a host name to `DICOMM_ALLOWED_HOSTS`. What the 0.5.1 security review found and fixed, and what it checked: [`SECURITY.md`](SECURITY.md#security-review-051-september-2026).
-
-The data directory is not encrypted, and `results.json` keeps the last 200 tool results — including the body of any HL7 message you sent and the worklist rows a C-FIND returned. Against real systems that means patient identifiers on disk in cleartext. See [`SECURITY.md`](SECURITY.md#patient-data-on-disk).
+- **Sign-in.** On one computer with no account the app opens without a login. It asks for a sign-in as soon as an account exists or the app can be reached from another computer (`--host 0.0.0.0`, `DICOMM_HTTP_BIND`, the installers' network option), and **always** in the Windows and macOS service editions. Accounts have a role: **viewer** (the status dashboard and the C-ECHO board), **operator** (runs the tools, limited to saved nodes and the folders an administrator lists) and **administrator** (everything, including configuration, users and the audit log). Passwords are at least 12 characters, stored only as scrypt hashes; five wrong attempts lock a name or address for five minutes; a session ends after 30 minutes idle. The first administrator is created at `/setup` on the computer itself, or with `--create-admin` (see [SECURITY.md](SECURITY.md)).
+- **HTTPS** is served automatically when the app listens beyond its own computer, with a certificate the app makes for itself; Configuration > Security shows its fingerprint and offers it for download. DICOM and HL7 to the PACS are still sent in the clear.
+- **Audit log.** Who signed in, changed or ran what, never patient data, in a chain that shows when a line was edited or removed.
+- **Patient data kept on disk is limited.** The Router history holds counts only; rows a tool fetched are emptied after 30 minutes and old history is deleted after 30 days (both adjustable under Configuration > Security). Nothing is encrypted at rest: put the data folder on an encrypted volume. The data directory can still hold patient identifiers (for example in `results.json` and in what the Anonymizer exports), see [SECURITY.md](SECURITY.md#patient-data-on-disk).
+- **Other websites cannot use it.** A page open in another tab of your browser can neither drive the app (cross-site request forgery) nor read it (DNS rebinding), every page carries a strict Content-Security-Policy, and the app only answers to `localhost` and IP addresses unless you add a host name to `DICOMM_ALLOWED_HOSTS`. What the 0.5.1 security review found and fixed: [`SECURITY.md`](SECURITY.md#security-review-051-september-2026).
+- **Be careful what you point it at.** Do not point it at production archives unless you intend to send the test C-STORE instance (`ARNPRO^TESTBENCH`) or the documents you import. The Router, Cleaner and Tag Editor move or change real studies on a real PACS. HL7 send transmits whatever you paste. PDF to DICOM reads uploaded files, ZIP contents and, for an administrator, any path on the computer.
 
 ## Troubleshooting
 
@@ -804,6 +722,9 @@ The data directory is not encrypted, and `results.json` keeps the last 200 tool 
 | List SR reports returns zero series | Those studies have no series with modality SR, or Vue omitted Modality on Series C-FIND. |
 | Retrieve report text returns one report from a long list | Vue accepted one C-MOVE per association. Retrieve now opens a new association per report. The buttons show the row count; the summary is Retrieved N of M. Clicking a result row does not limit retrieve to that exam. |
 | Retrieve report text: Move Destination unknown | Vue does not list this Local AE Title as a C-MOVE destination. Enable Accept C-STORE on Local DICOM AE and register that AE at this host:port. |
+| Anonymizer or Cleaner: some series are missing, and the run says Fail | The PACS closed the association or refused those series. The C-MOVE step lists every series with how many images came back and the reason (for example `C-MOVE status 0xC000`, or no response). A dropped association is retried once on its own; if a series still comes back empty, check the PACS log, and that this Local AE is registered as a C-MOVE destination. |
+| Anonymizer, Import or PDF to DICOM: the **…** / Browse button is greyed out | The app runs as a background service (Windows or macOS) with no desktop, so it cannot open a folder dialog. Type the path of a folder on the computer the app runs on. The service account must be allowed to read it (and, for the Anonymizer, write to the output folder). |
+| Searching Patient ID with `%123%` or `*123*` finds nothing | The query is sent to the PACS as `*123*`. Whether the PACS treats that as "contains" is up to the PACS; try `123*` and `*123`, and check the PACS's own query rules. |
 | C-ECHO / C-STORE / Q/R work, MWL fails | Peer does not offer Modality Worklist FIND. Enable the worklist plugin (Orthanc) or query a RIS. |
 | Worklist and MWL C-FIND look the same | They are the same SOP Class. Use Testbench Study Root C-FIND to search stored studies. |
 | Empty MWL / C-FIND table but Pass | The SOP Class was accepted and the query succeeded with zero matches. Check station AE, date, and **Present as**. |
