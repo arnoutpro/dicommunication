@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "partials/fields.html" import field, tip %}
 {% block title %}{{ tool.name }} · Dicommunication{% endblock %}
 {% block content %}
 <header class="page-head">
@@ -18,18 +19,17 @@
       <h2 class="step-title"><span class="step-num" aria-hidden="true">1</span>Connect</h2>
       <span class="muted">Calling AE {{ config.local.ae_title }}</span>
     </header>
-    <div class="form-grid">
-      <label>
-        Remote node
-        <select name="remote_id" required>
-          {% for remote in config.remotes %}
-          <option value="{{ remote.id }}" {% if remote.id == remote_id %}selected{% endif %}>
-            {{ remote.name }} — {{ remote.ae_title }} @ {{ remote.connect_host }}:{{ remote.port }}
-          </option>
-          {% endfor %}
-        </select>
-      </label>
-      {% include "partials/identity_select.html" %}
+    <div class="fields">
+      {% call field("Remote node", "te-remote", required=True) %}
+      <select id="te-remote" class="w-lg" name="remote_id" required>
+        {% for remote in config.remotes %}
+        <option value="{{ remote.id }}" {% if remote.id == remote_id %}selected{% endif %}>
+          {{ remote.name }} — {{ remote.ae_title }} @ {{ remote.connect_host }}:{{ remote.port }}
+        </option>
+        {% endfor %}
+      </select>
+      {% endcall %}
+      {% include "partials/identity_field.html" %}
     </div>
   </section>
 
@@ -37,31 +37,23 @@
     <header class="panel-head">
       <h2 class="step-title"><span class="step-num" aria-hidden="true">2</span>Find the study</h2>
     </header>
-    <div class="form-grid">
-      <label>
-        Accession Number
-        <input type="text" name="accession_number" value="{{ accession_number|default('') }}" placeholder="7205719954">
-      </label>
-      <label>
-        Study Date
-        <input type="date" name="study_date" value="{{ study_date|default('') }}">
-      </label>
-    </div>
-    <div class="form-actions">
-      <button class="button" type="submit" name="action" value="lookup">Find Study Instance UID</button>
-      <span class="hint">Needs both fields. A C-FIND only, so Accept C-STORE doesn't have to be on.</span>
-    </div>
-    <div class="form-grid">
-      <label>
-        Study Instance UID
-        <input type="text" name="study_uid" id="tag-editor-study-uid" value="{{ study_uid|default('') }}" placeholder="1.2.840..." spellcheck="false">
-        <span class="hint">Filled in by Find, or paste one.</span>
-      </label>
-      <label>
-        Series Instance UID
-        <input type="text" name="series_uid" value="{{ series_uid|default('') }}" placeholder="1.2.840..." spellcheck="false">
-        <span class="hint">Optional. Leave empty for the whole study.</span>
-      </label>
+    <div class="fields">
+      {% call field("Accession Number", "te-acc") %}
+      <input id="te-acc" class="w-md" type="text" name="accession_number" value="{{ accession_number|default('') }}" placeholder="7205719954">
+      {% endcall %}
+      {% call field("Study Date", "te-date") %}
+      <input id="te-date" class="w-sm" type="date" name="study_date" value="{{ study_date|default('') }}">
+      {% endcall %}
+      <div class="fld"><span class="fld-label"></span><div class="fld-control">
+        <button class="button" type="submit" name="action" value="lookup">Find Study Instance UID</button>
+        {{ tip("Needs both fields. A C-FIND only, so Accept C-STORE doesn't have to be on.") }}
+      </div></div>
+      {% call field("Study Instance UID", "tag-editor-study-uid", "Filled in by Find, or paste one.") %}
+      <input type="text" name="study_uid" id="tag-editor-study-uid" class="w-lg" value="{{ study_uid|default('') }}" placeholder="1.2.840..." spellcheck="false">
+      {% endcall %}
+      {% call field("Series Instance UID", "te-series", "Optional. Leave empty for the whole study.") %}
+      <input id="te-series" class="w-lg" type="text" name="series_uid" value="{{ series_uid|default('') }}" placeholder="1.2.840..." spellcheck="false">
+      {% endcall %}
     </div>
   </section>
 
@@ -76,7 +68,7 @@
               hx-target="#result" hx-indicator="#busy">
         Fetch current values
       </button>
-      <span class="hint">C-MOVEs the study here and shows both tags for every instance. Nothing is changed.</span>
+      {{ tip("C-MOVEs the study here and shows both tags for every instance. Nothing is changed.") }}
     </div>
   </section>
 
@@ -84,15 +76,13 @@
     <header class="panel-head">
       <h2 class="step-title"><span class="step-num" aria-hidden="true">4</span>Push new values</h2>
     </header>
-    <div class="form-grid">
-      <label>
-        Tamar Report Final Sign Timestamp
-        <input type="datetime-local" name="final_sign_timestamp" step="1" value="{{ final_sign_timestamp|default('') }}">
-      </label>
-      <label>
-        Tamar Report Study Last Composed By
-        <input type="text" name="last_composed_by" maxlength="64" value="{{ last_composed_by|default('') }}" placeholder="187890@24">
-      </label>
+    <div class="fields">
+      {% call field("Final Sign Timestamp", "te-sign", "Tamar Report Final Sign Timestamp.") %}
+      <input id="te-sign" class="w-md" type="datetime-local" name="final_sign_timestamp" step="1" value="{{ final_sign_timestamp|default('') }}">
+      {% endcall %}
+      {% call field("Last Composed By", "te-composed", "Tamar Report Study Last Composed By.") %}
+      <input id="te-composed" class="w-md" type="text" name="last_composed_by" maxlength="64" value="{{ last_composed_by|default('') }}" placeholder="187890@24">
+      {% endcall %}
     </div>
     <ul class="push-notes">
       <li>Push changes <strong>every instance retrieved</strong>: the whole study, or one series if you gave a Series Instance UID. Vue keeps both tags on every instance.</li>
