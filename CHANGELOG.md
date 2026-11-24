@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+### Status dashboard (/lite)
+
+- **History charts.** Each tile now has a bar chart of exams per day for the last 7, 14 or 30 days (buttons in the header; the choice is remembered in the browser). A rule with a status key shows the bars stacked by status with a legend; a rule without one shows a single bar. The day is the exam's study date, so it also works for rules that look back several days. A dashed mark means the rule had no check for that day, which is not the same as zero. Hover a bar for the exact numbers.
+- **Where the numbers come from.** Every finished check now also records how many studies it saw per study date (and per status). The latest count for each day is kept in a new `route_daily.json` next to the run history. It holds counts only, no patient data, and it is kept past the 500-run limit (at a 15-minute interval that limit is only about five days). It follows the "Delete run history after" setting under Security, and a deleted rule takes its days with it.
+- **History starts now.** There is no way to rebuild days from before this version. A rule that looks back several days fills its chart at the first check; a "today" rule builds one bar per day from now on.
+
 ## 0.14.0
 
 ### Look and feel (a flat, dense style)

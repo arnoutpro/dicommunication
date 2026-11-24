@@ -374,6 +374,17 @@ def _forward(local: LocalAE, destination: RemoteNode, datasets: list[Dataset]) -
     return stored, error
 
 
+def _iso_date(value: str) -> str:
+    """DICOM YYYYMMDD (or already YYYY-MM-DD) as YYYY-MM-DD; "" when it is not a date."""
+    text = (value or "").strip()
+    for fmt in ("%Y%m%d", "%Y-%m-%d"):
+        try:
+            return datetime.strptime(text, fmt).strftime("%Y-%m-%d")
+        except ValueError:
+            continue
+    return ""
+
+
 class RouterScheduler:
     def __init__(self, store: ConfigStore, storage_scp: WorklistSCP) -> None:
         self.store = store
@@ -530,6 +541,7 @@ class RouterScheduler:
         run = RouteRun(rule_id=rule.id, rule_name=rule.name, started_at=now)
         status_counts: dict[str, int] = {}
         modality_counts: dict[str, dict[str, int]] = {}
+        day_counts: dict[str, dict[str, int]] = {}
         run.query_sent, run.skipped_keys = query_summary(rule)
         interrupted = bool(interrupt is not None and interrupt.is_set())
 
@@ -565,6 +577,10 @@ class RouterScheduler:
                     bucket[kind] = bucket.get(kind, 0) + 1
                     if rule.status_key:
                         status_counts[study["status"]] = status_counts.get(study["status"], 0) + 1
+                    day = _iso_date(study["study_date"])
+                    if day:
+                        per_status = day_counts.setdefault(day, {})
+                        per_status[study["status"]] = per_status.get(study["status"], 0) + 1
                 new_studies = [s for s in studies if not rule.has_seen(s["study_instance_uid"])]
 
                 destinations = [
@@ -613,6 +629,7 @@ class RouterScheduler:
 
         run.duration_ms = (time.perf_counter() - started) * 1000
         run.status_counts = dict(sorted(status_counts.items()))
+        run.day_counts = {day: dict(sorted(counts.items())) for day, counts in sorted(day_counts.items())}
         run.modality_counts = {label: dict(sorted(kinds.items())) for label, kinds in sorted(modality_counts.items())}
         if rule.export_dir and rule.status_key and run.status != "interrupted":
             write_status_snapshot(rule, run, now, status_counts)

@@ -700,3 +700,36 @@ def test_multivalued_modality_is_joined_and_no_status_key_means_no_status_counts
         assert run.modality_counts == {"": {"DX+SR": 1}}
     finally:
         server.shutdown()
+
+
+def test_run_rule_counts_studies_per_study_date_and_keeps_the_days(store: ConfigStore) -> None:
+    port = _free_port()
+
+    def handle_find(event):
+        for uid, day, status in (("1.1", "20260310", "UNREAD"), ("1.2", "20260310", "UNREAD"), ("1.3", "20260311", "INCOMPLETE")):
+            ds = _study_ds(uid)
+            ds.StudyDate = day
+            block = ds.private_block(0x07A1, "ELSCINT1", create=True)
+            block.add_new(0x2A, "CS", status)
+            yield 0xFF00, ds
+        yield 0x0000, None
+
+    scp = AE(ae_title="QR_SCP")
+    scp.add_supported_context(StudyRootQueryRetrieveInformationModelFind)
+    server = scp.start_server(("127.0.0.1", port), block=False, evt_handlers=[(evt.EVT_C_FIND, handle_find)])
+    try:
+        time.sleep(0.05)
+        remote = store.add_remote(RemoteNode(name="pacs", ae_title="QR_SCP", host="127.0.0.1", port=port)).remotes[-1]
+        rule = store.add_route_rule(
+            RouteRule(name="Open Exams", source_remote_id=remote.id, date_scope="all", status_key="TamarStudyStatus")
+        )
+        scheduler = RouterScheduler(store, WorklistSCP(store))
+        run = scheduler.run_rule(rule, now=datetime(2026, 3, 11, 12, 0, tzinfo=timezone.utc))
+        assert run.ok
+        assert run.day_counts == {"2026-03-10": {"UNREAD": 2}, "2026-03-11": {"INCOMPLETE": 1}}
+        assert store.route_daily(rule.id) == run.day_counts
+        # Counts only: no patient fields in the daily file.
+        raw = store.route_daily_path.read_text()
+        assert "DOE" not in raw and "1001" not in raw and "ACC1" not in raw
+    finally:
+        server.shutdown()
