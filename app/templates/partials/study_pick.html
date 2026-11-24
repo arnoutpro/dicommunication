@@ -31,6 +31,17 @@
           <td>{{ value }}</td>
           {% endfor %}
         </tr>
+        {% if series_url %}
+        <tr class="series-row">
+          <td class="pick-col"></td>
+          <td colspan="{{ result.records[0] | length }}">
+            <details class="series-details">
+              <summary hx-post="{{ series_url }}" hx-trigger="click once" hx-target="next .series-body" hx-swap="innerHTML" hx-vals='{{ {"series_study": row.StudyInstanceUID} | tojson }}'>Show series</summary>
+              <div class="series-body"><span class="muted small">Loading…</span></div>
+            </details>
+          </td>
+        </tr>
+        {% endif %}
         {% endfor %}
       </tbody>
     </table>
@@ -40,7 +51,7 @@
 {% from "partials/fields.html" import tip %}
 <div class="fields">
   <div class="fld">
-    <span class="fld-label">{{ level_legend }}{{ tip("Series and Image take every series or image in the checked studies; there is no per-series picker yet.") }}</span>
+    <span class="fld-label">{{ level_legend }}{{ tip("Series and Image take every series or image in the checked studies." ~ (" Open 'Show series' under a study to tick only the series you want." if series_url else " There is no per-series picker here.")) }}</span>
     <div class="fld-control">
       <div class="find-level-tabs plain-radios" role="radiogroup" aria-label="Level">
         {% for value, label in [("STUDY", "Study"), ("SERIES", "Series"), ("IMAGE", "Image")] %}

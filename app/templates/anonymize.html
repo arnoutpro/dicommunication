@@ -31,6 +31,7 @@
       <h2 class="step-title"><span class="step-num" aria-hidden="true">2</span>Choose studies</h2>
     </header>
     {% set level_legend = "Anonymize at" %}
+    {% set series_url = href('/tools/anonymize/series') %}
     {% include "partials/study_pick.html" %}
   </section>
 
@@ -123,6 +124,21 @@
         Browse…
       </button>
       {% endcall %}
+      <div class="fld">
+        <span class="fld-label">Folder layout{{ tip("A subfolder for each study with a subfolder for each series inside it, or every image file directly in the export folder.") }}</span>
+        <div class="fld-control">
+          <div class="find-level-tabs plain-radios" role="radiogroup" aria-label="Folder layout">
+            <label class="find-level-tab">
+              <input type="radio" name="layout" value="series" checked>
+              <span>Subfolder per series</span>
+            </label>
+            <label class="find-level-tab">
+              <input type="radio" name="layout" value="flat">
+              <span>All files in one folder</span>
+            </label>
+          </div>
+        </div>
+      </div>
       {% call field("Archive", "anon-archive", "No archive writes loose files into a new subfolder.") %}
       <select id="anon-archive" class="w-md" name="archive">
         <option value="none">No archive</option>
