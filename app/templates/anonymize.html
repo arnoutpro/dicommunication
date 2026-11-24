@@ -140,6 +140,21 @@
           </div>
         </div>
       </div>
+      <div class="fld" data-series-names-row>
+        <span class="fld-label">Series folder name{{ tip("The description comes from the original series and is not anonymized, so it can contain identifying text. Series without a description are named by number and modality. Two series that would share a name get the series number added.") }}</span>
+        <div class="fld-control">
+          <div class="find-level-tabs plain-radios" role="radiogroup" aria-label="Series folder name">
+            <label class="find-level-tab">
+              <input type="radio" name="series_names" value="number" checked>
+              <span>Number and modality</span>
+            </label>
+            <label class="find-level-tab">
+              <input type="radio" name="series_names" value="description">
+              <span>Series description</span>
+            </label>
+          </div>
+        </div>
+      </div>
       {% call field("Archive", "anon-archive", "No archive writes loose files into a new subfolder.") %}
       <select id="anon-archive" class="w-md" name="archive">
         <option value="none">No archive</option>

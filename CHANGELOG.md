@@ -4,6 +4,8 @@
 
 ### Dicom Anonymizer
 
+- **Series folders can be named by the series description.** A new choice in the Export step, *Series folder name*, shown when the layout is "Subfolder per series": *Number and modality* (the default, `series-2-CT`) or *Series description* (for example `TLC Inspiratory 0,6`). The description is taken from the original series, so it works in every anonymization mode, including those that remove it from the files. Characters Windows does not allow in a folder name become `_`, a name is cut at 80 characters, a series without a description falls back to number and modality, and two series with the same name get the series number (or the UID tail) added. Note that the description is not anonymized and can contain identifying text, which is why the default stays number and modality.
+
 - **Fixed: the Browse button did nothing in the service editions.** The folder dialog opens on the computer that runs the app. The Windows service (and the macOS launchd service) has no desktop, so the dialog could never appear and the button just seemed dead. The services now report "no folder dialog" (the button is greyed and a line says to type the path), and when a dialog fails or is cancelled the page says so instead of staying silent. This applies to the other folder buttons too (PDF to DICOM, Dicom Import).
 - The Output folder has a tooltip: it is a folder on the computer the app runs on, and the app's own account must be allowed to write there.
 
