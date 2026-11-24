@@ -162,7 +162,8 @@ KEYS: tuple[FindKey, ...] = (
         "patient",
         "STUDY",
         role="unique",
-        placeholder="1001",
+        placeholder="1001 or *123*",
+        hint="Exact, or with wildcards: * is any characters, ? is one character. *123* finds every ID that contains 123; % works like *.",
     ),
     _key(
         "PatientBirthDate",
@@ -1302,6 +1303,10 @@ def normalize_tm(value: str) -> str:
     return text.replace(":", "")
 
 
+# Text value representations where DICOM wildcard matching (* and ?) applies.
+WILDCARD_TEXT_VRS = ("LO", "SH", "PN", "ST", "LT", "UT", "AE", "CS")
+
+
 def normalize_value(keyword: str, value: str) -> str:
     key = lookup_key(keyword)
     text = (value or "").strip()
@@ -1312,7 +1317,11 @@ def normalize_value(keyword: str, value: str) -> str:
     if key.vr == "TM":
         return normalize_tm(text)
     if key.vr in ("CS", "AS"):
-        return text.upper()
+        text = text.upper()
+    if key.vr in WILDCARD_TEXT_VRS:
+        # Vue's own search boxes use % as the wildcard (%123% = contains 123). DICOM uses *, and
+        # a % sent as it is would be matched literally, so it is turned into * for the query.
+        text = text.replace("%", "*")
     return text
 
 

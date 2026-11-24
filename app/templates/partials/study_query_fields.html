@@ -17,7 +17,7 @@
 {% call field("Study Date", "query-date", required=True) %}
 <input id="query-date" class="w-sm" type="date" name="study_date" value="{{ query.study_date or '' }}" required>
 {% endcall %}
-{% call field("Patient ID", "query-patient") %}
+{% call field("Patient ID", "query-patient", "Exact, or use * as a wildcard: *123* finds every ID that contains 123 (% works too, as in Vue).") %}
 <input id="query-patient" class="w-md" type="text" name="patient_id" value="{{ query.patient_id or '' }}" placeholder="12345">
 {% endcall %}
 {% call field("Accession Number", "query-accession") %}
