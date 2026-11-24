@@ -35,7 +35,49 @@ Open [http://127.0.0.1:8080](http://127.0.0.1:8080).
 
 ## Screenshots
 
-Screenshots of the new flat design (0.14) are being retaken and will be added here. The earlier ones were removed because they show the old look.
+The screenshots follow your GitHub theme (light or dark). They come from a demo setup with made-up nodes and patient names, not clinical data. All pages, in both themes, are in [docs/screenshots/0.14](docs/screenshots/0.14).
+
+**Dashboard: this workstation, its remote nodes and their last C-ECHO**
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/0.14/dark/dashboard.png">
+  <img alt="Dashboard: this workstation, its remote nodes and their last C-ECHO" src="docs/screenshots/0.14/light/dashboard.png">
+</picture>
+
+**Dicomtag Analytics: query a PACS on any DICOM tag**
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/0.14/dark/c-find-advanced.png">
+  <img alt="Dicomtag Analytics: query a PACS on any DICOM tag" src="docs/screenshots/0.14/light/c-find-advanced.png">
+</picture>
+
+**Dicom Anonymizer**
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/0.14/dark/anonymize.png">
+  <img alt="Dicom Anonymizer" src="docs/screenshots/0.14/light/anonymize.png">
+</picture>
+
+**Dicom Router: route rules**
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/0.14/dark/router.png">
+  <img alt="Dicom Router: route rules" src="docs/screenshots/0.14/light/router.png">
+</picture>
+
+**Send Image to PACS**
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/0.14/dark/send-image.png">
+  <img alt="Send Image to PACS" src="docs/screenshots/0.14/light/send-image.png">
+</picture>
+
+**Worklist: query a DMWL or serve a local worklist**
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/0.14/dark/worklist.png">
+  <img alt="Worklist: query a DMWL or serve a local worklist" src="docs/screenshots/0.14/light/worklist.png">
+</picture>
 
 ## What's new in 0.14
 
