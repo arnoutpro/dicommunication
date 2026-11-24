@@ -32,20 +32,21 @@
     var every = total <= 14 ? 2 : 5;
     return (total - 1 - index) % every === 0 ? [String(d.getDate()), String(d.getMonth() + 1)].join("/") : "";
   }
-  function chart(h) {
+  function statusName(st) { return st === "(none)" ? "No status returned" : st; }
+  // One chart: a bar per day of `values` (null = no data that day), in one colour.
+  function chart(h, title, values, colour) {
     var box = el("div", "chart");
-    box.appendChild(el("div", "chart-title", "Exams per day, last " + history.days.length + " days"));
     var n = history.days.length;
-    var observed = h.totals.filter(function (v) { return v !== null; });
+    box.appendChild(el("div", "chart-title", title + ", last " + n + " days"));
+    var observed = values.filter(function (v) { return v !== null; });
     if (!observed.length) {
       box.appendChild(el("div", "msg mute", "No history yet. It builds up as the rule runs."));
       return box;
     }
-    var statuses = Object.keys(h.series);
     var W = 240, H = 110, left = 22, top = 12, bottom = 24;
     var plotH = H - top - bottom, plotW = W - left;
     var max = niceMax(Math.max.apply(null, observed));
-    var s = svg("svg", { viewBox: "0 0 " + W + " " + H, role: "img", "aria-label": "Exams per day for " + h.rule_name });
+    var s = svg("svg", { viewBox: "0 0 " + W + " " + H, role: "img", "aria-label": title + " for " + h.rule_name });
     [0, max].forEach(function (g) {
       var y = top + plotH - (g / max) * plotH;
       s.appendChild(svg("line", { class: "axis", x1: left, x2: W, y1: y, y2: y }));
@@ -54,23 +55,17 @@
     var slot = plotW / n, bw = Math.max(2, slot * 0.7);
     history.days.forEach(function (day, i) {
       var x = left + i * slot + (slot - bw) / 2;
-      var total = h.totals[i];
+      var v = values[i];
       var group = svg("g", {});
-      if (total === null) {
+      if (v === null) {
         group.appendChild(svg("line", { class: "none", x1: x, x2: x + bw, y1: top + plotH - 1, y2: top + plotH - 1 }));
         group.appendChild(svg("title", {}, day + ": no data"));
       } else {
-        var base = top + plotH;
-        statuses.forEach(function (st, k) {
-          var v = h.series[st][i] || 0;
-          if (!v) return;
-          var bh = (v / max) * plotH;
-          base -= bh;
-          group.appendChild(svg("rect", { class: "c" + (k % 6), x: x, y: base, width: bw, height: bh }));
-        });
-        var parts = statuses.filter(function (st) { return h.series[st][i]; }).map(function (st) { return (st === "(none)" ? "No status returned" : st) + " " + h.series[st][i]; });
-        group.appendChild(svg("title", {}, day + ": " + total + (h.keyed && parts.length ? " (" + parts.join(", ") + ")" : "")));
-        if (n <= 14) group.appendChild(svg("text", { class: "val", x: x + bw / 2, y: base - 2, "text-anchor": "middle" }, String(total)));
+        var bh = (v / max) * plotH;
+        var y = top + plotH - bh;
+        if (v) group.appendChild(svg("rect", { class: "c" + (colour % 6), x: x, y: y, width: bw, height: bh }));
+        group.appendChild(svg("title", {}, day + ": " + v));
+        if (n <= 14) group.appendChild(svg("text", { class: "val", x: x + bw / 2, y: y - 2, "text-anchor": "middle" }, String(v)));
       }
       s.appendChild(group);
       var label = dayLabel(day, i, n);
@@ -82,27 +77,22 @@
       }
     });
     box.appendChild(s);
-    if (h.keyed && statuses.length > 1) {
-      var legend = el("div", "legend");
-      statuses.forEach(function (st, k) {
-        var item = el("span", "");
-        var dot = el("i", "c" + (k % 6));
-        item.appendChild(dot);
-        item.appendChild(document.createTextNode(st === "(none)" ? "No status returned" : st));
-        legend.appendChild(item);
-      });
-      box.appendChild(legend);
-    }
     return box;
   }
-  function chartFor(x) {
+  // A rule without a status key gets one chart; a rule with one gets a chart per status value.
+  function charts(h) {
+    if (!h.keyed) return [chart(h, "Exams per day", h.totals, 0)];
+    var statuses = Object.keys(h.series);
+    if (!statuses.length) return [chart(h, "Exams per day", h.totals, 0)];
+    return statuses.map(function (st, k) { return chart(h, statusName(st) + " · exams per day", h.series[st], k); });
+  }
+  function chartsFor(x) {
     var h = history.rules.filter(function (r) { return r.rule_id === x.rule_id; })[0];
-    return h ? chart(h) : null;
+    return h ? charts(h) : [];
   }
   function tile(x) {
     var t = tileBody(x);
-    var c = chartFor(x);
-    if (c) t.appendChild(c);
+    chartsFor(x).forEach(function (c) { t.appendChild(c); });
     return t;
   }
   function tileBody(x) {
