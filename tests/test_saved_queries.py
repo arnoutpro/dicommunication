@@ -111,7 +111,7 @@ def test_save_lists_in_sidebar_and_reopens_filled_in(client, store, pacs) -> Non
     assert f'href="/tools/c-find-advanced?saved={query.id}" class="active"' in page
     assert '<h2>Weekly CT</h2>' in page
     assert 'data-saved-date-preset="7"' in page
-    assert 'name="key_ModalitiesInStudy"\n          value="CT"' in page
+    assert re.search(r'name="key_ModalitiesInStudy"\s+value="CT"', page)  # the saved value is filled in, whatever the indentation
     assert re.search(r'name="include"\s+value="StudyDate"\s+checked', page)
     # Not a default return key, not saved: left unchecked.
     assert not re.search(r'name="include"\s+value="StudyInstanceUID"\s+checked', page)
