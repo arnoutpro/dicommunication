@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+### Dicom Anonymizer
+
+- **See and pick the series.** Under each study in step 2 there is now "Show series". It lists that study's series (number, modality, description, images), all ticked; untick what to leave out and only the ticked series are retrieved and anonymized, one C-MOVE per series. A study whose series were never opened is handled as before (Study level moves the whole study; Series and Image take every series or image).
+- **Folder layout.** A new choice in the Export step: *Subfolder per series* (the default: a folder per study with a folder per series inside, as before) or *All files in one folder* (every image file directly in the export folder). Series folders are now named `series-3-CT` (series number and modality, neither of which identifies a patient; the Series UID tail is added when a number is missing or two series would share a name) instead of the long UID. File and study folder names still come from the anonymized UIDs only, never the original ones.
+
 ### Dicomtag Analytics
 
 - **Remote and Present as** are now two rows in the same label column as Report text and Level, instead of two boxes side by side. The old two-column setup styles are removed. Field names and the query are unchanged.

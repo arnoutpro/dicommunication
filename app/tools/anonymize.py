@@ -218,6 +218,11 @@ def _browse(
                 pass
 
 
+def list_series(local: LocalAE, remote: RemoteNode, study_uid: str):
+    """Every series of one study, for the series picker under a study row."""
+    return _browse(local, remote, [study_uid], "SERIES")
+
+
 def _move_identifier(entity: dict[str, Any]) -> Dataset:
     identifier = Dataset()
     study_uid = str(entity.get("study_uid") or entity.get("StudyInstanceUID") or "")
@@ -295,14 +300,53 @@ def _safe_uid_component(value: str) -> str:
     return "".join(ch if (ch.isalnum() or ch == ".") else "_" for ch in str(value)) or "unknown"
 
 
-def _write_anonymized(datasets: list[Dataset], staging: Path) -> list[Path]:
-    written: list[Path] = []
+LAYOUTS = ("series", "flat")
+
+
+def _series_folder_names(datasets: list[Dataset]) -> dict[tuple[str, str], str]:
+    """A readable folder name per (study, series): ``series-3-CT``. Built from the series
+    number and modality (neither identifies a patient); a missing number, or two series
+    that would share a name, get the tail of their (anonymized) Series UID added."""
+    found: dict[tuple[str, str], tuple[str, str]] = {}
     for dataset in datasets:
-        study_dir = staging / _safe_uid_component(getattr(dataset, "StudyInstanceUID", "study"))
-        series_dir = study_dir / _safe_uid_component(getattr(dataset, "SeriesInstanceUID", "series"))
-        series_dir.mkdir(parents=True, exist_ok=True)
+        key = (str(getattr(dataset, "StudyInstanceUID", "study")), str(getattr(dataset, "SeriesInstanceUID", "series")))
+        if key not in found:
+            number = getattr(dataset, "SeriesNumber", None)
+            found[key] = ("" if number in (None, "") else str(number), str(getattr(dataset, "Modality", "") or ""))
+    names: dict[tuple[str, str], str] = {}
+    taken: dict[str, int] = {}
+    for key, (number, modality) in found.items():
+        base = "series" + (f"-{number}" if number else "") + (f"-{_safe_uid_component(modality)}" if modality else "")
+        taken[(key[0], base)] = taken.get((key[0], base), 0) + 1
+    for key, (number, modality) in found.items():
+        base = "series" + (f"-{number}" if number else "") + (f"-{_safe_uid_component(modality)}" if modality else "")
+        if not number or taken[(key[0], base)] > 1:
+            base = f"{base}-{_safe_uid_component(key[1])[-6:]}"
+        names[key] = base
+    return names
+
+
+def _write_anonymized(datasets: list[Dataset], staging: Path, layout: str = "series") -> list[Path]:
+    """Write the files. ``series``: one folder per study, a folder per series inside it.
+    ``flat``: every file directly in the export folder. Names come from anonymized UIDs only."""
+    written: list[Path] = []
+    names = _series_folder_names(datasets) if layout != "flat" else {}
+    used: set[Path] = set()
+    for dataset in datasets:
+        study_uid = str(getattr(dataset, "StudyInstanceUID", "study"))
+        series_uid = str(getattr(dataset, "SeriesInstanceUID", "series"))
+        if layout == "flat":
+            folder = staging
+        else:
+            folder = staging / _safe_uid_component(study_uid) / names[(study_uid, series_uid)]
+        folder.mkdir(parents=True, exist_ok=True)
         sop_uid = _safe_uid_component(getattr(dataset, "SOPInstanceUID", f"instance-{len(written)}"))
-        path = series_dir / f"{sop_uid}.dcm"
+        path = folder / f"{sop_uid}.dcm"
+        counter = 2
+        while path in used:
+            path = folder / f"{sop_uid}-{counter}.dcm"
+            counter += 1
+        used.add(path)
         dataset.save_as(path, enforce_file_format=True)
         written.append(path)
     return written
@@ -403,7 +447,11 @@ class AnonymizeTool(BaseTool):
             )
 
         browse_step: ToolStep | None = None
-        if level != "STUDY":
+        # Series the operator ticked under a study are retrieved as they are; the other
+        # studies are walked down to their series or images when the level asks for it.
+        picked_series = [item for item in entities if item.get("series_uid")]
+        entities = [item for item in entities if not item.get("series_uid")]
+        if level != "STUDY" and entities:
             study_uids = [str(item.get("study_uid") or "") for item in entities]
             study_uids = [uid for uid in study_uids if uid]
             browse_started = time.perf_counter()
@@ -426,7 +474,7 @@ class AnonymizeTool(BaseTool):
                 + " across the selected studies.",
                 duration_ms=elapsed_ms(browse_started),
             )
-        entities = entities[:MAX_ENTITIES_PER_RUN]
+        entities = (picked_series + entities)[:MAX_ENTITIES_PER_RUN]
 
         mode = str(options.get("mode") or "").strip()
         if mode not in MODES:
@@ -466,6 +514,9 @@ class AnonymizeTool(BaseTool):
         archive = str(options.get("archive") or "none").strip()
         if archive not in ("none", "zip"):
             archive = "none"
+        layout = str(options.get("layout") or "series").strip()
+        if layout not in LAYOUTS:
+            layout = "series"
 
         dest_ae = str(options.get("_listen_ae") or local.ae_title).strip() or local.ae_title
         storage_enabled = bool(
@@ -543,7 +594,7 @@ class AnonymizeTool(BaseTool):
             write_started = time.perf_counter()
             staging = Path(tempfile.mkdtemp(prefix="dicomm-anon-"))
             try:
-                written = _write_anonymized(anonymized, staging)
+                written = _write_anonymized(anonymized, staging, layout)
                 final_path = _archive(staging, output_dir, archive)
             except Exception as exc:  # noqa: BLE001
                 shutil.rmtree(staging, ignore_errors=True)
