@@ -240,7 +240,7 @@ It **does not**:
 
 - Implement C-GET, or C-MOVE of imaging series (only SR series used for report text)
 - Store a real archive of clinical images
-- Speak DICOM TLS, or authenticate the web UI
+- Speak DICOM TLS (DICOM and HL7 traffic to the PACS is not encrypted)
 - Parse, validate, or map HL7 fields — paste a message and send it
 
 A successful C-ECHO only proves Verification. Orthanc (or any PACS) can accept C-ECHO and still reject Storage, Query/Retrieve, or Modality Worklist. That difference is the point of the Testbench.
@@ -304,7 +304,7 @@ Compose publishes:
 | `8080` | Web UI and JSON API | `127.0.0.1` — this machine only | `DICOMM_HTTP_BIND` |
 | `11112` | Optional local MWL SCP (only listens if you enable it in Configuration) | every interface, so a modality can C-FIND this workstation | `DICOMM_DICOM_BIND` |
 
-The UI has no login, so it is kept on loopback. To reach it from another machine, put an authenticating reverse proxy in front and publish it deliberately:
+With no account yet the UI has no login, so it is kept on loopback. To reach it from another machine, publish it deliberately. That turns on sign-in (the first administrator is created from the container, see [SECURITY.md](SECURITY.md)) and HTTPS:
 
 ```bash
 DICOMM_HTTP_BIND=0.0.0.0 docker compose up -d
@@ -322,9 +322,9 @@ Startup names the address the UI was published on, so `docker compose logs` answ
 
 ```
 Dicommunication 0.3.0 started (data dir /app/data, log level INFO)
-Web UI published on 127.0.0.1:8080 — reachable from the Docker host only. The UI has
-no login, so this is the default. To reach it from another machine, restart with
-DICOMM_HTTP_BIND=0.0.0.0 and put an authenticating reverse proxy in front of it.
+Web UI published on 127.0.0.1:8080 — reachable from the Docker host only. This is the
+default. To reach it from another machine, restart with DICOMM_HTTP_BIND=0.0.0.0
+(that turns on sign-in and HTTPS).
 ```
 
 It also sets `host.docker.internal` so a PACS on the Docker host (typical on a Mac) is reachable from inside the container.
@@ -349,7 +349,7 @@ docker run --rm \
   ghcr.io/arnoutpro/dicommunication:latest
 ```
 
-`-p 127.0.0.1:8080:8080` keeps the login-less UI on this machine. Drop the `127.0.0.1:` only behind an authenticating reverse proxy.
+`-p 127.0.0.1:8080:8080` keeps the UI on this machine, where it opens without a login until you create the first user. Drop the `127.0.0.1:` only when you want it reachable from the network; set `DICOMM_HTTP_BIND=0.0.0.0` as well so sign-in and HTTPS are on, and put it behind your own proxy or firewall if it is exposed beyond a trusted network.
 
 ### Update
 
@@ -587,7 +587,7 @@ The cleaned instances are then C-STOREd back out, by default to the same PACS th
 
 Four steps: choose the PDFs, the patient, the study and document, and where to send them. PDFs come from one source at a time: files, a ZIP, a browser folder, or a directory path on this workstation (**…** opens a native folder dialog on this machine; **Scan** lists PDF files only). Each PDF is wrapped as Encapsulated PDF Storage. **Stored as (Modality)** sets its Modality tag: `DOC` (the DICOM code for documents, the default), `SR` or `OT`, or any other code of up to 16 capital letters, digits, spaces or underscores, for a PACS that files or lists documents by modality. Only the tag changes; it is still an Encapsulated PDF. **Generate** next to Patient Name or Patient ID fills that field; next to Accession Number, Study Description or Document Title it has one made per study (or per PDF, for the title). A typed value goes on every PDF as it is. **One patient per PDF** derives identities from file names so a directory of reports does not stack as one person. **Keep all PDFs in one study** (on by default) gives the batch one Study and Series Instance UID. **Store on a PACS** C-STOREs those instances to the selected remote. Uncheck it to encapsulate only. The peer must accept Encapsulated PDF Storage — C-ECHO or the Secondary Capture test image is a different SOP Class.
 
-Caps: 25 MB per PDF, 40 files, 40 MB ZIP. Only `.pdf` files are imported. ZIP entries with `..`, `__MACOSX`, or a non-PDF extension are skipped. The directory path is read by this process; the UI has no login.
+Caps: 25 MB per PDF, 40 files, 40 MB ZIP. Only `.pdf` files are imported. ZIP entries with `..`, `__MACOSX`, or a non-PDF extension are skipped. The directory path is read by this process. An operator can only pick a folder an administrator lists under Configuration > Security.
 
 ### Tag Editor (`/tools/tag-editor`)
 
@@ -788,7 +788,7 @@ Full threat model, what has no protection by design, and how patient data is sto
 
 This is a trusted-network admin tool. Compose publishes the UI on `127.0.0.1` only; `DICOMM_HTTP_BIND=0.0.0.0` opens it to the network, which turns on sign-in with roles, HTTPS (self-made certificate) and the audit log (create the first administrator with `--create-admin`, see [SECURITY.md](SECURITY.md)). Do not publish port 8080 to the internet without one. Do not point it at production archives unless you intend to send the test C-STORE instance (`ARNPRO^TESTBENCH`) or Encapsulated PDF documents you import. DICOM and HL7 are sent in the clear unless you terminate TLS elsewhere. HL7 send transmits whatever you paste. PDF to DICOM reads uploaded files, ZIP contents, and any workstation path you type.
 
-No login does not mean any website can use it. Since 0.5.1 a page open in another tab of your browser can neither drive the app (cross-site request forgery) nor read it (DNS rebinding), every page carries a strict Content-Security-Policy, and the app only answers to `localhost` and IP addresses unless you add a host name to `DICOMM_ALLOWED_HOSTS`. What the 0.5.1 security review found and fixed, and what it checked: [`SECURITY.md`](SECURITY.md#security-review-051-september-2026).
+Whether sign-in is on or not, no website can use it. Since 0.5.1 a page open in another tab of your browser can neither drive the app (cross-site request forgery) nor read it (DNS rebinding), every page carries a strict Content-Security-Policy, and the app only answers to `localhost` and IP addresses unless you add a host name to `DICOMM_ALLOWED_HOSTS`. What the 0.5.1 security review found and fixed, and what it checked: [`SECURITY.md`](SECURITY.md#security-review-051-september-2026).
 
 The data directory is not encrypted, and `results.json` keeps the last 200 tool results — including the body of any HL7 message you sent and the worklist rows a C-FIND returned. Against real systems that means patient identifiers on disk in cleartext. See [`SECURITY.md`](SECURITY.md#patient-data-on-disk).
 
@@ -819,4 +819,4 @@ The data directory is not encrypted, and `results.json` keeps the last 200 tool 
 | macOS refuses the installer package | The package is not signed, so this is expected. Right-click `Dicommunication.pkg` > **Open**, or allow it under System Settings > Privacy & Security. |
 | Nothing opens after installing on a Mac | It runs as a service with no window. Open `http://localhost:8080/`, run `sudo dicommunication service status`, and read `/var/log/dicommunication/service.log` and `/var/log/dicommunication-install.log`. |
 | Modality cannot C-FIND this tool | Enable the MWL SCP, publish/allow `11112` (Windows: inbound TCP for `dicommunication.exe`; macOS: allow incoming connections in the firewall), and put this workstation AE on the modality’s worklist node list. |
-| UI loads on the Docker host but not from another machine | Expected. Compose publishes `8080` on `127.0.0.1` because there is no login. `docker compose logs` names the address it published on and how to change it. Start with `DICOMM_HTTP_BIND=0.0.0.0` and front it with an authenticating reverse proxy. |
+| UI loads on the Docker host but not from another machine | Expected. Compose publishes `8080` on `127.0.0.1` so that, with no accounts yet, only this machine can open it. `docker compose logs` names the address it published on and how to change it. Start with `DICOMM_HTTP_BIND=0.0.0.0` to reach it from the network; sign-in and HTTPS are then on and you create the first administrator as described in [SECURITY.md](SECURITY.md). |
