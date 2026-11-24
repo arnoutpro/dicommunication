@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+### The remaining pages
+
+- **Testbench and the generic tool pages** (Network PING, C-ECHO, C-STORE, C-FIND, MWL C-FIND) use the field rows. C-ECHO's "Saved node / Enter details manually" is plain radios, and the show/hide of the C-FIND and MWL fields works as before.
+- **Dicom Import:** the folder step is one row with a tooltip; in the review step each patient is a heading with a folded "Change patient details", and each study has "Send this study" with a folded "Change study details" (they open by themselves when a value needs a correction). "New UIDs" and "Decompress" are single rows with tooltips.
+- **Logs settings** are three rows. **Results** (Pass/Fail after a tool runs) no longer sit in a green or red tinted box; the badge says it. **Sign-in and Setup** use the same label-beside-box layout and the smaller title.
+
 ### Status dashboard (/lite)
 
 - **History charts.** Each tile now has a bar chart of exams per day for the last 7, 14 or 30 days (buttons in the header; the choice is remembered in the browser). A rule without a status key has one chart. A rule with a status key gets one chart per status value (for example PENDING FINAL on its own), each with its own scale and colour. The day is the exam's study date, so it also works for rules that look back several days. A dashed mark means the rule had no check for that day, which is not the same as zero. Hover a bar for the exact numbers.

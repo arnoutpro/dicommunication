@@ -1,18 +1,21 @@
 {# Dicom Import: everything below the page header. Polls itself while a scan or send runs. #}
+{% from "partials/fields.html" import field as fld, check, tip %}
 {% macro field(f) %}
-<label>
-  {{ f.label }}
+<div class="fld">
+  <span class="fld-label"><label for="imp-{{ f.field }}">{{ f.label }}</label></span>
+  <div class="fld-control">
   {% if f.name == 'sex' %}
-  <select name="{{ f.field }}"{% if f.error %} aria-invalid="true"{% endif %}>
+  <select id="imp-{{ f.field }}" class="w-sm" name="{{ f.field }}"{% if f.error %} aria-invalid="true"{% endif %}>
     {% for value, text in view.sex_choices %}
     <option value="{{ value }}"{% if f.value == value %} selected{% endif %}>{{ text }}</option>
     {% endfor %}
   </select>
   {% else %}
-  <input name="{{ f.field }}" value="{{ f.value }}" placeholder="{{ f.placeholder }}" spellcheck="false" autocomplete="off"{% if f.error %} aria-invalid="true"{% endif %}>
+  <input id="imp-{{ f.field }}" class="w-md" name="{{ f.field }}" value="{{ f.value }}" placeholder="{{ f.placeholder }}" spellcheck="false" autocomplete="off"{% if f.error %} aria-invalid="true"{% endif %}>
   {% endif %}
   {% if f.error %}<span class="field-error">{{ f.error }}</span>{% endif %}
-</label>
+  </div>
+</div>
 {% endmacro %}
 
 {% set sid = session.id if session else '' %}
@@ -124,29 +127,35 @@
       <h2 class="step-title"><span class="step-num" aria-hidden="true">3</span>Review and change details</h2>
       <span class="muted">optional</span>
     </header>
-    <p class="hint">Change anything that is wrong, such as a patient ID or an accession number. Only the fields you change are written, and only while the images are sent: the files on disk are never modified. Untick a study to leave it out.</p>
+    <p class="hint">Open "Change details" only for what is wrong, such as a patient ID or an accession number. Only the fields you change are written, and only while the images are sent: the files on disk are never modified. Untick a study to leave it out.</p>
     <p class="import-toolbar">
       <button type="button" class="button compact" data-import-select="all">Select all studies</button>
       <button type="button" class="button compact" data-import-select="none">Select none</button>
     </p>
     {% for p in view.patients %}
-    <fieldset class="import-patient">
-      <legend>{{ p.patient.name or '(no name)' }} <span class="muted">· {{ p.patient.patient_id or 'no patient ID' }}</span></legend>
-      <div class="form-grid import-fields">
-        {% for f in p.fields %}{{ field(f) }}{% endfor %}
-      </div>
+    <div class="import-patient">
+      <h3 class="import-patient-name">{{ p.patient.name or '(no name)' }} <span class="muted">· {{ p.patient.patient_id or 'no patient ID' }}</span></h3>
+      <details class="advanced"{% if p.fields | selectattr('error') | list %} open{% endif %}>
+        <summary>Change patient details</summary>
+        <div class="fields">
+          {% for f in p.fields %}{{ field(f) }}{% endfor %}
+        </div>
+      </details>
       {% for s in p.studies %}
       <div class="import-study">
         <label class="checkline import-study-head">
           <input type="checkbox" name="send_study" value="{{ s.uid }}"{% if s.selected %} checked{% endif %} data-import-study>
           Send this study <span class="muted">· {{ s.study.modalities | join(', ') }} · {{ s.study.series | length }} series · {{ s.study.instance_count }} image{{ '' if s.study.instance_count == 1 else 's' }} · {{ s.study.size | human_size }}</span>
         </label>
-        <div class="form-grid import-fields">
-          {% for f in s.fields %}{{ field(f) }}{% endfor %}
-        </div>
+        <details class="advanced"{% if s.fields | selectattr('error') | list %} open{% endif %}>
+          <summary>Change study details</summary>
+          <div class="fields">
+            {% for f in s.fields %}{{ field(f) }}{% endfor %}
+          </div>
+        </details>
       </div>
       {% endfor %}
-    </fieldset>
+    </div>
     {% endfor %}
   </section>
 
@@ -156,26 +165,18 @@
       <span class="muted">Calling AE {{ config.local.ae_title }}</span>
     </header>
     {% if config.remotes %}
-    <div class="form-grid">
-      <label>
-        Send to
-        <select name="remote_id" required>
-          {% for remote in config.remotes %}
-          <option value="{{ remote.id }}"{% if remote.id == remote_id %} selected{% endif %}>{{ remote.name }} — {{ remote.ae_title }} @ {{ remote.connect_host }}:{{ remote.port }}</option>
-          {% endfor %}
-        </select>
-      </label>
-      {% include "partials/identity_select.html" %}
+    <div class="fields">
+      {% call fld("Send to", "imp-remote", required=True) %}
+      <select id="imp-remote" class="w-lg" name="remote_id" required>
+        {% for remote in config.remotes %}
+        <option value="{{ remote.id }}"{% if remote.id == remote_id %} selected{% endif %}>{{ remote.name }} — {{ remote.ae_title }} @ {{ remote.connect_host }}:{{ remote.port }}</option>
+        {% endfor %}
+      </select>
+      {% endcall %}
+      {% include "partials/identity_field.html" %}
+      {{ check("New UIDs", "imp-newuids", "new_uids", checked=new_uids, tip_text="Give the studies, series and images new UIDs. Use this when the PACS may already hold these studies and they must not merge with or overwrite them. Links between images, such as a report pointing at its images, follow the new UIDs. Leave it off to import them as they are.") }}
+      {{ check("Decompress", "imp-decomp", "decompress", checked=decompress, tip_text="Decompress an image the PACS does not accept in its own format.") }}
     </div>
-    <label class="checkline">
-      <input type="checkbox" name="new_uids"{% if new_uids %} checked{% endif %}>
-      Give the studies, series and images new UIDs
-    </label>
-    <p class="hint">Use this when the PACS may already hold these studies and they must not merge with or overwrite them. Links between images, such as a report pointing at its images, follow the new UIDs. Leave it off to import them as they are.</p>
-    <label class="checkline">
-      <input type="checkbox" name="decompress"{% if decompress %} checked{% endif %}>
-      Decompress an image the PACS does not accept in its own format
-    </label>
     <div class="form-actions">
       <button class="button" type="submit" formaction="{{ href(base ~ '/' ~ sid ~ '/check') }}" hx-post="{{ href(base ~ '/' ~ sid ~ '/check') }}">Check changes</button>
       <button class="button primary" type="submit">Send to the PACS</button>
