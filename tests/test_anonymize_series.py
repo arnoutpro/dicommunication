@@ -36,6 +36,16 @@ def _scp(find_port: int, storage_port: int, moves: list[Dataset]):
 
     def handle_find(event):
         level = str(getattr(event.identifier, "QueryRetrieveLevel", "STUDY"))
+        if level == "STUDY":
+            ds = Dataset()
+            ds.QueryRetrieveLevel = "STUDY"
+            ds.PatientName = "DOE^JANE"
+            ds.PatientID = "12345"
+            ds.StudyDate = "20260101"
+            ds.StudyDescription = "CT"
+            ds.ModalitiesInStudy = "CT\\MR"
+            ds.StudyInstanceUID = STUDY
+            yield 0xFF00, ds
         if level == "SERIES":
             for number, uid in enumerate(SERIES, start=1):
                 ds = Dataset()
@@ -188,3 +198,32 @@ def test_the_page_offers_series_and_the_folder_layout(client: TestClient, store:
     text = (Path(__file__).resolve().parents[1] / "app" / "templates" / "anonymize.html").read_text(encoding="utf-8")
     assert 'name="layout" value="series" checked' in text and 'name="layout" value="flat"' in text
     assert "series_url" in text
+
+
+def test_no_folder_dialog_in_the_service_editions(monkeypatch) -> None:
+    from app import fs_dialog
+
+    monkeypatch.delenv("DICOMM_NO_DIALOGS", raising=False)
+    monkeypatch.setenv("DICOMM_REQUIRE_LOGIN", "1")  # what both service installers set
+    assert fs_dialog.dialogs_available() is False
+    monkeypatch.delenv("DICOMM_REQUIRE_LOGIN")
+    monkeypatch.setenv("DICOMM_NO_DIALOGS", "1")
+    assert fs_dialog.dialogs_available() is False
+
+
+def test_the_anonymizer_says_when_there_is_no_folder_dialog(tmp_path, monkeypatch) -> None:
+    from app.routes import anonymize as route
+
+    client, remote, server, _moves = _client(tmp_path)
+    try:
+        for available, expect in ((False, True), (True, False)):
+            monkeypatch.setattr(route, "dialogs_available", lambda available=available: available)
+            with client:
+                page = client.post(
+                    "/tools/anonymize/run", data={"action": "query", "remote_id": remote.id, "study_date": "2026-01-01"}
+                ).text
+            assert "Output folder" in page
+            assert ("There is no folder dialog here" in page) is expect
+            assert ("disabled title=\"No desktop folder dialog" in page) is expect
+    finally:
+        server.shutdown()

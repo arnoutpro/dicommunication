@@ -18,8 +18,27 @@ TITLES = {
 DEFAULT_PURPOSE = "pdf"
 
 
+def _windows_session_zero() -> bool:
+    """True for a Windows service: session 0 has no desktop, so a dialog would never be seen."""
+    if runtime_os_name() != "nt":
+        return False
+    try:
+        import ctypes
+
+        session = ctypes.c_ulong()
+        if ctypes.windll.kernel32.ProcessIdToSessionId(os.getpid(), ctypes.byref(session)):  # type: ignore[attr-defined]
+            return session.value == 0
+    except Exception:  # noqa: BLE001
+        pass
+    return False
+
+
 def dialogs_available() -> bool:
     if os.environ.get("DICOMM_NO_DIALOGS", "").strip() in {"1", "true", "yes"}:
+        return False
+    # The background-service editions (Windows service, macOS launchd) run with no desktop: a dialog
+    # would open where nobody can see it, and the request would wait for it. Type the path instead.
+    if os.environ.get("DICOMM_REQUIRE_LOGIN", "").strip() == "1" or _windows_session_zero():
         return False
     if runtime_os_name() == "nt" or sys.platform == "darwin":
         return True

@@ -117,13 +117,14 @@
     </header>
     {% include "partials/storage_scp_caution.html" %}
     <div class="fields">
-      {% call field("Output folder", "anon-output", required=True) %}
+      {% call field("Output folder", "anon-output", "A folder on the computer the app runs on. The app writes the files there, so its account must be allowed to write to it.", required=True) %}
       <input id="anon-output" class="w-lg" type="text" name="output_dir" placeholder="C:\Anonymized" data-anon-output-dir required>
       <button class="button compact" type="button" data-anon-browse
               {% if not dialogs_available %}disabled title="No desktop folder dialog in this session"{% endif %}>
         Browse…
       </button>
       {% endcall %}
+      <p class="hint fld-note" data-anon-browse-status role="status"{% if dialogs_available %} hidden{% endif %}>{% if not dialogs_available %}There is no folder dialog here (the app runs as a background service or without a desktop). Type the path of a folder on the computer the app runs on.{% endif %}</p>
       <div class="fld">
         <span class="fld-label">Folder layout{{ tip("A subfolder for each study with a subfolder for each series inside it, or every image file directly in the export folder.") }}</span>
         <div class="fld-control">

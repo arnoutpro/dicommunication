@@ -654,19 +654,34 @@ function initAnonymizeForm(scope) {
   syncModeVisibility();
 
   const browseBtn = form.querySelector("[data-anon-browse]");
+  const browseStatus = form.querySelector("[data-anon-browse-status]");
   const directoryInput = form.querySelector("[data-anon-output-dir]");
   browseBtn?.addEventListener("click", async () => {
     browseBtn.disabled = true;
+    if (browseStatus instanceof HTMLElement) {
+      browseStatus.hidden = true;
+    }
+    let message = "";
     try {
-      const response = await fetch("/api/fs/pick-directory", { method: "POST" });
+      const response = await fetch("/api/fs/pick-directory?purpose=dicom", { method: "POST" });
       const payload = await response.json().catch(() => ({}));
       if (response.ok && payload.path && directoryInput instanceof HTMLInputElement) {
         directoryInput.value = payload.path;
+      } else if (response.status === 403) {
+        message = "Your account may not use the folder dialog. Type the path instead.";
+      } else if (response.status === 400) {
+        message = "No folder was chosen, or this computer could not show a folder dialog. Type the path instead.";
+      } else {
+        message = payload.detail || "The folder dialog is not available. Type the path instead.";
       }
     } catch {
-      // No dialog available in this session — the text field still works.
+      message = "The folder dialog is not available. Type the path instead.";
     } finally {
       browseBtn.disabled = false;
+    }
+    if (message && browseStatus instanceof HTMLElement) {
+      browseStatus.textContent = message;
+      browseStatus.hidden = false;
     }
   });
 }
