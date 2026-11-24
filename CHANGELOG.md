@@ -33,6 +33,7 @@ Users said the interface looked machine-made: rounded corners, pill shapes and l
 - **Config pages on the new field system:** Virtual AEs, Security (retention in minutes and days with units, the folder list as one row), Users (Add a user), Audit log filter and Your account. Hints are tooltips; the sign-in/HTTPS status text and the audit table are unchanged. Sign-in and Setup pages keep their stacked layout.
 - **Configured nodes overview:** the three summary cards are replaced by one line (workstation AE, number of virtual AEs, number of remote nodes). The three tables below already list everything.
 - **Dashboard:** the three cards (workstation, remote nodes, next step) are one Status panel of label/value rows, with the same facts and buttons: C-STORE and Worklist state, node counts with C-ECHO all nodes, and the next step. The node table and recent results below are unchanged.
+- **Worklist, C-ECHO board and About:** the summary cards are one line each, the two Worklist forms use the field rows, and the About page no longer says the web UI has no login (it signs in once an account exists or other computers can reach it) or that DICOM TLS is simply "not spoken" without saying the PACS traffic is unencrypted.
 - Still to come: the other pages on the new field system, with fewer controls shown at once (a period menu instead of preset buttons and date pickers, one menu for the modalities, and so on).
 
 ## 0.13.2

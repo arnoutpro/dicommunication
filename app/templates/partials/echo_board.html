@@ -1,25 +1,9 @@
-<div class="grid-4">
-  <article class="card">
-    <p class="card-label">Nodes</p>
-    <h2>{{ echo_board.total }}</h2>
-    <p class="muted">Configured remotes</p>
-  </article>
-  <article class="card">
-    <p class="card-label">Pass</p>
-    <h2 class="ok-text">{{ echo_board.passed }}</h2>
-    <p class="muted">C-ECHO Success</p>
-  </article>
-  <article class="card">
-    <p class="card-label">Fail</p>
-    <h2 class="fail-text">{{ echo_board.failed }}</h2>
-    <p class="muted">Association or DIMSE error</p>
-  </article>
-  <article class="card">
-    <p class="card-label">Not run</p>
-    <h2>{{ echo_board.unknown }}</h2>
-    <p class="muted">No C-ECHO result yet</p>
-  </article>
-</div>
+<p class="summary-line">
+  <span><strong>{{ echo_board.total }}</strong> node{{ "" if echo_board.total == 1 else "s" }}</span>
+  <span><strong class="ok-text">{{ echo_board.passed }}</strong> pass (C-ECHO success)</span>
+  <span><strong class="fail-text">{{ echo_board.failed }}</strong> fail (association or DIMSE error)</span>
+  <span><strong>{{ echo_board.unknown }}</strong> not run</span>
+</p>
 
 {% if echo_board.ran_at %}
 <p class="muted run-meta">
