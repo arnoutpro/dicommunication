@@ -1857,26 +1857,6 @@ body.page-find .find-head {
   flex: 1;
   min-height: 0;
 }
-.find-setup {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 0.3rem 0.45rem;
-}
-.find-setup label {
-  display: flex;
-  flex-direction: column;
-  gap: 0.12rem;
-  min-width: 0;
-  font-size: var(--text-xs);
-  color: var(--muted);
-  font-weight: 600;
-}
-.find-setup .hint { display: none; }
-.find-setup select,
-.find-setup input {
-  padding: 0.28rem 0.45rem;
-  font-size: var(--text-sm);
-}
 .find-combine-series-row {
   display: flex;
   flex-wrap: wrap;
@@ -2329,7 +2309,6 @@ body.page-find .find-head {
   font-size: var(--text-xs);
 }
 @media (max-width: 900px) {
-  .find-setup { grid-template-columns: 1fr; }
 }
 /* Results view: a status banner, one action bar (follow-ups left, Save /
    Export menus right), then the grid. Diagnostics opens in a dialog. */
@@ -2765,18 +2744,7 @@ body.page-find .find-head {
 }
 .find-row-label { color: var(--text); font-size: var(--text-md); }
 .find-row-body { display: flex; flex-wrap: wrap; align-items: center; gap: 0.15rem 0.9rem; min-width: 0; }
-.find-setup { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.1rem 2.5rem; padding-bottom: 0.15rem; }
-.find-setup label {
-  display: grid;
-  grid-template-columns: 7.5rem minmax(0, 1fr);
-  align-items: center;
-  column-gap: 0.75rem;
-  font-size: var(--text-md);
-  color: var(--text);
-  font-weight: 400;
-  min-height: 1.65rem;
-}
-.find-setup select { width: 100%; max-width: 22rem; font-size: var(--text-md); padding: 0.12rem 0.4rem; }
+.find-setup-fields { --label-w: 7.5rem; padding-bottom: 0.15rem; }
 .find-sr-field-toggle { font-weight: 400; font-size: var(--text-md); gap: 0.35rem; }
 .find-advanced-form .find-level-tabs { display: inline-flex; gap: 1.1rem; padding: 0; border: 0; background: none; width: auto; }
 .find-advanced-form .find-level-tab { display: inline-flex; align-items: center; gap: 0.35rem; cursor: pointer; }

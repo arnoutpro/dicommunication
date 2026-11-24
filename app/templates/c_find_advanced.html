@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "partials/fields.html" import field %}
 {% block title %}{{ tool.name }} · {{ product_name }}{% endblock %}
 {% block body_class %} page-find{% endblock %}
 {% block content %}
@@ -54,18 +55,17 @@
       <input type="hidden" name="max_records" value="" data-find-cap-field>
       <input type="hidden" name="date_preset" value="" data-find-date-preset>
       {% if saved_query %}<input type="hidden" name="saved_query_name" value="{{ saved_query.name }}">{% endif %}
-      <div class="find-setup">
-        <label>
-          Remote
-          <select name="remote_id" required>
-            {% for remote in config.remotes %}
-            <option value="{{ remote.id }}" {% if remote_id == remote.id %}selected{% endif %}>
-              {{ remote.name }} — {{ remote.ae_title }} @ {{ remote.connect_host }}:{{ remote.port }}
-            </option>
-            {% endfor %}
-          </select>
-        </label>
-        {% include "partials/identity_select.html" %}
+      <div class="fields find-setup-fields">
+        {% call field("Remote", "find-remote", required=True) %}
+        <select id="find-remote" class="w-lg" name="remote_id" required>
+          {% for remote in config.remotes %}
+          <option value="{{ remote.id }}" {% if remote_id == remote.id %}selected{% endif %}>
+            {{ remote.name }} — {{ remote.ae_title }} @ {{ remote.connect_host }}:{{ remote.port }}
+          </option>
+          {% endfor %}
+        </select>
+        {% endcall %}
+        {% include "partials/identity_field.html" %}
       </div>
       <div class="find-row find-sr-fields" role="group" aria-labelledby="find-sr-label">
         <span class="find-row-label" id="find-sr-label">Report text</span>
