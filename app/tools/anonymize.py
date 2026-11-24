@@ -246,8 +246,16 @@ def _selection_label(entity: dict[str, Any]) -> str:
     label = str(entity.get("label") or "").strip()
     if label:
         return label
-    uid = str(entity.get("series_uid") or entity.get("SeriesInstanceUID") or entity.get("study_uid") or entity.get("StudyInstanceUID") or "")
-    kind = "series" if (entity.get("series_uid") or entity.get("SeriesInstanceUID")) else "study"
+    sop = str(entity.get("sop_instance_uid") or entity.get("SOPInstanceUID") or "")
+    series = str(entity.get("series_uid") or entity.get("SeriesInstanceUID") or "")
+    if series and not sop:
+        # A series row from the series query carries its number and description.
+        number = str(entity.get("SeriesNumber") or "").strip()
+        description = str(entity.get("SeriesDescription") or "").strip()
+        if number or description:
+            return f"series {number or '?'}" + (f" · {description}" if description else "")
+    study = str(entity.get("study_uid") or entity.get("StudyInstanceUID") or "")
+    kind, uid = ("image", sop) if sop else ("series", series) if series else ("study", study)
     return f"{kind} …{uid[-8:]}"
 
 

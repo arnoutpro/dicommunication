@@ -2,11 +2,12 @@
 and send the cleaned instances back over C-STORE.
 
 Same two-action shape as Dicom Anonymizer (query -> pick -> run), and the
-query/browse/retrieve plumbing below is a deliberate near-duplicate of
+query/browse plumbing below is a deliberate near-duplicate of
 app/tools/anonymize.py's — same reasoning as that module has for not
-sharing helpers with app/tools/find_advanced.py: each tool's retrieve step
-is one association per selected entity with its own error handling, small
-enough that a shared abstraction would cost more than it saves.
+sharing helpers with app/tools/find_advanced.py. The retrieve step is the
+exception: it is the one that lost selections silently when a PACS closed the
+association, so both tools now share anonymize.py's _retrieve_selections (it
+reconnects, and reports every selection that came back empty).
 
 What Cleaner adds on top of retrieve: blacking out one operator-configured
 rectangle in every retrieved image's pixel data (app/tools/redact_engine.py)
@@ -30,6 +31,7 @@ from pynetdicom.sop_class import (
 from app.dicom_client import associate, capture_pynetdicom_log, context_rows, reject_reason, rejected_sop_message
 from app.models import LocalAE, RemoteNode, ToolResult, ToolStep
 from app.mwl_scp import STORAGE_INBOX
+from app.tools.anonymize import _retrieve_selections
 from app.tools.base import BaseTool, elapsed_ms
 from app.tools.find_advanced import retrieve_storage_gate_message
 from app.tools.find_keys import build_identifier, normalize_da, record_from_dataset
@@ -198,55 +200,9 @@ def _move_identifier(entity: dict[str, Any]) -> Dataset:
 
 
 def _retrieve_many(local: LocalAE, remote: RemoteNode, entities: list[dict[str, Any]], dest_ae: str):
-    """One association, one C-MOVE per selected entity, one shared capture."""
-    STORAGE_INBOX.begin()
-    contexts: list[dict[str, Any]] = []
-    assoc = None
-    error: str | None = None
-    try:
-        _ae, assoc = associate(local, remote, [StudyRootQueryRetrieveInformationModelMove])
-        contexts = context_rows(assoc)
-        rejected = rejected_sop_message(
-            contexts, "Study Root Query/Retrieve MOVE",
-            "The remote must accept C-MOVE (not C-GET) and know this AE as a destination.",
-        )
-        if not getattr(assoc, "is_established", False):
-            return [], rejected or reject_reason(assoc), contexts
-        if not assoc.accepted_contexts:
-            assoc.release()
-            return [], rejected or "Study Root Query/Retrieve MOVE was not accepted.", contexts
-        for entity in entities:
-            if not getattr(assoc, "is_established", False):
-                error = error or "Association was closed by the peer before all selections were retrieved."
-                break
-            identifier = _move_identifier(entity)
-            try:
-                for status, _remaining in assoc.send_c_move(
-                    identifier, dest_ae, StudyRootQueryRetrieveInformationModelMove
-                ):
-                    if not status:
-                        error = "No C-MOVE response (timeout, abort, or invalid PDU)."
-                        break
-                    code = int(status.Status)
-                    if code in PENDING:
-                        continue
-                    if code != 0x0000:
-                        error = f"C-MOVE status 0x{code:04X}"
-                    break
-            except Exception as exc:  # noqa: BLE001 — a dropped association must not crash the request
-                error = f"{type(exc).__name__}: {exc}"
-                break
-        if getattr(assoc, "is_established", False):
-            assoc.release()
-        time.sleep(0.05)
-        return STORAGE_INBOX.finish(), error, contexts
-    finally:
-        if assoc is not None and getattr(assoc, "is_established", False):
-            try:
-                assoc.abort()
-            except Exception:  # noqa: BLE001
-                pass
-        STORAGE_INBOX.finish()
+    """C-MOVE each selected entity, reconnecting when the PACS drops the association."""
+    datasets, error, contexts, _outcomes = _retrieve_selections(local, remote, entities, dest_ae)
+    return datasets, error, contexts
 
 
 def browse_study_images(local: LocalAE, remote: RemoteNode, study_uid: str):
@@ -464,7 +420,7 @@ class CleanerTool(BaseTool):
         records: list[dict[str, Any]] = []
         with capture_pynetdicom_log() as log_stream:
             move_started = time.perf_counter()
-            datasets, move_error, contexts = _retrieve_many(local, remote, entities, dest_ae)
+            datasets, move_error, contexts, outcomes = _retrieve_selections(local, remote, entities, dest_ae)
             if not datasets:
                 steps.append(ToolStep(
                     name="C-MOVE", ok=False, message=move_error or "No instances were stored on this AE.",
@@ -477,11 +433,18 @@ class CleanerTool(BaseTool):
                     remote_id=remote.id, remote_name=remote.name,
                     duration_ms=elapsed_ms(started), steps=steps, log=log, contexts=contexts,
                 )
+            empty = [item for item in outcomes if not item["count"]]
+            table = "\n".join(
+                f"{item['label']}: {item['count']} instance(s)" + (f" ({item['error']})" if item["error"] else "")
+                for item in outcomes
+            )
             steps.append(ToolStep(
-                name="C-MOVE", ok=True,
-                message=f"Retrieved {len(datasets)} instance(s) from {len(entities)} selection(s)"
-                + (f". Last error: {move_error}" if move_error else ""),
+                name="C-MOVE", ok=not empty,
+                message=f"Retrieved {len(datasets)} instance(s) from {len(entities) - len(empty)} of {len(entities)} selection(s)"
+                + (f". Nothing came back for: {'; '.join(item['label'] + (' (' + item['error'] + ')' if item['error'] else '') for item in empty)}" if empty else "")
+                + (f". Last error: {move_error}" if move_error and not empty else ""),
                 duration_ms=elapsed_ms(move_started),
+                details={"output": table},
             ))
 
             redact_started = time.perf_counter()
@@ -508,7 +471,7 @@ class CleanerTool(BaseTool):
                     _renumber_for_new_uid(ds)
                 cleaned.append(ds)
             steps.append(ToolStep(
-                name="Redact", ok=bool(cleaned),
+                name="Redact", ok=bool(cleaned) and len(cleaned) == len(datasets),
                 message=f"Redacted {len(cleaned)} of {len(datasets)} instance(s) "
                 f"(x={region.x}, y={region.y}, w={region.width or 'full'}, h={region.height})"
                 + (f', labeled "{region_label}"' if region_label else "")
@@ -543,10 +506,13 @@ class CleanerTool(BaseTool):
             log = log_stream.getvalue().strip()
 
         ok = bool(steps) and all(step.ok for step in steps)
-        summary = (
-            f"Redacted and sent {stored} instance(s) to {destination.name}"
-            if ok else (next((s.message for s in steps if not s.ok), "Cleaner run failed"))
-        )
+        if ok:
+            summary = f"Redacted and sent {stored} instance(s) to {destination.name}"
+        elif stored:
+            problems = [step.message for step in steps if not step.ok]
+            summary = f"Redacted and sent {stored} instance(s) to {destination.name}, but not everything: " + " | ".join(problems)
+        else:
+            summary = next((s.message for s in steps if not s.ok), "Cleaner run failed")
         return ToolResult(
             tool_id=self.id, tool_name=self.name, ok=ok, summary=summary,
             remote_id=remote.id, remote_name=remote.name,
