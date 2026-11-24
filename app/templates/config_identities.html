@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "partials/fields.html" import field, tip %}
 {% block title %}Virtual AEs · {{ product_name }}{% endblock %}
 {% block content %}
 <header class="page-head">
@@ -15,37 +16,27 @@
 <section class="panel">
   <header class="panel-head">
     <h2>{% if editing_identity %}Edit virtual local AE{% else %}Add virtual local AE{% endif %}</h2>
-    {% if editing_identity %}<a href="{{ href('/config/identities') }}">Cancel</a>{% else %}<span class="muted">Impersonate a modality</span>{% endif %}
+    {% if editing_identity %}<a href="{{ href('/config/identities') }}">Cancel</a>{% else %}{{ tip("Orthanc DicomModalities must allow each calling AE you impersonate, the same way it allows the workstation AE.") }}{% endif %}
   </header>
-  <p class="hint">
-    Orthanc <code>DicomModalities</code> must allow each calling AE you impersonate, the same way it allows the workstation AE.
-  </p>
-  <form method="post" action="{{ href('/config/identities') }}" class="form-grid" autocomplete="off">
+  <form method="post" action="{{ href('/config/identities') }}" class="fields" autocomplete="off">
     {% if editing_identity %}
     <input type="hidden" name="identity_id" value="{{ editing_identity.id }}">
     {% endif %}
-    <label>
-      Display name
-      <input name="name" required placeholder="CT scanner 1" value="{{ editing_identity.name if editing_identity else '' }}">
-    </label>
-    <label>
-      Calling AE Title
-      <input name="ae_title" maxlength="16" required placeholder="CT1" value="{{ editing_identity.ae_title if editing_identity else '' }}">
-      <span class="hint">Presented as the calling AE on C-ECHO, C-STORE, C-FIND, and MWL.</span>
-    </label>
-    <label>
-      Station AE Title
-      <input name="station_ae_title" maxlength="16" placeholder="same as calling AE" value="{{ editing_identity.station_ae_title if editing_identity else '' }}">
-      <span class="hint">Scheduled Station AE Title for worklist queries. Leave empty to use the calling AE.</span>
-    </label>
-    <label>
-      Default modality
-      <input name="modality" maxlength="16" placeholder="CT" value="{{ editing_identity.modality if editing_identity else '' }}">
-    </label>
-    <label class="span-2">
-      Notes
-      <input name="notes" placeholder="Room, vendor, Orthanc modality key…" value="{{ editing_identity.notes if editing_identity else '' }}">
-    </label>
+    {% call field("Display name", "id-name", required=True) %}
+    <input id="id-name" class="w-md" name="name" required placeholder="CT scanner 1" value="{{ editing_identity.name if editing_identity else '' }}">
+    {% endcall %}
+    {% call field("Calling AE Title", "id-ae", "Presented as the calling AE on C-ECHO, C-STORE, C-FIND, and MWL.", required=True) %}
+    <input id="id-ae" class="w-sm" name="ae_title" maxlength="16" required placeholder="CT1" value="{{ editing_identity.ae_title if editing_identity else '' }}">
+    {% endcall %}
+    {% call field("Station AE Title", "id-station", "Scheduled Station AE Title for worklist queries. Leave empty to use the calling AE.") %}
+    <input id="id-station" class="w-sm" name="station_ae_title" maxlength="16" placeholder="same as calling" value="{{ editing_identity.station_ae_title if editing_identity else '' }}">
+    {% endcall %}
+    {% call field("Default modality", "id-mod") %}
+    <input id="id-mod" class="w-xs" name="modality" maxlength="16" placeholder="CT" value="{{ editing_identity.modality if editing_identity else '' }}">
+    {% endcall %}
+    {% call field("Notes", "id-notes") %}
+    <input id="id-notes" class="w-lg" name="notes" placeholder="Room, vendor, Orthanc modality key…" value="{{ editing_identity.notes if editing_identity else '' }}">
+    {% endcall %}
     <div class="form-actions">
       <button class="button primary" type="submit">{% if editing_identity %}Save virtual AE{% else %}Add virtual AE{% endif %}</button>
     </div>

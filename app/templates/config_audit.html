@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "partials/fields.html" import field, tip %}
 {% block title %}Audit log · {{ product_name }}{% endblock %}
 {% block content %}
 <header class="page-head">
@@ -16,10 +17,14 @@
 {% else %}
 <div class="flash fail">The chain is broken: {{ why }}. The file was changed outside the app.</div>
 {% endif %}
-<form method="get" action="{{ href('/config/audit') }}" class="form-grid">
-  <label>User <input name="user" value="{{ user }}"></label>
-  <label>Action contains <input name="action" value="{{ action }}"></label>
-  <div class="form-actions"><button class="button compact" type="submit">Filter</button></div>
+<form method="get" action="{{ href('/config/audit') }}" class="fields">
+  {% call field("User", "aud-user") %}
+  <input id="aud-user" class="w-md" name="user" value="{{ user }}">
+  {% endcall %}
+  {% call field("Action contains", "aud-action") %}
+  <input id="aud-action" class="w-md" name="action" value="{{ action }}">
+  <button class="button compact" type="submit">Filter</button>
+  {% endcall %}
 </form>
 <section class="panel step">
   {% if rows %}
