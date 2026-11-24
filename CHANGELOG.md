@@ -2,13 +2,17 @@
 
 ## Unreleased
 
+### Dicom Cleaner
+
+- **Fixed: selected series could be silently left uncleaned.** The Cleaner used the same retrieve as the Anonymizer did, one connection for every selection, so a PACS that closed it left the rest of the study untouched, and the run still said "Redacted and sent". That matters more here, because the cleaned images are written back to a PACS and the original may still hold the burned-in text. Now the retrieve is shared with the Anonymizer: it reconnects once when the PACS drops the connection, the C-MOVE step lists every series (or image) with how many images came back, and anything missing or not redacted makes the run a **Fail** that says what was sent and what was not.
+
 ### Dicom Anonymizer
 
 - **Fixed: selected series could be silently missing from the export.** Someone selected four series and got two. The retrieve used one connection for every selection, so when the PACS closed it (some allow only a few moves per connection, or drop it on an error) everything after that was lost, and the result still said "Anonymized and exported". Now:
   - a selection that gets nothing because the connection closed is retried once on a new connection, and the next selections carry on on the new one;
   - the result lists every selection with how many images came back, and a selection that returned nothing is named with the reason (for example `601 · TLC Inspiratory 0,5 (C-MOVE status 0xC000)`);
   - if anything is missing, or some images could not be anonymized, the result is a **Fail** that says what was exported and what was not, instead of a plain success.
-  The Dicom Cleaner has its own copy of the same retrieve and is not changed yet.
+  The Dicom Cleaner had its own copy of the same retrieve and is fixed the same way (below).
 
 - **Study folders can be named by the study description** too: a *Study folder name* choice next to the series one (*Study UID*, the default, or *Study description*, for example `CT Thorax 2026`). Same rules as for series: taken from the original study (works in every mode), characters Windows does not allow become `_`, a study without a description keeps its UID, and two studies with the same name get the end of the UID added. Both name choices are hidden when you pick "All files in one folder". With both on, a file lands in `CT Thorax 2026/TLC Inspiratory 0,6/`.
 - **Series folders can be named by the series description.** A new choice in the Export step, *Series folder name*, shown when the layout is "Subfolder per series": *Number and modality* (the default, `series-2-CT`) or *Series description* (for example `TLC Inspiratory 0,6`). The description is taken from the original series, so it works in every anonymization mode, including those that remove it from the files. Characters Windows does not allow in a folder name become `_`, a name is cut at 80 characters, a series without a description falls back to number and modality, and two series with the same name get the series number (or the UID tail) added. Note that the description is not anonymized and can contain identifying text, which is why the default stays number and modality.

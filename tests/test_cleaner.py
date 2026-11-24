@@ -696,6 +696,7 @@ def test_retrieve_many_survives_association_dropped_before_first_move(monkeypatc
     the first C-MOVE goes out must fail gracefully, not crash the request —
     pynetdicom's send_c_move raises RuntimeError in exactly that case.
     """
+    from app.tools import anonymize as anonymize_module  # the retrieve is shared with the Anonymizer
     from app.tools import cleaner as cleaner_module
 
     class _FakeAssoc:
@@ -716,10 +717,105 @@ def test_retrieve_many_survives_association_dropped_before_first_move(monkeypatc
     def fake_associate(local, remote, abstract_syntaxes, transfer_syntaxes=None):
         return object(), _FakeAssoc()
 
-    monkeypatch.setattr(cleaner_module, "associate", fake_associate)
+    monkeypatch.setattr(anonymize_module, "associate", fake_associate)
 
     local = LocalAE(ae_title="DICOMM")
     remote = RemoteNode(name="pacs", ae_title="QR_SCP", host="127.0.0.1", port=104)
     datasets, error, _contexts = cleaner_module._retrieve_many(local, remote, [{"study_uid": "1.2.3"}], "DICOMM")
     assert datasets == []
     assert error is not None and "RuntimeError" in error
+
+
+# --- a PACS that closes the association, or refuses a series: nothing may be lost silently ---
+
+_CLEAN_STUDY = "1.2.826.0.1.3680043.8.498.41000"
+_CLEAN_SERIES = [f"1.2.826.0.1.3680043.8.498.4{n:04d}" for n in range(1, 5)]
+
+
+def _start_series_scp(find_port: int, storage_port: int, per_association: int, refuse: set[str]):
+    instances = {
+        uid: _make_instance(_CLEAN_STUDY, uid, uid + ".1", rows=8, cols=6, samples_per_pixel=1) for uid in _CLEAN_SERIES
+    }
+    for number, instance in zip([2, 3, 601, 602], instances.values()):
+        instance.SeriesNumber = number
+    received: list[Dataset] = []
+    used: dict[int, int] = {}
+
+    def handle_find(event):
+        if str(getattr(event.identifier, "QueryRetrieveLevel", "STUDY")) == "SERIES":
+            for uid, instance in instances.items():
+                ds = Dataset()
+                ds.QueryRetrieveLevel = "SERIES"
+                ds.StudyInstanceUID = _CLEAN_STUDY
+                ds.SeriesInstanceUID = uid
+                ds.Modality = "US"
+                ds.SeriesNumber = instance.SeriesNumber
+                yield 0xFF00, ds
+        yield 0x0000, None
+
+    def handle_move(event):
+        key = id(event.assoc)
+        used[key] = used.get(key, 0) + 1
+        series = str(event.identifier.SeriesInstanceUID)
+        if used[key] > per_association:
+            event.assoc.abort()
+            yield None, None
+            return
+        yield "127.0.0.1", storage_port, {"contexts": [build_context(str(instances[series].SOPClassUID))]}
+        yield 1
+        if series in refuse:
+            yield 0xC000, None
+            return
+        yield 0xFF00, instances[series]
+
+    def handle_store(event):
+        ds = event.dataset
+        ds.file_meta = event.file_meta
+        received.append(ds)
+        return 0x0000
+
+    ae = AE(ae_title="QR_SCP")
+    ae.add_supported_context(StudyRootQueryRetrieveInformationModelFind)
+    ae.add_supported_context(StudyRootQueryRetrieveInformationModelMove)
+    ae.add_supported_context(SecondaryCaptureImageStorage)
+    server = ae.start_server(
+        ("127.0.0.1", find_port), block=False,
+        evt_handlers=[(evt.EVT_C_FIND, handle_find), (evt.EVT_C_MOVE, handle_move), (evt.EVT_C_STORE, handle_store)],
+    )
+    return server, received
+
+
+def _clean_series_run(tmp_path, per_association: int, refuse: set[str]):
+    find_port, local_port = _free_port(), _free_port()
+    server, received = _start_series_scp(find_port, local_port, per_association, refuse)
+    store = ConfigStore(tmp_path / "config")
+    store.save_local(LocalAE(ae_title="DICOMM", host="127.0.0.1", port=local_port, storage_scp_enabled=True, timeout_seconds=5))
+    remote = RemoteNode(name="pacs", ae_title="QR_SCP", host="127.0.0.1", port=find_port)
+    store.add_remote(remote)
+    try:
+        with TestClient(create_app(store)) as client:
+            run = client.post(
+                "/tools/dicom-cleaner/run",
+                data={
+                    "action": "run", "remote_id": remote.id, "level": "SERIES", "study_uid": [_CLEAN_STUDY],
+                    "region_x": "0", "region_y": "0", "region_width": "0", "region_height": "3",
+                    "uid_mode": "new", "destination_remote_id": remote.id,
+                },
+            )
+    finally:
+        server.shutdown()
+    return run.text, received
+
+
+def test_a_pacs_that_hangs_up_after_two_moves_still_gets_every_series_cleaned(tmp_path) -> None:
+    text, received = _clean_series_run(tmp_path, per_association=2, refuse=set())
+    assert "Redacted and sent 4 instance(s)" in text, text
+    assert len(received) == 4
+
+
+def test_a_series_the_pacs_refuses_is_named_and_the_run_is_not_called_a_success(tmp_path) -> None:
+    text, received = _clean_series_run(tmp_path, per_association=99, refuse={_CLEAN_SERIES[2], _CLEAN_SERIES[3]})
+    assert len(received) == 2
+    assert "but not everything" in text and "0xC000" in text
+    assert "series 601" in text and "series 602" in text  # named by their series number
+    assert "Redacted and sent 4" not in text
