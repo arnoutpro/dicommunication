@@ -929,9 +929,9 @@ textarea.hl7-body {
   font-size: var(--text-sm);
 }
 .hl7-view-toggle .button.is-active {
-  color: var(--accent);
-  background: var(--accent-dim);
-  border-color: color-mix(in srgb, var(--accent) 30%, transparent);
+  color: var(--accent-contrast, #fff);
+  background: var(--accent-fill, var(--accent));
+  border-color: var(--accent-fill, var(--accent));
 }
 /* A bare <details>/<summary> otherwise renders with raw browser UA chrome
    (default marker, default font) — same problem fieldset/legend had. Give
@@ -990,52 +990,45 @@ details[open] > summary::before {
 }
 .advanced .form-grid { margin-top: 0.2rem; }
 /* HL7 send */
-.hl7-port-row { grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr); gap: 0.75rem; }
-.note { margin-top: 0.75rem; font-size: var(--text-sm); color: var(--muted); }
-.note > summary { font-weight: 700; color: var(--subtle); cursor: pointer; }
-.note ul { margin: 0.45rem 0 0.35rem; padding-left: 1.1rem; line-height: 1.45; }
-.note li + li { margin-top: 0.2rem; }
-.hl7-save { display: flex; align-items: flex-end; gap: 0.5rem 0.75rem; flex-wrap: wrap; }
-.hl7-save label {
+.note { margin-top: 0.5rem; font-size: var(--text-sm); color: var(--muted); }
+.note > summary { font-weight: 600; color: var(--muted); }
+.note ul { margin: 0.35rem 0 0.25rem; padding-left: 1.1rem; line-height: 1.45; }
+.note li + li { margin-top: 0.15rem; }
+.hl7-editor-title { display: inline-flex; align-items: center; gap: 0.4rem; }
+.hl7-save { margin-top: 0.5rem; }
+.hl7-save .fld-control { gap: 0.5rem; }
+.stamps > summary { font-size: var(--text-sm); font-weight: 600; color: var(--muted); }
+.stamp-list { display: flex; flex-direction: column; margin-top: 0.35rem; }
+.stamp { padding: 0.4rem 0; border-top: 1px solid var(--line); }
+.stamp-sub {
   display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-  flex: 0 1 22rem;
-  color: var(--muted);
-  font-size: var(--text-md);
-  font-weight: 600;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 1rem;
+  margin: 0.35rem 0 0 1.5rem;
 }
-.stamps > summary { cursor: pointer; font-size: var(--text-md); font-weight: 700; color: var(--subtle); }
-.stamps > .hint { margin: 0.5rem 0 0.75rem; }
-.stamp-list { display: flex; flex-direction: column; }
-.stamp { padding: 0.65rem 0; border-top: 1px solid var(--line); }
-.stamp .hint { margin: 0.2rem 0 0 1.6rem; }
-.stamp-sub { display: grid; gap: 0.5rem 0.75rem; max-width: 24rem; margin: 0.5rem 0 0 1.6rem; }
-.stamp-sub-pair { grid-template-columns: repeat(2, minmax(0, 1fr)); max-width: 40rem; }
 .stamp-sub label {
   display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
+  align-items: center;
+  gap: 0.5rem;
   min-width: 0;
   color: var(--muted);
   font-size: var(--text-sm);
-  font-weight: 600;
+  font-weight: 400;
 }
-@media (max-width: 640px) { .stamp-sub-pair { grid-template-columns: 1fr; } }
-.stamp-more { margin: 0.3rem 0 0 1.6rem; font-size: var(--text-sm); color: var(--muted); }
-.stamp-more > summary { cursor: pointer; font-weight: 600; }
+.stamp-sub input:not([type="checkbox"]) { width: 14rem; max-width: 100%; }
+.stamp-sub select { min-width: 12rem; }
+.stamp-more { margin: 0.2rem 0 0 1.5rem; font-size: var(--text-sm); color: var(--muted); }
+.stamp-more > summary { font-weight: 400; }
 .stamp-more p { margin: 0.3rem 0 0; max-width: 46rem; line-height: 1.45; }
 .stamp-field-title {
   display: flex;
   align-items: center;
-  gap: 0.6rem;
+  gap: 0.5rem;
   color: var(--text);
-  font-weight: 700;
+  font-weight: 600;
 }
-.stamp-field-title input[type="checkbox"] {
-  width: auto;
-  flex-shrink: 0;
-}
+.stamp-field-title input[type="checkbox"] { width: auto; flex-shrink: 0; }
 
 /* Fields: a flat well with a hairline; hover tints the hairline with the
    accent, focus makes it solid accent with a soft ring. Same in every theme via tokens. */
