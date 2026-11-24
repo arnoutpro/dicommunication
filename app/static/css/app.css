@@ -194,11 +194,6 @@ h1, h2, h3, h4 {
   background: var(--accent-dim);
   color: var(--accent);
 }
-.topbar-config svg { width: 1rem; height: 1rem; flex-shrink: 0; }
-/* On narrow screens the gear alone stands for Configuration. */
-@media (max-width: 640px) {
-  .topbar-config-label { display: none; }
-}
 .topbar-actions .button.is-active {
   color: var(--accent);
   background: var(--accent-dim);
@@ -220,6 +215,9 @@ h1, h2, h3, h4 {
   margin: 0.4rem 0 0.35rem;
 }
 .tab-row { display: flex; flex-direction: column; gap: 0; }
+.sidebar-config { margin-top: 0.5rem; }
+.sidebar-config-link svg { width: 0.95rem; height: 0.95rem; flex-shrink: 0; }
+.sidebar-config .sidebar-sep { margin-top: 0; }
 .tab-item svg { width: 1rem; height: 1rem; flex-shrink: 0; }
 
 .sidebar {
@@ -285,6 +283,7 @@ h1, h2, h3, h4 {
 .sidebar nav { display: flex; flex-direction: column; gap: 0; flex: 1; }
 .sidebar nav a,
 .sidebar nav .nav-fold,
+.sidebar-config-link,
 .tab-item {
   display: flex;
   align-items: center;
@@ -303,12 +302,15 @@ h1, h2, h3, h4 {
 .sidebar nav > a { --tree-pad: 2.05rem; }
 .sidebar nav a:hover,
 .sidebar nav .nav-fold:hover,
+.sidebar-config-link:hover,
 .tab-item:hover {
   color: var(--text);
   background: var(--accent-dim);
 }
 .sidebar nav a.active,
 .sidebar nav a.active:hover,
+.sidebar-config-link.active,
+.sidebar-config-link.active:hover,
 .tab-item.active,
 .tab-item.active:hover {
   color: var(--primary-fg);
@@ -2962,3 +2964,6 @@ body.page-find .find-head {
 .status-rows dt { color: var(--muted); font-size: var(--text-md); }
 .status-rows dd { display: flex; flex-wrap: wrap; align-items: center; gap: 0.25rem 0.9rem; margin: 0; min-width: 0; }
 @media (max-width: 700px) { .status-rows > div { grid-template-columns: 1fr; } }
+
+/* The place where data is shown is one flat surface in every theme: no grey behind white panels. */
+:root, html.light-mode, html.professional-mode { --content-bg: var(--bg-panel); }

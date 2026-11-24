@@ -255,7 +255,7 @@ def test_the_user_and_a_sign_out_button_show_in_the_top_bar(secured) -> None:
     page = client.get("/").text
     assert ">olga</a>" in page and 'action="/logout"' in page and 'href="/config"' not in page.split("topbar-actions")[1].split("</header>")[0]
     sign_in(client, "alice")
-    assert 'class="button topbar-config' in client.get("/").text
+    assert 'class="sidebar-config"' in client.get("/").text
 
 
 # --- every route has a deliberate rule -----------------------------------------
