@@ -22,7 +22,7 @@
     <h2>What this application is</h2>
   </header>
   <p>Dicommunication is a <strong>trusted-network DICOM and HL7 connectivity workstation</strong> for IT staff and PACS administrators. Configure this computer as a DICOM Application Entity, register remote nodes (PACS, Orthanc, RIS/MWL, modalities), optionally impersonate extra calling AE Titles, and run the checks a connectivity ticket actually needs.</p>
-  <p>It is written by <strong>arnout.pro</strong> (Arnout). The web UI is FastAPI + HTMX. DICOM uses pynetdicom / pydicom. Frozen Windows and macOS builds open the UI in a native window; Docker Compose and a local Python process serve the same UI in a browser at <code>http://127.0.0.1:8080</code>.</p>
+  <p>It is written by <strong>arnout.pro</strong> (Arnout). The web UI is FastAPI + HTMX. DICOM uses pynetdicom / pydicom. The Windows and macOS installers run it as a background service that you open in a browser; Docker Compose and a local Python process serve the same UI in a browser at <code>http://127.0.0.1:8080</code>.</p>
   <p>This is <strong>not</strong> a PACS, not an image viewer, and not a replacement for a vendor modality simulator. It does not store a clinical archive. The web UI asks for a sign-in as soon as the first account exists or other computers can reach it (see Configuration → Security); until then treat it like a diagnostic console on this computer.</p>
   <p><a class="button" href="/help">Open Help</a> for how each screen and tool works, including C-ECHO versus C-STORE versus Study Root C-FIND versus Modality Worklist, and HL7 send to Vue / IS Link.</p>
 </section>
@@ -42,18 +42,18 @@
       <tbody>
         <tr>
           <td>Present a calling AE Title (this workstation, or a virtual identity such as <code>CT1</code>)</td>
-          <td>Optional C-MOVE of Structured Reports onto this AE (when Accept C-STORE is on). C-GET, and C-MOVE of imaging series, stay unimplemented</td>
+          <td>Use C-GET. Every retrieve is a C-MOVE to this workstation's own Storage SCP (Accept C-STORE must be on, and this AE must be a C-MOVE destination on the PACS)</td>
         </tr>
         <tr>
           <td>Associate with a remote AE and show which SOP Classes were accepted or rejected</td>
-          <td>Store a real archive of clinical images</td>
+          <td>Keep an archive of clinical images (retrieved images are held in memory for a run; the Anonymizer writes where you tell it)</td>
         </tr>
         <tr>
           <td>Send Verification (C-ECHO), a tiny Secondary Capture (C-STORE), Encapsulated PDF Storage (PDF to DICOM), Study Root Query/Retrieve C-FIND (Study / Series / Image), and Modality Worklist C-FIND</td>
           <td>Speak DICOM TLS (DICOM and HL7 traffic to the PACS is not encrypted)</td>
         </tr>
         <tr>
-          <td>Optionally serve a local web worklist as an MWL SCP, and optionally accept C-STORE of Structured Reports, on the listen port</td>
+          <td>Optionally serve a local web worklist as an MWL SCP, and optionally accept C-STORE (what a PACS moves here for Analytics, the Anonymizer, the Cleaner, the Router and the Tag Editor), on the listen port</td>
           <td>Parse, validate, or map HL7 fields — paste a message and send it</td>
         </tr>
         <tr>
