@@ -2946,3 +2946,19 @@ body.page-find .find-head {
   font-size: var(--text-sm);
 }
 .summary-line strong { color: var(--text); font-weight: 600; }
+
+/* Dashboard status: one label/value row per fact, instead of cards. */
+.status-rows { margin: 0; }
+.status-rows > div {
+  display: grid;
+  grid-template-columns: 10.5rem minmax(0, 1fr);
+  column-gap: 0.75rem;
+  align-items: center;
+  min-height: 1.9rem;
+  padding: 0.1rem 0;
+  border-top: 1px solid var(--line);
+}
+.status-rows > div:first-child { border-top: 0; }
+.status-rows dt { color: var(--muted); font-size: var(--text-md); }
+.status-rows dd { display: flex; flex-wrap: wrap; align-items: center; gap: 0.25rem 0.9rem; margin: 0; min-width: 0; }
+@media (max-width: 700px) { .status-rows > div { grid-template-columns: 1fr; } }

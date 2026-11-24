@@ -14,84 +14,68 @@
 </section>
 
 {% set failing = echo_board.rows | selectattr("status", "equalto", "fail") | list %}
-<div class="grid-3 dash-cards">
-  <article class="card">
-    <header class="card-head">
-      <p class="card-label">This workstation</p>
-      <a class="card-link" href="{{ href('/config/local') }}">Edit</a>
-    </header>
-    <h2><code>{{ config.local.ae_title }}</code></h2>
-    <p class="muted">Listening on {{ config.local.host }}:{{ config.local.port }} · timeout {{ config.local.timeout_seconds | int }}s{% if config.identities %} · {{ config.identities | length }} virtual AE{% if config.identities | length != 1 %}s{% endif %}{% endif %}</p>
-    <ul class="status-list">
-      <li>
-        <span>Accept C-STORE</span>
+<section class="panel">
+  <header class="panel-head">
+    <h2>Status</h2>
+  </header>
+  <dl class="status-rows">
+    <div>
+      <dt>This workstation</dt>
+      <dd>
+        <code>{{ config.local.ae_title }}</code>
+        <span class="muted">listening on {{ config.local.host }}:{{ config.local.port }} · timeout {{ config.local.timeout_seconds | int }}s{% if config.identities %} · {{ config.identities | length }} virtual AE{% if config.identities | length != 1 %}s{% endif %}{% endif %}</span>
+        <a href="{{ href('/config/local') }}">Edit</a>
+      </dd>
+    </div>
+    <div>
+      <dt>Accept C-STORE</dt>
+      <dd>
         {% if storage_scp_running %}<span class="badge ok">Listening</span>
         {% elif config.local.storage_scp_enabled %}<span class="badge fail">Not listening</span>
         {% else %}<span class="badge">Off</span>{% endif %}
-      </li>
-      <li>
-        <span>Worklist SCP</span>
+      </dd>
+    </div>
+    <div>
+      <dt>Worklist SCP</dt>
+      <dd>
         {% if mwl_scp_running %}<span class="badge ok">Listening</span>
         {% elif config.local.mwl_scp_enabled %}<span class="badge fail">Not listening</span>
         {% else %}<span class="badge">Off</span>{% endif %}
-      </li>
-    </ul>
-  </article>
-
-  <article class="card">
-    <header class="card-head">
-      <p class="card-label">Remote nodes</p>
-      <a class="card-link" href="{{ href('/config/remotes') }}">Manage</a>
-    </header>
-    <h2 class="stat-number">{{ echo_board.total }}</h2>
-    {% if config.remotes %}
-    <div class="stat-bar" role="img" aria-label="{{ echo_board.passed }} answering, {{ echo_board.failed }} not answering, {{ echo_board.unknown }} not checked">
-      {% if echo_board.passed %}<span class="stat-bar-seg ok" style="flex-grow: {{ echo_board.passed }};"></span>{% endif %}
-      {% if echo_board.failed %}<span class="stat-bar-seg fail" style="flex-grow: {{ echo_board.failed }};"></span>{% endif %}
-      {% if echo_board.unknown %}<span class="stat-bar-seg unknown" style="flex-grow: {{ echo_board.unknown }};"></span>{% endif %}
+      </dd>
     </div>
-    <p class="muted">
-      {{ echo_board.passed }} answering · {{ echo_board.failed }} not answering · {{ echo_board.unknown }} not checked
-    </p>
-    <form autocomplete="off" method="post" action="{{ href('/echo-board/run') }}?return=home" class="card-action">
-      <button class="button primary" type="submit" data-busy-text="Running C-ECHO…">C-ECHO all nodes</button>
-    </form>
-    {% else %}
-    <p class="muted">None yet.</p>
-    {% endif %}
-  </article>
-
-  <article class="card">
-    <header class="card-head">
-      <p class="card-label">Next step</p>
-    </header>
-    <div class="next-step-row">
-      <span class="next-step-icon" aria-hidden="true">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"></path></svg>
-      </span>
-      <div>
-    {% if not config.remotes %}
-    <p class="next-step">Add the PACS, modality or test SCP you want to reach: its AE Title, host and port.</p>
-    <a class="button primary card-action" href="{{ href('/config/remotes') }}">Add a remote node</a>
-    {% elif failing %}
-    <p class="next-step">
-      {{ failing | length }} {{ "node doesn't" if failing | length == 1 else "nodes don't" }} answer C-ECHO.
-      Check the host is reachable with Network PING, then compare the Called AE and port with the remote side.
-    </p>
-    <a class="button card-action" href="{{ href('/tools/ping') }}?remote_id={{ failing[0].remote.id }}">Network PING {{ failing[0].remote.name }}</a>
-    {% elif echo_board.unknown %}
-    <p class="next-step">
-      {{ echo_board.unknown }} {{ "node hasn't" if echo_board.unknown == 1 else "nodes haven't" }} been checked yet.
-      Run C-ECHO on all nodes to see which ones answer.
-    </p>
-    {% else %}
-    <p class="next-step">Every node answers C-ECHO. Go further with a C-FIND or C-STORE in the Testbench.</p>
-    <a class="button card-action" href="{{ href('/testbench') }}">Open Testbench</a>
-    {% endif %}
-      </div>
+    <div>
+      <dt>Remote nodes</dt>
+      <dd>
+        {% if config.remotes %}
+        <span>{{ echo_board.total }} node{{ "" if echo_board.total == 1 else "s" }} · {{ echo_board.passed }} answering · {{ echo_board.failed }} not answering · {{ echo_board.unknown }} not checked</span>
+        <a href="{{ href('/config/remotes') }}">Manage</a>
+        <form autocomplete="off" method="post" action="{{ href('/echo-board/run') }}?return=home" class="inline">
+          <button class="button compact" type="submit" data-busy-text="Running C-ECHO…">C-ECHO all nodes</button>
+        </form>
+        {% else %}
+        <span class="muted">None yet.</span> <a href="{{ href('/config/remotes') }}">Add one</a>
+        {% endif %}
+      </dd>
     </div>
-  </article>
-</div>
+    <div>
+      <dt>Next step</dt>
+      <dd>
+        {% if not config.remotes %}
+        <span>Add the PACS, modality or test SCP you want to reach: its AE Title, host and port.</span>
+        <a class="button primary compact" href="{{ href('/config/remotes') }}">Add a remote node</a>
+        {% elif failing %}
+        <span>{{ failing | length }} {{ "node doesn't" if failing | length == 1 else "nodes don't" }} answer C-ECHO. Check the host is reachable with Network PING, then compare the Called AE and port with the remote side.</span>
+        <a class="button compact" href="{{ href('/tools/ping') }}?remote_id={{ failing[0].remote.id }}">Network PING {{ failing[0].remote.name }}</a>
+        {% elif echo_board.unknown %}
+        <span>{{ echo_board.unknown }} {{ "node hasn't" if echo_board.unknown == 1 else "nodes haven't" }} been checked yet. Run C-ECHO on all nodes to see which ones answer.</span>
+        {% else %}
+        <span>Every node answers C-ECHO. Go further with a C-FIND or C-STORE in the Testbench.</span>
+        <a class="button compact" href="{{ href('/testbench') }}">Open Testbench</a>
+        {% endif %}
+      </dd>
+    </div>
+  </dl>
+</section>
 
 <section class="panel">
   <header class="panel-head">
