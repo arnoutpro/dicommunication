@@ -771,22 +771,6 @@ td.actions > * + * { margin-left: 0.7rem; }
   flex-direction: column;
   gap: 0.5rem;
 }
-.region-grid {
-  grid-template-columns: repeat(4, minmax(0, 8rem));
-}
-.cleaner-label-field {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-  margin-top: 0.6rem;
-  max-width: 28rem;
-  font-size: var(--text-md);
-  color: var(--muted);
-  font-weight: 600;
-}
-.cleaner-label-field input {
-  width: 100%;
-}
 .inline-input {
   display: flex;
   gap: 0.4rem;
@@ -2929,6 +2913,7 @@ body.page-find .find-head {
 .gen .choice, .gen select { width: 8.5rem; }
 .gen.is-locked .choice { opacity: 0.55; pointer-events: none; }
 .fld-note { grid-column: 2; margin: 0; }
+.fields > .fld-note { grid-column: 1; padding-left: calc(var(--label-w) + 0.75rem); margin: 0.2rem 0; }
 .fld-stack { flex-direction: column; align-items: stretch; gap: 0.35rem; }
 .fld-stack .input-with-action > input { width: 100%; max-width: 30rem; }
 .plain-radios { display: inline-flex; flex-wrap: wrap; gap: 0.2rem 1.1rem; padding: 0; border: 0; background: none; width: auto; }
