@@ -74,12 +74,19 @@ def _entities_from_form(form) -> list[dict[str, str]]:
         study_uid, _sep, series_uid = str(value).partition("|")
         if study_uid and series_uid:
             ticked.setdefault(study_uid, []).append(series_uid)
+    labels: dict[str, str] = {}
+    for value in form.getlist("series_label"):
+        series_uid, _sep, text = str(value).partition("|")
+        if series_uid and text:
+            labels[series_uid] = text
     entities: list[dict[str, str]] = []
     for uid in form.getlist("study_uid"):
         if not uid:
             continue
         if uid in opened:
-            entities.extend({"study_uid": uid, "series_uid": series_uid} for series_uid in ticked.get(uid, []))
+            entities.extend(
+                {"study_uid": uid, "series_uid": series_uid, "label": labels.get(series_uid, "")} for series_uid in ticked.get(uid, [])
+            )
         else:
             entities.append({"study_uid": uid})
     return entities

@@ -332,3 +332,83 @@ def test_by_default_the_study_folder_is_the_uid(tmp_path) -> None:
         assert len(folders) == 1 and next(iter(folders)).startswith("1.2.826.")
     finally:
         server.shutdown()
+
+
+# --- a PACS that closes the association, or refuses one series: nothing may be lost silently ---
+
+MANY = [f"1.2.826.0.1.3680043.8.498.7{n:03d}" for n in range(4)]
+
+
+def _many_instances() -> dict[str, Dataset]:
+    out = {}
+    for index, uid in enumerate(MANY):
+        ds = _make_instance(STUDY, uid, uid + ".1")
+        ds.SeriesNumber = [2, 3, 601, 602][index]
+        ds.SeriesDescription = f"Desc {ds.SeriesNumber}"
+        out[uid] = ds
+    return out
+
+
+def _picky_scp(find_port: int, storage_port: int, per_association: int, refuse: set[str], log: list[tuple[int, str]]):
+    instances = _many_instances()
+    used: dict[int, int] = {}
+
+    def handle_move(event):
+        key = id(event.assoc)
+        used[key] = used.get(key, 0) + 1
+        series = str(event.identifier.SeriesInstanceUID)
+        log.append((key, series))
+        if used[key] > per_association:
+            event.assoc.abort()  # what some PACS do: hang up after a few moves
+            yield None, None
+            return
+        yield "127.0.0.1", storage_port, {"contexts": [build_context(str(instances[series].SOPClassUID))]}
+        yield 1
+        if series in refuse:
+            yield 0xC000, None  # the move itself fails
+            return
+        yield 0xFF00, instances[series]
+
+    ae = AE(ae_title="QR_SCP")
+    ae.add_supported_context(StudyRootQueryRetrieveInformationModelMove)
+    return ae.start_server(("127.0.0.1", find_port), block=False, evt_handlers=[(evt.EVT_C_MOVE, handle_move)])
+
+
+def _picky_run(tmp_path, per_association: int, refuse: set[str]):
+    find_port, local_port = _free_port(), _free_port()
+    log: list[tuple[int, str]] = []
+    server = _picky_scp(find_port, local_port, per_association, refuse, log)
+    store = ConfigStore(tmp_path / "config")
+    store.save_local(LocalAE(ae_title="DICOMM", host="127.0.0.1", port=local_port, storage_scp_enabled=True, timeout_seconds=5))
+    remote = RemoteNode(name="pacs", ae_title="QR_SCP", host="127.0.0.1", port=find_port)
+    store.add_remote(remote)
+    out = tmp_path / "out"
+    labels = [f"{uid}|{number} · Desc {number}" for uid, number in zip(MANY, [2, 3, 601, 602])]
+    try:
+        with TestClient(create_app(store)) as client:
+            run = client.post(
+                "/tools/anonymize/run",
+                data={
+                    "action": "run", "remote_id": remote.id, "level": "SERIES", "study_uid": [STUDY],
+                    "series_opened": [STUDY], "series_sel": [f"{STUDY}|{uid}" for uid in MANY], "series_label": labels,
+                    "mode": "remove_patient", "remove_patient_action": "erase", "output_dir": str(out), "archive": "none",
+                },
+            )
+    finally:
+        server.shutdown()
+    return run.text, sorted(path.parent.name for path in out.rglob("*.dcm")), log
+
+
+def test_a_pacs_that_hangs_up_after_two_moves_still_delivers_every_series(tmp_path) -> None:
+    text, folders, log = _picky_run(tmp_path, per_association=2, refuse=set())
+    assert "Anonymized and exported 4 instance" in text, text
+    assert [name.split("-")[1] for name in folders] == ["2", "3", "601", "602"]
+    assert len({key for key, _series in log}) >= 2  # it had to come back on a new association
+
+
+def test_a_series_the_pacs_refuses_is_named_and_the_run_is_not_called_a_success(tmp_path) -> None:
+    text, folders, _log = _picky_run(tmp_path, per_association=99, refuse={MANY[2], MANY[3]})
+    assert len(folders) == 2
+    assert "but not everything" in text and "601 · Desc 601" in text and "602 · Desc 602" in text
+    assert "Anonymized and exported" not in text  # the plain success line is not shown
+    assert "0xC000" in text

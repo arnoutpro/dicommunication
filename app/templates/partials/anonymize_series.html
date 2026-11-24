@@ -8,7 +8,7 @@
   <tbody>
     {% for row in series %}
     <tr>
-      <td class="pick-col"><input type="checkbox" name="series_sel" value="{{ study_uid }}|{{ row.SeriesInstanceUID }}" checked aria-label="Series {{ row.SeriesNumber or '' }} {{ row.SeriesDescription }}"></td>
+      <td class="pick-col"><input type="hidden" name="series_label" value="{{ row.SeriesInstanceUID }}|{{ row.SeriesNumber or '?' }}{% if row.SeriesDescription %} · {{ row.SeriesDescription }}{% endif %}"><input type="checkbox" name="series_sel" value="{{ study_uid }}|{{ row.SeriesInstanceUID }}" checked aria-label="Series {{ row.SeriesNumber or '' }} {{ row.SeriesDescription }}"></td>
       <td>{{ row.SeriesNumber or "–" }}</td>
       <td>{{ row.Modality }}</td>
       <td>{{ row.SeriesDescription }}</td>

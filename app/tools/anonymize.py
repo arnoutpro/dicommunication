@@ -241,52 +241,112 @@ def _move_identifier(entity: dict[str, Any]) -> Dataset:
     return identifier
 
 
-def _retrieve_many(
+def _selection_label(entity: dict[str, Any]) -> str:
+    """How a selection is named in messages: the picker's label (``2 · TLC Inspiratory``) or the UID tail."""
+    label = str(entity.get("label") or "").strip()
+    if label:
+        return label
+    uid = str(entity.get("series_uid") or entity.get("SeriesInstanceUID") or entity.get("study_uid") or entity.get("StudyInstanceUID") or "")
+    kind = "series" if (entity.get("series_uid") or entity.get("SeriesInstanceUID")) else "study"
+    return f"{kind} …{uid[-8:]}"
+
+
+def _retrieve_selections(
     local: LocalAE, remote: RemoteNode, entities: list[dict[str, Any]], dest_ae: str
-) -> tuple[list[Dataset], str | None, list[dict[str, Any]]]:
-    """One association, one C-MOVE per selected entity, one shared capture."""
+) -> tuple[list[Dataset], str | None, list[dict[str, Any]], list[dict[str, Any]]]:
+    """One C-MOVE per selection, all captured together. Returns the datasets, the last error, the
+    association contexts and one outcome per selection (``label``, ``count``, ``error``).
+
+    A selection that gets nothing because the PACS closed the association (some PACS allow only a
+    few moves per association) is retried once on a new association, and later selections carry on
+    on the new one; before, everything after the first dropped association was silently lost."""
     STORAGE_INBOX.begin()
     contexts: list[dict[str, Any]] = []
     assoc = None
     error: str | None = None
-    try:
-        _ae, assoc = associate(local, remote, [StudyRootQueryRetrieveInformationModelMove])
-        contexts = context_rows(assoc)
+    outcomes: list[dict[str, Any]] = []
+
+    def open_association():
+        nonlocal contexts
+        _ae, new_assoc = associate(local, remote, [StudyRootQueryRetrieveInformationModelMove])
+        rows = context_rows(new_assoc)
+        if not contexts:
+            contexts = rows
         rejected = rejected_sop_message(
-            contexts,
+            rows,
             "Study Root Query/Retrieve MOVE",
             "The remote must accept C-MOVE (not C-GET) and know this AE as a destination.",
         )
-        if not getattr(assoc, "is_established", False):
-            return [], rejected or reject_reason(assoc), contexts
-        if not assoc.accepted_contexts:
-            assoc.release()
-            return [], rejected or "Study Root Query/Retrieve MOVE was not accepted.", contexts
-        for entity in entities:
-            if not getattr(assoc, "is_established", False):
-                error = error or "Association was closed by the peer before all selections were retrieved."
-                break
-            identifier = _move_identifier(entity)
+        if not getattr(new_assoc, "is_established", False):
+            return None, rejected or reject_reason(new_assoc)
+        if not new_assoc.accepted_contexts:
+            new_assoc.release()
+            return None, rejected or "Study Root Query/Retrieve MOVE was not accepted."
+        return new_assoc, None
+
+    def close(current) -> None:
+        if current is not None and getattr(current, "is_established", False):
             try:
-                for status, _remaining in assoc.send_c_move(
-                    identifier, dest_ae, StudyRootQueryRetrieveInformationModelMove
-                ):
-                    if not status:
-                        error = "No C-MOVE response (timeout, abort, or invalid PDU)."
+                current.release()
+            except Exception:  # noqa: BLE001
+                try:
+                    current.abort()
+                except Exception:  # noqa: BLE001
+                    pass
+
+    try:
+        for entity in entities:
+            before = STORAGE_INBOX.count()
+            note = ""
+            for attempt in (1, 2):
+                if assoc is None or not getattr(assoc, "is_established", False):
+                    assoc, open_error = open_association()
+                    if assoc is None:
+                        if not outcomes and attempt == 1 and not STORAGE_INBOX.count():
+                            # Could not connect at all for the first selection: report why and stop.
+                            return [], open_error, contexts, []
+                        note = open_error or "Could not connect to the PACS."
                         break
-                    code = int(status.Status)
-                    if code in PENDING:
-                        continue
-                    if code != 0x0000:
-                        error = f"C-MOVE status 0x{code:04X}"
-                    break
-            except Exception as exc:  # noqa: BLE001 — a dropped association must not crash the request
-                error = f"{type(exc).__name__}: {exc}"
+                identifier = _move_identifier(entity)
+                note = ""
+                lost = False
+                try:
+                    for status, _remaining in assoc.send_c_move(
+                        identifier, dest_ae, StudyRootQueryRetrieveInformationModelMove
+                    ):
+                        if not status:
+                            note = "No C-MOVE response (timeout, abort, or invalid PDU)."
+                            lost = True
+                            break
+                        code = int(status.Status)
+                        if code in PENDING:
+                            continue
+                        if code != 0x0000:
+                            note = f"C-MOVE status 0x{code:04X}"
+                        break
+                except Exception as exc:  # noqa: BLE001 — a dropped association must not crash the request
+                    note = f"{type(exc).__name__}: {exc}"
+                    lost = True
+                got = STORAGE_INBOX.count() - before
+                # No answer at all means the association is gone, even when it has not noticed yet.
+                dropped = lost or not getattr(assoc, "is_established", False)
+                if dropped:
+                    if lost:
+                        try:
+                            assoc.abort()
+                        except Exception:  # noqa: BLE001
+                            pass
+                    assoc = None
+                if got == 0 and dropped and attempt == 1:
+                    continue  # the PACS closed the association: try this selection once on a new one
                 break
-        if getattr(assoc, "is_established", False):
-            assoc.release()
+            got = STORAGE_INBOX.count() - before
+            if note:
+                error = f"{_selection_label(entity)}: {note}"
+            outcomes.append({"label": _selection_label(entity), "count": got, "error": note})
+        close(assoc)
         time.sleep(0.05)
-        return STORAGE_INBOX.finish(), error, contexts
+        return STORAGE_INBOX.finish(), error, contexts, outcomes
     finally:
         if assoc is not None and getattr(assoc, "is_established", False):
             try:
@@ -294,6 +354,13 @@ def _retrieve_many(
             except Exception:  # noqa: BLE001
                 pass
         STORAGE_INBOX.finish()
+
+
+def _retrieve_many(
+    local: LocalAE, remote: RemoteNode, entities: list[dict[str, Any]], dest_ae: str
+) -> tuple[list[Dataset], str | None, list[dict[str, Any]]]:
+    datasets, error, contexts, _outcomes = _retrieve_selections(local, remote, entities, dest_ae)
+    return datasets, error, contexts
 
 
 def _safe_uid_component(value: str) -> str:
@@ -592,7 +659,7 @@ class AnonymizeTool(BaseTool):
         records: list[dict[str, Any]] = []
         with capture_pynetdicom_log() as log_stream:
             move_started = time.perf_counter()
-            datasets, move_error, contexts = _retrieve_many(local, remote, entities, dest_ae)
+            datasets, move_error, contexts, outcomes = _retrieve_selections(local, remote, entities, dest_ae)
             if not datasets:
                 steps.append(
                     ToolStep(
@@ -608,12 +675,19 @@ class AnonymizeTool(BaseTool):
                     remote_id=remote.id, remote_name=remote.name,
                     duration_ms=elapsed_ms(started), steps=steps, log=log, contexts=contexts,
                 )
+            empty = [item for item in outcomes if not item["count"]]
+            table = "\n".join(
+                f"{item['label']}: {item['count']} instance(s)" + (f" ({item['error']})" if item["error"] else "")
+                for item in outcomes
+            )
             steps.append(
                 ToolStep(
-                    name="C-MOVE", ok=True,
-                    message=f"Retrieved {len(datasets)} instance(s) from {len(entities)} selection(s)"
-                    + (f". Last error: {move_error}" if move_error else ""),
+                    name="C-MOVE", ok=not empty,
+                    message=f"Retrieved {len(datasets)} instance(s) from {len(entities) - len(empty)} of {len(entities)} selection(s)"
+                    + (f". Nothing came back for: {'; '.join(item['label'] + (' (' + item['error'] + ')' if item['error'] else '') for item in empty)}" if empty else "")
+                    + (f". Last error: {move_error}" if move_error and not empty else ""),
                     duration_ms=elapsed_ms(move_started),
+                    details={"output": table},
                 )
             )
 
@@ -648,7 +722,7 @@ class AnonymizeTool(BaseTool):
             steps.append(
                 ToolStep(
                     name="Anonymize",
-                    ok=bool(anonymized),
+                    ok=bool(anonymized) and not failed,
                     message=f"Anonymized {len(anonymized)} of {len(datasets)} instance(s) ({MODE_LABELS.get(mode, mode)})"
                     + (f" — {failed} failed: {last_error}" if failed else ""),
                     duration_ms=elapsed_ms(anon_started),
@@ -702,11 +776,13 @@ class AnonymizeTool(BaseTool):
             log = log_stream.getvalue().strip()
 
         ok = bool(anonymized) and bool(steps) and all(step.ok for step in steps)
-        summary = (
-            f"Anonymized and exported {len(anonymized)} instance(s) to {final_path}"
-            if ok
-            else (next((s.message for s in steps if not s.ok), "Anonymize run failed"))
-        )
+        if ok:
+            summary = f"Anonymized and exported {len(anonymized)} instance(s) to {final_path}"
+        elif anonymized:
+            problems = [step.message for step in steps if not step.ok and step.name != "Export"]
+            summary = f"Exported {len(anonymized)} instance(s) to {final_path}, but not everything: " + " | ".join(problems)
+        else:
+            summary = next((s.message for s in steps if not s.ok), "Anonymize run failed")
         return ToolResult(
             tool_id=self.id, tool_name=self.name, ok=ok, summary=summary,
             remote_id=remote.id, remote_name=remote.name,
