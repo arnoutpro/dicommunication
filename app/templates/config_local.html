@@ -31,7 +31,7 @@
     {% call field("Hostname", "hostname", "Optional. For documentation; DICOM listen still uses the IP address.") %}
     <input id="hostname" name="hostname" class="w-lg" value="{{ config.local.hostname }}" placeholder="workstation.hospital.local">
     {% endcall %}
-    {{ check("Accept SR C-STORE", "storage_scp_enabled", "storage_scp_enabled", config.local.storage_scp_enabled, "Accept C-STORE of Structured Reports on the same listen port. Required to retrieve SR text. Vue must list this AE Title as a C-MOVE destination at this host:port. Imaging series are not stored.", wide=True) }}
+    {{ check("Accept C-STORE", "storage_scp_enabled", "storage_scp_enabled", config.local.storage_scp_enabled, "Accept C-STORE on the same listen port, so a PACS can send here what this workstation asks it to C-MOVE: Structured Reports (Analytics), and the images the Anonymizer, Cleaner, Router and Tag Editor retrieve. The PACS must list this AE Title as a C-MOVE destination at this host:port. Nothing is kept as an archive.", wide=True) }}
     <details class="advanced">
       <summary>Advanced settings</summary>
       <div class="fields cols-2">

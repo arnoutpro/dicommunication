@@ -190,7 +190,7 @@
     <li><strong>Calling AE Title</strong> — who you are on the association. The remote must allow this AE (Orthanc <code>DicomModalities</code>, vendor “known AEs”, and so on).</li>
     <li><strong>Scheduled Station AE Title</strong> — a query key in the MWL identifier. Modalities normally ask for procedures scheduled to their own station (<code>CT1</code>, <code>MR1</code>, …).</li>
   </ul>
-  <p>On Worklist, Testbench, and each DIMSE tool, <strong>Present as</strong> chooses who you are:</p>
+  <p>On Worklist, Testbench, Dicomtag Analytics, Dicom Anonymizer, Dicom Cleaner, Dicom Import, Send Image, Tag Editor and each DIMSE tool, <strong>Present as</strong> chooses who you are:</p>
   <ul>
     <li><code>(workstation)</code> — the Local DICOM AE Title from Configured nodes</li>
     <li>a virtual identity — calling AE plus that identity’s station / modality defaults</li>
@@ -250,7 +250,7 @@
         <tr>
           <td>Port</td>
           <td><code>11112</code></td>
-          <td>Listen port for the optional local MWL SCP and optional Structured Report C-STORE. Common DICOM ports elsewhere: <code>104</code>, Orthanc <code>4242</code>.</td>
+          <td>Listen port for the optional local MWL SCP and the optional C-STORE receiver. Common DICOM ports elsewhere: <code>104</code>, Orthanc <code>4242</code>.</td>
         </tr>
         <tr>
           <td>Timeout</td>
@@ -258,7 +258,7 @@
           <td>ACSE, DIMSE, and network timeout (1–120).</td>
         </tr>
         <tr>
-          <td>Max PDU</td>
+          <td>Max PDU size</td>
           <td>16382</td>
           <td>Association max PDU (4096–131072).</td>
         </tr>
@@ -273,14 +273,14 @@
           <td>Default Scheduled Station AE Title for worklist queries when no virtual identity is selected.</td>
         </tr>
         <tr>
-          <td>Serve the web worklist over DICOM (MWL SCP on the listen port)</td>
+          <td>Worklist over DICOM</td>
           <td>off</td>
           <td>Start an MWL SCP on the listen port, backed by the local web worklist. If a modality must C-FIND this workstation, allow inbound TCP for this process on that port.</td>
         </tr>
         <tr>
-          <td>Accept C-STORE of Structured Reports (same listen port)</td>
+          <td>Accept C-STORE (same listen port)</td>
           <td>off</td>
-          <td>Accept SR Storage SOP Classes on the same port so Dicomtag Analytics can C-MOVE report series here. Vue must list this AE Title as a C-MOVE destination. Imaging series are not stored.</td>
+          <td>Accept storage SOP Classes on the same port, so a PACS can send here what this workstation asks it to C-MOVE: Structured Reports for Dicomtag Analytics, and the images that the Dicom Anonymizer, Dicom Cleaner, Dicom Router (retrieve and forward) and Tag Editor (Fetch and Push) retrieve. The PACS must list this AE Title as a C-MOVE destination at this host and port. What arrives is held in memory for that run, not kept as an archive. Nothing can be retrieved while this is off; those tools say so.</td>
         </tr>
       </tbody>
     </table>
@@ -401,7 +401,7 @@
     <li><strong>MWL C-FIND</strong> uses the worklist SOP Class and the identity’s station AE unless you override it.</li>
     <li>The result lists <strong>SOP Classes negotiated</strong> (accepted vs rejected) plus returned/stored records and the association log.</li>
   </ul>
-  <p>The individual DIMSE tool pages under DIMSE in the sidebar use the same engines. Testbench is the place to switch services on one remote without leaving the page.</p>
+  <p>The individual DIMSE tool pages under DIMSE in the sidebar use the same engines. Testbench is the place to switch services on one remote without leaving the page. Choose the <strong>DICOM service</strong> and only the fields that service uses appear: the C-FIND filters for C-FIND, the station AE and scheduled date for MWL C-FIND, nothing extra for C-ECHO and C-STORE. The explanation of each field is a <code>?</code> you can hover.</p>
 </section>
 
 <section class="panel help-section" id="echo-board">
@@ -427,7 +427,7 @@
   </ul>
   <p>Empty filters on a remote mean “return what the SCP is willing to send”. Presenting as <code>CT1</code> fills station (and modality, if the identity has one) unless you override the fields. Zero rows with a Pass still means the SOP Class was accepted — check station AE, date, and Present as.</p>
   <h3>Local web worklist</h3>
-  <p>Add scheduled procedures here. If <strong>Serve the web worklist over DICOM (MWL SCP on the listen port)</strong> is on under Local DICOM AE, a modality can C-FIND this workstation on the listen port (<code>11112</code> by default). The local MWL SCP also answers C-ECHO. It uses the workstation AE Title, not virtual identities.</p>
+  <p>Add scheduled procedures here. If <strong>Worklist over DICOM</strong> (serve the web worklist as an MWL SCP on the listen port) is on under Local DICOM AE, a modality can C-FIND this workstation on the listen port (<code>11112</code> by default). The local MWL SCP also answers C-ECHO. It uses the workstation AE Title, not virtual identities.</p>
 </section>
 
 <section class="panel help-section" id="ping">
@@ -445,7 +445,7 @@
   </header>
   <p>Verification SOP Class <code>1.2.840.10008.1.1</code>. Associates with the selected remote as the chosen calling AE and sends C-ECHO. A pass means the peer accepted Verification and answered. It does <strong>not</strong> mean the peer will accept Storage, Study Root FIND, or Modality Worklist.</p>
   <p>If the association is rejected entirely, the calling AE is not in the peer’s allow-list, or host / port / called AE are wrong. Check Configured nodes and the vendor “known AEs” list (Orthanc <code>DicomModalities</code>).</p>
-  <p>Don't want to add the node to Configured nodes just to try it once? Switch to <strong>Enter connection details manually</strong> and type its AE Title, host, and port — the run uses them directly and nothing is saved.</p>
+  <p>Don't want to add the node to Configured nodes just to try it once? Switch to <strong>Enter details manually</strong> and type its AE Title, host, and port — the run uses them directly and nothing is saved.</p>
 </section>
 
 <section class="panel help-section" id="c-store">
@@ -514,7 +514,7 @@
     <h2>Send Image to PACS</h2>
     <a href="/tools/send-image">Open</a>
   </header>
-  <p>Attaches a placeholder image to a study. <strong>1. Find a study</strong> offers three ways: <strong>Look up a study</strong> runs the same Study Root C-FIND as C-FIND / Dicomtag Analytics, which finds a study whether its order is still open or already closed — Modality Worklist, by contrast, stops listing an order the moment it's performed. <strong>Look up a patient</strong> is Patient Root C-FIND at Patient level, for an order whose study has <em>no image yet stored at all</em> — Study Root C-FIND can't find that either, since it only matches studies with at least one stored instance, but many PACS keep a patient record (registration/demographics) independently of any study. <strong>Enter details manually</strong> is the last resort: skips any lookup and takes the typed-in Patient Name and Patient ID as-is, for when even the patient isn't registered. All three leave Accession Number and Study Instance UID for step 3, except Study Root C-FIND's own values, which step 3 can still override. <strong>2. Pick the study</strong> — exactly one; this sends a single image, not a batch. <strong>3. Describe the image</strong> — choose the Modality the stored object is tagged as, set or override the Accession Number and Study Instance UID (left blank, a new UID is generated), plus optional Study Description, Body Part Examined, and Series Description. <strong>4. Send</strong> picks a destination, defaulting to the same node selected in step 1.</p>
+  <p>Attaches a placeholder image to a study. <strong>1. Find a study</strong> offers three ways, chosen on the <strong>Find the study by</strong> row (its <code>?</code> explains when to use which): <strong>Study</strong> runs the same Study Root C-FIND as C-FIND / Dicomtag Analytics, which finds a study whether its order is still open or already closed — Modality Worklist, by contrast, stops listing an order the moment it's performed. <strong>Patient</strong> is Patient Root C-FIND at Patient level, for an order whose study has <em>no image yet stored at all</em> — Study Root C-FIND can't find that either, since it only matches studies with at least one stored instance, but many PACS keep a patient record (registration/demographics) independently of any study. <strong>Details typed by hand</strong> is the last resort: skips any lookup and takes the typed-in Patient Name and Patient ID as-is, for when even the patient isn't registered. All three leave Accession Number and Study Instance UID for step 3, except Study Root C-FIND's own values, which step 3 can still override. <strong>2. Pick the study</strong> — exactly one; this sends a single image, not a batch. <strong>3. Describe the image</strong> — choose the Modality the stored object is tagged as, set or override the Accession Number and Study Instance UID (left blank, a new UID is generated), plus optional Study Description, Body Part Examined, and Series Description. <strong>4. Send</strong> picks a destination, defaulting to the same node selected in step 1.</p>
   <p>The image itself is a fixed small solid-black frame (Secondary Capture Image Storage) — there is no real pixel content to configure. What makes it identifiable is the Patient Name, Patient ID, Accession Number, and Study Instance UID from the picked study and step 3, so the stored instance lands in the same study it refers to.</p>
 </section>
 
@@ -533,7 +533,7 @@
   </ul>
   <p>The page runs in four steps: <strong>Destination</strong> (a remote node's host or a typed one, port and framing, with a folded note for Philips IS Link), <strong>Message</strong> (the editor, and Save as / Save message), <strong>Adjust before sending</strong> and <strong>Send</strong>. Saving a message keeps the host, port and framing on the page.</p>
   <h3>Adjust before sending</h3>
-  <p>Folded by default; its heading lists the rewrites that are on (for example "New MSH-10 · ORC-1 → SC"), so you can see what will change without opening it. Each option has a one-line summary and a Details note. They only rewrite fields the message already has and never invent missing ORC / OBR segments. All four are off by default: each one changes the message, so turn on only what you mean to test. The IS Link details here come from Philips' <em>Vue PACS 12.2.8 HL7 Interface Specifications</em> (HA1669) and the HL7 code tables; they have not yet been checked against a live IS Link server.</p>
+  <p>Folded by default; its heading lists the rewrites that are on (for example "New MSH-10 · ORC-1 → SC"), so you can see what will change without opening it. Each option has a <code>?</code> with a one-line summary and a folded Details note. They only rewrite fields the message already has and never invent missing ORC / OBR segments. All four are off by default: each one changes the message, so turn on only what you mean to test. The IS Link details here come from Philips' <em>Vue PACS 12.2.8 HL7 Interface Specifications</em> (HA1669) and the HL7 code tables; they have not yet been checked against a live IS Link server.</p>
   <ul>
     <li><strong>New Message Control ID (MSH-10)</strong> — a new Message Control ID so a resend is not treated as a duplicate. The same MSH-10 is often ACKed and ignored.</li>
     <li><strong>Change existing order (ORC-1)</strong> — overwrites ORC-1 with the chosen order control and stamps ORC-9. It does not invent an ORC. Repeating <code>NW</code> is usually ACKed and skipped.</li>
