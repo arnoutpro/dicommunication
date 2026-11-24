@@ -31,6 +31,7 @@ Users said the interface looked machine-made: rounded corners, pill shapes and l
 - **Send Image to PACS on the new field system.** "Find the study by" (Study / Patient / Details typed by hand) is one row of plain radios with the long explanation in its tooltip, and only the matching fields show. Step 3 (Describe the image) is six short rows; the "falls back to the study" hints are tooltips. Field names and the hide/show behaviour are unchanged.
 - **Tag Editor on the new field system.** Connect, Find the study and Push are short rows with tooltips; Find Study Instance UID sits under its two fields and fills the UID row. The three notes about what Push changes stay visible on purpose, since Push writes to a real PACS. The practice section stays folded.
 - **Config pages on the new field system:** Virtual AEs, Security (retention in minutes and days with units, the folder list as one row), Users (Add a user), Audit log filter and Your account. Hints are tooltips; the sign-in/HTTPS status text and the audit table are unchanged. Sign-in and Setup pages keep their stacked layout.
+- **Configured nodes overview:** the three summary cards are replaced by one line (workstation AE, number of virtual AEs, number of remote nodes). The three tables below already list everything.
 - Still to come: the other pages on the new field system, with fewer controls shown at once (a period menu instead of preset buttons and date pickers, one menu for the modalities, and so on).
 
 ## 0.13.2

@@ -2933,3 +2933,16 @@ body.page-find .find-head {
 .fld-control > .choice:has(> .w-lg) { --w: 24rem; }
 .fld-control > .choice:has(> .w-full) { --w: 100%; }
 .fld-control > input[type="file"] { --w: 28rem; }
+
+/* Overview line: what is configured, in one row instead of three cards. */
+.summary-line {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 1.5rem;
+  margin: 0 0 0.6rem;
+  padding: 0.35rem 0;
+  border-bottom: 1px solid var(--line);
+  color: var(--muted);
+  font-size: var(--text-sm);
+}
+.summary-line strong { color: var(--text); font-weight: 600; }
