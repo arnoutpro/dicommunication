@@ -277,7 +277,9 @@ def test_c_find_advanced_page_and_api(client, store) -> None:
         assert b"find-key-grid" not in page.content
         assert b'data-match-required="1"' in page.content
         assert b'data-find-stop' in page.content
-        assert b'data-find-select="sr"' in page.content
+        # The four shortcut buttons are one menu now (usual columns, all columns, SR series, clear the values).
+        assert b"data-find-select-menu" in page.content and b'<option value="sr">SR series</option>' in page.content
+        assert b'data-find-select="' not in page.content
         assert b"ELSCINT1" in page.content
         assert b"Tamar Study Status" in page.content
         assert b'data-find-copy' not in page.content
@@ -1466,3 +1468,31 @@ def test_retrieve_sr_findings_and_impression_are_individually_selectable(client,
         assert b">Impression<" not in html.content
     finally:
         move_server.shutdown()
+
+
+def test_the_query_page_uses_menus_and_a_table_of_fields(client: TestClient, store: ConfigStore, remote: RemoteNode) -> None:
+    """The 0.14 layout: a period menu, a modality dropdown and one shortcuts menu, not rows of buttons."""
+    page = client.get("/tools/c-find-advanced").text
+    # Study Date: one menu in place of six preset buttons, with the date boxes only for a custom range
+    assert "data-date-preset-select" in page and 'data-date-preset="' not in page
+    for option in ('value="any">Any date', 'value="today">Today', 'value="yesterday">Yesterday', 'value="7">Last 7 days', 'value="30">Last 30 days', 'value="month">This month', 'value="custom">Date range'):
+        assert option in page, option
+    assert "data-find-date-range hidden" in page
+    # Modalities: a dropdown that holds every code, without the "+7 more" button
+    assert 'class="find-multi" data-find-modality-chips' in page and "data-find-modality-more-toggle" not in page
+    for code in ("CR", "CT", "DX", "MG", "MR", "NM", "OT", "PT", "RF", "SC", "SR", "US", "XA"):
+        assert f'data-modality-chip' in page and f'value="{code}"' in page
+    # The shortcuts: one menu with the four modes the script knows
+    for mode in ("defaults", "all", "sr", "clear"):
+        assert f'<option value="{mode}">' in page
+    # Each key is a table row; only the checkbox and name are a label, the value box has its own name
+    assert '<div\n        class="find-key"' in page and 'class="find-key-head"' in page
+    assert 'aria-label="Match Accession Number"' in page and 'class="find-key-header"' in page
+    # The long help text is a tooltip, not a paragraph that opens and closes
+    assert "data-find-help-toggle" not in page and 'class="tip"' in page
+
+
+def test_the_query_form_still_posts_the_same_fields(client: TestClient, store: ConfigStore, remote: RemoteNode) -> None:
+    page = client.get("/tools/c-find-advanced").text
+    for name in ("remote_id", "level", "include", "key_StudyDate", "key_AccessionNumber", "key_ModalitiesInStudy", "combine_series", "combine_series_description", "sr_include_findings", "sr_include_impression", "date_preset", "follow", "studies_json", "max_records"):
+        assert f'name="{name}"' in page, name

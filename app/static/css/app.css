@@ -2030,49 +2030,11 @@ body.page-find .find-head {
   gap: 0.15rem 1.2rem;
 }
 .find-primary [data-find-key="StudyDate"] { grid-column: 1 / -1; }
-.find-more-filters > summary {
-  width: fit-content;
-  cursor: pointer;
-  list-style: none;
-  padding: 0.3rem 0.6rem;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-sm);
-  font-size: var(--text-sm);
-  font-weight: 700;
-  color: var(--accent);
-  user-select: none;
-}
-.find-more-filters > summary::-webkit-details-marker { display: none; }
-.find-more-filters > summary::before {
-  content: "";
-  display: inline-block;
-  width: 0.32rem;
-  height: 0.32rem;
-  margin-right: 0.45rem;
-  border-right: 1.5px solid currentColor;
-  border-bottom: 1.5px solid currentColor;
-  transform: rotate(-45deg);
-  transition: transform 0.15s;
-  vertical-align: 0.12rem;
-}
-.find-more-filters[open] > summary::before {
-  transform: rotate(45deg);
-  vertical-align: 0.18rem;
-}
-.find-more-filters > summary:hover { background: var(--glass-strong); }
 .find-more-count {
   font-weight: 600;
   color: var(--muted);
 }
-.find-tree-wrap {
-  flex: 1;
-  min-height: 0;
-  overflow: auto;
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  background: var(--bg-elev);
-  margin-top: 0.3rem;
-}
+.find-tree-wrap { flex: 1; min-height: 0; overflow: auto; margin-top: 0.1rem; }
 .find-tree {
   display: flex;
   flex-direction: column;
@@ -2818,3 +2780,153 @@ body.page-find .find-head {
   .fields.cols-2 { grid-template-columns: minmax(0, 1fr); }
   .fld { grid-template-columns: minmax(0, 1fr); row-gap: 0.1rem; }
 }
+
+
+/* --- Dicomtag Analytics query: one flat table of fields, menus in place of rows
+   of buttons. Scoped to .find-advanced-form so the pages that share the chip and
+   tab styles keep theirs until they are converted. --- */
+.find-advanced-form { gap: 0.15rem; }
+.find-row {
+  display: grid;
+  grid-template-columns: 7.5rem minmax(0, 1fr);
+  align-items: center;
+  column-gap: 0.75rem;
+  min-height: 1.65rem;
+  padding: 0.05rem 0;
+}
+.find-row-label { color: var(--text); font-size: var(--text-md); }
+.find-row-body { display: flex; flex-wrap: wrap; align-items: center; gap: 0.15rem 0.9rem; min-width: 0; }
+.find-setup { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.1rem 2.5rem; padding-bottom: 0.15rem; }
+.find-setup label {
+  display: grid;
+  grid-template-columns: 7.5rem minmax(0, 1fr);
+  align-items: center;
+  column-gap: 0.75rem;
+  font-size: var(--text-md);
+  color: var(--text);
+  font-weight: 400;
+  min-height: 1.65rem;
+}
+.find-setup select { width: 100%; max-width: 22rem; font-size: var(--text-md); padding: 0.12rem 0.4rem; }
+.find-sr-field-toggle { font-weight: 400; font-size: var(--text-md); gap: 0.35rem; }
+.find-advanced-form .find-level-tabs { display: inline-flex; gap: 1.1rem; padding: 0; border: 0; background: none; width: auto; }
+.find-advanced-form .find-level-tab { display: inline-flex; align-items: center; gap: 0.35rem; cursor: pointer; }
+.find-advanced-form .find-level-tab input { position: static; opacity: 1; pointer-events: auto; margin: 0; }
+.find-advanced-form .find-level-tab span,
+.find-advanced-form .find-level-tab input:checked + span,
+.find-advanced-form .find-level-tab span:hover {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--text);
+  font-size: var(--text-md);
+  font-weight: 400;
+}
+.find-advanced-form .find-level-tab input:checked + span { font-weight: 700; }
+.find-combine-series { border: 0; margin: 0; padding: 0 0 0 8.25rem; min-width: 0; }
+.find-combine-series-value { flex: none; width: 17rem; min-width: 0; }
+/* The table: a header, then one thin-ruled row per DICOM key. */
+.find-primary, .find-key-list { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0; margin-top: 0.2rem; }
+.find-key-header {
+  display: grid;
+  grid-template-columns: 17rem minmax(0, 1fr);
+  padding: 0.18rem 0.5rem;
+  background: var(--glass-strong);
+  border-bottom: 1px solid var(--line-strong);
+  color: var(--subtle);
+  font-size: var(--text-xs);
+  font-weight: 600;
+}
+.find-key {
+  display: grid;
+  grid-template-columns: 17rem minmax(0, 1fr);
+  column-gap: 0;
+  align-items: center;
+  padding: 0.08rem 0.5rem;
+  border-bottom: 1px solid var(--line);
+  font-size: var(--text-md);
+  color: var(--text);
+  font-weight: 400;
+}
+.find-key:hover { background: var(--accent-dim); }
+.find-key-head { display: flex; align-items: center; gap: 0.5rem; min-width: 0; cursor: pointer; }
+.find-key-head input { margin: 0 0.35rem 0 0.7rem; }
+.find-key-title { font-size: var(--text-md); font-weight: 400; color: var(--text); }
+.find-key-control { display: flex; flex-wrap: wrap; align-items: center; gap: 0.35rem 0.5rem; min-width: 0; }
+.find-key-control > input[data-find-value] { width: 15rem; max-width: 100%; font-size: var(--text-sm); }
+.find-key[data-find-key="AccessionNumber"] .find-key-control > input[data-find-value],
+.find-key[data-find-key="ModalitiesInStudy"] .find-key-control > input[data-find-value] { width: 11rem; }
+.find-key .hint { grid-column: 1 / -1; padding-left: 2.2rem; }
+.find-date-tools { display: inline-flex; align-items: center; gap: 0.4rem; order: -1; }
+.find-date-tools .choice, .find-date-tools select { width: 9rem; }
+.find-date-range { display: inline-flex; align-items: center; gap: 0.3rem; }
+.find-date-range input[type="date"] { width: 9.5rem; font-size: var(--text-sm); }
+/* The modality dropdown: closed it is a box with the choice in it, open it lists them. */
+.find-multi { position: relative; order: -1; }
+.find-multi > summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.4rem;
+  width: 9rem;
+  min-height: 1.45rem;
+  padding: 0.12rem 0.4rem;
+  border: 1px solid var(--line-strong);
+  background: var(--field-bg);
+  color: var(--text);
+  font-size: var(--text-md);
+  font-weight: 400;
+  list-style: none;
+}
+.find-multi > summary::before { display: none; }
+.find-multi > summary::after {
+  content: "";
+  width: 0.38rem;
+  height: 0.38rem;
+  border-right: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor;
+  transform: rotate(45deg);
+  margin-top: -0.15rem;
+  flex-shrink: 0;
+}
+.find-multi[open] > summary { border-color: var(--accent); }
+.find-multi-list {
+  position: absolute;
+  z-index: 25;
+  top: calc(100% + 1px);
+  left: 0;
+  display: grid;
+  grid-template-columns: repeat(3, max-content);
+  gap: 0.2rem 1rem;
+  padding: 0.4rem 0.6rem;
+  background: var(--surface-raised);
+  border: 1px solid var(--line-strong);
+}
+.find-multi .find-modality-chip { display: flex; align-items: center; gap: 0.35rem; cursor: pointer; }
+.find-multi .find-modality-chip input { position: static; opacity: 1; pointer-events: auto; margin: 0; }
+.find-multi .find-modality-chip span,
+.find-multi .find-modality-chip span:hover,
+.find-multi .find-modality-chip input:checked + span {
+  padding: 0;
+  min-width: 0;
+  border: 0;
+  background: none;
+  color: var(--text);
+  font-size: var(--text-md);
+  font-weight: 400;
+}
+.find-multi .find-modality-chip input:checked + span { font-weight: 700; }
+.find-toolbar { margin: 0.35rem 0 0.1rem; }
+.find-columns-menu { display: inline-flex; align-items: center; gap: 0.6rem; font-size: var(--text-md); color: var(--text); font-weight: 400; }
+.find-columns-menu .choice, .find-columns-menu select { width: 11rem; }
+.find-advanced-form .find-more-filters { border-top: 1px solid var(--line); margin-top: 0.35rem; }
+.find-advanced-form .find-more-filters > summary {
+  width: 100%;
+  padding: 0.4rem 0;
+  border: 0;
+  color: var(--text);
+  font-size: var(--text-md);
+  font-weight: 600;
+}
+.find-advanced-form .find-more-filters > summary:hover { color: var(--accent); background: none; }
+.find-more-count { font-weight: 400; color: var(--muted); }

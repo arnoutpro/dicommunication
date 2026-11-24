@@ -1395,6 +1395,53 @@ function syncModalityInputFromChips(form) {
   input.value = [...checked, ...extras].join("\\");
 }
 
+// The page turns every <select> into its own dropdown widget, which redraws its label on a
+// "change" event on the select. Setting select.value from script does not send one, so tell the
+// widget directly. The event does not bubble, so the page's own change handlers do not run again.
+function setSelectValue(select, value) {
+  if (select.value === value) {
+    return;
+  }
+  select.value = value;
+  select.dispatchEvent(new Event("change"));
+}
+
+// The modality dropdown shows what the value box holds.
+function updateModalitySummary(form) {
+  const summary = form.querySelector("[data-find-modality-summary]");
+  const input = findValueInput(form, "ModalitiesInStudy");
+  if (!summary || !input) {
+    return;
+  }
+  const tokens = input.value
+    .split("\\")
+    .map((token) => token.trim().toUpperCase())
+    .filter(Boolean);
+  summary.textContent = tokens.length ? tokens.join(", ") : "Any";
+}
+
+// The Study Date period menu follows the state of the date: a preset when one produced
+// it, "Date range…" when dates were typed or picked, "Any date" when there are none.
+function syncDatePresetMenu(form) {
+  const menu = form.querySelector("[data-date-preset-select]");
+  if (!menu) {
+    return;
+  }
+  const preset = form.querySelector("[data-find-date-preset]")?.value || "";
+  const raw = findValueInput(form, "StudyDate");
+  let mode = "any";
+  if (preset && [...menu.options].some((option) => option.value === preset)) {
+    mode = preset;
+  } else if (form.dataset.findDateCustom === "1" || (raw && raw.value.trim())) {
+    mode = "custom";
+  }
+  setSelectValue(menu, mode);
+  const range = form.querySelector("[data-find-date-range]");
+  if (range) {
+    range.hidden = mode !== "custom";
+  }
+}
+
 function isoDateFromDicomToken(token) {
   return /^\d{8}$/.test(token) ? `${token.slice(0, 4)}-${token.slice(4, 6)}-${token.slice(6, 8)}` : token;
 }
@@ -1565,7 +1612,9 @@ function syncFindAdvanced(form) {
     }
   });
   syncModalityChipsFromInput(form);
+  updateModalitySummary(form);
   syncDatePickersFromInput(form);
+  syncDatePresetMenu(form);
   syncFindMoreFiltersCount(form);
 }
 
@@ -2226,6 +2275,26 @@ function bindFindAdvanced(root) {
         syncFindAdvanced(target);
         return;
       }
+      if (event.target.matches("[data-date-preset-select]")) {
+        const value = event.target.value;
+        if (value === "custom") {
+          setFindDatePreset(target, ""); // the dates stay, but they are no longer "Last 7 days"
+          target.dataset.findDateCustom = "1";
+          syncDatePresetMenu(target);
+        } else {
+          delete target.dataset.findDateCustom;
+          applyDatePreset(target, value === "any" ? "clear" : value);
+        }
+        return;
+      }
+      if (event.target.matches("[data-find-select-menu]")) {
+        const mode = event.target.value;
+        if (mode) {
+          applyFindSelection(target, mode);
+        }
+        setSelectValue(event.target, "");
+        return;
+      }
       if (event.target.matches("[data-date-from], [data-date-to]")) {
         setFindDatePreset(target, "");
         syncDateInputFromPickers(target);
@@ -2701,6 +2770,22 @@ document.addEventListener("click", (event) => {
     more.hidden = !more.hidden;
     moreToggle.setAttribute("aria-expanded", more.hidden ? "false" : "true");
     moreToggle.textContent = more.hidden ? moreToggle.getAttribute("data-collapsed-label") : "Show fewer";
+  }
+});
+
+// An open dropdown (the modalities) closes on a click elsewhere or on Escape.
+document.addEventListener("click", (event) => {
+  document.querySelectorAll("details.find-multi[open]").forEach((box) => {
+    if (!box.contains(event.target)) {
+      box.open = false;
+    }
+  });
+});
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape") {
+    document.querySelectorAll("details.find-multi[open]").forEach((box) => {
+      box.open = false;
+    });
   }
 });
 

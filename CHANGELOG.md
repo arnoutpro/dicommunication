@@ -16,6 +16,13 @@ Users said the interface looked machine-made: rounded corners, pill shapes and l
 - **The sidebar is a tree**, like a file explorer: 22px rows, a hollow triangle in front of a closed folder and a solid one when it is open, no guide lines or pills, deeper levels indented, and a solid blue row across the full width for the selected page. The layout and the entries are unchanged.
 - **A new field system, first on Local DICOM AE and Remote nodes.** The label is on the left and the control beside it, aligned in columns (two columns on a wide screen, one on a narrow one). Each box is as wide as what goes in it: a port number gets a short box, an AE Title a medium one, a hostname a long one, where before every box stretched across the page. The grey explanation under each field is now a small `?` that shows the text on hover or keyboard focus, and units (seconds, bytes) sit after the box. "Advanced settings" is a plain line with a triangle instead of a grey box, and an empty state is plain text instead of a box inside a box. Every panel title now has a thin line under it. The other pages keep their old layout until they are converted, one at a time.
 - **Fixed:** every page asked the browser for a font file that was removed in this version, which made a failed request on each page load.
+- **Dicomtag Analytics, rebuilt as a table with menus.** The page showed 56 controls at once. Now it is one flat table (Return · Field · Match value) with thin row lines, and the clutter is gone:
+  - **Study Date** has a *Period* menu (Any date, Today, Yesterday, Last 7 days, Last 30 days, This month, Date range…) instead of six buttons plus two date pickers; the two date boxes appear only for a custom range, and the resolved range stays visible in the value box. A saved query keeps its relative period ("Last 7 days") as before.
+  - **Modalities** is a dropdown checklist (13 codes, three columns) showing the current choice, instead of a row of chips and a "+7 more" button; the value box beside it still takes any code.
+  - **Shortcuts** is one menu (Usual columns, All columns, SR series, Clear filter values) instead of four buttons.
+  - **Level** is plain radio buttons instead of a segmented block; *Report text* and *Also search series* are plain rows, and the long "Why?" paragraph is a `?` tooltip.
+  - **More filters** and **Add other DICOM tags** are flat lines with a triangle instead of boxes; the keys inside are the same table rows.
+  - Nothing changed in what the query sends: the same fields, the same hooks, the same saved queries.
 - Still to come: the other pages on the new field system, with fewer controls shown at once (a period menu instead of preset buttons and date pickers, one menu for the modalities, and so on).
 
 ## 0.13.2
