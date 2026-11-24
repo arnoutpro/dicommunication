@@ -415,6 +415,9 @@ class RouteRun(BaseModel):
     # Studies per status (key "" when the rule has no status key), then per
     # modality combination in the study ("CT", "DX+SR"). Counts only.
     modality_counts: dict[str, dict[str, int]] = Field(default_factory=dict)
+    # Studies per study date (YYYY-MM-DD), then per status (key "" when the rule has no
+    # status key). Counts only: it feeds the history charts on the status dashboard.
+    day_counts: dict[str, dict[str, int]] = Field(default_factory=dict)
 
 
 class LoggingSettings(BaseModel):

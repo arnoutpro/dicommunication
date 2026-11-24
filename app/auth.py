@@ -383,7 +383,7 @@ POLICY: tuple[Rule, ...] = (
     _rule(r"^/logout$", PUBLIC, "Sign out", POST),
     # Any signed-in user.
     _rule(r"^/(help|about)$", VIEWER, "Read help", GET),
-    _rule(r"^/lite(/api/status)?$", VIEWER, "View the status dashboard", GET),
+    _rule(r"^/lite(/api/(status|history))?$", VIEWER, "View the status dashboard", GET),
     _rule(r"^/account(/password)?$", VIEWER, "Own account", "GET POST"),
     # Administrators only. These come before the broader operator rules below.
     _rule(r"^/config/users(/.*)?$", ADMIN, "Manage users", "GET POST"),

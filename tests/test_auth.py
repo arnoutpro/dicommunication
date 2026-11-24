@@ -167,6 +167,7 @@ def test_a_good_login_clears_the_count() -> None:
         ("POST", "/login", PUBLIC),
         ("GET", "/lite", VIEWER),
         ("GET", "/lite/api/status", VIEWER),
+        ("GET", "/lite/api/history", VIEWER),
         ("GET", "/", OPERATOR),
         ("GET", "/router", OPERATOR),
         ("POST", "/router", ADMIN),

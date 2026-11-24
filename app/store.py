@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 import os
 import tempfile
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from threading import Lock
 
@@ -99,6 +99,10 @@ def _parse_all(model: type[ModelT], raw: list) -> list[ModelT]:
     return parsed
 
 
+# How long a day count is kept for the history charts, whatever the retention setting says.
+ROUTE_DAILY_MAX_DAYS = 400
+
+
 class ConfigStore:
     def __init__(self, data_dir: Path | str | None = None) -> None:
         self.data_dir = Path(data_dir or DEFAULT_DATA_DIR)
@@ -110,6 +114,7 @@ class ConfigStore:
         self.route_rules_path = self.data_dir / "route_rules.json"
         self.route_runs_path = self.data_dir / "route_runs.json"
         self.saved_queries_path = self.data_dir / "saved_queries.json"
+        self.route_daily_path = self.data_dir / "route_daily.json"
         self._lock = Lock()
         self._max_results = 200
         self._max_route_runs = 500
@@ -369,6 +374,10 @@ class ConfigStore:
 
     def delete_route_rule(self, rule_id: str) -> None:
         with self._lock:
+            daily = self._load_route_daily_unlocked()
+            if rule_id in daily:
+                del daily[rule_id]
+                self._write_json(self.route_daily_path, daily)
             rules = [
                 rule
                 for rule in _parse_all(RouteRule, self._load_route_rules_unlocked())
@@ -446,6 +455,8 @@ class ConfigStore:
                 errors[message] = errors.get(message, 0) + 1
         run.outcome_counts, run.error_counts = outcomes, errors
         with self._lock:
+            if run.ok and run.status == "completed" and run.day_counts:
+                self._record_route_daily_unlocked(run)
             runs = self._load_route_runs_unlocked()
             payload = run.model_dump(mode="json")
             self._write_json(self.route_runs_path, ([payload] + runs)[: self._max_route_runs])
@@ -462,6 +473,8 @@ class ConfigStore:
         """
         emptied = {"runs": 0, "results": 0, "deleted": 0}
         with self._lock:
+            if delete_before is not None:
+                self._prune_route_daily_unlocked(delete_before)
             for path, field_name, key, loader, always in (
                 (self.route_runs_path, "matches", "runs", self._load_route_runs_unlocked, True),
                 (self.results_path, "records", "results", self._load_results_unlocked, False),
@@ -480,6 +493,47 @@ class ConfigStore:
                     self._write_json(path, kept)
                     emptied[key] = changed
         return emptied
+
+    def route_daily(self, rule_id: str) -> dict[str, dict[str, int]]:
+        """Studies per study date (YYYY-MM-DD) per status, as the rule last saw each day."""
+        with self._lock:
+            return dict(self._load_route_daily_unlocked().get(rule_id, {}))
+
+    def _record_route_daily_unlocked(self, run: RouteRun) -> None:
+        """Keep the newest count for every day a finished run saw, for the history charts.
+
+        A day stays after the 500-run history has moved on. It holds counts only (no patient
+        data) and goes with the rest of the history after the "delete after" days setting."""
+        daily = self._load_route_daily_unlocked()
+        days = daily.setdefault(run.rule_id, {})
+        for day, counts in run.day_counts.items():
+            days[day] = dict(counts)
+        oldest = (run.started_at.date() - timedelta(days=ROUTE_DAILY_MAX_DAYS)).isoformat()
+        for day in [d for d in days if d < oldest]:
+            del days[day]
+        self._write_json(self.route_daily_path, daily)
+
+    def _prune_route_daily_unlocked(self, delete_before: datetime) -> int:
+        daily = self._load_route_daily_unlocked()
+        cutoff = delete_before.date().isoformat()
+        removed = 0
+        for days in daily.values():
+            for day in [d for d in days if d < cutoff]:
+                del days[day]
+                removed += 1
+        if removed:
+            self._write_json(self.route_daily_path, daily)
+        return removed
+
+    def _load_route_daily_unlocked(self) -> dict:
+        if not self.route_daily_path.exists():
+            return {}
+        try:
+            data = json.loads(self.route_daily_path.read_text(encoding="utf-8"))
+        except (json.JSONDecodeError, OSError, ValueError) as exc:
+            self._quarantine(self.route_daily_path, exc)
+            return {}
+        return data if isinstance(data, dict) else {}
 
     def list_route_runs(self, rule_id: str | None = None, limit: int = 50) -> list[RouteRun]:
         with self._lock:

@@ -11,6 +11,7 @@
   <header>
     <h1>Status dashboard</h1>
     <span id="summary">…</span>
+    <span class="range" id="range" role="group" aria-label="History range"></span>
     {% if request.state.role != 'viewer' %}<a href="/router" class="back">Dicom Router</a>{% endif %}
     {% if request.state.auth_required and request.state.user %}
     <span class="who"><a href="/account">{{ request.state.user.username }}</a>

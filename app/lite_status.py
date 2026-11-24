@@ -5,7 +5,7 @@ the dashboard needs no export folder and lists every rule."""
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 
 from app.models import RouteRule, RouteRun
 
@@ -17,7 +17,7 @@ DAILY_INTERVAL_MINUTES = 25 * 60
 def tile_for_rule(rule: RouteRule, run: RouteRun | None, now: datetime | None = None) -> dict:
     """One dashboard tile. ``state`` is ok / error / stale / waiting."""
     now = now or datetime.now(timezone.utc)
-    base = {"rule_name": rule.name, "rule_status": rule.status}
+    base = {"rule_id": rule.id, "rule_name": rule.name, "rule_status": rule.status}
     if run is None:
         return {**base, "state": "waiting"}
     started = run.started_at if run.started_at.tzinfo else run.started_at.replace(tzinfo=timezone.utc)
@@ -46,3 +46,26 @@ def tile_for_rule(rule: RouteRule, run: RouteRun | None, now: datetime | None = 
         "modalities": modalities,
         "error": run.error,
     }
+
+
+HISTORY_RANGES = (7, 14, 30)
+
+
+def history_for_rule(rule: RouteRule, daily: dict[str, dict[str, int]], days: int, today: date) -> dict:
+    """Exams per day for the last ``days`` days, ending today, stacked by status.
+
+    ``daily`` is what the rule last saw for each study date. A day the rule never saw is
+    ``None`` (no data), not ``0``, so a gap in the chart means the rule had no check for it."""
+    dates = [(today - timedelta(days=offset)).isoformat() for offset in range(days - 1, -1, -1)]
+    labels: list[str] = []
+    for day in dates:
+        for label in daily.get(day, {}):
+            if label not in labels:
+                labels.append(label)
+    labels.sort()
+    if rule.status_key:
+        series = {label: [daily[day].get(label, 0) if day in daily else None for day in dates] for label in labels}
+    else:
+        series = {"Matched": [sum(daily[day].values()) if day in daily else None for day in dates]}
+    totals = [sum(daily[day].values()) if day in daily else None for day in dates]
+    return {"rule_id": rule.id, "rule_name": rule.name, "keyed": bool(rule.status_key), "series": series, "totals": totals}
