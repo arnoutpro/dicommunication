@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Documentation
+
+- **README and Help no longer say the app has no login.** They now say what is true since 0.11: on one computer with no account it opens without a login; once an account exists, or the app can be reached from another computer, sign-in (and HTTPS) is on. This covers the Docker instructions and troubleshooting row, the PDF to DICOM folder note, the "does not" list, and the Help text about the JSON API (it follows the same sign-in and roles; there are no API keys). The About page was corrected earlier.
+
 ### Dropdown lists
 
 - **Fixed: a dropdown list was cut off at the bottom of the Analytics query box** (seen on the "Type" menu of a private tag). Lists are now compact flat rows (23px instead of 33px), no taller than half the window with a scrollbar when long, and open upwards when there is no room below. The Analytics query box no longer clips what hangs below it.
