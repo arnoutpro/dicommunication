@@ -229,6 +229,14 @@ function enhanceSelectMenus(root = document) {
         menu.classList.remove("is-closed");
         menu.setAttribute("aria-hidden", "false");
         toggle.setAttribute("aria-expanded", "true");
+        // Open upwards when the list would not fit below the field but fits above it.
+        wrap.classList.remove("opens-up");
+        const need = panel.getBoundingClientRect().height + 8;
+        const box = toggle.getBoundingClientRect();
+        const below = window.innerHeight - box.bottom;
+        if (below < need && box.top > below) {
+          wrap.classList.add("opens-up");
+        }
       }
     });
 

@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Dropdown lists
+
+- **Fixed: a dropdown list was cut off at the bottom of the Analytics query box** (seen on the "Type" menu of a private tag). Lists are now compact flat rows (23px instead of 33px), no taller than half the window with a scrollbar when long, and open upwards when there is no room below. The Analytics query box no longer clips what hangs below it.
+
 ### The remaining pages
 
 - **Testbench and the generic tool pages** (Network PING, C-ECHO, C-STORE, C-FIND, MWL C-FIND) use the field rows. C-ECHO's "Saved node / Enter details manually" is plain radios, and the show/hide of the C-FIND and MWL fields works as before.

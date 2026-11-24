@@ -1810,6 +1810,8 @@ body.page-find .find-head {
   margin-bottom: 0;
   overflow: hidden;
 }
+/* The query form never scrolls inside itself, and a dropdown must be able to hang below its edge. */
+.find-query { overflow: visible; }
 .find-query .panel-head,
 .find-results .panel-head {
   margin-bottom: 0.35rem;
@@ -2959,3 +2961,27 @@ body.page-find .find-head {
 /* Dicom Import review: a patient is a heading with folded details, not a boxed fieldset. */
 .import-patient-name { font-size: var(--text-md); font-weight: 600; margin: 0 0 0.2rem; }
 .import-study { margin-top: 0.4rem; padding-top: 0.3rem; border-top: 1px solid var(--line); }
+
+/* Dropdown lists (the page's <select> widget): compact flat rows, never taller than the window,
+   scrolling when long, and opening upwards when there is no room below. */
+.choice-menu { min-width: max-content; }
+.choice-menu .theme-menu-panel {
+  gap: 0;
+  padding: 0;
+  border-radius: 0;
+  max-height: min(18rem, 50vh);
+  overflow-y: auto;
+}
+.choice-menu .theme-menu-item {
+  padding: 0.18rem 0.6rem;
+  border-radius: 0;
+  gap: 0.5rem;
+  font-size: var(--text-md);
+  font-weight: 400;
+  line-height: 1.3;
+}
+.choice-menu .theme-menu-item.is-active { background: var(--accent-fill); color: var(--primary-fg); }
+.choice-menu .theme-menu-item.is-active:hover { background: var(--accent-fill-hover); }
+.choice-menu .theme-menu-group { padding: 0.25rem 0.6rem 0.1rem; }
+.choice.opens-up > .choice-menu { top: auto; bottom: calc(100% + 0.15rem); transform-origin: bottom left; }
+.choice.opens-up > .choice-menu.is-closed { transform: translateY(6px) scaleY(0.96); }
