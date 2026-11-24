@@ -351,16 +351,37 @@ def _series_folder_names(
     return names
 
 
+def _study_folder_names(datasets: list[Dataset], descriptions: dict[str, str] | None = None) -> dict[str, str]:
+    """A folder name per study: its (anonymized) Study UID, or with ``descriptions`` (original Study
+    Descriptions, chosen by the operator) the description. A study with no usable description keeps
+    its UID, and two studies that would share a name get the tail of their UID added."""
+    uids: list[str] = []
+    for dataset in datasets:
+        uid = str(getattr(dataset, "StudyInstanceUID", "study"))
+        if uid not in uids:
+            uids.append(uid)
+    bases = {uid: _folder_text((descriptions or {}).get(uid, "")) or _safe_uid_component(uid) for uid in uids}
+    counts: dict[str, int] = {}
+    for base in bases.values():
+        counts[base.lower()] = counts.get(base.lower(), 0) + 1
+    return {
+        uid: (f"{base}-{_safe_uid_component(uid)[-6:]}" if counts[base.lower()] > 1 and base != _safe_uid_component(uid) else base)
+        for uid, base in bases.items()
+    }
+
+
 def _write_anonymized(
     datasets: list[Dataset],
     staging: Path,
     layout: str = "series",
     descriptions: dict[tuple[str, str], str] | None = None,
+    study_descriptions: dict[str, str] | None = None,
 ) -> list[Path]:
     """Write the files. ``series``: one folder per study, a folder per series inside it.
     ``flat``: every file directly in the export folder. Names come from anonymized UIDs only."""
     written: list[Path] = []
     names = _series_folder_names(datasets, descriptions) if layout != "flat" else {}
+    study_names = _study_folder_names(datasets, study_descriptions) if layout != "flat" else {}
     used: set[Path] = set()
     for dataset in datasets:
         study_uid = str(getattr(dataset, "StudyInstanceUID", "study"))
@@ -368,7 +389,7 @@ def _write_anonymized(
         if layout == "flat":
             folder = staging
         else:
-            folder = staging / _safe_uid_component(study_uid) / names[(study_uid, series_uid)]
+            folder = staging / study_names[study_uid] / names[(study_uid, series_uid)]
         folder.mkdir(parents=True, exist_ok=True)
         sop_uid = _safe_uid_component(getattr(dataset, "SOPInstanceUID", f"instance-{len(written)}"))
         path = folder / f"{sop_uid}.dcm"
@@ -548,6 +569,7 @@ class AnonymizeTool(BaseTool):
         if layout not in LAYOUTS:
             layout = "series"
         by_description = str(options.get("series_names") or "number").strip() == "description"
+        study_by_description = str(options.get("study_names") or "uid").strip() == "description"
 
         dest_ae = str(options.get("_listen_ae") or local.ae_title).strip() or local.ae_title
         storage_enabled = bool(
@@ -601,6 +623,7 @@ class AnonymizeTool(BaseTool):
             failed = 0
             last_error = ""
             descriptions: dict[tuple[str, str], str] = {}
+            study_descriptions: dict[str, str] = {}
             for dataset in datasets:
                 try:
                     result_ds = batch.anonymize(
@@ -609,6 +632,10 @@ class AnonymizeTool(BaseTool):
                         custom_actions=custom_actions,
                     )
                     anonymized.append(result_ds)
+                    if study_by_description:
+                        study_descriptions.setdefault(
+                            str(getattr(result_ds, "StudyInstanceUID", "")), str(getattr(dataset, "StudyDescription", "") or "")
+                        )
                     if by_description:
                         # The description comes from the original series (the anonymized copy may have lost it).
                         descriptions.setdefault(
@@ -631,7 +658,11 @@ class AnonymizeTool(BaseTool):
             write_started = time.perf_counter()
             staging = Path(tempfile.mkdtemp(prefix="dicomm-anon-"))
             try:
-                written = _write_anonymized(anonymized, staging, layout, descriptions if by_description else None)
+                written = _write_anonymized(
+                    anonymized, staging, layout,
+                    descriptions if by_description else None,
+                    study_descriptions if study_by_description else None,
+                )
                 final_path = _archive(staging, output_dir, archive)
             except Exception as exc:  # noqa: BLE001
                 shutil.rmtree(staging, ignore_errors=True)

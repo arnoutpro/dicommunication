@@ -283,3 +283,52 @@ def test_by_default_the_description_is_not_used(tmp_path) -> None:
         assert sorted(path.parent.name for path in out.rglob("*.dcm")) == ["series-1-CT", "series-2-MR"]
     finally:
         server.shutdown()
+
+
+def test_study_folders_can_be_named_by_description() -> None:
+    from app.tools.anonymize import _study_folder_names
+
+    first, second = _instances().values()
+    other = _make_instance("1.2.826.0.1.3680043.8.498.6000", "1.2.826.0.1.3680043.8.498.6001", "1.2.826.0.1.3680043.8.498.6002")
+    uid_only = _study_folder_names([first, other])
+    assert uid_only == {STUDY: STUDY, other.StudyInstanceUID: str(other.StudyInstanceUID)}
+    named = _study_folder_names([first, second, other], {STUDY: "CT Thorax 2026", str(other.StudyInstanceUID): "  "})
+    assert named[STUDY] == "CT Thorax 2026" and named[str(other.StudyInstanceUID)] == str(other.StudyInstanceUID)  # no description: the UID
+    twin = _study_folder_names([first, other], {STUDY: "CT", str(other.StudyInstanceUID): "ct"})
+    assert len(set(name.lower() for name in twin.values())) == 2 and all(name[:2].lower() == "ct" for name in twin.values())
+
+
+def test_the_study_description_names_the_study_folder(tmp_path) -> None:
+    client, remote, server, _moves = _client(tmp_path)
+    out = tmp_path / "out"
+    try:
+        with client:
+            run = client.post(
+                "/tools/anonymize/run",
+                data={
+                    "action": "run", "remote_id": remote.id, "level": "STUDY", "study_uid": [STUDY],
+                    "mode": "nuke", "output_dir": str(out), "archive": "none", "layout": "series",
+                    "study_names": "description", "series_names": "description",
+                },
+            )
+        assert "Anonymized and exported 2 instance" in run.text, run.text
+        parts = sorted(path.relative_to(out).parts[1:] for path in out.rglob("*.dcm"))
+        assert [part[:2] for part in parts] == [("CT CHEST", "Series 1 desc"), ("CT CHEST", "Series 2 desc")]
+    finally:
+        server.shutdown()
+
+
+def test_by_default_the_study_folder_is_the_uid(tmp_path) -> None:
+    client, remote, server, _moves = _client(tmp_path)
+    out = tmp_path / "out"
+    try:
+        with client:
+            client.post(
+                "/tools/anonymize/run",
+                data={"action": "run", "remote_id": remote.id, "level": "STUDY", "study_uid": [STUDY], "mode": "remove_patient",
+                      "remove_patient_action": "erase", "output_dir": str(out), "archive": "none"},
+            )
+        folders = {path.relative_to(out).parts[1] for path in out.rglob("*.dcm")}
+        assert len(folders) == 1 and next(iter(folders)).startswith("1.2.826.")
+    finally:
+        server.shutdown()

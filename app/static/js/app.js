@@ -653,13 +653,15 @@ function initAnonymizeForm(scope) {
   });
   syncModeVisibility();
 
-  // The series folder name only matters when there is a folder per series.
-  const namesRow = form.querySelector("[data-series-names-row]");
+  // The study and series folder names only matter when there are folders.
+  const namesRows = form.querySelectorAll("[data-series-names-row]");
   function syncLayout() {
     const flat = form.querySelector('input[name="layout"][value="flat"]')?.checked;
-    if (namesRow instanceof HTMLElement) {
-      namesRow.hidden = Boolean(flat);
-    }
+    namesRows.forEach((row) => {
+      if (row instanceof HTMLElement) {
+        row.hidden = Boolean(flat);
+      }
+    });
   }
   form.querySelectorAll('input[name="layout"]').forEach((radio) => radio.addEventListener("change", syncLayout));
   syncLayout();
