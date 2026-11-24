@@ -12,23 +12,11 @@
 </header>
 {% include "partials/config_nav.html" %}
 
-<div class="grid-3">
-  <article class="card">
-    <p class="card-label">Local AE</p>
-    <h2>{{ config.local.ae_title }}</h2>
-    <p class="muted">{{ config.local.host }}:{{ config.local.port }}{% if config.local.mwl_scp_enabled %} · MWL SCP{% endif %}{% if config.local.storage_scp_enabled %} · SR C-STORE{% endif %}</p>
-  </article>
-  <article class="card">
-    <p class="card-label">Virtual AEs</p>
-    <h2>{{ config.identities | length }}</h2>
-    <p class="muted">{% if config.identities %}Impersonation identities{% else %}None yet — add CT1, MR1, …{% endif %}</p>
-  </article>
-  <article class="card">
-    <p class="card-label">Remote nodes</p>
-    <h2>{{ config.remotes | length }}</h2>
-    <p class="muted">{% if config.remotes %}PACS, Orthanc, MWL, modalities{% else %}Add the node you want to test{% endif %}</p>
-  </article>
-</div>
+<p class="summary-line">
+  <span><strong>{{ config.local.ae_title }}</strong> {{ config.local.host }}:{{ config.local.port }}{% if config.local.mwl_scp_enabled %} · MWL SCP{% endif %}{% if config.local.storage_scp_enabled %} · SR C-STORE{% endif %}</span>
+  <span><strong>{{ config.identities | length }}</strong> virtual AE{{ '' if config.identities | length == 1 else 's' }}</span>
+  <span><strong>{{ config.remotes | length }}</strong> remote node{{ '' if config.remotes | length == 1 else 's' }}</span>
+</p>
 
 <section class="panel">
   <header class="panel-head">

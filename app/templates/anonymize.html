@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "partials/fields.html" import field, tip %}
 {% block title %}{{ tool.name }} · {{ product_name }}{% endblock %}
 {% block content %}
 <header class="page-head">
@@ -19,7 +20,7 @@
       <h2 class="step-title"><span class="step-num" aria-hidden="true">1</span>Find studies</h2>
       <span class="muted">Calling AE {{ config.local.ae_title }}</span>
     </header>
-    <div class="form-grid">
+    <div class="fields">
       {% include "partials/study_query_fields.html" %}
     </div>
   </section>
@@ -37,35 +38,40 @@
     <header class="panel-head">
       <h2 class="step-title"><span class="step-num" aria-hidden="true">3</span>Choose how</h2>
     </header>
-    <fieldset data-choice-hints>
-      <legend>Anonymization mode</legend>
-      <div class="find-level-tabs" role="radiogroup" aria-label="Mode" data-anon-mode-tabs>
-        {% for mode in anon_modes %}
-        <label class="find-level-tab">
-          <input type="radio" name="mode" value="{{ mode }}" {% if loop.first %}checked{% endif %} data-anon-mode-radio>
-          <span>{{ anon_mode_labels[mode] }}</span>
-        </label>
-        {% endfor %}
+    <div class="fields">
+      <div class="fld" data-choice-hints>
+        <span class="fld-label">Mode</span>
+        <div class="fld-control">
+          <div class="find-level-tabs plain-radios" role="radiogroup" aria-label="Mode" data-anon-mode-tabs>
+            {% for mode in anon_modes %}
+            <label class="find-level-tab">
+              <input type="radio" name="mode" value="{{ mode }}" {% if loop.first %}checked{% endif %} data-anon-mode-radio>
+              <span>{{ anon_mode_labels[mode] }}</span>
+            </label>
+            {% endfor %}
+          </div>
+        </div>
+        <p class="hint fld-note" data-hint-for="nuke">Keeps only what a viewer needs to open the image (pixel data, image structure, fresh UIDs). Every other tag is dropped.</p>
+        <p class="hint fld-note" data-hint-for="fuzz">Keeps every tag but scrambles dates, names, IDs and free text. Pixel data is untouched, so the image still opens.</p>
+        <p class="hint fld-note" data-hint-for="remove_patient">Changes only the patient-identifying tags and leaves the rest as it is.</p>
+        <p class="hint fld-note" data-hint-for="custom">Pick an action for each tag in the table below. Anything left on "Keep as is" is not touched.</p>
       </div>
-      <p class="hint" data-hint-for="nuke">Keeps only what a viewer needs to open the image (pixel data, image structure, fresh UIDs). Every other tag is dropped.</p>
-      <p class="hint" data-hint-for="fuzz">Keeps every tag but scrambles dates, names, IDs and free text. Pixel data is untouched, so the image still opens.</p>
-      <p class="hint" data-hint-for="remove_patient">Changes only the patient-identifying tags and leaves the rest as it is.</p>
-      <p class="hint" data-hint-for="custom">Pick an action for each tag in the table below. Anything left on "Keep as is" is not touched.</p>
-    </fieldset>
-
-    <fieldset data-anon-remove-patient-options hidden>
-      <legend>Patient information</legend>
-      <div class="find-level-tabs" role="radiogroup" aria-label="Patient information">
-        <label class="find-level-tab">
-          <input type="radio" name="remove_patient_action" value="erase" checked>
-          <span>Erase (blank)</span>
-        </label>
-        <label class="find-level-tab">
-          <input type="radio" name="remove_patient_action" value="fuzz">
-          <span>Fuzz (scrambled placeholder)</span>
-        </label>
+      <div class="fld" data-anon-remove-patient-options hidden>
+        <span class="fld-label">Patient information</span>
+        <div class="fld-control">
+          <div class="find-level-tabs plain-radios" role="radiogroup" aria-label="Patient information">
+            <label class="find-level-tab">
+              <input type="radio" name="remove_patient_action" value="erase" checked>
+              <span>Erase (blank)</span>
+            </label>
+            <label class="find-level-tab">
+              <input type="radio" name="remove_patient_action" value="fuzz">
+              <span>Fuzz (scrambled placeholder)</span>
+            </label>
+          </div>
+        </div>
       </div>
-    </fieldset>
+    </div>
 
     <details data-anon-custom-table hidden open>
       <summary>Per-tag actions</summary>
@@ -109,32 +115,28 @@
       <h2 class="step-title"><span class="step-num" aria-hidden="true">4</span>Export</h2>
     </header>
     {% include "partials/storage_scp_caution.html" %}
-    <div class="form-grid">
-      <label>
-        Output folder
-        <span class="inline-input">
-          <input type="text" name="output_dir" placeholder="C:\Anonymized" data-anon-output-dir required>
-          <button class="button compact" type="button" data-anon-browse
-                  {% if not dialogs_available %}disabled title="No desktop folder dialog in this session"{% endif %}>
-            Browse…
-          </button>
-        </span>
-      </label>
-      <label>
-        Archive
-        <select name="archive">
-          <option value="none">No archive — loose files in a new subfolder</option>
-          <option value="zip">ZIP</option>
-        </select>
-      </label>
-      <div class="form-actions">
-        <button class="button primary" type="submit" name="action" value="run" formnovalidate
-                data-study-pick-run data-run-verb="Anonymize"
-                data-busy-text="Retrieving &amp; anonymizing…"
-                data-confirm="Retrieve and anonymize the checked studies? This C-MOVEs real data off the PACS.">
-          Anonymize selected
-        </button>
-      </div>
+    <div class="fields">
+      {% call field("Output folder", "anon-output", required=True) %}
+      <input id="anon-output" class="w-lg" type="text" name="output_dir" placeholder="C:\Anonymized" data-anon-output-dir required>
+      <button class="button compact" type="button" data-anon-browse
+              {% if not dialogs_available %}disabled title="No desktop folder dialog in this session"{% endif %}>
+        Browse…
+      </button>
+      {% endcall %}
+      {% call field("Archive", "anon-archive", "No archive writes loose files into a new subfolder.") %}
+      <select id="anon-archive" class="w-md" name="archive">
+        <option value="none">No archive</option>
+        <option value="zip">ZIP</option>
+      </select>
+      {% endcall %}
+    </div>
+    <div class="form-actions">
+      <button class="button primary" type="submit" name="action" value="run" formnovalidate
+              data-study-pick-run data-run-verb="Anonymize"
+              data-busy-text="Retrieving &amp; anonymizing…"
+              data-confirm="Retrieve and anonymize the checked studies? This C-MOVEs real data off the PACS.">
+        Anonymize selected
+      </button>
     </div>
   </section>
   {% else %}

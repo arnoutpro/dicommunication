@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "partials/fields.html" import field, tip %}
 {% block title %}{{ tool.name }} · Dicommunication{% endblock %}
 {% block content %}
 <header class="page-head">
@@ -30,40 +31,33 @@
     <header class="panel-head">
       <h2 class="step-title"><span class="step-num" aria-hidden="true">1</span>Destination</h2>
     </header>
-    <div class="form-grid">
+    <div class="fields">
       {% if config.remotes %}
-      <label class="span-2">
-        Send to
-        <select name="remote_id" data-hl7-remote>
-          <option value="" data-host="">A host I type below</option>
-          {% for remote in config.remotes %}
-          <option value="{{ remote.id }}" data-host="{{ remote.connect_host }}" {% if remote_id == remote.id %}selected{% endif %}>
-            {{ remote.name }} ({{ remote.connect_host }})
-          </option>
-          {% endfor %}
-        </select>
-        <span class="hint">A remote node lends only its host; its DICOM port isn't an HL7 port, so set the port below.</span>
-      </label>
+      {% call field("Send to", "hl7-remote", "A remote node lends only its host; its DICOM port isn't an HL7 port, so set the port below.") %}
+      <select id="hl7-remote" class="w-lg" name="remote_id" data-hl7-remote>
+        <option value="" data-host="">A host I type below</option>
+        {% for remote in config.remotes %}
+        <option value="{{ remote.id }}" data-host="{{ remote.connect_host }}" {% if remote_id == remote.id %}selected{% endif %}>
+          {{ remote.name }} ({{ remote.connect_host }})
+        </option>
+        {% endfor %}
+      </select>
+      {% endcall %}
       {% else %}
       <input type="hidden" name="remote_id" value="">
       {% endif %}
-      <label>
-        Host
-        <input name="host" value="{{ hl7_host }}" placeholder="10.0.0.20" data-hl7-host {% if not config.remotes %}required{% endif %}>
-      </label>
-      <div class="form-grid hl7-port-row">
-        <label>
-          Port
-          <input name="port" type="number" min="1" max="65535" value="{{ hl7_port }}" required>
-        </label>
-        <label>
-          Framing
-          <select name="mllp">
-            <option value="mllp" {% if hl7_mllp %}selected{% endif %}>MLLP</option>
-            <option value="raw" {% if not hl7_mllp %}selected{% endif %}>Raw TCP</option>
-          </select>
-        </label>
-      </div>
+      {% call field("Host", "hl7-host", required=not config.remotes) %}
+      <input id="hl7-host" class="w-md" name="host" value="{{ hl7_host }}" placeholder="10.0.0.20" data-hl7-host {% if not config.remotes %}required{% endif %}>
+      {% endcall %}
+      {% call field("Port", "hl7-port", required=True) %}
+      <input id="hl7-port" class="w-xs" name="port" type="number" min="1" max="65535" value="{{ hl7_port }}" required>
+      {% endcall %}
+      {% call field("Framing", "hl7-mllp", "MLLP wraps each message in start and end bytes; Raw TCP sends it bare.") %}
+      <select id="hl7-mllp" class="w-sm" name="mllp">
+        <option value="mllp" {% if hl7_mllp %}selected{% endif %}>MLLP</option>
+        <option value="raw" {% if not hl7_mllp %}selected{% endif %}>Raw TCP</option>
+      </select>
+      {% endcall %}
     </div>
     <details class="note">
       <summary>Sending to Philips IS Link?</summary>
@@ -84,7 +78,7 @@
     </header>
     <div data-hl7-editor>
       <div class="hl7-editor-head">
-        <span>HL7 v2 message</span>
+        <span class="hl7-editor-title">HL7 v2 message{{ tip("One segment per row, sent with CR separators. Fields aren't validated.") }}</span>
         <span class="hl7-view-toggle" role="group" aria-label="Message view">
           <button type="button" class="button compact is-active" data-hl7-view="segments" aria-pressed="true">Segments</button>
           <button type="button" class="button compact" data-hl7-view="raw" aria-pressed="false">Raw</button>
@@ -103,14 +97,12 @@
       <div class="hl7-editor-tools" data-hl7-tools>
         <button type="button" class="button compact" data-hl7-add-segment>Add segment</button>
       </div>
-      <span class="hint">One segment per row, sent with CR separators. Fields aren't validated.</span>
     </div>
-    <div class="hl7-save">
-      <label>
-        Save as
-        <input name="name" value="{{ hl7_save_name }}" placeholder="ADT A01 test">
-      </label>
+    <div class="fields hl7-save">
+      {% call field("Save as", "hl7-save-name", "Give the message a name and click Save message to keep it as a draft.") %}
+      <input id="hl7-save-name" class="w-md" name="name" value="{{ hl7_save_name }}" placeholder="ADT A01 test">
       <button class="button" type="submit" formaction="/tools/hl7-send/messages" formnovalidate>Save message</button>
+      {% endcall %}
     </div>
   </section>
 
@@ -120,16 +112,15 @@
     </header>
     <details class="stamps" data-hl7-stamps>
       <summary>
-        <span class="stamps-summary" data-hl7-stamps-summary>Fields rewritten on send</span>
+        <span class="stamps-summary" data-hl7-stamps-summary>Fields rewritten on send</span>{{ tip("These only rewrite fields the message already has; they never add an ORC or OBR.") }}
       </summary>
-      <p class="hint">These only rewrite fields the message already has; they never add an ORC or OBR.</p>
       <div class="stamp-list">
         <div class="stamp">
           <label class="stamp-field-title">
             <input type="checkbox" name="new_control_id" value="on" {% if hl7_new_control_id %}checked{% endif %} data-stamp="control">
             New Message Control ID (MSH-10)
+            {{ tip("Stamps a fresh MSH-10 and MSH-7 so a resend counts as a new message.") }}
           </label>
-          <p class="hint">Stamps a fresh MSH-10 and MSH-7 so a resend counts as a new message.</p>
           <details class="stamp-more"><summary>Details</summary>
             <p>MSH-10 is the unique id of this send. Many engines ACK a repeat of the same id and then ignore it as a duplicate. This does not change order-control codes.</p>
           </details>
@@ -139,8 +130,8 @@
           <label class="stamp-field-title">
             <input type="checkbox" name="change_order" value="on" {% if hl7_change_order %}checked{% endif %} data-stamp="order">
             Change existing order (ORC-1)
+            {{ tip("Sends an update for an accession that already exists, instead of a new order.") }}
           </label>
-          <p class="hint">Sends an update for an accession that already exists, instead of a new order.</p>
           <div class="stamp-sub" data-stamp-fields{% if not hl7_change_order %} hidden{% endif %}>
             <label>
               ORC-1 order control
@@ -169,8 +160,8 @@
           <label class="stamp-field-title">
             <input type="checkbox" name="obr_reason_ce" value="on" {% if hl7_obr_reason_ce %}checked{% endif %} data-stamp="reason">
             Reason for Study (OBR-31)
+            {{ tip("Sets OBR-31 to code^text. Leave both empty to keep the current reason and only fix its format.") }}
           </label>
-          <p class="hint">Sets OBR-31 to <code>code^text</code>. Leave both empty to keep the current reason and only fix its format.</p>
           <div class="stamp-sub stamp-sub-pair" data-stamp-fields{% if not hl7_obr_reason_ce %} hidden{% endif %}>
             <label>
               Code
@@ -191,8 +182,8 @@
           <label class="stamp-field-title">
             <input type="checkbox" name="obr_in_progress" value="on" {% if hl7_obr_in_progress %}checked{% endif %} data-stamp="status">
             Set exam status (OBR-25 and ORC-5)
+            {{ tip("Test only. For example, to see whether Vue skips updates to an exam that is already final.") }}
           </label>
-          <p class="hint">Test only. For example, to see whether Vue skips updates to an exam that is already final.</p>
           <div class="stamp-sub stamp-sub-pair" data-stamp-fields{% if not hl7_obr_in_progress %} hidden{% endif %}>
             <label>
               OBR-25 result status
@@ -249,8 +240,8 @@
         Send HL7
       </button>
       <span id="busy" class="htmx-indicator spinner">Sending…</span>
+      {{ tip("An ACK means the listener accepted the bytes, not that the PACS applied the order. The result shows the ACK and the fields as sent.") }}
     </div>
-    <p class="hint">An ACK means the listener accepted the bytes, not that the PACS applied the order. The result shows the ACK and the fields as sent.</p>
   </section>
 </form>
 

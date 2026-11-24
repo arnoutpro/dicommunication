@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "partials/fields.html" import field, tip %}
 {% block title %}Worklist · Dicommunication{% endblock %}
 {% block content %}
 <header class="page-head">
@@ -18,23 +19,11 @@
 <div class="flash fail">{{ error }}</div>
 {% endif %}
 
-<div class="grid-3">
-  <article class="card">
-    <p class="card-label">Calling AE</p>
-    <h2>{{ config.local.ae_title }}</h2>
-    <p class="muted">{% if config.local.station_ae_title %}Station {{ config.local.station_ae_title }}{% else %}Workstation default{% endif %}{% if config.identities %} · {{ config.identities | length }} virtual AE{% if config.identities | length != 1 %}s{% endif %}{% endif %}</p>
-  </article>
-  <article class="card">
-    <p class="card-label">DMWL nodes</p>
-    <h2>{{ config.mwl_remotes() | length }}</h2>
-    <p class="muted">Remote nodes marked as Modality Worklist</p>
-  </article>
-  <article class="card">
-    <p class="card-label">Local MWL SCP</p>
-    <h2 class="{% if mwl_scp_running %}ok-text{% else %}muted{% endif %}">{% if mwl_scp_running %}Listening{% else %}Off{% endif %}</h2>
-    <p class="muted">{% if mwl_scp_running %}{{ config.local.host }}:{{ config.local.port }}{% elif mwl_scp_error %}{{ mwl_scp_error }}{% else %}Enable it under Configuration{% endif %}</p>
-  </article>
-</div>
+<p class="summary-line">
+  <span>Calling AE <strong>{{ config.local.ae_title }}</strong>{% if config.local.station_ae_title %}, station {{ config.local.station_ae_title }}{% endif %}{% if config.identities %} · {{ config.identities | length }} virtual AE{% if config.identities | length != 1 %}s{% endif %}{% endif %}</span>
+  <span><strong>{{ config.mwl_remotes() | length }}</strong> DMWL node{{ "" if config.mwl_remotes() | length == 1 else "s" }}</span>
+  <span>Local MWL SCP: <strong>{% if mwl_scp_running %}listening on {{ config.local.host }}:{{ config.local.port }}{% elif mwl_scp_error %}off, {{ mwl_scp_error }}{% else %}off (enable under Configuration){% endif %}</strong></span>
+</p>
 
 <section class="panel">
   <header class="panel-head">
@@ -42,7 +31,7 @@
     <a href="/config/remotes">Configure DMWL nodes</a>
   </header>
   <form autocomplete="off"
-    class="form-grid"
+    class="fields"
     method="post"
     action="/worklist/query"
     hx-post="/worklist/query"
@@ -50,42 +39,35 @@
     hx-indicator="#busy"
     hx-timeout="120000"
   >
-    <label>
-      Source
-      <select name="source">
-        <option value="local" {% if source == 'local' %}selected{% endif %}>Local web worklist</option>
-        {% for remote in config.remotes %}
-        <option value="{{ remote.id }}" {% if source == remote.id %}selected{% endif %}>
-          {{ remote.name }} — {{ remote.ae_title }}{% if remote.provides_mwl %} (DMWL){% endif %}
-        </option>
-        {% endfor %}
-      </select>
-    </label>
-    {% include "partials/identity_select.html" %}
-    <label>
-      Patient name
-      <input name="patient_name" value="{{ query.patient_name }}" placeholder="DOE*">
-    </label>
-    <label>
-      Patient ID
-      <input name="patient_id" value="{{ query.patient_id }}">
-    </label>
-    <label>
-      Accession number
-      <input name="accession_number" value="{{ query.accession_number }}">
-    </label>
-    <label>
-      Modality
-      <input name="modality" value="{{ query.modality }}" placeholder="CT" maxlength="16">
-    </label>
-    <label>
-      Station AE Title
-      <input name="station_ae_title" value="{{ query.station_ae_title or config.local.station_ae_title }}" maxlength="16">
-    </label>
-    <label>
-      Scheduled date
-      <input name="scheduled_date" type="date" value="{{ query.scheduled_date }}">
-    </label>
+    {% call field("Source", "wl-source") %}
+    <select id="wl-source" class="w-lg" name="source">
+      <option value="local" {% if source == 'local' %}selected{% endif %}>Local web worklist</option>
+      {% for remote in config.remotes %}
+      <option value="{{ remote.id }}" {% if source == remote.id %}selected{% endif %}>
+        {{ remote.name }} — {{ remote.ae_title }}{% if remote.provides_mwl %} (DMWL){% endif %}
+      </option>
+      {% endfor %}
+    </select>
+    {% endcall %}
+    {% include "partials/identity_field.html" %}
+    {% call field("Patient name", "wl-name") %}
+    <input id="wl-name" class="w-md" name="patient_name" value="{{ query.patient_name }}" placeholder="DOE*">
+    {% endcall %}
+    {% call field("Patient ID", "wl-pid") %}
+    <input id="wl-pid" class="w-md" name="patient_id" value="{{ query.patient_id }}">
+    {% endcall %}
+    {% call field("Accession number", "wl-acc") %}
+    <input id="wl-acc" class="w-md" name="accession_number" value="{{ query.accession_number }}">
+    {% endcall %}
+    {% call field("Modality", "wl-mod") %}
+    <input id="wl-mod" class="w-xs" name="modality" value="{{ query.modality }}" placeholder="CT" maxlength="16">
+    {% endcall %}
+    {% call field("Station AE Title", "wl-station") %}
+    <input id="wl-station" class="w-sm" name="station_ae_title" value="{{ query.station_ae_title or config.local.station_ae_title }}" maxlength="16">
+    {% endcall %}
+    {% call field("Scheduled date", "wl-date") %}
+    <input id="wl-date" class="w-sm" name="scheduled_date" type="date" value="{{ query.scheduled_date }}">
+    {% endcall %}
     <div class="form-actions">
       <button class="button primary" type="submit">Query worklist</button>
       <span id="busy" class="htmx-indicator spinner">Querying…</span>
@@ -102,64 +84,51 @@
     <h2>Add local worklist item</h2>
     <span class="muted">Served to modalities when MWL SCP is enabled</span>
   </header>
-  <form method="post" action="/worklist/entries" class="form-grid" autocomplete="off">
-    <label>
-      Patient name
-      <input name="patient_name" required placeholder="DOE^JANE">
-    </label>
-    <label>
-      Patient ID
-      <input name="patient_id" required placeholder="123456">
-    </label>
-    <label>
-      Birth date
-      <input name="patient_birth_date" type="date">
-    </label>
-    <label>
-      Sex
-      <select name="patient_sex">
-        <option value=""></option>
-        <option value="F">F</option>
-        <option value="M">M</option>
-        <option value="O">O</option>
-      </select>
-    </label>
-    <label>
-      Accession number
-      <input name="accession_number">
-    </label>
-    <label>
-      Procedure
-      <input name="requested_procedure_description" placeholder="CT CHEST">
-    </label>
-    <label>
-      Procedure ID
-      <input name="requested_procedure_id">
-    </label>
-    <label>
-      Modality
-      <input name="modality" value="CT" maxlength="16">
-    </label>
-    <label>
-      Station AE Title
-      <input name="station_ae_title" maxlength="16" value="{{ config.local.station_ae_title }}">
-    </label>
-    <label>
-      Station name
-      <input name="station_name">
-    </label>
-    <label>
-      Scheduled date
-      <input name="scheduled_date" type="date">
-    </label>
-    <label>
-      Scheduled time
-      <input name="scheduled_time" type="time">
-    </label>
-    <label class="span-2">
-      Performing physician
-      <input name="scheduled_physician">
-    </label>
+  <form method="post" action="/worklist/entries" class="fields" autocomplete="off">
+    {% call field("Patient name", "we-name", required=True) %}
+    <input id="we-name" class="w-md" name="patient_name" required placeholder="DOE^JANE">
+    {% endcall %}
+    {% call field("Patient ID", "we-pid", required=True) %}
+    <input id="we-pid" class="w-md" name="patient_id" required placeholder="123456">
+    {% endcall %}
+    {% call field("Birth date", "we-birth") %}
+    <input id="we-birth" class="w-sm" name="patient_birth_date" type="date">
+    {% endcall %}
+    {% call field("Sex", "we-sex") %}
+    <select id="we-sex" class="w-xs" name="patient_sex">
+      <option value=""></option>
+      <option value="F">F</option>
+      <option value="M">M</option>
+      <option value="O">O</option>
+    </select>
+    {% endcall %}
+    {% call field("Accession number", "we-acc") %}
+    <input id="we-acc" class="w-md" name="accession_number">
+    {% endcall %}
+    {% call field("Procedure", "we-proc") %}
+    <input id="we-proc" class="w-lg" name="requested_procedure_description" placeholder="CT CHEST">
+    {% endcall %}
+    {% call field("Procedure ID", "we-procid") %}
+    <input id="we-procid" class="w-md" name="requested_procedure_id">
+    {% endcall %}
+    {% call field("Modality", "we-mod") %}
+    <input id="we-mod" class="w-xs" name="modality" value="CT" maxlength="16">
+    {% endcall %}
+    {% call field("Station AE Title", "we-station") %}
+    <input id="we-station" class="w-sm" name="station_ae_title" maxlength="16" value="{{ config.local.station_ae_title }}">
+    {% endcall %}
+    {% call field("Station name", "we-sname") %}
+    <input id="we-sname" class="w-md" name="station_name">
+    {% endcall %}
+    {% call field("Scheduled date", "we-date") %}
+    <input id="we-date" class="w-sm" name="scheduled_date" type="date">
+    {% endcall %}
+    {% call field("Scheduled time", "we-time") %}
+    <input id="we-time" class="w-sm" name="scheduled_time" type="time">
+    {% endcall %}
+    {% call field("Performing physician", "we-phys") %}
+    <input id="we-phys" class="w-md" name="scheduled_physician">
+    {% endcall %}
     <div class="form-actions">
       <button class="button primary" type="submit">Add to local worklist</button>
     </div>

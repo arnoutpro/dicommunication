@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "partials/fields.html" import field, tip %}
 {% block title %}Your account · {{ product_name }}{% endblock %}
 {% block content %}
 <header class="page-head">
@@ -16,12 +17,17 @@
 <section class="panel step">
   <header class="panel-head"><h2 class="step-title">Change your password</h2></header>
   <form method="post" action="{{ href('/account/password') }}" autocomplete="off">
-    <div class="form-grid">
-      <label>Current password <input name="current" type="password" autocomplete="current-password" required></label>
-      <label>New password <input name="new" type="password" autocomplete="new-password" minlength="12" required></label>
-      <label>Repeat the new password <input name="confirm" type="password" autocomplete="new-password" required></label>
+    <div class="fields">
+      {% call field("Current password", "acc-cur", required=True) %}
+      <input id="acc-cur" class="w-md" name="current" type="password" autocomplete="current-password" required>
+      {% endcall %}
+      {% call field("New password", "acc-new", "At least 12 characters. A few random words make a good one.", required=True) %}
+      <input id="acc-new" class="w-md" name="new" type="password" autocomplete="new-password" minlength="12" required>
+      {% endcall %}
+      {% call field("Repeat new password", "acc-conf", required=True) %}
+      <input id="acc-conf" class="w-md" name="confirm" type="password" autocomplete="new-password" required>
+      {% endcall %}
     </div>
-    <p class="hint">At least 12 characters. A few random words make a good one.</p>
     <div class="form-actions"><button class="button primary" type="submit">Change password</button></div>
   </form>
 </section>

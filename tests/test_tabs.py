@@ -51,11 +51,13 @@ def test_every_page_shows_the_tab_row_with_one_active_tab(client) -> None:
         assert body.count('class="tab-item active"') == 1, path
 
 
-def test_configuration_is_a_top_bar_button_not_a_tab(client) -> None:
+def test_configuration_is_a_sidebar_item_not_a_product_tab(client) -> None:
     for path in ("/", "/router", "/help"):
         body = client.get(path).text
-        assert '<a href="/config" class="tab-item' not in body, path
-        assert '<a href="/config" class="button topbar-config"' in body, path
+        assert '<a href="/config" class="sidebar-config-link"' in body, path
+        assert 'topbar-config' not in body, path
+        assert 'href="/config"' not in body.split("topbar-actions")[1].split("</header>")[0], path
+        assert '<nav class="tab-row"' in body and 'href="/config"' not in body.split('<nav class="tab-row"')[1].split("</nav>")[0], path
 
 
 def test_dicommunication_tab_active_on_home(client) -> None:
@@ -110,8 +112,8 @@ def test_router_tab_active_and_isolated(client) -> None:
 def test_config_tab_active_and_holds_logs(client) -> None:
     for path in ("/config", "/config/local", "/config/identities", "/config/remotes", "/config/transfer", "/logs"):
         body = client.get(path).text
-        # The top-bar button is the selected state; no product tab is.
-        assert '<a href="/config" class="button topbar-config is-active" aria-current="page"' in body, path
+        # The sidebar item is the selected state; no product tab is.
+        assert '<a href="/config" class="sidebar-config-link active" aria-current="page"' in body, path
         assert 'class="tab-item active"' not in body, path
         assert '<span class="crumb-trail">Configuration</span>' in body, path
         assert 'href="/logs"' in body, path

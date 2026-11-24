@@ -67,8 +67,9 @@
         </label>
         {% include "partials/identity_select.html" %}
       </div>
-      <fieldset class="find-sr-fields">
-        <legend>Retrieve report text</legend>
+      <div class="find-row find-sr-fields" role="group" aria-labelledby="find-sr-label">
+        <span class="find-row-label" id="find-sr-label">Report text</span>
+        <span class="find-row-body">
         <label class="find-sr-field-toggle">
           <input type="checkbox" name="sr_include_findings"{% if not saved_query or saved_query.sr_include_findings %} checked{% endif %}>
           Findings
@@ -84,11 +85,12 @@
           title="Vue C-MOVEs reports to {{ listen_ae|default(config.local.ae_title) }} (listen port {{ listen_port|default(config.local.port) }}), not to the Present as calling AE."
         >needs Accept C-STORE</a>
         {% endif %}
-      </fieldset>
+        </span>
+      </div>
 
-      <fieldset class="find-level-field">
-        <legend>Level</legend>
-        <div class="find-level-tabs" role="radiogroup" aria-label="Query level">
+      <div class="find-row find-level-field">
+        <span class="find-row-label" id="find-level-label">Level</span>
+        <div class="find-level-tabs" role="radiogroup" aria-labelledby="find-level-label">
           {% for level in find_catalog.levels %}
           <label class="find-level-tab">
             <input
@@ -102,7 +104,7 @@
           </label>
           {% endfor %}
         </div>
-      </fieldset>
+      </div>
 
       <fieldset class="find-combine-series" data-find-combine-series>
         <div class="find-combine-series-row">
@@ -121,9 +123,8 @@
             hidden
           >
           <span class="muted find-combine-series-caption">one C-FIND per study</span>
-          <button type="button" class="find-inline-help" data-find-help-toggle aria-expanded="false">Why?</button>
+          <span class="tip" tabindex="0" role="note" aria-label="Series Description is a Series key, locked behind a Study Instance UID in the hierarchical model. Checking this runs the Study query above, then one Series-level C-FIND per matched study automatically, instead of needing a separate List series click. Comma-separated values (for example POSITIVE, NEGATIVE, DOUBT) OR together: DICOM has no OR for a single key, so that is one C-FIND per study per value. Narrow the Study-level filters first on a large result." data-tip="Series Description is a Series key, locked behind a Study Instance UID in the hierarchical model. Checking this runs the Study query above, then one Series-level C-FIND per matched study automatically, instead of needing a separate List series click. Comma-separated values (for example POSITIVE, NEGATIVE, DOUBT) OR together: DICOM has no OR for a single key, so that is one C-FIND per study per value. Narrow the Study-level filters first on a large result.">?</span>
         </div>
-        <p class="hint find-combine-series-help" data-find-help hidden>Series Description is a Series key, locked behind a Study Instance UID in the hierarchical model — checking this runs the Study query above, then one Series-level C-FIND per matched study automatically, instead of needing a separate "List series" click. Comma-separated values (e.g. <code>POSITIVE, NEGATIVE, DOUBT</code>) OR together — DICOM has no OR for a single key, so that's one C-FIND per study per value. Narrow the Study-level filters first on a large result.</p>
       </fieldset>
 
       {% set primary_keywords = ("StudyDate", "ModalitiesInStudy", "Modality", "AccessionNumber", "SeriesDescription") %}
@@ -152,7 +153,7 @@
       {% endif %}
 
       {% macro find_key_row(key) %}
-      <label
+      <div
         class="find-key"
         data-find-key="{{ key.keyword }}"
         data-levels="{{ key.levels | join(' ') }}"
@@ -163,7 +164,7 @@
         data-match-required="{{ '1' if key.match_required else '0' }}"
         title="{{ key.label }} {{ key.tag }}{% if key.hint %} — {{ key.hint }}{% endif %}"
       >
-        <span class="find-key-head">
+        <label class="find-key-head">
           <input
             type="checkbox"
             name="include"
@@ -175,61 +176,54 @@
           <span class="find-key-title">{{ key.label[6:] if key.group.startswith('vue') and key.label.startswith('Tamar ') else key.label }}</span>
           {% if key.match_required %}<abbr class="req" title="Required">*</abbr>{% endif %}
           <code class="find-key-tag">{{ key.tag }}</code>
-        </span>
-        <input
-          name="key_{{ key.keyword }}"
-          value="{{ saved_query.values.get(key.keyword, '') if saved_query else '' }}"
-          placeholder="{{ key.placeholder }}"
-          data-find-value="{{ key.keyword }}"
-          spellcheck="false"
-          autocomplete="off"
-          title="{{ key.hint }}"
-        >
-        <span class="hint" data-find-hint>{{ key.hint }}</span>
-        {% if key.keyword == "ModalitiesInStudy" %}
-        {% set common_modalities = ["CR", "CT", "DX", "MG", "MR", "NM"] %}
-        {% set more_modalities = ["OT", "PT", "RF", "SC", "SR", "US", "XA"] %}
-        <div class="find-modality-chips" data-find-modality-chips>
-          {% for code in common_modalities %}
-          <label class="find-modality-chip">
-            <input type="checkbox" value="{{ code }}" data-modality-chip>
-            <span>{{ code }}</span>
-          </label>
-          {% endfor %}
-          <button
-            type="button"
-            class="find-modality-more-toggle"
-            data-find-modality-more-toggle
-            data-collapsed-label="+{{ more_modalities|length }} more"
-            aria-expanded="false"
-          >+{{ more_modalities|length }} more</button>
-          <span class="find-modality-more" data-find-modality-more hidden>
-            {% for code in more_modalities %}
-            <label class="find-modality-chip">
-              <input type="checkbox" value="{{ code }}" data-modality-chip>
-              <span>{{ code }}</span>
-            </label>
-            {% endfor %}
+        </label>
+        <span class="find-key-control">
+          <input
+            name="key_{{ key.keyword }}"
+            value="{{ saved_query.values.get(key.keyword, '') if saved_query else '' }}"
+            placeholder="{{ key.placeholder }}"
+            data-find-value="{{ key.keyword }}"
+            spellcheck="false"
+            autocomplete="off"
+            title="{{ key.hint }}"
+            aria-label="Match {{ key.label }}"
+          >
+          {% if key.keyword == "ModalitiesInStudy" %}
+          {% set common_modalities = ["CR", "CT", "DX", "MG", "MR", "NM"] %}
+          {% set more_modalities = ["OT", "PT", "RF", "SC", "SR", "US", "XA"] %}
+          <details class="find-multi" data-find-modality-chips>
+            <summary data-find-modality-summary>Any</summary>
+            <div class="find-multi-list">
+              {% for code in common_modalities + more_modalities %}
+              <label class="find-modality-chip">
+                <input type="checkbox" value="{{ code }}" data-modality-chip>
+                <span>{{ code }}</span>
+              </label>
+              {% endfor %}
+              <span data-find-modality-more></span>
+            </div>
+          </details>
+          {% elif key.keyword == "StudyDate" %}
+          <span class="find-date-tools" data-find-date-tools>
+            <select data-date-preset-select aria-label="Study Date period">
+              <option value="any">Any date</option>
+              <option value="today">Today</option>
+              <option value="yesterday">Yesterday</option>
+              <option value="7">Last 7 days</option>
+              <option value="30">Last 30 days</option>
+              <option value="month">This month</option>
+              <option value="custom">Date range…</option>
+            </select>
+            <span class="find-date-range" data-find-date-range hidden>
+              <input type="date" data-date-from aria-label="Study Date from">
+              <span aria-hidden="true">→</span>
+              <input type="date" data-date-to aria-label="Study Date to">
+            </span>
           </span>
-        </div>
-        {% elif key.keyword == "StudyDate" %}
-        <div class="find-date-tools" data-find-date-tools>
-          <div class="find-date-presets">
-            <button type="button" class="button compact" data-date-preset="today">Today</button>
-            <button type="button" class="button compact" data-date-preset="yesterday">Yesterday</button>
-            <button type="button" class="button compact" data-date-preset="7">Last 7 days</button>
-            <button type="button" class="button compact" data-date-preset="30">Last 30 days</button>
-            <button type="button" class="button compact" data-date-preset="month">This month</button>
-            <button type="button" class="button compact" data-date-preset="clear">Clear</button>
-          </div>
-          <div class="find-date-range">
-            <input type="date" data-date-from aria-label="Study Date from">
-            <span aria-hidden="true">→</span>
-            <input type="date" data-date-to aria-label="Study Date to">
-          </div>
-        </div>
-        {% endif %}
-      </label>
+          {% endif %}
+        </span>
+        <span class="hint" data-find-hint>{{ key.hint }}</span>
+      </div>
       {% endmacro %}
 
       {# One added tag. The script builds the same markup for tags added on the page. #}
@@ -247,16 +241,23 @@
       {% endmacro %}
 
       <div class="find-primary">
+        <div class="find-key-header" aria-hidden="true"><span>Return · Field</span><span>Match value</span></div>
         {% for key in find_catalog.search_keys if key.keyword in primary_keywords %}
         {{ find_key_row(key) }}
         {% endfor %}
       </div>
 
       <div class="find-toolbar">
-        <button class="button compact" type="button" data-find-select="defaults">Usual columns</button>
-        <button class="button compact" type="button" data-find-select="all">All keys</button>
-        <button class="button compact" type="button" data-find-select="sr">SR series</button>
-        <button class="button compact" type="button" data-find-select="clear">Clear</button>
+        <label class="find-columns-menu">
+          Shortcuts
+          <select data-find-select-menu aria-label="Shortcuts: usual columns, all columns, SR series, or clear the filter values">
+            <option value="">Choose…</option>
+            <option value="defaults">Usual columns</option>
+            <option value="all">All columns</option>
+            <option value="sr">SR series</option>
+            <option value="clear">Clear filter values</option>
+          </select>
+        </label>
       </div>
 
       <details class="find-more-filters" data-find-more-filters{% if ns.more_open %} open{% endif %}>

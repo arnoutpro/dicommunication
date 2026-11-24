@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "partials/fields.html" import field, tip %}
 {% block title %}Security · {{ product_name }}{% endblock %}
 {% block content %}
 <header class="page-head">
@@ -39,22 +40,23 @@
 <form method="post" action="{{ href('/config/security') }}" autocomplete="off">
   <section class="panel step">
     <header class="panel-head"><h2 class="step-title">Patient details</h2></header>
-    <p class="hint">The Dicom Router's run history keeps <strong>counts only</strong>: how many studies matched, were new, forwarded or failed. It never stores a patient name or ID. The recent tool results can hold the rows they fetched, and those are limited below. Dicom Import keeps what it scanned only in memory and drops it after 30 minutes idle.</p>
-    <label>Keep the rows a tool fetched for (minutes)
-      <input name="retention_minutes" type="number" min="0" max="1440" value="{{ settings.retention_minutes }}" required>
-    </label>
-    <p class="hint">After this time a tool result loses the names, IDs and studies it lists; its summary stays. 0 keeps none.</p>
-    <label>Delete run history and results after (days)
-      <input name="history_days" type="number" min="0" max="3650" value="{{ settings.history_days }}" required>
-    </label>
-    <p class="hint">Router runs and tool results older than this are deleted, counts included. 0 keeps them until newer ones push them out (the last 500 runs and 200 results).</p>
+    <p class="hint">The Dicom Router's run history keeps <strong>counts only</strong>: how many studies matched, were new, forwarded or failed. It never stores a patient name or ID. Dicom Import keeps what it scanned only in memory and drops it after 30 minutes idle.</p>
+    <div class="fields">
+      {% call field("Keep rows for", "sec-retention", "After this time a tool result loses the names, IDs and studies it lists; its summary stays. 0 keeps none.", required=True, unit="minutes") %}
+      <input id="sec-retention" class="w-xs" name="retention_minutes" type="number" min="0" max="1440" value="{{ settings.retention_minutes }}" required>
+      {% endcall %}
+      {% call field("Delete history after", "sec-history", "Router runs and tool results older than this are deleted, counts included. 0 keeps them until newer ones push them out (the last 500 runs and 200 results).", required=True, unit="days") %}
+      <input id="sec-history" class="w-xs" name="history_days" type="number" min="0" max="3650" value="{{ settings.history_days }}" required>
+      {% endcall %}
+    </div>
   </section>
   <section class="panel step">
     <header class="panel-head"><h2 class="step-title">Folders operators may read</h2></header>
-    <label>One folder per line
-      <textarea name="import_roots" rows="4" spellcheck="false" placeholder="D:\Imports">{{ roots_text }}</textarea>
-    </label>
-    <p class="hint">Dicom Import and PDF to DICOM read files from a folder on this computer. An operator may only pick a folder listed here, or inside one. Administrators are not limited. With nothing listed, only administrators can pick a folder.</p>
+    <div class="fields">
+      {% call field("Folders", "sec-roots", "One folder per line. Dicom Import and PDF to DICOM read files from a folder on this computer. An operator may only pick a folder listed here, or inside one. Administrators are not limited. With nothing listed, only administrators can pick a folder.") %}
+      <textarea id="sec-roots" class="w-lg" name="import_roots" rows="4" spellcheck="false" placeholder="D:\Imports">{{ roots_text }}</textarea>
+      {% endcall %}
+    </div>
     <div class="form-actions"><button class="button primary" type="submit">Save</button></div>
   </section>
 </form>

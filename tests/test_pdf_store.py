@@ -600,3 +600,27 @@ def test_document_title_generates_by_default(client) -> None:
     assert re.search(r'name="generate_document_title" value="on" checked', page)
     assert re.search(r'id="pdf-document_title"[^>]*disabled>', page)
     assert not re.search(r'name="generate_accession" value="on" checked', page)
+
+
+def test_generate_is_a_menu_beside_the_field_and_the_real_checkbox_stays_in_the_form(client) -> None:
+    page = client.get("/tools/pdf-store").text
+    for name in ("generate_name", "generate_id", "generate_accession", "generate_study_description", "generate_document_title"):
+        assert f'<select class="gen-menu" data-gen-for="{name}"' in page, name
+        assert re.search(r'<input type="checkbox" name="%s" value="on"[^>]* hidden>' % name, page), name  # still posted, not shown
+    assert '<option value="generate">Generate</option>' in page and '<option value="value">Type a value</option>' in page
+    assert "field-toggle" not in page  # no more Generate checkbox next to each label
+    # the page's own hooks are unchanged
+    for hook in ("data-generate-name", "data-generate-id", 'data-pdf-generate="accession_number"', 'data-pdf-generate="study_description"', 'data-pdf-generate="document_title"', "data-unique-patient", "data-same-study"):
+        assert hook in page, hook  # (data-pdf-send only exists once a remote node is configured)
+
+
+def test_a_generated_field_is_rendered_ticked_and_its_menu_says_generate(client, tmp_path: Path) -> None:
+    pdf = tmp_path / "a.pdf"
+    pdf.write_bytes(MINIMAL_PDF)
+    page = client.post(
+        "/tools/pdf-store/run",
+        data={"patient_name": "DOE^JANE", "patient_id": "1001", "generate_accession": "on", "same_study": "on"},
+        files={"pdfs": ("a.pdf", pdf.read_bytes(), "application/pdf")},
+    ).text
+    assert re.search(r'name="generate_accession" value="on" checked[^>]* hidden>', page)
+    assert re.search(r'data-gen-for="generate_accession"[^>]*>\s*<option value="value">Type a value</option>\s*<option value="generate" selected>Generate</option>', page)

@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "partials/fields.html" import field, tip %}
 {% block title %}{{ tool.name }} · {{ product_name }}{% endblock %}
 {% block content %}
 <header class="page-head">
@@ -19,95 +20,84 @@
       <h2 class="step-title"><span class="step-num" aria-hidden="true">1</span>Find a study</h2>
       <span class="muted">Calling AE {{ config.local.ae_title }}</span>
     </header>
-    <div class="form-grid">
-      <label>
-        Remote node
-        <select name="remote_id" required>
-          {% for remote in config.remotes %}
-          <option value="{{ remote.id }}" {% if remote.id == remote_id %}selected{% endif %}>
-            {{ remote.name }} — {{ remote.ae_title }} @ {{ remote.connect_host }}:{{ remote.port }}
-          </option>
-          {% endfor %}
-        </select>
-        <span class="hint">Where the image is sent in step 4, by default — used for the lookup too, when looking up.</span>
-      </label>
-      {% include "partials/identity_select.html" %}
-    </div>
-
-    <fieldset class="find-mode-field" data-send-image-mode>
-      <legend>How to find the study</legend>
-      <div class="find-level-tabs" role="radiogroup" aria-label="Lookup mode">
-        <label class="find-level-tab">
-          <input type="radio" name="find_mode" value="lookup" {% if find_mode not in ("patient", "manual") %}checked{% endif %} data-send-image-mode-radio>
-          <span>Look up a study</span>
-        </label>
-        <label class="find-level-tab">
-          <input type="radio" name="find_mode" value="patient" {% if find_mode == "patient" %}checked{% endif %} data-send-image-mode-radio>
-          <span>Look up a patient</span>
-        </label>
-        <label class="find-level-tab">
-          <input type="radio" name="find_mode" value="manual" {% if find_mode == "manual" %}checked{% endif %} data-send-image-mode-radio>
-          <span>Enter details manually</span>
-        </label>
+    <div class="fields">
+      {% call field("Remote node", "si-remote", "Where the image is sent in step 4, by default. Used for the lookup too, when looking up.", required=True) %}
+      <select id="si-remote" class="w-lg" name="remote_id" required>
+        {% for remote in config.remotes %}
+        <option value="{{ remote.id }}" {% if remote.id == remote_id %}selected{% endif %}>
+          {{ remote.name }} — {{ remote.ae_title }} @ {{ remote.connect_host }}:{{ remote.port }}
+        </option>
+        {% endfor %}
+      </select>
+      {% endcall %}
+      {% include "partials/identity_field.html" %}
+      <div class="fld" data-send-image-mode>
+        <span class="fld-label">Find the study by{{ tip("An order that's already closed, with no image yet stored, won't show up in a PACS study query (Study Root C-FIND only finds studies that already have at least one stored instance) or in Worklist. Look up the patient instead, since many PACS keep a patient record independently of any study, or if even that isn't registered, enter the details by hand. Either way, Accession Number and Study Instance UID are set in step 3.") }}</span>
+        <div class="fld-control">
+          <div class="find-level-tabs plain-radios" role="radiogroup" aria-label="Lookup mode">
+            <label class="find-level-tab">
+              <input type="radio" name="find_mode" value="lookup" {% if find_mode not in ("patient", "manual") %}checked{% endif %} data-send-image-mode-radio>
+              <span>Study</span>
+            </label>
+            <label class="find-level-tab">
+              <input type="radio" name="find_mode" value="patient" {% if find_mode == "patient" %}checked{% endif %} data-send-image-mode-radio>
+              <span>Patient</span>
+            </label>
+            <label class="find-level-tab">
+              <input type="radio" name="find_mode" value="manual" {% if find_mode == "manual" %}checked{% endif %} data-send-image-mode-radio>
+              <span>Details typed by hand</span>
+            </label>
+          </div>
+        </div>
       </div>
-      <span class="hint">An order that's already closed, with no image yet stored, won't show up in a PACS study query (Study Root C-FIND only finds studies that already have at least one stored instance) or in Worklist. Look up the patient instead — many PACS keep a patient record independently of any study — or, if even that isn't registered, enter the details by hand. Either way, Accession Number and Study Instance UID are set in step 3.</span>
-    </fieldset>
-
-    <div class="form-grid" data-send-image-lookup-fields {% if find_mode in ("patient", "manual") %}hidden{% endif %}>
-      <label>
-        Patient name
-        <input name="patient_name" value="{{ query.patient_name or '' }}" placeholder="DOE*">
-      </label>
-      <label>
-        Patient ID
-        <input name="patient_id" value="{{ query.patient_id or '' }}">
-      </label>
-      <label>
-        Accession number
-        <input name="accession_number" value="{{ query.accession_number or '' }}">
-      </label>
-      <label>
-        Modality
-        <input name="query_modality" value="{{ query.modality or '' }}" placeholder="CT" maxlength="16">
-      </label>
-      <label>
-        Study date
-        <input name="study_date" type="date" value="{{ query.study_date or '' }}">
-      </label>
-    </div>
-    <div class="form-actions" data-send-image-lookup-fields {% if find_mode in ("patient", "manual") %}hidden{% endif %}>
-      <button class="button{% if not has_orders %} primary{% endif %}" type="submit" name="action" value="query" formnovalidate data-busy-text="Querying…">Find studies</button>
-      <span class="hint">Study Root C-FIND against studies already stored in the PACS. Blank fields match anything, but a narrower query (e.g. Study Date) avoids a slow archive-wide search.</span>
     </div>
 
-    <div class="form-grid" data-send-image-patient-fields {% if find_mode != "patient" %}hidden{% endif %}>
-      <label>
-        Patient name
-        <input name="patient_lookup_name" value="{{ patient.patient_name or '' }}" placeholder="DOE*">
-      </label>
-      <label>
-        Patient ID
-        <input name="patient_lookup_id" value="{{ patient.patient_id or '' }}">
-      </label>
-    </div>
-    <div class="form-actions" data-send-image-patient-fields {% if find_mode != "patient" %}hidden{% endif %}>
-      <button class="button{% if not has_orders %} primary{% endif %}" type="submit" name="action" value="patient" formnovalidate data-busy-text="Querying…">Find patient</button>
-      <span class="hint">Patient Root C-FIND, at Patient level — finds a registered patient even with zero studies. You'll set the Accession Number yourself in step 3.</span>
+    <div class="fields" data-send-image-lookup-fields {% if find_mode in ("patient", "manual") %}hidden{% endif %}>
+      {% call field("Patient name", "si-name") %}
+      <input id="si-name" class="w-md" name="patient_name" value="{{ query.patient_name or '' }}" placeholder="DOE*">
+      {% endcall %}
+      {% call field("Patient ID", "si-pid") %}
+      <input id="si-pid" class="w-md" name="patient_id" value="{{ query.patient_id or '' }}">
+      {% endcall %}
+      {% call field("Accession number", "si-acc") %}
+      <input id="si-acc" class="w-md" name="accession_number" value="{{ query.accession_number or '' }}">
+      {% endcall %}
+      {% call field("Modality", "si-mod") %}
+      <input id="si-mod" class="w-xs" name="query_modality" value="{{ query.modality or '' }}" placeholder="CT" maxlength="16">
+      {% endcall %}
+      {% call field("Study date", "si-date") %}
+      <input id="si-date" class="w-sm" name="study_date" type="date" value="{{ query.study_date or '' }}">
+      {% endcall %}
+      <div class="fld"><span class="fld-label"></span><div class="fld-control">
+        <button class="button{% if not has_orders %} primary{% endif %}" type="submit" name="action" value="query" formnovalidate data-busy-text="Querying…">Find studies</button>
+        {{ tip("Study Root C-FIND against studies already stored in the PACS. Blank fields match anything, but a narrower query (e.g. Study Date) avoids a slow archive-wide search.") }}
+      </div></div>
     </div>
 
-    <div class="form-grid" data-send-image-manual-fields {% if find_mode != "manual" %}hidden{% endif %}>
-      <label>
-        Patient name
-        <input name="manual_patient_name" value="{{ manual.patient_name or '' }}" placeholder="DOE^JANE">
-      </label>
-      <label>
-        Patient ID
-        <input name="manual_patient_id" value="{{ manual.patient_id or '' }}">
-      </label>
+    <div class="fields" data-send-image-patient-fields {% if find_mode != "patient" %}hidden{% endif %}>
+      {% call field("Patient name", "si-lname") %}
+      <input id="si-lname" class="w-md" name="patient_lookup_name" value="{{ patient.patient_name or '' }}" placeholder="DOE*">
+      {% endcall %}
+      {% call field("Patient ID", "si-lid") %}
+      <input id="si-lid" class="w-md" name="patient_lookup_id" value="{{ patient.patient_id or '' }}">
+      {% endcall %}
+      <div class="fld"><span class="fld-label"></span><div class="fld-control">
+        <button class="button{% if not has_orders %} primary{% endif %}" type="submit" name="action" value="patient" formnovalidate data-busy-text="Querying…">Find patient</button>
+        {{ tip("Patient Root C-FIND, at Patient level. Finds a registered patient even with zero studies. You'll set the Accession Number yourself in step 3.") }}
+      </div></div>
     </div>
-    <div class="form-actions" data-send-image-manual-fields {% if find_mode != "manual" %}hidden{% endif %}>
-      <button class="button{% if not has_orders %} primary{% endif %}" type="submit" name="action" value="manual" formnovalidate data-busy-text="Preparing…">Use these details</button>
-      <span class="hint">Not looked up anywhere — goes straight to picking a modality, Accession Number, and sending.</span>
+
+    <div class="fields" data-send-image-manual-fields {% if find_mode != "manual" %}hidden{% endif %}>
+      {% call field("Patient name", "si-mname") %}
+      <input id="si-mname" class="w-md" name="manual_patient_name" value="{{ manual.patient_name or '' }}" placeholder="DOE^JANE">
+      {% endcall %}
+      {% call field("Patient ID", "si-mid") %}
+      <input id="si-mid" class="w-md" name="manual_patient_id" value="{{ manual.patient_id or '' }}">
+      {% endcall %}
+      <div class="fld"><span class="fld-label"></span><div class="fld-control">
+        <button class="button{% if not has_orders %} primary{% endif %}" type="submit" name="action" value="manual" formnovalidate data-busy-text="Preparing…">Use these details</button>
+        {{ tip("Not looked up anywhere. Goes straight to picking a modality, Accession Number, and sending.") }}
+      </div></div>
     </div>
   </section>
 
@@ -155,62 +145,54 @@
     <header class="panel-head">
       <h2 class="step-title"><span class="step-num" aria-hidden="true">3</span>Describe the image</h2>
     </header>
-    <div class="form-grid">
-      <label>
-        <span class="label-line">Modality <abbr class="req" title="Required">*</abbr></span>
-        <select name="modality" required>
-          <option value="">Choose…</option>
-          {% for code in send_image_modalities %}
-          <option value="{{ code }}">{{ code }}</option>
-          {% endfor %}
-        </select>
-        <span class="hint">What the stored image is tagged as — independent of the study's own existing modalities.</span>
-      </label>
-      <label>
-        Accession number
-        <input name="image_accession_number" placeholder="Falls back to the study's own Accession Number, if it had one">
-      </label>
-      <label>
-        Study Instance UID
-        <input name="image_study_instance_uid" placeholder="Falls back to the study's own UID, or generates a new one">
-      </label>
-      <label>
-        Study description
-        <input name="study_description" placeholder="Falls back to the study's own description">
-      </label>
-      <label>
-        Body part examined
-        <input name="body_part_examined" placeholder="CHEST" maxlength="16">
-      </label>
-      <label>
-        Series description
-        <input name="series_description">
-      </label>
+    <div class="fields">
+      {% call field("Modality", "si-image-mod", "What the stored image is tagged as, independent of the study's own existing modalities.", required=True) %}
+      <select id="si-image-mod" class="w-sm" name="modality" required>
+        <option value="">Choose…</option>
+        {% for code in send_image_modalities %}
+        <option value="{{ code }}">{{ code }}</option>
+        {% endfor %}
+      </select>
+      {% endcall %}
+      {% call field("Accession number", "si-image-acc", "Blank falls back to the study's own Accession Number, if it had one.") %}
+      <input id="si-image-acc" class="w-md" name="image_accession_number">
+      {% endcall %}
+      {% call field("Study Instance UID", "si-image-uid", "Blank falls back to the study's own UID, or generates a new one.") %}
+      <input id="si-image-uid" class="w-lg" name="image_study_instance_uid">
+      {% endcall %}
+      {% call field("Study description", "si-image-desc", "Blank falls back to the study's own description.") %}
+      <input id="si-image-desc" class="w-lg" name="study_description">
+      {% endcall %}
+      {% call field("Body part examined", "si-image-body") %}
+      <input id="si-image-body" class="w-sm" name="body_part_examined" placeholder="CHEST" maxlength="16">
+      {% endcall %}
+      {% call field("Series description", "si-image-series") %}
+      <input id="si-image-series" class="w-lg" name="series_description">
+      {% endcall %}
+      <p class="hint fld-note">The image itself is a fixed {{ send_image_size }}×{{ send_image_size }} solid black frame; these tags are what make it identifiable.</p>
     </div>
-    <p class="hint">The image itself is a fixed {{ send_image_size }}×{{ send_image_size }} solid black frame — there is no real pixel content to configure; these tags are what make it identifiable.</p>
   </section>
 
   <section class="panel step">
     <header class="panel-head">
       <h2 class="step-title"><span class="step-num" aria-hidden="true">4</span>Send</h2>
     </header>
-    <div class="form-grid">
-      <label>
-        Send to
-        <select name="destination_remote_id">
-          <option value="">Same as the study's remote node</option>
-          {% for node in config.remotes %}
-          <option value="{{ node.id }}">{{ node.name }} — {{ node.ae_title }} @ {{ node.connect_host }}:{{ node.port }}</option>
-          {% endfor %}
-        </select>
-      </label>
-      <div class="form-actions">
-        <button class="button primary" type="submit" name="action" value="run" formnovalidate
-                data-busy-text="Sending…"
-                data-confirm="C-STORE a solid-black placeholder image for this study to a PACS?">
-          Send image
-        </button>
-      </div>
+    <div class="fields">
+      {% call field("Send to", "si-dest") %}
+      <select id="si-dest" class="w-lg" name="destination_remote_id">
+        <option value="">Same as the study's remote node</option>
+        {% for node in config.remotes %}
+        <option value="{{ node.id }}">{{ node.name }} — {{ node.ae_title }} @ {{ node.connect_host }}:{{ node.port }}</option>
+        {% endfor %}
+      </select>
+      {% endcall %}
+    </div>
+    <div class="form-actions">
+      <button class="button primary" type="submit" name="action" value="run" formnovalidate
+              data-busy-text="Sending…"
+              data-confirm="C-STORE a solid-black placeholder image for this study to a PACS?">
+        Send image
+      </button>
     </div>
   </section>
   {% else %}

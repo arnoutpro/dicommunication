@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "partials/fields.html" import field, check, tip %}
 {% block title %}{{ tool.name }} · {{ product_name }}{% endblock %}
 {% block content %}
 <header class="page-head">
@@ -19,7 +20,7 @@
       <h2 class="step-title"><span class="step-num" aria-hidden="true">1</span>Find studies</h2>
       <span class="muted">Calling AE {{ config.local.ae_title }}</span>
     </header>
-    <div class="form-grid">
+    <div class="fields">
       {% set query_remote_hint = "Studies are queried and retrieved from here and, unless you pick another destination in step 4, sent back here too." %}
       {% include "partials/study_query_fields.html" %}
     </div>
@@ -38,33 +39,24 @@
     <header class="panel-head">
       <h2 class="step-title"><span class="step-num" aria-hidden="true">3</span>Redact region</h2>
     </header>
-    <fieldset>
-      <legend>Region in pixels, from the top-left corner</legend>
-      <div class="form-grid region-grid">
-        <label>
-          X
-          <input type="number" id="cleaner-region-x" name="region_x" min="0" value="0">
-        </label>
-        <label>
-          Y
-          <input type="number" id="cleaner-region-y" name="region_y" min="0" value="0">
-        </label>
-        <label>
-          Width
-          <input type="number" id="cleaner-region-width" name="region_width" min="0" value="0">
-          <span class="hint">0 = full width</span>
-        </label>
-        <label>
-          Height
-          <input type="number" id="cleaner-region-height" name="region_height" min="1" value="100">
-        </label>
-      </div>
-      <label class="cleaner-label-field">
-        Label drawn over the black box (optional)
-        <input type="text" id="cleaner-region-label" name="region_label" maxlength="60" placeholder="REDACTED" autocomplete="off">
-      </label>
-      <p class="hint">One rectangle is blacked out on every retrieved image. The default covers a 100px band across the top, where modalities usually burn in text. A label, if set, is stamped in white across that same rectangle on every image — it's dropped automatically if the box is too small to fit even one readable character. Non-image objects (SR, PR…) are skipped and reported as failed, not sent.</p>
-    </fieldset>
+    <div class="fields">
+      {% call field("X", "cleaner-region-x", "Region in pixels, from the top-left corner.", unit="px") %}
+      <input type="number" id="cleaner-region-x" class="w-xs" name="region_x" min="0" value="0">
+      {% endcall %}
+      {% call field("Y", "cleaner-region-y", unit="px") %}
+      <input type="number" id="cleaner-region-y" class="w-xs" name="region_y" min="0" value="0">
+      {% endcall %}
+      {% call field("Width", "cleaner-region-width", "0 = full width.", unit="px") %}
+      <input type="number" id="cleaner-region-width" class="w-xs" name="region_width" min="0" value="0">
+      {% endcall %}
+      {% call field("Height", "cleaner-region-height", unit="px") %}
+      <input type="number" id="cleaner-region-height" class="w-xs" name="region_height" min="1" value="100">
+      {% endcall %}
+      {% call field("Label", "cleaner-region-label", "Optional text stamped in white across the black box on every image. Dropped automatically if the box is too small to fit one readable character.") %}
+      <input type="text" id="cleaner-region-label" class="w-md" name="region_label" maxlength="60" placeholder="REDACTED" autocomplete="off">
+      {% endcall %}
+      <p class="hint fld-note">One rectangle is blacked out on every retrieved image. The default covers a 100px band across the top, where modalities usually burn in text. Non-image objects (SR, PR…) are skipped and reported as failed, not sent.</p>
+    </div>
 
     <details class="region-picker">
       <summary>Pick the region on an image</summary>
@@ -90,48 +82,41 @@
       <h2 class="step-title"><span class="step-num" aria-hidden="true">4</span>Send back</h2>
     </header>
     {% include "partials/storage_scp_caution.html" %}
-    <fieldset data-choice-hints>
-      <legend>Send back as</legend>
-      <div class="find-level-tabs" role="radiogroup" aria-label="SOP Instance UID">
-        <label class="find-level-tab">
-          <input type="radio" name="uid_mode" value="new" checked>
-          <span>New UID</span>
-        </label>
-        <label class="find-level-tab">
-          <input type="radio" name="uid_mode" value="same">
-          <span>Same UID</span>
-        </label>
+    <div class="fields">
+      <div class="fld" data-choice-hints>
+        <span class="fld-label">Send back as</span>
+        <div class="fld-control">
+          <div class="find-level-tabs plain-radios" role="radiogroup" aria-label="SOP Instance UID">
+            <label class="find-level-tab">
+              <input type="radio" name="uid_mode" value="new" checked>
+              <span>New UID</span>
+            </label>
+            <label class="find-level-tab">
+              <input type="radio" name="uid_mode" value="same">
+              <span>Same UID</span>
+            </label>
+          </div>
+        </div>
+        <p class="hint fld-note" data-hint-for="new">Stored with a fresh SOP Instance UID in the same study and series, so the PACS always accepts it. The unredacted original stays on the archive until you remove it.</p>
+        <p class="hint fld-note" data-hint-for="same">Keeps the original UIDs. Whether the PACS replaces the image, rejects it or reports a conflict depends on the PACS, not on this tool.</p>
       </div>
-      <p class="hint" data-hint-for="new">Stored with a fresh SOP Instance UID in the same study and series, so the PACS always accepts it. The unredacted original stays on the archive until you remove it.</p>
-      <p class="hint" data-hint-for="same">Keeps the original UIDs. Whether the PACS replaces the image, rejects it or reports a conflict depends on the PACS, not on this tool.</p>
-    </fieldset>
-
-    <div class="stamp">
-      <label class="stamp-field-title">
-        <input type="checkbox" name="new_series_uid" value="on">
-        Assign a new Series Instance UID
-      </label>
-      <p class="hint">Groups the cleaned images into a brand-new series instead of the original one — all images from the same source series share one new Series UID. Implies a new SOP Instance UID too, regardless of the choice above, since reusing the original one under a different series would be ambiguous.</p>
+      {{ check("New Series UID", "cleaner-new-series", "new_series_uid", tip_text="Groups the cleaned images into a brand-new series instead of the original one; all images from the same source series share one new Series UID. Implies a new SOP Instance UID too, regardless of the choice above, since reusing the original one under a different series would be ambiguous.") }}
+      {% call field("Send to", "cleaner-destination") %}
+      <select id="cleaner-destination" class="w-lg" name="destination_remote_id">
+        <option value="">Same as the source node</option>
+        {% for node in config.remotes %}
+        <option value="{{ node.id }}">{{ node.name }} — {{ node.ae_title }} @ {{ node.connect_host }}:{{ node.port }}</option>
+        {% endfor %}
+      </select>
+      {% endcall %}
     </div>
-
-    <div class="form-grid">
-      <label>
-        Send to
-        <select name="destination_remote_id">
-          <option value="">Same as the source node</option>
-          {% for node in config.remotes %}
-          <option value="{{ node.id }}">{{ node.name }} — {{ node.ae_title }} @ {{ node.connect_host }}:{{ node.port }}</option>
-          {% endfor %}
-        </select>
-      </label>
-      <div class="form-actions">
-        <button class="button primary" type="submit" name="action" value="run" formnovalidate
-                data-study-pick-run data-run-verb="Clean"
-                data-busy-text="Retrieving &amp; sending…"
-                data-confirm="Retrieve, redact, and C-STORE the checked studies back to a PACS? This changes pixel data on real images.">
-          Clean selected
-        </button>
-      </div>
+    <div class="form-actions">
+      <button class="button primary" type="submit" name="action" value="run" formnovalidate
+              data-study-pick-run data-run-verb="Clean"
+              data-busy-text="Retrieving &amp; sending…"
+              data-confirm="Retrieve, redact, and C-STORE the checked studies back to a PACS? This changes pixel data on real images.">
+        Clean selected
+      </button>
     </div>
   </section>
   {% else %}

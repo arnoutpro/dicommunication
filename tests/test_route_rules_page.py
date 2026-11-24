@@ -69,14 +69,14 @@ def test_rule_form_hides_fields_that_do_not_apply(client: TestClient, store: Con
     page = client.get("/router").text
     assert 'name="date_last_n_days"' in page
     assert 'data-reveal-when="date_scope=last_n_days"' not in page  # always visible
-    assert '<label data-reveal-when="level=SERIES" hidden>' in page
+    assert '<div data-reveal-when="level=SERIES" hidden>' in page
 
     rule = store.add_route_rule(
         RouteRule(name="Series", source_remote_id=remote.id, level="SERIES", date_scope="last_n_days")
     )
     editing = client.get(f"/router?edit={rule.id}").text
     assert 'name="date_last_n_days"' in editing
-    assert '<label data-reveal-when="level=SERIES">' in editing
+    assert '<div data-reveal-when="level=SERIES">' in editing
 
 
 def test_add_edit_delete_route_rule(client: TestClient, store: ConfigStore, remote: RemoteNode) -> None:
@@ -298,7 +298,7 @@ def test_router_page_offers_loading_a_study_level_saved_query(
     )
     store.save_query(SavedQuery(name="Series lookup", remote_id=remote.id, level="SERIES"))
     page = client.get("/router").text
-    assert "load filters from a saved Dicomtag Analytics query" in page
+    assert "Load saved query" in page and "Dicomtag Analytics query" in page
     assert "Unread CTs" in page
     # Only a Study-level saved query fits the rule's per-study tracking model.
     assert "Series lookup" not in page
