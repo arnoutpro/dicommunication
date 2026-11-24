@@ -35,6 +35,10 @@ class StorageInbox:
             except Exception:  # noqa: BLE001
                 self._datasets.append(dataset)
 
+    def count(self) -> int:
+        with self._lock:
+            return len(self._datasets)
+
     def finish(self) -> list:
         with self._lock:
             self._capturing = False
