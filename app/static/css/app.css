@@ -2930,3 +2930,28 @@ body.page-find .find-head {
 }
 .find-advanced-form .find-more-filters > summary:hover { color: var(--accent); background: none; }
 .find-more-count { font-weight: 400; color: var(--muted); }
+
+/* The Value / Generate menu beside a field, and the plain radio row used by the converted pages. */
+.gen { display: inline-flex; align-items: center; }
+.gen .choice, .gen select { width: 8.5rem; }
+.gen.is-locked .choice { opacity: 0.55; pointer-events: none; }
+.fld-note { grid-column: 2; margin: 0; }
+.fld-stack { flex-direction: column; align-items: stretch; gap: 0.35rem; }
+.fld-stack .input-with-action > input { width: 100%; max-width: 30rem; }
+.plain-radios { display: inline-flex; flex-wrap: wrap; gap: 0.2rem 1.1rem; padding: 0; border: 0; background: none; width: auto; }
+.plain-radios .find-level-tab { display: inline-flex; align-items: center; gap: 0.35rem; cursor: pointer; }
+.plain-radios .find-level-tab input { position: static; opacity: 1; pointer-events: auto; margin: 0; }
+.plain-radios .find-level-tab span,
+.plain-radios .find-level-tab input:checked + span,
+.plain-radios .find-level-tab span:hover { padding: 0; border: 0; background: none; color: var(--text); font-size: var(--text-md); font-weight: 400; }
+.plain-radios .find-level-tab input:checked + span { font-weight: 700; }
+.fields > .fld-wide { grid-column: 1 / -1; }
+@media (max-width: 900px) { .fld-note { grid-column: 1; } }
+
+/* The page turns a <select> into a dropdown widget (.choice) around it; the width class is on the select. */
+.fld-control > .choice:has(> .w-xs) { --w: 5.5rem; }
+.fld-control > .choice:has(> .w-sm) { --w: 9rem; }
+.fld-control > .choice:has(> .w-md) { --w: 15rem; }
+.fld-control > .choice:has(> .w-lg) { --w: 24rem; }
+.fld-control > .choice:has(> .w-full) { --w: 100%; }
+.fld-control > input[type="file"] { --w: 28rem; }

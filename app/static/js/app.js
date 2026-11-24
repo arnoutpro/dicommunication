@@ -419,6 +419,7 @@ function initPdfStoreForm(scope) {
     wasUnique = unique;
     wasGenName = wantName && !unique;
     wasGenId = wantId && !unique;
+    syncGenMenus();
   }
 
   function keepPdfFiles(input) {
@@ -524,6 +525,38 @@ function initPdfStoreForm(scope) {
   form.querySelectorAll("[data-pdf-generate]").forEach((box) => {
     box.addEventListener("change", () => applyGenerated(box));
     applyGenerated(box);
+  });
+
+  // The "Type a value / Generate" menus drive the hidden Generate checkboxes (which the server and
+  // the code above read and write) and mirror them: ticking "One patient per PDF" turns the name
+  // and ID checkboxes on by script, so the menus are redrawn after every such change.
+  const genMenus = Array.from(form.querySelectorAll("select[data-gen-for]"));
+  function genBoxFor(menu) {
+    return form.querySelector(`input[type="checkbox"][name="${menu.getAttribute("data-gen-for")}"]`);
+  }
+  function syncGenMenus() {
+    const unique = uniquePatient instanceof HTMLInputElement && uniquePatient.checked;
+    genMenus.forEach((menu) => {
+      const box = genBoxFor(menu);
+      if (!(box instanceof HTMLInputElement)) {
+        return;
+      }
+      setSelectValue(menu, box.checked ? "generate" : "value");
+      const forced = unique && (box === generateName || box === generateId);
+      menu.disabled = forced;
+      menu.closest(".gen")?.classList.toggle("is-locked", forced);
+    });
+  }
+  genMenus.forEach((menu) => {
+    menu.addEventListener("change", () => {
+      const box = genBoxFor(menu);
+      if (!(box instanceof HTMLInputElement)) {
+        return;
+      }
+      box.checked = menu.value === "generate";
+      box.dispatchEvent(new Event("change", { bubbles: true }));
+      syncGenMenus();
+    });
   });
 
   form.querySelectorAll("[data-pdf-source]").forEach((radio) => radio.addEventListener("change", applySource));

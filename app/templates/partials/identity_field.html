@@ -1,0 +1,25 @@
+{#- "Present as" for pages that use the field system (partials/fields.html). The older
+    partials/identity_select.html does the same for the pages not converted yet. -#}
+{% from "partials/fields.html" import field %}
+{% call field("Present as", "identity_id", "Calling AE Title on the association. Worklist station AE follows the identity unless you override it." ~ ("" if config.identities else " Add virtual titles under Configuration to impersonate modalities.")) %}
+<select id="identity_id" name="identity_id" class="w-lg">
+  <option
+    value=""
+    data-station="{{ config.local.station_ae_title }}"
+    data-modality=""
+    {% if not identity_id|default('') %}selected{% endif %}
+  >
+    {{ config.local.ae_title }} (workstation)
+  </option>
+  {% for identity in config.identities %}
+  <option
+    value="{{ identity.id }}"
+    data-station="{{ identity.scheduled_station_ae_title }}"
+    data-modality="{{ identity.modality }}"
+    {% if identity_id|default('') == identity.id %}selected{% endif %}
+  >
+    {{ identity.name }} — {{ identity.ae_title }}
+  </option>
+  {% endfor %}
+</select>
+{% endcall %}

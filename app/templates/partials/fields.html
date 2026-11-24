@@ -18,9 +18,22 @@
 </div>
 {%- endmacro %}
 
-{% macro check(label, id, name, checked=False, tip_text="", wide=False) -%}
+{% macro check(label, id, name, checked=False, tip_text="", wide=False, attrs="") -%}
 <div class="fld{% if wide %} fld-wide{% endif %}">
   <span class="fld-label"><label for="{{ id }}">{{ label }}</label>{% if tip_text %}{{ tip(tip_text) }}{% endif %}</span>
-  <div class="fld-control"><input type="checkbox" id="{{ id }}" name="{{ name }}" value="on"{% if checked %} checked{% endif %}></div>
+  <div class="fld-control"><input type="checkbox" id="{{ id }}" name="{{ name }}" value="on"{% if checked %} checked{% endif %}{% if attrs %} {{ attrs | safe }}{% endif %}></div>
 </div>
+{%- endmacro %}
+
+{#- gen(name, checked, attrs): the menu beside a field that can be typed or generated ("Type a value" /
+    "Generate"). The real checkbox named `name` stays in the form, hidden, so the server and the page's
+    script read and write the same thing as before; the menu drives it and mirrors it. -#}
+{% macro gen(name, checked=False, attrs="") -%}
+<span class="gen">
+  <input type="checkbox" name="{{ name }}" value="on"{% if checked %} checked{% endif %}{% if attrs %} {{ attrs | safe }}{% endif %} hidden>
+  <select class="gen-menu" data-gen-for="{{ name }}" aria-label="Type a value, or generate one" title="A value you type goes on every PDF as it is. Generate makes one per study, or per PDF for the title.">
+    <option value="value">Type a value</option>
+    <option value="generate"{% if checked %} selected{% endif %}>Generate</option>
+  </select>
+</span>
 {%- endmacro %}
