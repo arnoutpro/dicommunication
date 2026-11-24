@@ -624,3 +624,24 @@ def test_a_generated_field_is_rendered_ticked_and_its_menu_says_generate(client,
     ).text
     assert re.search(r'name="generate_accession" value="on" checked[^>]* hidden>', page)
     assert re.search(r'data-gen-for="generate_accession"[^>]*>\s*<option value="value">Type a value</option>\s*<option value="generate" selected>Generate</option>', page)
+
+
+def test_pdf_page_says_when_there_is_no_folder_dialog(client, monkeypatch) -> None:
+    from app.routes import tools as tools_route
+
+    monkeypatch.setattr(tools_route, "dialogs_available", lambda: False)
+    page = client.get("/tools/pdf-store").text
+    assert "There is no folder dialog here" in page
+    assert 'data-browse-directory title="No desktop folder dialog in this session" hx-disable disabled' in page
+    monkeypatch.setattr(tools_route, "dialogs_available", lambda: True)
+    page = client.get("/tools/pdf-store").text
+    assert "There is no folder dialog here" not in page and 'hx-disable disabled' not in page
+
+
+def test_dicom_import_page_says_when_there_is_no_folder_dialog(client, monkeypatch) -> None:
+    from app.routes import dicom_import as import_route
+
+    monkeypatch.setattr(import_route, "dialogs_available", lambda: False)
+    assert "There is no folder dialog here" in client.get("/tools/dicom-import").text
+    monkeypatch.setattr(import_route, "dialogs_available", lambda: True)
+    assert "There is no folder dialog here" not in client.get("/tools/dicom-import").text
