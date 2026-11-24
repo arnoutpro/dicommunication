@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Dicomtag Analytics
+
+- **Remote and Present as** are now two rows in the same label column as Report text and Level, instead of two boxes side by side. The old two-column setup styles are removed. Field names and the query are unchanged.
+
 ### Documentation
 
 - **README and Help no longer say the app has no login.** They now say what is true since 0.11: on one computer with no account it opens without a login; once an account exists, or the app can be reached from another computer, sign-in (and HTTPS) is on. This covers the Docker instructions and troubleshooting row, the PDF to DICOM folder note, the "does not" list, and the Help text about the JSON API (it follows the same sign-in and roles; there are no API keys). The About page was corrected earlier.
