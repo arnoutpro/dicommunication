@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "partials/fields.html" import field, tip %}
 {% block title %}Testbench · Dicommunication{% endblock %}
 {% block content %}
 <header class="page-head">
@@ -62,7 +63,7 @@
 
   {% if config.remotes %}
   <form autocomplete="off"
-    class="form-grid"
+    class="fields"
     method="post"
     action="/testbench/run"
     hx-post="/testbench/run"
@@ -71,60 +72,53 @@
     hx-timeout="120000"
     id="testbench-form"
   >
-    <label>
-      Remote node
-      <select name="remote_id" required>
-        {% for remote in config.remotes %}
-        <option value="{{ remote.id }}" {% if remote.id == remote_id %}selected{% endif %}>{{ remote.name }} — {{ remote.ae_title }} @ {{ remote.connect_host }}:{{ remote.port }}{% if remote.provides_mwl %} (DMWL){% endif %}</option>
-        {% endfor %}
-      </select>
-    </label>
-    {% include "partials/identity_select.html" %}
-    <label>
-      DICOM service
-      <select name="service" id="service" required>
-        <option value="c-echo" {% if service == 'c-echo' %}selected{% endif %}>C-ECHO — Verification</option>
-        <option value="c-store" {% if service == 'c-store' %}selected{% endif %}>C-STORE — send test image</option>
-        <option value="c-find" {% if service == 'c-find' %}selected{% endif %}>C-FIND — Study Root Query/Retrieve</option>
-        <option value="mwl-find" {% if service == 'mwl-find' %}selected{% endif %}>MWL C-FIND — Modality Worklist</option>
-      </select>
-    </label>
-    <div id="qr-fields" class="span-2 form-grid" hidden>
-      <label>
-        Patient name
-        <input name="patient_name" placeholder="DOE*" autocomplete="off">
-      </label>
-      <label>
-        Patient ID
-        <input name="patient_id" autocomplete="off">
-      </label>
-      <label>
-        Accession number
-        <input name="accession_number" autocomplete="off">
-      </label>
-      <label>
-        Modality
-        <input name="modality" placeholder="CT" maxlength="16" autocomplete="off">
-      </label>
-      <label id="study-date-field">
-        Study date
-        <input name="study_date" type="date">
-      </label>
+    {% call field("Remote node", "tb-remote", required=True) %}
+    <select id="tb-remote" class="w-lg" name="remote_id" required>
+      {% for remote in config.remotes %}
+      <option value="{{ remote.id }}" {% if remote.id == remote_id %}selected{% endif %}>{{ remote.name }} — {{ remote.ae_title }} @ {{ remote.connect_host }}:{{ remote.port }}{% if remote.provides_mwl %} (DMWL){% endif %}</option>
+      {% endfor %}
+    </select>
+    {% endcall %}
+    {% include "partials/identity_field.html" %}
+    {% call field("DICOM service", "service", required=True) %}
+    <select name="service" id="service" class="w-lg" required>
+      <option value="c-echo" {% if service == 'c-echo' %}selected{% endif %}>C-ECHO — Verification</option>
+      <option value="c-store" {% if service == 'c-store' %}selected{% endif %}>C-STORE — send test image</option>
+      <option value="c-find" {% if service == 'c-find' %}selected{% endif %}>C-FIND — Study Root Query/Retrieve</option>
+      <option value="mwl-find" {% if service == 'mwl-find' %}selected{% endif %}>MWL C-FIND — Modality Worklist</option>
+    </select>
+    {% endcall %}
+    <div id="qr-fields" class="fields" hidden>
+      {% call field("Patient name", "tb-name") %}
+      <input id="tb-name" class="w-md" name="patient_name" placeholder="DOE*" autocomplete="off">
+      {% endcall %}
+      {% call field("Patient ID", "tb-pid") %}
+      <input id="tb-pid" class="w-md" name="patient_id" autocomplete="off">
+      {% endcall %}
+      {% call field("Accession number", "tb-acc") %}
+      <input id="tb-acc" class="w-md" name="accession_number" autocomplete="off">
+      {% endcall %}
+      {% call field("Modality", "tb-mod") %}
+      <input id="tb-mod" class="w-xs" name="modality" placeholder="CT" maxlength="16" autocomplete="off">
+      {% endcall %}
+      <div id="study-date-field">
+      {% call field("Study date", "tb-date") %}
+      <input id="tb-date" class="w-sm" name="study_date" type="date">
+      {% endcall %}
+      </div>
     </div>
-    <div id="mwl-fields" class="span-2 form-grid" hidden>
-      <label>
-        Station AE Title
-        <input name="station_ae_title" value="{{ config.local.station_ae_title }}" maxlength="16">
-      </label>
-      <label>
-        Scheduled date
-        <input name="scheduled_date" type="date">
-      </label>
+    <div id="mwl-fields" class="fields" hidden>
+      {% call field("Station AE Title", "tb-station") %}
+      <input id="tb-station" class="w-sm" name="station_ae_title" value="{{ config.local.station_ae_title }}" maxlength="16">
+      {% endcall %}
+      {% call field("Scheduled date", "tb-sdate") %}
+      <input id="tb-sdate" class="w-sm" name="scheduled_date" type="date">
+      {% endcall %}
     </div>
     <div class="form-actions">
       <button class="button primary" type="submit">Run service</button>
       <span id="busy" class="htmx-indicator spinner">Associating…</span>
-      <p class="hint">C-STORE sends a 16×16 Secondary Capture as patient ARNPRO^TESTBENCH / ARNPRO-TEST. Leave C-FIND filters empty for a broad STUDY-level query.</p>
+      {{ tip("C-STORE sends a 16×16 Secondary Capture as patient ARNPRO^TESTBENCH / ARNPRO-TEST. Leave C-FIND filters empty for a broad STUDY-level query.") }}
     </div>
   </form>
   {% else %}

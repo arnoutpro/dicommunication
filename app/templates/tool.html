@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "partials/fields.html" import field, tip %}
 {% block title %}{{ tool.name }} · Dicommunication{% endblock %}
 {% block content %}
 <header class="page-head">
@@ -20,7 +21,7 @@
   {% set remote_mode = remote_mode if remote_mode is defined and remote_mode else "saved" %}
   {% if config.remotes or tool.id == "c-echo" %}
   <form autocomplete="off"
-    class="form-grid"
+    class="fields"
     method="post"
     action="/tools/{{ tool.id }}/run"
     hx-post="/tools/{{ tool.id }}/run"
@@ -28,55 +29,54 @@
     hx-indicator="#busy"
   >
     {% if tool.id == "c-echo" and config.remotes %}
-    <fieldset class="find-mode-field span-2" data-remote-mode>
-      <legend>Remote node</legend>
-      <div class="find-level-tabs" role="radiogroup" aria-label="Remote node mode">
-        <label class="find-level-tab">
-          <input type="radio" name="remote_mode" value="saved" {% if remote_mode != "manual" %}checked{% endif %} data-remote-mode-radio>
-          <span>Saved node</span>
-        </label>
-        <label class="find-level-tab">
-          <input type="radio" name="remote_mode" value="manual" {% if remote_mode == "manual" %}checked{% endif %} data-remote-mode-radio>
-          <span>Enter connection details manually</span>
-        </label>
+    <div class="fld" data-remote-mode>
+      <span class="fld-label">Remote node{{ tip("Manual entry runs once against that node without saving it to Configuration → Remote nodes.") }}</span>
+      <div class="fld-control">
+        <div class="find-level-tabs plain-radios" role="radiogroup" aria-label="Remote node mode">
+          <label class="find-level-tab">
+            <input type="radio" name="remote_mode" value="saved" {% if remote_mode != "manual" %}checked{% endif %} data-remote-mode-radio>
+            <span>Saved node</span>
+          </label>
+          <label class="find-level-tab">
+            <input type="radio" name="remote_mode" value="manual" {% if remote_mode == "manual" %}checked{% endif %} data-remote-mode-radio>
+            <span>Enter details manually</span>
+          </label>
+        </div>
       </div>
-      <span class="hint">Manual entry runs once against that node without saving it to Configuration → Remote nodes.</span>
-    </fieldset>
+    </div>
     {% elif tool.id == "c-echo" %}
     <input type="hidden" name="remote_mode" value="manual">
-    <p class="hint span-2">No saved remote nodes yet — enter the node's connection details below to run C-ECHO once, without saving anything.</p>
+    <p class="hint fld-note">No saved remote nodes yet. Enter the node's connection details below to run C-ECHO once, without saving anything.</p>
     {% endif %}
 
     {% if config.remotes %}
-    <label data-remote-mode-saved{% if tool.id == "c-echo" and remote_mode == "manual" %} hidden{% endif %}>
-      Remote node
-      <select name="remote_id"{% if tool.id != "c-echo" %} required{% endif %}>
-        <option value="">Select a remote node…</option>
-        {% for remote in config.remotes %}
-        <option value="{{ remote.id }}" {% if remote.id == remote_id %}selected{% endif %}>{{ remote.name }} — {{ remote.ae_title }} @ {{ remote.connect_host }}:{{ remote.port }}</option>
-        {% endfor %}
-      </select>
-    </label>
-    {% endif %}
-
-    {% if tool.id == "c-echo" %}
-    <div class="form-grid span-2" data-remote-mode-manual{% if config.remotes and remote_mode != "manual" %} hidden{% endif %}>
-      <label>
-        AE Title
-        <input name="manual_ae_title" maxlength="16" placeholder="REMOTE_AE" value="{{ manual_ae_title or '' }}" required>
-      </label>
-      <label>
-        Host
-        <input name="manual_host" placeholder="192.168.1.10 or host.example.org" value="{{ manual_host or '' }}" required>
-      </label>
-      <label>
-        Port
-        <input type="number" name="manual_port" min="1" max="65535" value="{{ manual_port or 104 }}">
-      </label>
+    <div data-remote-mode-saved{% if tool.id == "c-echo" and remote_mode == "manual" %} hidden{% endif %}>
+    {% call field("Remote node", "tool-remote", required=tool.id != "c-echo") %}
+    <select id="tool-remote" class="w-lg" name="remote_id"{% if tool.id != "c-echo" %} required{% endif %}>
+      <option value="">Select a remote node…</option>
+      {% for remote in config.remotes %}
+      <option value="{{ remote.id }}" {% if remote.id == remote_id %}selected{% endif %}>{{ remote.name }} — {{ remote.ae_title }} @ {{ remote.connect_host }}:{{ remote.port }}</option>
+      {% endfor %}
+    </select>
+    {% endcall %}
     </div>
     {% endif %}
 
-    {% include "partials/identity_select.html" %}
+    {% if tool.id == "c-echo" %}
+    <div data-remote-mode-manual{% if config.remotes and remote_mode != "manual" %} hidden{% endif %}>
+      {% call field("AE Title", "tool-ae", required=True) %}
+      <input id="tool-ae" class="w-sm" name="manual_ae_title" maxlength="16" placeholder="REMOTE_AE" value="{{ manual_ae_title or '' }}" required>
+      {% endcall %}
+      {% call field("Host", "tool-host", required=True) %}
+      <input id="tool-host" class="w-md" name="manual_host" placeholder="192.168.1.10 or host.example.org" value="{{ manual_host or '' }}" required>
+      {% endcall %}
+      {% call field("Port", "tool-port") %}
+      <input id="tool-port" class="w-xs" type="number" name="manual_port" min="1" max="65535" value="{{ manual_port or 104 }}">
+      {% endcall %}
+    </div>
+    {% endif %}
+
+    {% include "partials/identity_field.html" %}
     <div class="form-actions">
       <button class="button primary" type="submit">
         Run {{ tool.name }}

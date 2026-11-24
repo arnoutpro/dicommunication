@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "partials/fields.html" import field, tip %}
 {% block title %}Logs · {{ product_name }}{% endblock %}
 {% block body_class %}page-logs{% endblock %}
 {% block content %}
@@ -26,23 +27,20 @@
       <h2>Amount and file size</h2>
       <span class="muted">Applies immediately to this process</span>
     </header>
-    <form method="post" action="{{ href('/logs') }}" class="form-grid logs-settings" autocomplete="off">
-      <label>
-        Log level
-        <select name="level" title="Debug is verbose. Info is the usual setting on a PACS workstation.">
-          {% for item in ["DEBUG", "INFO", "WARNING", "ERROR"] %}
-          <option value="{{ item }}" {% if config.logging.level == item %}selected{% endif %}>{{ item | title }}</option>
-          {% endfor %}
-        </select>
-      </label>
-      <label>
-        Max file size (MB)
-        <input name="max_megabytes" type="number" min="1" max="50" required value="{{ config.logging.max_megabytes }}" title="When the file reaches this size it is rotated. 1–50 MB.">
-      </label>
-      <label>
-        Rotated files to keep
-        <input name="backup_count" type="number" min="1" max="20" required value="{{ config.logging.backup_count }}" title="Older files are named dicommunication.log.1, .2, …">
-      </label>
+    <form method="post" action="{{ href('/logs') }}" class="fields logs-settings" autocomplete="off">
+      {% call field("Log level", "log-level", "Debug is verbose. Info is the usual setting on a PACS workstation.") %}
+      <select id="log-level" class="w-sm" name="level">
+        {% for item in ["DEBUG", "INFO", "WARNING", "ERROR"] %}
+        <option value="{{ item }}" {% if config.logging.level == item %}selected{% endif %}>{{ item | title }}</option>
+        {% endfor %}
+      </select>
+      {% endcall %}
+      {% call field("Max file size", "log-size", "When the file reaches this size it is rotated. 1–50 MB.", required=True, unit="MB") %}
+      <input id="log-size" class="w-xs" name="max_megabytes" type="number" min="1" max="50" required value="{{ config.logging.max_megabytes }}">
+      {% endcall %}
+      {% call field("Rotated files to keep", "log-keep", "Older files are named dicommunication.log.1, .2, …", required=True) %}
+      <input id="log-keep" class="w-xs" name="backup_count" type="number" min="1" max="20" required value="{{ config.logging.backup_count }}">
+      {% endcall %}
       <div class="form-actions">
         <button class="button primary" type="submit">Save logging</button>
       </div>

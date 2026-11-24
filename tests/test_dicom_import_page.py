@@ -56,7 +56,7 @@ def _wait(client: TestClient, sid: str, needle: str, seconds: float = 8.0) -> st
 
 def _form(body: str) -> dict[str, str]:
     """The text fields of the review form, as the browser would post them."""
-    return {m.group(1): m.group(2) for m in re.finditer(r'<input name="([ps]\d+_[a-z_]+)" value="([^"]*)"', body)}
+    return {m.group(1): m.group(2) for m in re.finditer(r'<input [^>]*?name="([ps]\d+_[a-z_]+)" value="([^"]*)"', body)}
 
 
 def test_the_tool_is_in_the_sidebar_and_the_start_page_renders(client: TestClient) -> None:

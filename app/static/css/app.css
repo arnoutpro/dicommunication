@@ -1278,21 +1278,14 @@ label:has(> .input-with-action > input:focus),
   gap: 0.55rem;
   align-items: start;
 }
+/* A result says Pass or Fail in its badge; no tinted box around it. */
 .result > header {
   align-items: center;
-  padding: 0.6rem 0.8rem;
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
+  padding: 0 0 0.45rem;
+  border: 0;
+  border-bottom: 1px solid var(--line);
 }
 .result > header p { margin: 0.1rem 0 0; }
-.result.ok > header {
-  border-color: color-mix(in srgb, var(--ok) 35%, transparent);
-  background: color-mix(in srgb, var(--ok) 8%, transparent);
-}
-.result.fail > header {
-  border-color: color-mix(in srgb, var(--fail) 40%, transparent);
-  background: color-mix(in srgb, var(--fail) 8%, transparent);
-}
 /* Chips say their state in words; colour only reinforces it. */
 .badge {
   display: inline-block;
@@ -2663,13 +2656,7 @@ body.page-find .find-head {
 .import-warning.is-error { border-left-color: var(--fail); }
 .import-warning.is-warn { border-left-color: #d9a406; }
 .import-formats ul, .import-series { margin: 0.2rem 0 0; padding-left: 1.1rem; font-size: var(--text-xs); }
-.import-patient {
-  margin: 0.7rem 0;
-  padding: 0.5rem 0.8rem 0.8rem;
-  border: 1px solid var(--line-strong);
-  border-radius: var(--radius);
-}
-.import-patient > legend { padding: 0 0.4rem; font-weight: 700; }
+.import-patient { margin: 0.7rem 0; padding: 0; border: 0; }
 .import-study { margin-top: 0.7rem; padding-top: 0.5rem; border-top: 1px solid var(--line); }
 .import-fields { grid-template-columns: repeat(auto-fill, minmax(12rem, 1fr)); }
 .import-toolbar { display: flex; gap: 0.5rem; margin: 0.3rem 0; }
@@ -2678,10 +2665,11 @@ body.page-find .find-head {
 
 /* Sign in and first-administrator setup */
 .auth-body { display: grid; place-items: center; min-height: 100vh; padding: 1rem; }
-.auth-card { width: min(26rem, 100%); padding: 1.5rem 1.6rem; border: 1px solid var(--line-strong); border-radius: var(--radius); background: var(--bg-elev); }
-.auth-card h1 { margin: 0 0 0.3rem; font-size: 1.4rem; }
-.auth-card form { display: grid; gap: 0.7rem; margin-top: 0.8rem; }
-.auth-card label { display: grid; gap: 0.25rem; font-weight: 600; }
+.auth-card { width: min(28rem, 100%); padding: 1.1rem 1.3rem; border: 1px solid var(--line-strong); border-radius: var(--radius); background: var(--bg-elev); }
+.auth-card h1 { margin: 0 0 0.3rem; font-size: var(--text-xl); }
+.auth-card form { display: grid; gap: 0.4rem; margin-top: 0.8rem; }
+.auth-card label { display: grid; grid-template-columns: 8.5rem minmax(0, 1fr); gap: 0.5rem; align-items: center; font-weight: 400; }
+.auth-card form .button { justify-self: start; margin-top: 0.3rem; }
 .topbar-user { display: inline-flex; align-items: center; gap: 0.4rem; }
 .topbar-user form { margin: 0; }
 
@@ -2967,3 +2955,7 @@ body.page-find .find-head {
 
 /* The place where data is shown is one flat surface in every theme: no grey behind white panels. */
 :root, html.light-mode, html.professional-mode { --content-bg: var(--bg-panel); }
+
+/* Dicom Import review: a patient is a heading with folded details, not a boxed fieldset. */
+.import-patient-name { font-size: var(--text-md); font-weight: 600; margin: 0 0 0.2rem; }
+.import-study { margin-top: 0.4rem; padding-top: 0.3rem; border-top: 1px solid var(--line); }
