@@ -72,10 +72,10 @@
         <div class="fld-control fld-stack">
           <div class="input-with-action">
             <input name="directory" value="{{ directory }}" placeholder="/data/reports or C:\reports" spellcheck="false" aria-label="Directory on this workstation" data-directory-input{% if source != 'directory' %} disabled{% endif %}>
-            <button type="button" class="button" data-browse-directory title="Browse for a folder on this workstation" hx-disable>…</button>
+            <button type="button" class="button" data-browse-directory title="{% if dialogs_available %}Browse for a folder on this workstation{% else %}No desktop folder dialog in this session{% endif %}" hx-disable{% if not dialogs_available %} disabled{% endif %}>…</button>
             <button type="button" class="button" data-scan-directory hx-disable>Scan</button>
           </div>
-          <div id="pdf-browse-status" hidden></div>
+          <div id="pdf-browse-status"{% if dialogs_available %} hidden{% endif %}>{% if not dialogs_available %}<p class="scan-result fail">There is no folder dialog here (the app runs as a background service or without a desktop). Type the path of a folder on the computer the app runs on.</p>{% endif %}</div>
           <div id="pdf-scan">
             {% include "partials/pdf_scan.html" %}
           </div>

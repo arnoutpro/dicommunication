@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### PDF to DICOM and Dicom Import: the folder button
+
+- **Same behaviour as the Dicom Anonymizer's Browse button.** In the service editions (no desktop) the "…" button is greyed and a line says there is no folder dialog and to type the path; before, PDF to DICOM left the button active and it just seemed to do nothing. When the dialog fails, the page now says why (cancelled or no dialog, your account may not use it, or the server's reason) in the same words on all three pages. The PDF page also puts the message in as text, not as HTML.
+
 ### Dicom Cleaner
 
 - **Fixed: selected series could be silently left uncleaned.** The Cleaner used the same retrieve as the Anonymizer did, one connection for every selection, so a PACS that closed it left the rest of the study untouched, and the run still said "Redacted and sent". That matters more here, because the cleaned images are written back to a PACS and the original may still hold the burned-in text. Now the retrieve is shared with the Anonymizer: it reconnects once when the PACS drops the connection, the C-MOVE step lists every series (or image) with how many images came back, and anything missing or not redacted makes the run a **Fail** that says what was sent and what was not.

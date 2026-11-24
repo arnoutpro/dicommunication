@@ -29,7 +29,7 @@
           <button type="button" class="button" data-import-browse title="Browse for a folder on this computer"{% if not dialogs_available %} disabled{% endif %}>…</button>
         </div>
         {% endcall %}
-        <p class="hint fld-note" data-import-browse-status hidden></p>
+        <p class="hint fld-note" data-import-browse-status role="status"{% if dialogs_available %} hidden{% endif %}>{% if not dialogs_available %}There is no folder dialog here (the app runs as a background service or without a desktop). Type the path of a folder on the computer the app runs on.{% endif %}</p>
         {{ check("Also try headerless files", "import-headerless", "include_headerless", checked=include_headerless, tip_text="Also try files that lack the standard DICOM marker (old or stripped files).") }}
       </div>
       <div class="form-actions">

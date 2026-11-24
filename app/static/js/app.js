@@ -367,7 +367,10 @@ function initPdfStoreForm(scope) {
       return;
     }
     browseStatus.hidden = false;
-    browseStatus.innerHTML = `<p class="scan-result fail">${message}</p>`;
+    const line = document.createElement("p");
+    line.className = "scan-result fail";
+    line.textContent = message;
+    browseStatus.replaceChildren(line);
   }
 
   function setFileStatus(message) {
@@ -606,9 +609,15 @@ function initPdfStoreForm(scope) {
         await scanDirectory();
         return;
       }
-      setBrowseStatus("No folder dialog on this session (needs a desktop display). Type the path, or choose Folder instead.");
+      if (response.status === 403) {
+        setBrowseStatus("Your account may not use the folder dialog. Type the path instead, or choose Folder.");
+      } else if (response.status === 400) {
+        setBrowseStatus("No folder was chosen, or this computer could not show a folder dialog. Type the path instead, or choose Folder.");
+      } else {
+        setBrowseStatus(payload.detail || "The folder dialog is not available. Type the path instead, or choose Folder.");
+      }
     } catch {
-      setBrowseStatus("Could not open a folder dialog. Type the path instead.");
+      setBrowseStatus("The folder dialog is not available. Type the path instead.");
     } finally {
       browseBtn.disabled = false;
     }
@@ -2508,13 +2517,15 @@ function initDicomImport() {
           status.hidden = false;
           status.textContent =
             response.status === 403
-              ? "Only an administrator can browse. Type a folder from the allowed list."
-              : "No folder dialog in this session. Type the path instead.";
+              ? "Your account may not use the folder dialog. Type a folder from the allowed list."
+              : response.status === 400
+                ? "No folder was chosen, or this computer could not show a folder dialog. Type the path instead."
+                : payload.detail || "The folder dialog is not available. Type the path instead.";
         }
       } catch (error) {
         if (status) {
           status.hidden = false;
-          status.textContent = "Could not open a folder dialog. Type the path instead.";
+          status.textContent = "The folder dialog is not available. Type the path instead.";
         }
       } finally {
         browse.disabled = false;

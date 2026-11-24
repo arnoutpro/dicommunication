@@ -506,6 +506,7 @@ def _pdf_store_page(
             modality=modality,
             modality_suggestions=MODALITY_SUGGESTIONS,
             scan=scan,
+            dialogs_available=dialogs_available(),
         ),
         status_code=status_code,
     )
