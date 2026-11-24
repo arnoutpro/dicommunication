@@ -982,6 +982,23 @@ function initToolRemoteModeForm(scope) {
 initNavTree();
 initDicomImport();
 initRouteRuleForm();
+
+// The Modalities menu on the study-query forms: the closed menu says what is ticked.
+function syncModalityMenus(root = document) {
+  root.querySelectorAll("[data-modality-menu]").forEach((menu) => {
+    const summary = menu.querySelector("[data-modality-summary]");
+    const picked = [...menu.querySelectorAll('input[type="checkbox"]:checked')].map((box) => box.value);
+    if (summary) {
+      summary.textContent = picked.length ? picked.join(", ") : "Any";
+    }
+  });
+}
+document.addEventListener("change", (event) => {
+  if (event.target instanceof Element && event.target.closest("[data-modality-menu]")) {
+    syncModalityMenus();
+  }
+});
+syncModalityMenus();
 initTestbenchServiceFields();
 initPdfStoreForm(document);
 initAnonymizeForm(document);

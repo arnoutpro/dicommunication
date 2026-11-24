@@ -37,15 +37,19 @@
   </div>
 </div>
 
-<fieldset class="find-level-field">
-  <legend>{{ level_legend }}</legend>
-  <div class="find-level-tabs" role="radiogroup" aria-label="Level">
-    {% for value, label in [("STUDY", "Study"), ("SERIES", "Series"), ("IMAGE", "Image")] %}
-    <label class="find-level-tab">
-      <input type="radio" name="level" value="{{ value }}" {% if level == value %}checked{% endif %}>
-      <span>{{ label }}</span>
-    </label>
-    {% endfor %}
+{% from "partials/fields.html" import tip %}
+<div class="fields">
+  <div class="fld">
+    <span class="fld-label">{{ level_legend }}{{ tip("Series and Image take every series or image in the checked studies; there is no per-series picker yet.") }}</span>
+    <div class="fld-control">
+      <div class="find-level-tabs plain-radios" role="radiogroup" aria-label="Level">
+        {% for value, label in [("STUDY", "Study"), ("SERIES", "Series"), ("IMAGE", "Image")] %}
+        <label class="find-level-tab">
+          <input type="radio" name="level" value="{{ value }}" {% if level == value %}checked{% endif %}>
+          <span>{{ label }}</span>
+        </label>
+        {% endfor %}
+      </div>
+    </div>
   </div>
-  <p class="hint">Series and Image take <strong>every</strong> series or image in the checked studies; there is no per-series picker yet.</p>
-</fieldset>
+</div>
