@@ -15,16 +15,24 @@ from app.auth import UserStore, verify_password
 
 
 class FakeRunner:
-    """Stands in for subprocess.run: records every command, answers from a table."""
+    """Stands in for subprocess.run: records every command, answers from a table.
 
-    def __init__(self, answers: dict[str, subprocess.CompletedProcess] | None = None) -> None:
+    An answer is a CompletedProcess, or a list of return codes handed out one per call
+    (the last one repeats). ``launchctl print`` answers "not loaded" unless told otherwise.
+    """
+
+    def __init__(self, answers: dict[str, subprocess.CompletedProcess | list[int]] | None = None) -> None:
         self.calls: list[list[str]] = []
-        self.answers = answers or {}
+        self.answers = dict(answers or {})
+        self.answers.setdefault("launchctl print", subprocess.CompletedProcess([], 113, "", ""))
 
     def __call__(self, command, **_kwargs):
         self.calls.append(list(command))
-        key = " ".join(command[:2])
-        return self.answers.get(key, subprocess.CompletedProcess(command, 0, "", ""))
+        answer = self.answers.get(" ".join(command[:2]), subprocess.CompletedProcess(command, 0, "", ""))
+        if isinstance(answer, list):
+            code = answer.pop(0) if len(answer) > 1 else answer[0]
+            return subprocess.CompletedProcess(command, code, "", f"Bootstrap failed: {code}" if code else "")
+        return answer
 
     def ran(self, *prefix: str) -> bool:
         return any(call[: len(prefix)] == list(prefix) for call in self.calls)
@@ -46,6 +54,14 @@ def chowns(monkeypatch) -> list[tuple[str, int, int]]:
     monkeypatch.setattr(ms, "_service_ids", lambda: None)  # the account does not exist unless a test says so
     monkeypatch.setattr(ms, "_is_root", lambda: False)
     return calls
+
+
+@pytest.fixture(autouse=True)
+def no_sleep(monkeypatch) -> list[float]:
+    """Waiting for launchd must never really wait in a test."""
+    naps: list[float] = []
+    monkeypatch.setattr(ms.time, "sleep", naps.append)
+    return naps
 
 
 @pytest.fixture
@@ -135,6 +151,38 @@ def test_reload_stops_then_loads_the_job_and_the_network_option_opens_the_firewa
     assert runner.ran(ms.FIREWALL_TOOL, "--add", str(layout.executable)) and runner.ran(ms.FIREWALL_TOOL, "--unblockapp", str(layout.executable))
 
 
+def test_bootstrap_waits_until_launchd_has_forgotten_the_job(layout) -> None:
+    runner = FakeRunner({"launchctl print": [0, 0, 113]})  # still shutting down twice, then gone
+    naps: list[float] = []
+    assert ms.reload_service(layout, runner, sleep=naps.append) is True
+    kinds = [c[1] for c in runner.calls]
+    assert kinds == ["bootout", "print", "print", "print", "bootstrap"]
+    assert naps == [0.5, 0.5]
+
+
+def test_the_wait_gives_up_after_the_timeout_and_still_tries_once(layout) -> None:
+    runner = FakeRunner({"launchctl print": [0]})  # never goes away
+    naps: list[float] = []
+    assert ms.reload_service(layout, runner, sleep=naps.append, timeout=2.0) is True
+    assert sum(naps) == 2.0 and [c[1] for c in runner.calls].count("bootstrap") == 1
+
+
+def test_a_bootstrap_that_fails_twice_is_retried_and_logged(layout) -> None:
+    runner = FakeRunner({"launchctl bootstrap": [5, 5, 0]})
+    naps: list[float] = []
+    assert ms.reload_service(layout, runner, sleep=naps.append) is True
+    assert [c[1] for c in runner.calls].count("bootstrap") == 3 and naps == [1.0, 1.0]
+    log = (layout.log_dir / ms.SETUP_LOG_NAME).read_text()
+    assert log.count("launchctl bootstrap failed (5)") == 2 and "attempt 2 of 5" in log
+
+
+def test_five_failed_bootstraps_give_up(layout) -> None:
+    runner = FakeRunner({"launchctl bootstrap": [5]})
+    assert ms.reload_service(layout, runner, sleep=lambda _s: None) is False
+    assert [c[1] for c in runner.calls].count("bootstrap") == 5
+    assert (layout.log_dir / ms.SETUP_LOG_NAME).read_text().count("failed (5)") == 5
+
+
 def test_as_root_with_the_service_account_the_files_get_the_right_owners(layout, monkeypatch, chowns) -> None:
     monkeypatch.setattr(ms, "_is_root", lambda: True)
     monkeypatch.setattr(ms, "_service_ids", lambda: (301, 302))
@@ -153,7 +201,7 @@ def test_without_the_service_account_the_folders_are_left_alone_and_it_is_logged
 
 
 def test_a_failing_launchctl_is_reported_but_the_files_stay_in_place(layout, capsys) -> None:
-    runner = FakeRunner({"launchctl bootstrap": subprocess.CompletedProcess([], 5, "", "Bootstrap failed: 5")})
+    runner = FakeRunner({"launchctl bootstrap": [5]})
     assert ms.configure(layout, reload=True, runner=runner, hostnames=[]) == 5
     assert layout.plist.is_file() and "did not load" in capsys.readouterr().out
     assert "Bootstrap failed" in (layout.log_dir / ms.SETUP_LOG_NAME).read_text()

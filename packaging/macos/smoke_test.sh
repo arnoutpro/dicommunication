@@ -32,6 +32,15 @@ id _dicommunication
 [[ "$(stat -f '%Lp' "$DATA")" == "700" ]] || { echo "data folder is not 0700"; exit 1; }
 [[ "$(stat -f '%Su' "$DATA")" == "_dicommunication" ]] || { echo "data folder is not owned by the service account"; exit 1; }
 
+step "change the port right after the install: the service must come back on the new port"
+NEWPORT=8091
+sudo dicommunication service port "$NEWPORT"
+for _ in $(seq 1 60); do curl -s -o /dev/null "http://127.0.0.1:$NEWPORT/health" && break; sleep 1; done
+curl -sf "http://127.0.0.1:$NEWPORT/health" >/dev/null || { echo "the service does not answer on port $NEWPORT"; sudo tail -n 30 /var/log/dicommunication/service-setup.log || true; exit 1; }
+sudo dicommunication service port 8080
+for _ in $(seq 1 60); do curl -s -o /dev/null "$BASE/health" && break; sleep 1; done
+curl -sf "$BASE/health" >/dev/null || { echo "the service does not answer on port 8080 again"; exit 1; }
+
 step "create an administrator and sign in"
 PWFILE="$(mktemp)"
 echo "correct horse battery" > "$PWFILE"
