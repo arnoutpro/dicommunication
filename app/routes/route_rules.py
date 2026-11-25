@@ -10,6 +10,7 @@ from pydantic import ValidationError
 
 from app.applog import log
 from app.models import RouteRule, SavedQuery
+from app.pdf_watch import WatchError, resolve_folder
 from app.router_scheduler import query_summary
 from app.routes._shared import page, templates
 
@@ -114,8 +115,8 @@ def router_runs_page(request: Request, rule_id: str, saved: str | None = None) -
             rule=rule,
             running=scheduler.is_running(rule_id),
             runs=store.list_route_runs(rule_id=rule_id, limit=50),
-            query_sent=query_summary(rule)[0],
-            query_skipped=query_summary(rule)[1],
+            query_sent=query_summary(rule)[0] if rule.kind == "query" else {},
+            query_skipped=query_summary(rule)[1] if rule.kind == "query" else [],
             saved=saved,
         ),
     )
@@ -147,15 +148,46 @@ def _extra_query_from_form(raw: object) -> dict[str, str]:
 
 def _rule_error(exc: ValueError, fields: dict) -> tuple[str, str | None]:
     """The message to show and the form field it belongs to (None: the whole form)."""
-    if not isinstance(exc, ValidationError):
-        return str(exc), None
-    error = exc.errors()[0]
-    message = str(error.get("msg") or "Invalid value").removeprefix("Value error, ")
-    loc = error.get("loc") or ()
-    if loc:
-        return message, str(loc[0])
-    # The only whole-model check is a daily schedule without times.
-    return message, "daily_times" if fields.get("schedule_mode") == "daily" else None
+    if isinstance(exc, ValidationError):
+        error = exc.errors()[0]
+        message = str(error.get("msg") or "Invalid value").removeprefix("Value error, ")
+        loc = error.get("loc") or ()
+        if loc:
+            return message, str(loc[0])
+    else:
+        message = str(exc)
+    # Whole-model checks: say which box each one is about.
+    by_message = {
+        "Source PACS is required": "source_remote_id",
+        "Watch folder is required": "pdf_folder",
+        "Send to is required": "pdf_destination_id",
+    }
+    if message in by_message:
+        return message, by_message[message]
+    if "watch folder" in message.lower() or "Refusing to watch" in message:
+        return message, "pdf_folder"
+    if message.startswith("Patient Name is required"):
+        return message, "pdf_patient_name"
+    if message.startswith("Patient ID is required"):
+        return message, "pdf_patient_id"
+    if message.startswith("The virtual AE to present as"):
+        return message, "pdf_identity_id"
+    if isinstance(exc, ValidationError):
+        return message, "daily_times" if fields.get("schedule_mode") == "daily" else None
+    return message, None
+
+
+def _check_pdf_rule(request: Request, rule: RouteRule) -> None:
+    """What only the running app can tell: the folder exists for its account, the nodes are known."""
+    config = request.app.state.store.load()
+    if config.get_remote(rule.pdf_destination_id) is None:
+        raise ValueError("Send to is required")
+    if rule.pdf_identity_id and config.get_identity(rule.pdf_identity_id) is None:
+        raise ValueError("The virtual AE to present as does not exist")
+    try:
+        resolve_folder(rule.pdf_folder)
+    except WatchError as exc:
+        raise ValueError(str(exc)) from None
 
 
 @router.post("/router")
@@ -178,10 +210,26 @@ async def add_or_update_route_rule(request: Request):
         "export_dir": str(form.get("export_dir") or ""),
         "status_key": str(form.get("status_key") or ""),
         "extra_query": _extra_query_from_form(form.get("extra_query_json")),
+        "kind": str(form.get("kind") or "query"),
+        "pdf_folder": str(form.get("pdf_folder") or ""),
+        "pdf_destination_id": str(form.get("pdf_destination_id") or ""),
+        "pdf_identity_id": str(form.get("pdf_identity_id") or ""),
+        "pdf_modality": str(form.get("pdf_modality") or "DOC"),
+        "pdf_patient_mode": str(form.get("pdf_patient_mode") or "per_file"),
+        "pdf_patient_name": str(form.get("pdf_patient_name") or ""),
+        "pdf_patient_id": str(form.get("pdf_patient_id") or ""),
+        "pdf_accession_number": str(form.get("pdf_accession_number") or ""),
+        "pdf_generate_accession": form.get("pdf_generate_accession") == "on",
+        "pdf_study_description": str(form.get("pdf_study_description") or ""),
+        "pdf_generate_study_description": form.get("pdf_generate_study_description") == "on",
+        "pdf_document_title": str(form.get("pdf_document_title") or ""),
+        "pdf_generate_document_title": form.get("pdf_generate_document_title") == "on",
     }
 
     try:
         rule = RouteRule(**fields)
+        if rule.kind == "pdf_folder":
+            _check_pdf_rule(request, rule)
     except (ValidationError, ValueError) as exc:
         message, error_field = _rule_error(exc, fields)
         # Put back what was typed, unvalidated, so a mistake costs one field

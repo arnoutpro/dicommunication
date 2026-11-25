@@ -9,7 +9,7 @@
     {% include "partials/page_icon.html" %}
     <div>
     <h1>Route rules</h1>
-    <p class="lede">Each rule runs a C-FIND against a PACS on a timer or daily schedule. Add destination nodes to also C-MOVE new matches here and C-STORE them onward; leave destinations empty to just track new studies.</p>
+    <p class="lede">Each rule runs on a timer or daily schedule. A query rule runs a C-FIND against a PACS; add destination nodes to also C-MOVE new matches here and C-STORE them onward, or leave them empty to just track new studies. A PDF rule watches a folder and sends each new PDF to a PACS.</p>
     </div>
   </div>
   <div class="actions">
@@ -70,12 +70,24 @@
     {% endif %}
     <input type="hidden" name="extra_query_json" value='{{ extra_query_json or "{}" }}'>
     {% set level = values.level if values else 'STUDY' %}
+    {% set kind = values.kind if values and values.kind else 'query' %}
+    {% if editing %}
+    <input type="hidden" name="kind" value="{{ kind }}">
+    {% else %}
+    {% call field("Kind", "rule-kind", "A query rule asks a PACS for new studies on a schedule and can forward them. A PDF watch rule sends the PDFs in a folder to a PACS on a schedule.") %}
+    <select id="rule-kind" class="w-lg" name="kind">
+      <option value="query" {% if kind == 'query' %}selected{% endif %}>Query a PACS for new studies</option>
+      <option value="pdf_folder" {% if kind == 'pdf_folder' %}selected{% endif %}>Watch a folder for PDFs</option>
+    </select>
+    {% endcall %}
+    {% endif %}
     {% call field("Name", "rule-name", required=True) %}
-    <input id="rule-name" class="w-lg" name="name"{{ invalid("name") }} required placeholder="Nightly CT from PACS" value="{{ values.name if values else '' }}">
+    <input id="rule-name" class="w-lg" name="name"{{ invalid("name") }} required placeholder="{% if kind == 'pdf_folder' %}Reports from the RIS{% else %}Nightly CT from PACS{% endif %}" value="{{ values.name if values else '' }}">
     {{ field_error("name") }}
     {% endcall %}
+    <div data-reveal-when="kind=query"{% if kind != 'query' %} hidden{% endif %}>
     {% call field("Source PACS", "rule-source", required=True) %}
-    <select id="rule-source" class="w-lg" name="source_remote_id"{{ invalid("source_remote_id") }} required>
+    <select id="rule-source" class="w-lg" name="source_remote_id"{{ invalid("source_remote_id") }} data-required-when="kind=query"{% if kind == 'query' %} required{% endif %}>
       <option value="">Select a remote node…</option>
       {% for node in config.remotes %}
       <option value="{{ node.id }}" {% if values and values.source_remote_id == node.id %}selected{% endif %}>{{ node.name }} ({{ node.ae_title }})</option>
@@ -116,6 +128,66 @@
     {% call field("Station Name filter", "rule-station", "Optional. Matches each series' Station Name.") %}
     <input id="rule-station" class="w-sm" name="station_ae_title"{{ invalid("station_ae_title") }} maxlength="16" placeholder="CT-ROOM1" value="{{ values.station_ae_title if values else '' }}">
     {{ field_error("station_ae_title") }}
+    {% endcall %}
+    </div>
+
+    </div>
+
+    <div data-reveal-when="kind=pdf_folder"{% if kind != 'pdf_folder' %} hidden{% endif %}>
+    {% call field("Watch folder", "rule-pdf-folder", "A folder on the computer the app runs on. Each run sends the PDFs directly in it (not in sub-folders) and moves the sent ones into a Sent sub-folder. The app's own account must be allowed to read and write there. A file that is still being written is left for the next run; one the PACS does not take stays and is tried again; one that is not a PDF goes to a Failed sub-folder.", required=True) %}
+    <input id="rule-pdf-folder" class="w-lg" name="pdf_folder"{{ invalid("pdf_folder") }} data-required-when="kind=pdf_folder"{% if kind == 'pdf_folder' %} required{% endif %} placeholder="D:\Reports\ToPACS" spellcheck="false" value="{{ values.pdf_folder if values else '' }}">
+    {{ field_error("pdf_folder") }}
+    {% endcall %}
+    {% call field("Send to", "rule-pdf-dest", "The PACS that stores the PDFs as Encapsulated PDF Storage.", required=True) %}
+    <select id="rule-pdf-dest" class="w-lg" name="pdf_destination_id"{{ invalid("pdf_destination_id") }} data-required-when="kind=pdf_folder"{% if kind == 'pdf_folder' %} required{% endif %}>
+      <option value="">Select a remote node…</option>
+      {% for node in config.remotes %}
+      <option value="{{ node.id }}" {% if values and values.pdf_destination_id == node.id %}selected{% endif %}>{{ node.name }} ({{ node.ae_title }})</option>
+      {% endfor %}
+    </select>
+    {{ field_error("pdf_destination_id") }}
+    {% endcall %}
+    {% call field("Present as", "rule-pdf-ae", "The calling AE Title on the association. The PACS must allow it.") %}
+    <select id="rule-pdf-ae" class="w-lg" name="pdf_identity_id">
+      <option value="">{{ config.local.ae_title }} (workstation)</option>
+      {% for identity in config.identities %}
+      <option value="{{ identity.id }}" {% if values and values.pdf_identity_id == identity.id %}selected{% endif %}>{{ identity.name }} — {{ identity.ae_title }}</option>
+      {% endfor %}
+    </select>
+    {% endcall %}
+    {% call field("Stored as (Modality)", "rule-pdf-mod", "The Modality tag of the stored document: DOC (the default), SR or OT, or another code of up to 16 capital letters, digits, spaces or underscores. It is still an Encapsulated PDF.") %}
+    <input id="rule-pdf-mod" class="w-sm" name="pdf_modality"{{ invalid("pdf_modality") }} placeholder="DOC" value="{{ values.pdf_modality if values and values.pdf_modality else 'DOC' }}">
+    {{ field_error("pdf_modality") }}
+    {% endcall %}
+    {% set pmode = values.pdf_patient_mode if values and values.pdf_patient_mode else 'per_file' %}
+    {% call field("Patient", "rule-pdf-patient", "A PDF has no patient details of its own. 'Named after the file' gives each PDF its own patient and study, named from its file name, so a folder of reports does not land as one person. 'Typed' puts the same name and ID on every PDF, in one study per run. 'Generated' makes one made-up patient.") %}
+    <select id="rule-pdf-patient" class="w-lg" name="pdf_patient_mode">
+      <option value="per_file" {% if pmode == 'per_file' %}selected{% endif %}>Named after each PDF's file</option>
+      <option value="typed" {% if pmode == 'typed' %}selected{% endif %}>The name and ID typed below</option>
+      <option value="generated" {% if pmode == 'generated' %}selected{% endif %}>A generated name and ID</option>
+    </select>
+    {% endcall %}
+    <div data-reveal-when="pdf_patient_mode=typed"{% if pmode != 'typed' %} hidden{% endif %}>
+    {% call field("Patient Name", "rule-pdf-pname", required=True) %}
+    <input id="rule-pdf-pname" class="w-md" name="pdf_patient_name"{{ invalid("pdf_patient_name") }} placeholder="DOE^JANE" value="{{ values.pdf_patient_name if values else '' }}">
+    {{ field_error("pdf_patient_name") }}
+    {% endcall %}
+    {% call field("Patient ID", "rule-pdf-pid", required=True) %}
+    <input id="rule-pdf-pid" class="w-md" name="pdf_patient_id"{{ invalid("pdf_patient_id") }} placeholder="123456" value="{{ values.pdf_patient_id if values else '' }}">
+    {{ field_error("pdf_patient_id") }}
+    {% endcall %}
+    </div>
+    {% call field("Accession Number", "rule-pdf-acc", "A value you type goes on every PDF as it is. Generate makes a new one for every study.") %}
+    <input id="rule-pdf-acc" class="w-md" name="pdf_accession_number" value="{{ values.pdf_accession_number if values else '' }}">
+    <label class="checkline"><input type="checkbox" name="pdf_generate_accession" value="on"{% if values and values.pdf_generate_accession %} checked{% endif %}> Generate</label>
+    {% endcall %}
+    {% call field("Study Description", "rule-pdf-desc", "A value you type goes on every PDF as it is. Generate makes one for every study (the file's name for a PDF of its own, or 'PDF import' and the date).") %}
+    <input id="rule-pdf-desc" class="w-lg" name="pdf_study_description" value="{{ values.pdf_study_description if values else '' }}">
+    <label class="checkline"><input type="checkbox" name="pdf_generate_study_description" value="on"{% if values and values.pdf_generate_study_description %} checked{% endif %}> Generate</label>
+    {% endcall %}
+    {% call field("Document Title", "rule-pdf-title", "A value you type goes on every PDF as it is. Generate uses each PDF's file name.") %}
+    <input id="rule-pdf-title" class="w-lg" name="pdf_document_title" value="{{ values.pdf_document_title if values else '' }}">
+    <label class="checkline"><input type="checkbox" name="pdf_generate_document_title" value="on"{% if not values or values.pdf_generate_document_title %} checked{% endif %}> Generate</label>
     {% endcall %}
     </div>
 
@@ -161,6 +233,7 @@
       </div>
     </details>
 
+    <div data-reveal-when="kind=query"{% if kind != 'query' %} hidden{% endif %}>
     <details class="advanced" {% if values and values.destination_remote_ids %}open{% endif %}>
       <summary>Forwarding (optional)</summary>
       <div class="fields">
@@ -192,6 +265,8 @@
         {% endcall %}
       </div>
     </details>
+
+    </div>
 
     <div class="form-actions">
       <button class="button primary" type="submit">{% if editing %}Save route rule{% else %}Add route rule{% endif %}</button>
@@ -227,6 +302,10 @@
           <td>
             <a class="route-rule-name" href="{{ href('/router/' ~ r.id ~ '/runs') }}">{{ r.name }}</a>
             <div class="muted small">
+              {% if r.kind == 'pdf_folder' %}
+              {% set dest = config.get_remote(r.pdf_destination_id) %}
+              Watches <code>{{ r.pdf_folder }}</code> &rarr; {{ dest.name if dest else 'missing node' }} · PDF
+              {% else %}
               {{ source.name if source else 'Source node missing' }}
               {% if r.destination_remote_ids %}
               &rarr; {% for dest_id in r.destination_remote_ids %}{% set dest = config.get_remote(dest_id) %}{{ dest.name if dest else 'missing node' }}{% if not loop.last %}, {% endif %}{% endfor %}
@@ -238,6 +317,7 @@
               {% endif %}
               {% if r.extra_query %}
               <div>Filters: {% for keyword, value in r.extra_query.items() %}<code>{{ keyword }}</code>={{ value }}{% if not loop.last %}, {% endif %}{% endfor %}</div>
+              {% endif %}
               {% endif %}
             </div>
           </td>
