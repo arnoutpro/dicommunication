@@ -18,6 +18,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 
+from app.pdf_names import compile_pattern, values_from_name
 from app.models import LocalAE, RemoteNode, RouteMatch, RouteRule
 from app.pdf_dicom import MAX_FILES, MAX_PDF_BYTES, PDF_MAGIC, is_pdf_filename
 
@@ -142,7 +143,28 @@ def _scrub(text: str, names: list[str]) -> str:
     return text
 
 
-def _options(rule: RouteRule, batch: list[tuple[Candidate, bytes]]) -> dict:
+def _options(rule: RouteRule, batch: list[tuple[Candidate, bytes]], named: dict[str, str] | None = None) -> dict:
+    """The PDF to DICOM options for a batch; ``named`` are values read from the file's name."""
+    options = _base_options(rule, batch)
+    if not named:
+        return options
+    if "patient_name" in named or "patient_id" in named:
+        options.update(
+            unique_patient=False, same_study=True,
+            patient_name=named.get("patient_name", ""), patient_id=named.get("patient_id", ""),
+            generate_name="patient_name" not in named, generate_id="patient_id" not in named,
+        )
+    for key, generate in (
+        ("accession_number", "generate_accession"),
+        ("study_description", "generate_study_description"),
+        ("document_title", "generate_document_title"),
+    ):
+        if key in named:
+            options[key], options[generate] = named[key], False
+    return options
+
+
+def _base_options(rule: RouteRule, batch: list[tuple[Candidate, bytes]]) -> dict:
     per_file = rule.pdf_patient_mode == "per_file"
     return {
         "pdfs": [
@@ -169,8 +191,6 @@ def run_watch(
     rule: RouteRule, local: LocalAE, remote: RemoteNode, now: datetime, interrupt=None
 ) -> tuple[Outcome, list[str]]:
     """One run. Returns what happened and the keys of the files the PACS stored."""
-    from app.tools.pdf_store import PdfStoreTool  # late: the tools import the models
-
     outcome = Outcome()
     folder = resolve_folder(rule.pdf_folder)
     scan = scan_folder(folder, set(rule.pdf_sent_keys), time.time())
@@ -202,10 +222,41 @@ def run_watch(
     if not batch:
         return outcome, []
 
-    names = [item.name for item, _ in batch]
-    result = PdfStoreTool().run(local, remote, _options(rule, batch))
-    records = {str(row.get("source")): row for row in (result.records or [])}
+    # With a file name pattern each file is sent on its own, with what its name says;
+    # a name that does not fit goes to Failed rather than to a made-up patient.
+    groups: list[tuple[list[tuple[Candidate, bytes]], dict[str, str] | None]] = []
+    if rule.pdf_name_pattern:
+        compiled = compile_pattern(rule.pdf_name_pattern)
+        for item, data in batch:
+            named = values_from_name(compiled, item.name)
+            if named is None:
+                moved = move_into(folder, item.path, FAILED_DIR)
+                outcome.failed += 1
+                outcome.matches.append(
+                    RouteMatch(
+                        study_instance_uid="", status="failed",
+                        error="File name does not fit the file name pattern" + ("" if moved else " (and could not be moved to Failed)"),
+                    )
+                )
+                continue
+            groups.append(([(item, data)], named))
+    else:
+        groups.append((batch, None))
+
     sent_keys: list[str] = []
+    for group, named in groups:
+        if interrupt is not None and interrupt.is_set():
+            break
+        _send_group(rule, local, remote, folder, group, named, outcome, sent_keys)
+    return outcome, sent_keys
+
+
+def _send_group(rule, local, remote, folder, batch, named, outcome, sent_keys) -> None:
+    from app.tools.pdf_store import PdfStoreTool  # late: the tools import the models
+
+    names = [item.name for item, _ in batch]
+    result = PdfStoreTool().run(local, remote, _options(rule, batch, named))
+    records = {str(row.get("source")): row for row in (result.records or [])}
     for item, _data in batch:
         row = records.get(item.name)
         status = str(row.get("status")) if row else ""
@@ -233,4 +284,4 @@ def run_watch(
         outcome.matches.append(
             RouteMatch(study_instance_uid=study_uid, status="failed", modality=rule.pdf_modality, error=message[:200])
         )
-    return outcome, sent_keys
+

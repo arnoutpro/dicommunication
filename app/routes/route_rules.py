@@ -166,6 +166,8 @@ def _rule_error(exc: ValueError, fields: dict) -> tuple[str, str | None]:
         return message, by_message[message]
     if "watch folder" in message.lower() or "Refusing to watch" in message:
         return message, "pdf_folder"
+    if "file name pattern" in message:
+        return message, "pdf_name_pattern"
     if message.startswith("Patient Name is required"):
         return message, "pdf_patient_name"
     if message.startswith("Patient ID is required"):
@@ -224,6 +226,7 @@ async def add_or_update_route_rule(request: Request):
         "pdf_generate_study_description": form.get("pdf_generate_study_description") == "on",
         "pdf_document_title": str(form.get("pdf_document_title") or ""),
         "pdf_generate_document_title": form.get("pdf_generate_document_title") == "on",
+        "pdf_name_pattern": str(form.get("pdf_name_pattern") or ""),
     }
 
     try:

@@ -159,6 +159,10 @@
     <input id="rule-pdf-mod" class="w-sm" name="pdf_modality"{{ invalid("pdf_modality") }} placeholder="DOC" value="{{ values.pdf_modality if values and values.pdf_modality else 'DOC' }}">
     {{ field_error("pdf_modality") }}
     {% endcall %}
+    {% call field("File name pattern", "rule-pdf-pattern", "Optional. Reads values out of each PDF's file name. Put {Tokens} where the values sit, with a separator such as _ or - between them: {PatientID}, {PatientName}, {Accession}, {Description}, {Title}, and {*} for a part to ignore. Example: {PatientID}_{PatientName}_{Accession} reads 1001_DOE^JANE_ACC7.pdf. Whatever the name gives replaces the Patient, Accession, Description and Title settings below for that file; anything it does not give falls back to those settings. A file whose name does not fit is moved to Failed and not sent.") %}
+    <input id="rule-pdf-pattern" class="w-lg" name="pdf_name_pattern"{{ invalid("pdf_name_pattern") }} placeholder="{PatientID}_{PatientName}_{Accession}" spellcheck="false" value="{{ values.pdf_name_pattern if values else '' }}">
+    {{ field_error("pdf_name_pattern") }}
+    {% endcall %}
     {% set pmode = values.pdf_patient_mode if values and values.pdf_patient_mode else 'per_file' %}
     {% call field("Patient", "rule-pdf-patient", "A PDF has no patient details of its own. 'Named after the file' gives each PDF its own patient and study, named from its file name, so a folder of reports does not land as one person. 'Typed' puts the same name and ID on every PDF, in one study per run. 'Generated' makes one made-up patient.") %}
     <select id="rule-pdf-patient" class="w-lg" name="pdf_patient_mode">

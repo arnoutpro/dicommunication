@@ -4,6 +4,10 @@
 
 ### New
 
+- **Dicom Router PDF rules can read the patient and study from the file name.** A new **File name pattern** such as `{PatientID}_{PatientName}_{Accession}` reads `1001_DOE^JANE_ACC7.pdf` as Patient ID 1001, Patient Name DOE^JANE and Accession ACC7. The tokens are `{PatientID}`, `{PatientName}`, `{Accession}`, `{Description}`, `{Title}` and `{*}` (ignore this part). What the name gives replaces the Patient, Accession, Description and Title settings for that file; anything it does not give falls back to those settings. A file whose name does not fit goes to `Failed` and is not sent, rather than to a made-up patient. Each such file is sent on its own association.
+
+### New
+
 - **Dicom Router: watch a folder for PDFs.** A route rule now has a **Kind**: *Query a PACS for new studies* (as before) or *Watch a folder for PDFs*. A PDF rule looks in one folder on each run, wraps every new PDF as Encapsulated PDF Storage (the same engine and the same patient, accession, study description, title and modality choices as PDF to DICOM) and sends it to the node you pick. A sent file moves to a `Sent` subfolder; a file that is not a PDF moves to `Failed`; a PDF the PACS refuses or that cannot be reached stays where it is and is tried again next run. Only the top of the folder is read, hidden files are ignored, and a file still being written (changed in the last 10 seconds) waits for the next run. It uses the same Start, Pause, Stop, Run now and schedule as other rules, and shows on the status dashboard as Sent / Failed PDF counts with a chart per status. File names and patient data are never stored: only counts are.
 
 ### Fixes

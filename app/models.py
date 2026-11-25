@@ -278,6 +278,7 @@ class RouteRule(BaseModel):
     pdf_generate_study_description: bool = False
     pdf_document_title: str = ""
     pdf_generate_document_title: bool = True
+    pdf_name_pattern: str = ""
     # What a finished run remembers so a file whose move into "Sent" failed is not sent twice:
     # a short hash of name, size and modification time per sent file (never the name itself).
     pdf_sent_keys: list[str] = Field(default_factory=list)
@@ -353,7 +354,7 @@ class RouteRule(BaseModel):
 
     @field_validator(
         "pdf_folder", "pdf_destination_id", "pdf_identity_id", "pdf_patient_name", "pdf_patient_id",
-        "pdf_accession_number", "pdf_study_description", "pdf_document_title",
+        "pdf_accession_number", "pdf_study_description", "pdf_document_title", "pdf_name_pattern",
     )
     @classmethod
     def _strip_pdf_text(cls, value: str) -> str:
@@ -379,6 +380,10 @@ class RouteRule(BaseModel):
                 raise ValueError("Watch folder is required")
             if not self.pdf_destination_id:
                 raise ValueError("Send to is required")
+            if self.pdf_name_pattern:
+                from app.pdf_names import compile_pattern
+
+                compile_pattern(self.pdf_name_pattern)
             if self.pdf_patient_mode == "typed":
                 if not self.pdf_patient_name:
                     raise ValueError("Patient Name is required, or choose another way to name the patient")

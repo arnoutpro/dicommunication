@@ -300,3 +300,38 @@ def test_the_settings_file_carries_a_pdf_watch_rule_without_its_memory(setup, pa
     exported = json.loads(settings_transfer.export_bytes(store, [settings_transfer.SECTION_RULES, settings_transfer.SECTION_REMOTES]))
     body = exported["sections"][settings_transfer.SECTION_RULES][0]
     assert body["kind"] == "pdf_folder" and body["pdf_folder"] == str(folder) and "pdf_sent_keys" not in body
+
+
+# --- reading values out of the file name ---------------------------------------------------------
+
+
+def test_pattern_reading_and_its_mistakes() -> None:
+    from app.pdf_names import compile_pattern, values_from_name
+
+    pattern = compile_pattern("{PatientID}_{PatientName}_{*}")
+    assert values_from_name(pattern, "1001_DOE^JANE_scan 3.pdf") == {"patient_id": "1001", "patient_name": "DOE^JANE"}
+    assert values_from_name(pattern, "nounderscore.pdf") is None
+    for bad, word in (("plain", "at least one"), ("{PatientID}{PatientName}", "separator"), ("{Nope}_{*}", "Unknown"), ("{Title}_{Title}", "twice"), ("{PatientID}_{x", "unmatched")):
+        with pytest.raises(ValueError, match=word):
+            compile_pattern(bad)
+
+
+def test_the_file_name_sets_patient_and_accession_and_a_bad_name_fails(setup, pacs) -> None:
+    store, remote, folder, scheduler = setup
+    rule = _rule(store, remote, folder)
+    rule.pdf_name_pattern = "{PatientID}_{PatientName}_{Accession}"
+    store.update_route_rule(rule.id, rule)
+    _put(folder, "1001_DOE^JANE_ACC7.pdf")
+    _put(folder, "no pattern here.pdf")
+    run = scheduler.run_rule(store.get_route_rule(rule.id))
+    assert run.status_counts == {"Sent": 1, "Failed": 1, "Waiting": 0} or (run.status_counts["Sent"], run.status_counts["Failed"]) == (1, 1)
+    sent = pacs.received[-1]
+    assert (str(sent.PatientID), str(sent.PatientName), str(sent.AccessionNumber)) == ("1001", "DOE^JANE", "ACC7")
+    assert (folder / "Sent" / "1001_DOE^JANE_ACC7.pdf").exists() and (folder / "Failed" / "no pattern here.pdf").exists()
+
+
+def test_a_bad_pattern_is_refused_under_its_own_box(client, remote, tmp_path) -> None:
+    folder = tmp_path / "in"
+    folder.mkdir()
+    page = client.post("/router", data=_form(remote, folder, pdf_name_pattern="{PatientID}{PatientName}"))
+    assert page.status_code == 400 and 'id="error-pdf_name_pattern"' in page.text
