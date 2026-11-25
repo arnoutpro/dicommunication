@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.14.0
+
 ### Searching with wildcards
 
 - **`%123%` finds every Patient ID that contains 123**, as in Vue's own search boxes. A `%` in a text match value is sent to the PACS as the DICOM wildcard `*` (DICOM does not know `%`, and a `%` sent as it is would only match a literal `%`). `*` and `?` work as before. This applies to every text field (Patient ID, Patient Name, Accession Number, descriptions and so on, not to dates, times and UIDs) and to everything that builds its query the same way: Dicomtag Analytics, saved queries, Router rules, and the "Find studies" step of the Anonymizer and Cleaner. The Patient ID box says so in its tooltip.
@@ -62,8 +64,6 @@
 - **No coloured borders.** The red or green bar under the header and the coloured edge on each tile are gone, and so are the outlines and divider lines. A small coloured square in front of each rule name (green ok, red failing, grey no recent data) and the coloured summary text in the header say the same thing.
 - **History starts now.** There is no way to rebuild days from before this version. A rule that looks back several days fills its chart at the first check; a "today" rule builds one bar per day from now on.
 
-## 0.14.0
-
 ### Look and feel (a flat, dense style)
 
 Users said the interface looked machine-made: rounded corners, pill shapes and large text. This is the first step of a redesign, and it changes the look only, not what anything does. The sidebar stays.
@@ -95,7 +95,6 @@ Users said the interface looked machine-made: rounded corners, pill shapes and l
 - **Dashboard:** the three cards (workstation, remote nodes, next step) are one Status panel of label/value rows, with the same facts and buttons: C-STORE and Worklist state, node counts with C-ECHO all nodes, and the next step. The node table and recent results below are unchanged.
 - **Worklist, C-ECHO board and About:** the summary cards are one line each, the two Worklist forms use the field rows, and the About page no longer says the web UI has no login (it signs in once an account exists or other computers can reach it) or that DICOM TLS is simply "not spoken" without saying the PACS traffic is unencrypted.
 - **Flat content area and Configuration in the sidebar.** The area where data is shown is one flat surface in every theme (white in Light mode), with no grey behind the panels. The Configuration button moved from the top bar to the bottom of the left menu, above the version line, still for administrators only; it is highlighted while you are on a Configuration page.
-- Not yet redone: the result blocks and tables that appear after a tool runs, and the Sign-in and Setup pages (they keep their stacked layout).
 
 ## 0.13.2
 
