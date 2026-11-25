@@ -947,6 +947,12 @@ function initRouteRuleForm() {
       const [name, value] = el.getAttribute("data-reveal-when").split("=");
       el.hidden = form.querySelector(`[name="${name}"]`)?.value !== value;
     });
+    // A box that is only needed for one kind of rule is required only then: a required box that is
+    // hidden can never be filled in, and the browser would refuse the form without a word.
+    form.querySelectorAll("[data-required-when]").forEach((el) => {
+      const [name, value] = el.getAttribute("data-required-when").split("=");
+      el.required = form.querySelector(`[name="${name}"]`)?.value === value;
+    });
   }
   form.addEventListener("change", sync);
   // A required field inside a closed <details> can't be focused, so the

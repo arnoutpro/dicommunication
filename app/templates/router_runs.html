@@ -17,7 +17,7 @@
       <span class="badge">Stopped</span>
       {% endif %}
     </h1>
-    <p class="lede">{{ rule.schedule_label }} · {{ config.get_remote(rule.source_remote_id).ae_title if config.get_remote(rule.source_remote_id) else 'source node missing' }}{% if rule.destination_remote_ids %} → {{ rule.destination_remote_ids | length }} destination{% if rule.destination_remote_ids | length != 1 %}s{% endif %}{% endif %}</p>
+    <p class="lede">{{ rule.schedule_label }} · {% if rule.kind == 'pdf_folder' %}watches a folder for PDFs &rarr; {{ config.get_remote(rule.pdf_destination_id).ae_title if config.get_remote(rule.pdf_destination_id) else 'PACS missing' }}{% else %}{{ config.get_remote(rule.source_remote_id).ae_title if config.get_remote(rule.source_remote_id) else 'source node missing' }}{% endif %}{% if rule.destination_remote_ids %} → {{ rule.destination_remote_ids | length }} destination{% if rule.destination_remote_ids | length != 1 %}s{% endif %}{% endif %}</p>
     </div>
   </div>
   <a href="{{ href('/router') }}">&larr; All route rules</a>
@@ -51,6 +51,16 @@
   </div>
 </section>
 
+{% if rule.kind == 'pdf_folder' %}
+<section class="panel">
+  <header class="panel-head">
+    <h2>What this rule does</h2>
+  </header>
+  <p>Each run sends the PDFs directly in <code>{{ rule.pdf_folder }}</code> to the PACS as Encapsulated PDF Storage (Modality <code>{{ rule.pdf_modality }}</code>) and moves the sent ones into a <code>Sent</code> sub-folder.
+  {% if rule.pdf_patient_mode == 'per_file' %}Each PDF gets its own patient, named after its file.{% elif rule.pdf_patient_mode == 'typed' %}Every PDF gets the patient typed on the rule.{% else %}Every PDF gets one generated patient.{% endif %}
+  A file still being written waits for the next run; one the PACS does not take stays and is tried again; one that is not a PDF goes to a <code>Failed</code> sub-folder.</p>
+</section>
+{% else %}
 <section class="panel">
   <header class="panel-head">
     <h2>What this rule asks the PACS</h2>
@@ -65,6 +75,7 @@
   <div class="flash fail">Not applied, this app does not know the key: {% for k in query_skipped %}<code>{{ k }}</code>{% if not loop.last %}, {% endif %}{% endfor %}. The query is broader than the saved one.</div>
   {% endif %}
 </section>
+{% endif %}
 
 <section class="panel">
   <header class="panel-head">
@@ -80,12 +91,12 @@
         {% elif run.status == 'interrupted' %}<span class="badge">Interrupted</span>
         {% else %}<span class="badge ok">Completed</span>{% endif %}
         {{ run.started_at.strftime('%Y-%m-%d %H:%M:%S') }} UTC ·
-        {{ run.matched_count }} matched · {{ run.new_count }} new
+        {% if rule.kind == 'pdf_folder' %}{{ run.matched_count }} PDF{% if run.matched_count != 1 %}s{% endif %}{% else %}{{ run.matched_count }} matched · {{ run.new_count }} new{% endif %}
       </h3>
       <span class="muted small">{{ "%.0f"|format(run.duration_ms) }} ms</span>
     </header>
     {% if run.error %}<p class="muted">{{ run.error }}</p>{% endif %}
-    {% if run.ok and run.status_counts %}
+    {% if (run.ok or rule.kind == 'pdf_folder') and run.status_counts %}
     <p class="small">{% for value, count in run.status_counts.items() %}<span class="badge{% if value == '(none)' %} fail{% endif %}">{{ value }}: {{ count }}</span> {% endfor %}</p>
     {% if rule.status_key and run.status_counts.get('(none)') %}<p class="muted small">{{ run.status_counts['(none)'] }} matched stud{{ 'y' if run.status_counts['(none)'] == 1 else 'ies' }} came back without the status value. The PACS may ignore this key on C-FIND.</p>{% endif %}
     {% endif %}
@@ -94,7 +105,7 @@
     <p class="small">{% for value, count in run.outcome_counts.items() %}<span class="badge {% if value in ('forwarded', 'retrieved') %}ok{% elif value == 'failed' %}fail{% endif %}">{{ value | capitalize }}: {{ count }}</span> {% endfor %}</p>
     {% endif %}
     {% for message, count in run.error_counts.items() %}<p class="muted small">{{ count }}× {{ message }}</p>{% endfor %}
-    <p class="muted small">Only counts are kept. The studies themselves are not stored.</p>
+    <p class="muted small">Only counts are kept. {% if rule.kind == 'pdf_folder' %}File names are not stored.{% else %}The studies themselves are not stored.{% endif %}</p>
   </div>
   {% endfor %}
   {% else %}

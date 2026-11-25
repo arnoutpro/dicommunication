@@ -361,6 +361,7 @@ class ConfigStore:
                     payload["last_run_ok"] = existing.last_run_ok
                     payload["last_error"] = existing.last_error
                     payload["seen_study_uids"] = existing.seen_study_uids
+                    payload["pdf_sent_keys"] = existing.pdf_sent_keys
                     payload["updated_at"] = utc_now()
                     saved = RouteRule.model_validate(payload)
                     updated.append(saved)
@@ -404,6 +405,7 @@ class ConfigStore:
                     payload["last_run_ok"] = rule.last_run_ok
                     payload["last_error"] = rule.last_error
                     payload["seen_study_uids"] = rule.seen_study_uids
+                    payload["pdf_sent_keys"] = rule.pdf_sent_keys
                     updated.append(RouteRule.model_validate(payload))
                     found = True
                 else:
@@ -455,7 +457,7 @@ class ConfigStore:
                 errors[message] = errors.get(message, 0) + 1
         run.outcome_counts, run.error_counts = outcomes, errors
         with self._lock:
-            if run.ok and run.status == "completed" and run.day_counts:
+            if run.status == "completed" and run.day_counts and (run.ok or run.day_counts_mode == "add"):
                 self._record_route_daily_unlocked(run)
             runs = self._load_route_runs_unlocked()
             payload = run.model_dump(mode="json")
@@ -507,7 +509,13 @@ class ConfigStore:
         daily = self._load_route_daily_unlocked()
         days = daily.setdefault(run.rule_id, {})
         for day, counts in run.day_counts.items():
-            days[day] = dict(counts)
+            if run.day_counts_mode == "add":
+                merged = dict(days.get(day, {}))
+                for label, number in counts.items():
+                    merged[label] = merged.get(label, 0) + number
+                days[day] = merged
+            else:
+                days[day] = dict(counts)
         oldest = (run.started_at.date() - timedelta(days=ROUTE_DAILY_MAX_DAYS)).isoformat()
         for day in [d for d in days if d < oldest]:
             del days[day]

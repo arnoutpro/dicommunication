@@ -37,6 +37,7 @@ from app.applog import log
 from app.dicom_client import associate
 from app.models import LocalAE, RemoteNode, ROUTE_RUN_MAX_MATCHES, RouteMatch, RouteRule, RouteRun, utc_now
 from app.mwl_scp import STORAGE_INBOX, WorklistSCP
+from app.pdf_watch import WatchError, run_watch
 from app.store import ConfigStore
 from app.tools.find_keys import _read_key, apply_key
 
@@ -535,6 +536,8 @@ class RouterScheduler:
         """
         now = now or utc_now()
         started = time.perf_counter()
+        if rule.kind == "pdf_folder":
+            return self._run_pdf_watch(rule, now, started, interrupt)
         config = self.store.load()
         local = config.local
         remote = config.get_remote(rule.source_remote_id)
@@ -633,6 +636,10 @@ class RouterScheduler:
         run.modality_counts = {label: dict(sorted(kinds.items())) for label, kinds in sorted(modality_counts.items())}
         if rule.export_dir and rule.status_key and run.status != "interrupted":
             write_status_snapshot(rule, run, now, status_counts)
+        return self._finish_run(rule, run, now)
+
+    def _finish_run(self, rule: RouteRule, run: RouteRun, now: datetime) -> RouteRun:
+        """Record the run on the rule (last run, next run) and in the history."""
         rule.last_run_at = now
         rule.last_run_ok = run.ok
         rule.last_error = run.error
@@ -651,6 +658,61 @@ class RouterScheduler:
                 pass  # rule was deleted while this run was in flight
         self.store.add_route_run(run)
         return run
+
+    def _run_pdf_watch(
+        self, rule: RouteRule, now: datetime, started: float, interrupt: threading.Event | None
+    ) -> RouteRun:
+        """A "watch a folder for PDFs" rule: send what is in the folder, move what was stored."""
+        config = self.store.load()
+        run = RouteRun(rule_id=rule.id, rule_name=rule.name, started_at=now)
+        remote = config.get_remote(rule.pdf_destination_id)
+        try:
+            local = config.calling_ae(rule.pdf_identity_id or None)
+        except KeyError:
+            local = None
+        if remote is None:
+            run.ok, run.error = False, "The PACS this rule sends to is no longer configured."
+        elif local is None:
+            run.ok, run.error = False, "The virtual AE this rule presents as no longer exists."
+        elif interrupt is not None and interrupt.is_set():
+            run.status = "interrupted"
+        else:
+            try:
+                outcome, sent_keys = run_watch(rule, local, remote, now, interrupt)
+            except WatchError as exc:
+                run.ok, run.error = False, str(exc)
+            else:
+                run.matches = outcome.matches
+                run.matched_count = run.new_count = outcome.sent + outcome.failed
+                run.status_counts = {
+                    label: number
+                    for label, number in (("Sent", outcome.sent), ("Failed", outcome.failed), ("Waiting", outcome.waiting))
+                    if number
+                }
+                if outcome.sent or outcome.failed:
+                    run.day_counts = {
+                        now.astimezone().date().isoformat(): {
+                            label: number for label, number in (("Sent", outcome.sent), ("Failed", outcome.failed)) if number
+                        }
+                    }
+                    run.day_counts_mode = "add"
+                rule.mark_pdf_sent(sent_keys)
+                if outcome.failed:
+                    run.ok = False
+                    run.error = f"{outcome.failed} PDF{'s' if outcome.failed != 1 else ''} could not be sent; they are tried again next run unless they were not valid PDFs."
+                if outcome.stuck:
+                    run.ok = False
+                    run.error = (run.error + " " if run.error else "") + (
+                        f"{outcome.stuck} file{'s' if outcome.stuck != 1 else ''} could not be moved into the Sent folder; "
+                        "check that the app's account may write to the watch folder."
+                    )
+                log.info(
+                    "PDF watch %s: %d sent, %d failed, %d waiting%s",
+                    rule.name, outcome.sent, outcome.failed, outcome.waiting,
+                    f", {outcome.more} more next run" if outcome.more else "",
+                )
+        run.duration_ms = (time.perf_counter() - started) * 1000
+        return self._finish_run(rule, run, now)
 
     def _expand_targets(
         self, local: LocalAE, remote: RemoteNode, rule: RouteRule, study: dict[str, str]

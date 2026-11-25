@@ -195,6 +195,7 @@ class RemoteNode(BaseModel):
 
 HHMM_PATTERN = re.compile(r"^([01]\d|2[0-3]):([0-5]\d)$")
 MAX_SEEN_STUDY_UIDS = 5000
+MAX_PDF_SENT_KEYS = 5000
 ROUTE_RUN_MAX_MATCHES = 500
 
 
@@ -221,7 +222,12 @@ class RouteRule(BaseModel):
     name: str
     status: Literal["active", "paused", "stopped"] = "active"
 
-    source_remote_id: str
+    # "query" is the rule described above. "pdf_folder" watches a folder: each run sends the PDFs
+    # in it to a PACS as Encapsulated PDF Storage (the PDF to DICOM tool's engine) and moves the
+    # sent ones into a "Sent" subfolder. It uses the schedule below and none of the query fields.
+    kind: Literal["query", "pdf_folder"] = "query"
+
+    source_remote_id: str = ""
     level: Literal["STUDY", "SERIES"] = "STUDY"
     modality: str = ""
     date_scope: Literal["today", "yesterday", "last_n_days", "all"] = "today"
@@ -256,6 +262,26 @@ class RouteRule(BaseModel):
     last_error: str = ""
     seen_study_uids: list[str] = Field(default_factory=list)
 
+    # --- kind == "pdf_folder" -----------------------------------------------------------------
+    pdf_folder: str = ""
+    pdf_destination_id: str = ""
+    pdf_identity_id: str = ""  # "Present as"; empty is this workstation's AE
+    pdf_modality: str = "DOC"
+    # How each PDF gets its patient: "per_file" (named after its file, one patient per PDF),
+    # "typed" (pdf_patient_name / pdf_patient_id on every PDF) or "generated" (one made-up patient).
+    pdf_patient_mode: Literal["per_file", "typed", "generated"] = "per_file"
+    pdf_patient_name: str = ""
+    pdf_patient_id: str = ""
+    pdf_accession_number: str = ""
+    pdf_generate_accession: bool = False
+    pdf_study_description: str = ""
+    pdf_generate_study_description: bool = False
+    pdf_document_title: str = ""
+    pdf_generate_document_title: bool = True
+    # What a finished run remembers so a file whose move into "Sent" failed is not sent twice:
+    # a short hash of name, size and modification time per sent file (never the name itself).
+    pdf_sent_keys: list[str] = Field(default_factory=list)
+
     @field_validator("name")
     @classmethod
     def _required_name(cls, value: str) -> str:
@@ -266,11 +292,8 @@ class RouteRule(BaseModel):
 
     @field_validator("source_remote_id")
     @classmethod
-    def _required_source(cls, value: str) -> str:
-        value = (value or "").strip()
-        if not value:
-            raise ValueError("Source PACS is required")
-        return value
+    def _strip_source(cls, value: str) -> str:
+        return (value or "").strip()
 
     @field_validator("station_ae_title")
     @classmethod
@@ -328,11 +351,49 @@ class RouteRule(BaseModel):
                 seen.append(item)
         return seen
 
+    @field_validator(
+        "pdf_folder", "pdf_destination_id", "pdf_identity_id", "pdf_patient_name", "pdf_patient_id",
+        "pdf_accession_number", "pdf_study_description", "pdf_document_title",
+    )
+    @classmethod
+    def _strip_pdf_text(cls, value: str) -> str:
+        return (value or "").strip()
+
+    @field_validator("pdf_modality")
+    @classmethod
+    def _pdf_modality(cls, value: str) -> str:
+        text = (value or "").strip().upper() or "DOC"
+        if not re.fullmatch(r"[A-Z0-9_ ]{1,16}", text):
+            raise ValueError("Stored as (Modality) takes up to 16 capital letters, digits, spaces or underscores")
+        return text
+
     @model_validator(mode="after")
     def _require_daily_times(self) -> RouteRule:
         if self.schedule_mode == "daily" and not self.daily_times:
             raise ValueError("Add at least one time of day for a daily schedule")
+        if self.kind == "query":
+            if not self.source_remote_id:
+                raise ValueError("Source PACS is required")
+        else:
+            if not self.pdf_folder:
+                raise ValueError("Watch folder is required")
+            if not self.pdf_destination_id:
+                raise ValueError("Send to is required")
+            if self.pdf_patient_mode == "typed":
+                if not self.pdf_patient_name:
+                    raise ValueError("Patient Name is required, or choose another way to name the patient")
+                if not self.pdf_patient_id:
+                    raise ValueError("Patient ID is required, or choose another way to name the patient")
         return self
+
+    def mark_pdf_sent(self, keys: Iterable[str]) -> None:
+        """Remember sent files (most recent first, bounded like seen_study_uids)."""
+        merged = list(self.pdf_sent_keys)
+        for key in keys:
+            key = (key or "").strip()
+            if key and key not in merged:
+                merged.insert(0, key)
+        self.pdf_sent_keys = merged[:MAX_PDF_SENT_KEYS]
 
     def has_seen(self, study_instance_uid: str) -> bool:
         return study_instance_uid in self.seen_study_uids
@@ -418,6 +479,9 @@ class RouteRun(BaseModel):
     # Studies per study date (YYYY-MM-DD), then per status (key "" when the rule has no
     # status key). Counts only: it feeds the history charts on the status dashboard.
     day_counts: dict[str, dict[str, int]] = Field(default_factory=dict)
+    # "latest": a later run's count for a day replaces the earlier one (a query sees the same day
+    # again). "add": the counts are added (a folder watch sends different files each time).
+    day_counts_mode: Literal["latest", "add"] = "latest"
 
 
 class LoggingSettings(BaseModel):

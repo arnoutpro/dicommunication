@@ -30,7 +30,13 @@ def tile_for_rule(rule: RouteRule, run: RouteRun | None, now: datetime | None = 
         state = "stale"
     else:
         state = "ok" if run.ok else "error"
-    if rule.status_key:
+    unit = "exams"
+    if rule.kind == "pdf_folder":
+        # A folder watch: what was sent and what failed on the last run, and files still waiting.
+        unit = "PDFs"
+        by_status = dict(run.status_counts)
+        modalities = {}
+    elif rule.status_key:
         by_status = dict(run.status_counts)
         modalities = dict(run.modality_counts)
     else:
@@ -42,6 +48,7 @@ def tile_for_rule(rule: RouteRule, run: RouteRun | None, now: datetime | None = 
         "checked_at": started.isoformat(),
         "age_seconds": int(age),
         "total": run.matched_count,
+        "unit": unit,
         "by_status": by_status,
         "modalities": modalities,
         "error": run.error,
@@ -63,9 +70,13 @@ def history_for_rule(rule: RouteRule, daily: dict[str, dict[str, int]], days: in
             if label not in labels:
                 labels.append(label)
     labels.sort()
-    if rule.status_key:
+    keyed = bool(rule.status_key) or rule.kind == "pdf_folder"
+    if keyed:
         series = {label: [daily[day].get(label, 0) if day in daily else None for day in dates] for label in labels}
     else:
         series = {"Matched": [sum(daily[day].values()) if day in daily else None for day in dates]}
     totals = [sum(daily[day].values()) if day in daily else None for day in dates]
-    return {"rule_id": rule.id, "rule_name": rule.name, "keyed": bool(rule.status_key), "series": series, "totals": totals}
+    return {
+        "rule_id": rule.id, "rule_name": rule.name, "keyed": keyed, "series": series, "totals": totals,
+        "unit": "PDFs" if rule.kind == "pdf_folder" else "exams",
+    }

@@ -53,7 +53,7 @@ DEFAULT_EXPORT = (SECTION_REMOTES, SECTION_IDENTITIES, SECTION_RULES)
 DEFAULT_IMPORT = (SECTION_REMOTES, SECTION_IDENTITIES, SECTION_QUERIES, SECTION_RULES)
 
 # A rule's run bookkeeping is not part of its settings.
-_RULE_STATE_FIELDS = ("status", "seen_study_uids", "last_run_at", "next_run_at", "last_run_ok", "last_error", "created_at", "updated_at")
+_RULE_STATE_FIELDS = ("status", "seen_study_uids", "pdf_sent_keys", "last_run_at", "next_run_at", "last_run_ok", "last_error", "created_at", "updated_at")
 
 ADD, UPDATE, SAME = "add", "update", "same"
 
@@ -327,14 +327,21 @@ def plan_import(store: ConfigStore, parsed: ParsedSettings, sections: list[str] 
             incoming = rule.model_copy(
                 update={
                     "id": current.id if current else rule.id,
-                    "source_remote_id": remote_ref(rule.source_remote_id, who),
+                    "source_remote_id": remote_ref(rule.source_remote_id, who) if rule.source_remote_id else "",
                     "destination_remote_ids": [remote_ref(item, who) for item in rule.destination_remote_ids],
+                    "pdf_destination_id": remote_ref(rule.pdf_destination_id, who) if rule.pdf_destination_id else "",
+                    "pdf_identity_id": identity_ids.get(rule.pdf_identity_id, rule.pdf_identity_id),
                 }
             )
-            ignore = {"created_at", "updated_at", "status", "seen_study_uids", "last_run_at", "next_run_at", "last_run_ok", "last_error"}
+            if incoming.pdf_identity_id and incoming.pdf_identity_id not in known_identities:
+                plan.warnings.append(f"{who} presents as a virtual AE that does not exist on this computer; it will fall back to this workstation's AE.")
+                incoming = incoming.model_copy(update={"pdf_identity_id": ""})
+            ignore = {"created_at", "updated_at", "status", "seen_study_uids", "pdf_sent_keys", "last_run_at", "next_run_at", "last_run_ok", "last_error"}
             action = ADD if current is None else SAME if _same_payload(incoming, current, ignore) else UPDATE
             detail = "new rules start stopped" if action == ADD else "keeps its running state" if action == UPDATE else ""
             plan.items.append(PlanItem(SECTION_RULES, rule.name, action, detail))
+            if rule.kind == "pdf_folder" and action != SAME:
+                plan.warnings.append(f"{who} watches {rule.pdf_folder}. Check that folder exists on this computer, and that the app's account may read and write it.")
             if rule.export_dir and action != SAME:
                 plan.warnings.append(f"{who} writes files to {rule.export_dir}. Check that folder exists on this computer.")
             if action != SAME:

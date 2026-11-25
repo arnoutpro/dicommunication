@@ -81,10 +81,13 @@
   }
   // A rule without a status key gets one chart; a rule with one gets a chart per status value.
   function charts(h) {
-    if (!h.keyed) return [chart(h, "Exams per day", h.totals, 0)];
+    if (!h.keyed) return [chart(h, (h.unit === "PDFs" ? "PDFs" : "Exams") + " per day", h.totals, 0)];
     var statuses = Object.keys(h.series);
-    if (!statuses.length) return [chart(h, "Exams per day", h.totals, 0)];
-    return statuses.map(function (st, k) { return chart(h, statusName(st) + " · exams per day", h.series[st], k); });
+    if (!statuses.length) return [chart(h, (h.unit === "PDFs" ? "PDFs" : "Exams") + " per day", h.totals, 0)];
+    var fixed = { Sent: 2, Failed: 4 };  // a folder watch: green for sent, red for failed
+    return statuses.map(function (st, k) {
+      return chart(h, statusName(st) + " · " + (h.unit || "exams") + " per day", h.series[st], fixed[st] !== undefined ? fixed[st] : k);
+    });
   }
   function chartsFor(x) {
     var h = history.rules.filter(function (r) { return r.rule_id === x.rule_id; })[0];
@@ -102,14 +105,14 @@
       t.appendChild(el("div", "msg mute", "Waiting for the first check"));
       return t;
     }
-    t.appendChild(el("div", "meta", "Checked " + ago(x.age_seconds) + " · " + x.total + " exams"));
+    t.appendChild(el("div", "meta", "Checked " + ago(x.age_seconds) + " · " + x.total + " " + (x.unit || "exams")));
     if (x.state === "error") {
       t.appendChild(el("div", "msg", x.error || "Query failed"));
       return t;
     }
     var entries = Object.keys(x.by_status || {});
     if (!entries.length) entries = null;
-    (entries || ["No exams"]).forEach(function (k) {
+    (entries || [x.unit === "PDFs" ? "Nothing to send" : "No exams"]).forEach(function (k) {
       var item = el("div", "item");
       var row = el("div", "row");
       row.appendChild(el("span", "", k === "(none)" ? "No status returned" : k));
