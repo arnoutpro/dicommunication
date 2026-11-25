@@ -217,3 +217,17 @@ def test_api_c_find_accepts_options(client, store) -> None:
         assert seen == ["1001"]
     finally:
         server.shutdown()
+
+
+def test_hidden_required_boxes_cannot_block_the_c_echo_form() -> None:
+    """A required box that is hidden can never be filled in, and the browser then refuses to submit
+    the form without a word. The saved/manual switch must turn `required` on and off for every
+    required box in the manual group (AE Title and Host), not only the first."""
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parents[1] / "app"
+    js = (root / "static" / "js" / "app.js").read_text(encoding="utf-8")
+    assert '"[data-remote-mode-manual] [required]"' in js
+    assert "manualRequired.forEach((el) => { el.required = manual; });" in js
+    # A required dropdown with nothing chosen says so, since its native select is hidden.
+    assert 'select.addEventListener("invalid"' in js and "choice-error" in js

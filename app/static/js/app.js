@@ -240,9 +240,25 @@ function enhanceSelectMenus(root = document) {
       }
     });
 
+    // The native <select> is hidden behind this widget, so the browser cannot point at it when a
+    // required choice is missing and the form just seems to ignore the button. Say it here instead.
+    const missing = document.createElement("span");
+    missing.className = "choice-error";
+    missing.hidden = true;
+    missing.setAttribute("role", "alert");
+    missing.textContent = "Choose one";
+    wrap.appendChild(missing);
+    select.addEventListener("invalid", () => {
+      wrap.classList.add("is-invalid");
+      missing.hidden = false;
+      toggle.focus();
+    });
+
     select.addEventListener("change", () => {
       label.textContent = selectedOptionLabel(select);
       renderItems();
+      wrap.classList.remove("is-invalid");
+      missing.hidden = true;
     });
   });
 }
@@ -1008,14 +1024,16 @@ function initToolRemoteModeForm(scope) {
     const savedFields = form.querySelectorAll("[data-remote-mode-saved]");
     const manualFields = form.querySelectorAll("[data-remote-mode-manual]");
     const remoteSelect = form.querySelector('[name="remote_id"]');
-    const manualAeTitle = form.querySelector('[name="manual_ae_title"]');
+    // Every required box in the manual group (AE Title and Host). A required box that is hidden can
+    // never be filled in, and the browser then refuses to submit the form without saying why.
+    const manualRequired = form.querySelectorAll("[data-remote-mode-manual] [required]");
     function sync() {
       const checked = form.querySelector("[data-remote-mode-radio]:checked");
       const manual = checked ? checked.value === "manual" : false;
       savedFields.forEach((el) => { el.hidden = manual; });
       manualFields.forEach((el) => { el.hidden = !manual; });
       if (remoteSelect) remoteSelect.required = !manual;
-      if (manualAeTitle) manualAeTitle.required = manual;
+      manualRequired.forEach((el) => { el.required = manual; });
     }
     form.querySelectorAll("[data-remote-mode-radio]").forEach((radio) => {
       radio.addEventListener("change", sync);

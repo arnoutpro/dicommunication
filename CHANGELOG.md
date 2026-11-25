@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+### Fixes
+
+- **Fixed: "Run C-ECHO" did nothing with a saved node.** The page keeps the boxes for typing a node's details (AE Title, Host) hidden while "Saved node" is chosen, but the Host box stayed marked as required. A required box that is hidden can never be filled in, so the browser refused to send the form and gave no sign. The switch now turns "required" on and off for both boxes.
+- **A required dropdown with nothing chosen now says so.** The page's dropdowns hide the browser's own select, so a missing choice (for example no remote node) could make the button seem dead. The dropdown now gets a red edge and the words "Choose one".
+- On the C-ECHO page the first row is now called "Connect to" (Saved node / Enter details manually), so it no longer repeats "Remote node".
+
 ## 0.14.0
 
 ### Searching with wildcards

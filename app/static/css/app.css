@@ -2959,3 +2959,7 @@ body.page-find .find-head {
 .series-details > summary { font-size: var(--text-sm); }
 .series-body { margin: 0.2rem 0 0.35rem 1rem; }
 .series-table { width: auto; min-width: 28rem; }
+
+/* A required dropdown with nothing chosen: red edge and a short word, since the hidden native select cannot show the browser's own message. */
+.choice.is-invalid > .choice-toggle { border-color: var(--fail); }
+.choice-error { display: block; margin-top: 0.15rem; color: var(--fail); font-size: var(--text-xs); font-weight: 600; }
