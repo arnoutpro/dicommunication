@@ -28,6 +28,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable
@@ -245,14 +246,35 @@ def _run(runner: Runner, *command: str) -> subprocess.CompletedProcess:
         return subprocess.CompletedProcess(list(command), 127, "", str(exc))
 
 
-def reload_service(layout: Layout, runner: Runner = subprocess.run) -> bool:
-    """Stop the job if it is loaded, then load it from the plist (which also starts it)."""
+def reload_service(
+    layout: Layout,
+    runner: Runner = subprocess.run,
+    *,
+    sleep: Callable[[float], None] | None = None,
+    timeout: float = 20.0,
+    attempts: int = 5,
+) -> bool:
+    """Stop the job if it is loaded, then load it from the plist (which also starts it).
+
+    ``launchctl bootout`` returns while the job is still shutting down (``state = SIGTERMed``);
+    a ``bootstrap`` right after it fails with "5: Input/output error". So wait until launchd no
+    longer knows the job (at most ``timeout`` seconds), then bootstrap, trying up to ``attempts``
+    times one second apart.
+    """
+    pause = sleep or time.sleep  # looked up at call time so tests can replace time.sleep
     _run(runner, "launchctl", "bootout", f"system/{LABEL}")
-    loaded = _run(runner, "launchctl", "bootstrap", "system", str(layout.plist))
-    if loaded.returncode != 0:
-        _log(layout, f"launchctl bootstrap failed ({loaded.returncode}): {(loaded.stderr or '').strip()}")
-        return False
-    return True
+    waited = 0.0
+    while waited < timeout and service_state(runner) != "not loaded":
+        pause(0.5)
+        waited += 0.5
+    for attempt in range(1, attempts + 1):
+        loaded = _run(runner, "launchctl", "bootstrap", "system", str(layout.plist))
+        if loaded.returncode == 0:
+            return True
+        _log(layout, f"launchctl bootstrap failed ({loaded.returncode}), attempt {attempt} of {attempts}: {(loaded.stderr or '').strip()}")
+        if attempt < attempts:
+            pause(1.0)
+    return False
 
 
 def allow_through_firewall(layout: Layout, runner: Runner = subprocess.run) -> None:
