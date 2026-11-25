@@ -25,7 +25,7 @@ Added in 0.11.0, for running the app on a network with patient data. None of it
 needs another system (no Entra ID, no certificate authority).
 
 **When sign-in applies.** It is required as soon as the app can be reached from
-another computer (`--host 0.0.0.0`, the headless installer's network option,
+another computer (`--host 0.0.0.0`, the Windows installer's network option,
 `DICOMM_HTTP_BIND`) or as soon as any account exists. On one computer with no
 accounts the app opens as before. While no account exists on a network-reachable
 app, every page answers *Setup needed*; the first administrator is created from the
@@ -33,7 +33,7 @@ computer itself (`/setup`, only from the loopback address), or from a command li
 
 ```bash
 dicommunication.exe --create-admin NAME --password-file password.txt
-# the headless edition, run as an administrator: add --service-data
+# the Windows service, run as an administrator: add --service-data
 ```
 
 It reads the first line of the file, creates the administrator (or, for a name that
@@ -105,9 +105,9 @@ encrypted volume), does not protect DICOM or HL7 on the wire, does not do two-fa
 login or single sign-on, and cannot stop an administrator or someone with access to
 the computer itself.
 
-## Headless edition (Windows)
+## Windows service
 
-`dicommunication-headless-<version>-win64.msi` runs the same program as a background
+`dicommunication-<version>-win64.msi` runs the same program as a background
 Windows service (see `packaging/windows/README.md`). The threat model above is
 unchanged, and two things matter more because nobody is watching a window:
 

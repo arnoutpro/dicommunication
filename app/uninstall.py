@@ -1,6 +1,6 @@
 """Windows MSI uninstall hook: ask whether to delete the local data directory.
 
-Wired into packaging/windows/Headless.wxs as a deferred custom action that
+Wired into packaging/windows/Dicommunication.wxs as a deferred custom action that
 runs `dicommunication.exe --uninstall-cleanup` before files are removed, on a
 genuine uninstall only (the WiX condition excludes the RemoveExistingProducts
 step of an upgrade, which also sets REMOVE=ALL for the old version).
@@ -65,7 +65,7 @@ def purge_data_dir(path: Path | None = None) -> None:
 
 
 def run_uninstall_cleanup(service: bool = False) -> int:
-    """``service``: the headless edition, whose data lives in ProgramData."""
+    """``service``: the Windows service, whose data lives in ProgramData."""
     if confirm_purge_data():
         if service:
             purge_data_dir(service_data_dir())

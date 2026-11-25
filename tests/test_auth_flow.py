@@ -283,14 +283,14 @@ def test_no_route_depends_on_the_default_rule(app) -> None:
     assert not unplanned, f"These routes have no rule in app/auth.py POLICY: {unplanned}"
 
 
-# --- the headless edition always asks for sign-in --------------------------------
+# --- the Windows service always asks for sign-in --------------------------------
 
 
 def test_the_service_flag_turns_sign_in_on_even_for_this_computer_only() -> None:
     assert auth.login_always_required({"DICOMM_REQUIRE_LOGIN": "1"}) and not auth.login_always_required({}) and not auth.login_always_required({"DICOMM_REQUIRE_LOGIN": "0"})
 
 
-def test_the_headless_edition_sends_the_person_at_the_server_to_setup(store, monkeypatch) -> None:
+def test_the_windows_service_sends_the_person_at_the_server_to_setup(store, monkeypatch) -> None:
     from app.main import create_app
 
     monkeypatch.setenv("DICOMM_REQUIRE_LOGIN", "1")
@@ -312,7 +312,7 @@ def test_the_headless_edition_sends_the_person_at_the_server_to_setup(store, mon
     assert TestClient(app, client=("127.0.0.1", 50001)).get("/", follow_redirects=False).headers["location"].startswith("/login")  # and now everyone else must sign in
 
 
-def test_the_security_page_explains_why_sign_in_is_on_in_the_headless_edition(store, monkeypatch) -> None:
+def test_the_security_page_explains_why_sign_in_is_on_in_the_windows_service(store, monkeypatch) -> None:
     from app.main import create_app
 
     monkeypatch.setenv("DICOMM_REQUIRE_LOGIN", "1")
@@ -320,4 +320,4 @@ def test_the_security_page_explains_why_sign_in_is_on_in_the_headless_edition(st
     app.state.auth.users.add("alice", PASSWORD, ADMIN)
     client = make_client(app, "127.0.0.1")
     assert sign_in(client, "alice").status_code == 303
-    assert "headless edition" in client.get("/config/security").text
+    assert "Windows service" in client.get("/config/security").text

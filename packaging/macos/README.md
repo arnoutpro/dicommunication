@@ -1,6 +1,6 @@
 # macOS installer (DMG with a service package)
 
-Hospital Macs often cannot run Docker. This folder freezes the FastAPI app with PyInstaller into a command-line program, wraps it in an installer package (`.pkg`) that registers a **launchd background service**, and puts that package in a DMG. It behaves like the Windows headless installer: the service starts with the Mac, needs nobody logged in, has no window, always asks for sign-in, and you open it in a browser.
+Hospital Macs often cannot run Docker. This folder freezes the FastAPI app with PyInstaller into a command-line program, wraps it in an installer package (`.pkg`) that registers a **launchd background service**, and puts that package in a DMG. It behaves like the Windows installer: the service starts with the Mac, needs nobody logged in, has no window, always asks for sign-in, and you open it in a browser.
 
 The package **bundles a private Python runtime**. Nobody installs Python from python.org.
 

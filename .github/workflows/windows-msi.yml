@@ -78,7 +78,7 @@ jobs:
       - name: Build MSI
         run: >
           wix build
-          packaging/windows/Headless.wxs
+          packaging/windows/Dicommunication.wxs
           packaging/windows/harvested.wxs
           -ext WixToolset.UI.wixext
           -ext WixToolset.Util.wixext
@@ -87,20 +87,20 @@ jobs:
           -d ProductVersion=${{ steps.version.outputs.value }}
           -bindpath dist/dicommunication
           -bindpath dist/service-host
-          -o dist/dicommunication-headless-${{ steps.version.outputs.value }}-win64.msi
+          -o dist/dicommunication-${{ steps.version.outputs.value }}-win64.msi
 
       - name: Pack NuGet package
         run: >
           python packaging/windows/pack_nuget.py
-          dist/dicommunication-headless-${{ steps.version.outputs.value }}-win64.msi
+          dist/dicommunication-${{ steps.version.outputs.value }}-win64.msi
           --version ${{ steps.version.outputs.value }}
           --output dist
 
       - name: Upload MSI
         uses: actions/upload-artifact@v7
         with:
-          name: dicommunication-headless-msi
-          path: dist/dicommunication-headless-*.msi
+          name: dicommunication-msi
+          path: dist/dicommunication-*.msi
           if-no-files-found: error
 
       - name: Upload NuGet package
@@ -150,7 +150,7 @@ jobs:
           mkdir -p dist
           gh release download "${{ github.event.inputs.nuget_from_release }}" \
             --repo "${{ github.repository }}" \
-            --pattern "dicommunication-headless-*-win64.msi" \
+            --pattern "dicommunication-*-win64.msi" \
             --dir dist
 
       - name: Pack and publish NuGet package
@@ -161,7 +161,7 @@ jobs:
           VER="${{ github.event.inputs.nuget_from_release }}"
           VER="${VER#v}"
           shopt -s nullglob
-          msis=(dist/dicommunication-headless-*-win64.msi)
+          msis=(dist/dicommunication-*-win64.msi)
           if [[ ${#msis[@]} -ne 1 ]]; then
             echo "expected one MSI under dist/, found ${#msis[@]}: ${msis[*]}" >&2
             exit 1

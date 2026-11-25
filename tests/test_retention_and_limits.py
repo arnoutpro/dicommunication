@@ -286,6 +286,6 @@ def test_server_is_up_answers_for_https_with_a_self_signed_certificate(tmp_path:
 
 
 def test_the_installer_limits_the_firewall_to_the_local_subnet_and_opens_https_shortcuts() -> None:
-    wxs = (Path(__file__).resolve().parent.parent / "packaging" / "windows" / "Headless.wxs").read_text(encoding="utf-8")
+    wxs = (Path(__file__).resolve().parent.parent / "packaging" / "windows" / "Dicommunication.wxs").read_text(encoding="utf-8")
     assert 'Scope="localSubnet"' in wxs and 'Scope="any"' not in wxs
     assert "[SHORTCUTSCHEME]://localhost:[PORT]/" in wxs and 'Property Id="SHORTCUTSCHEME"' in wxs

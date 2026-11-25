@@ -18,8 +18,8 @@ AUTHORS = "arnoutpro"
 PROJECT_URL = "https://github.com/arnoutpro/dicommunication"
 REPO_URL = "https://github.com/arnoutpro/dicommunication.git"
 DESCRIPTION = (
-    "Windows MSI installer for Arnout.pro Dicommunication Tool (the headless edition, a Windows service). "
-    "Extract tools/dicommunication-headless-<version>-win64.msi and install with msiexec."
+    "Windows MSI installer for Arnout.pro Dicommunication Tool (a Windows service). "
+    "Extract tools/dicommunication-<version>-win64.msi and install with msiexec."
 )
 TAGS = "dicom pacs windows msi installer"
 
