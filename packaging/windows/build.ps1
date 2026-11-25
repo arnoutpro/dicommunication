@@ -20,12 +20,12 @@ python packaging\windows\harvest.py dist\dicommunication packaging\windows\harve
 dotnet tool install --global wix --version 5.0.2 2>$null
 wix extension add -g WixToolset.UI.wixext/5.0.2 2>$null
 
-# The installer: the program as a Windows service (see Headless.wxs).
+# The installer: the program as a Windows service (see Dicommunication.wxs).
 python packaging\windows\fetch_winsw.py dist\service-host
 wix extension add -g WixToolset.Util.wixext/5.0.2 2>$null
 wix extension add -g WixToolset.Firewall.wixext/5.0.2 2>$null
 wix build `
-    packaging\windows\Headless.wxs `
+    packaging\windows\Dicommunication.wxs `
     packaging\windows\harvested.wxs `
     -ext WixToolset.UI.wixext `
     -ext WixToolset.Util.wixext `
@@ -34,9 +34,9 @@ wix build `
     -d ProductVersion=$Version `
     -bindpath dist\dicommunication `
     -bindpath dist\service-host `
-    -o "dist\dicommunication-headless-$Version-win64.msi"
+    -o "dist\dicommunication-$Version-win64.msi"
 
-python packaging\windows\pack_nuget.py "dist\dicommunication-headless-$Version-win64.msi" --version $Version --output dist
+python packaging\windows\pack_nuget.py "dist\dicommunication-$Version-win64.msi" --version $Version --output dist
 
-Write-Host "Built dist\dicommunication-headless-$Version-win64.msi"
+Write-Host "Built dist\dicommunication-$Version-win64.msi"
 Write-Host "Built dist\dicommunication.msi.$Version.nupkg"

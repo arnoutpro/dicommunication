@@ -1,7 +1,7 @@
 Windows Service Wrapper (WinSW) 2.11.0
 https://github.com/winsw/winsw
 
-The Dicommunication headless edition installs WinSW as dicommunication-service.exe
+The Dicommunication Windows service installs WinSW as dicommunication-service.exe
 to run Dicommunication as a Windows service.
 
 The MIT License (MIT)

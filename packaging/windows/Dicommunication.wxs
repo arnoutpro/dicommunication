@@ -3,7 +3,7 @@
 <?define ProductVersion = "0.14.0" ?>
 <?endif?>
 <!--
-  Dicommunication, headless edition.
+  Dicommunication, Windows service.
 
   The only Windows installer. The program is installed as a Windows service: it
   starts with Windows, needs nobody logged in, has no window, and you open it in
@@ -34,13 +34,13 @@
      xmlns:util="http://wixtoolset.org/schemas/v4/wxs/util"
      xmlns:fw="http://wixtoolset.org/schemas/v4/wxs/firewall">
   <Package
-      Name="Arnout.pro Dicommunication Tool (headless)"
+      Name="Arnout.pro Dicommunication Tool"
       Manufacturer="Arnout.pro"
       Version="$(var.ProductVersion)"
       UpgradeCode="8f3c2a91-6d4e-4b17-9e5a-1c7d0f8a2b63"
       Language="1033"
       Scope="perMachine">
-    <SummaryInformation Description="Dicommunication running in the background (headless), opened in the browser" />
+    <SummaryInformation Description="Dicommunication running in the background, opened in the browser" />
     <MajorUpgrade
         DowngradeErrorMessage="A newer version of Dicommunication is already installed."
         AllowSameVersionUpgrades="yes" />
@@ -132,8 +132,8 @@
       </Component>
     </ComponentGroup>
 
-    <Feature Id="Dicommunication" Title="Dicommunication (headless)" Level="1"
-        Description="Dicommunication running headless: starts with Windows, no window, opened in the browser.">
+    <Feature Id="Dicommunication" Title="Dicommunication" Level="1"
+        Description="Dicommunication running as a Windows service: starts with Windows, no window, opened in the browser.">
       <ComponentGroupRef Id="AppFiles" />
       <ComponentGroupRef Id="ServiceHost" />
       <ComponentGroupRef Id="Shortcuts" />

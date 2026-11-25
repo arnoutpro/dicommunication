@@ -8,7 +8,7 @@ with what the browser shows, and offers the certificate for download, so it can 
 installed as trusted on the computers that use the app, which ends the warning.
 
 The key stays in ``tls/`` in the data folder (owner-only on systems that support
-it; on Windows the folder's own permissions apply, which the headless installer
+it; on Windows the folder's own permissions apply, which the Windows installer
 limits to administrators, SYSTEM and the service account). The certificate is made
 again when it nears its end or when this computer's names or addresses change.
 """

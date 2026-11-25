@@ -225,7 +225,7 @@ def main(argv: list[str] | None = None) -> int:
     tls.add_argument("--no-https", action="store_true", help="Serve plain HTTP even when listening beyond this computer, for a reverse proxy that handles HTTPS.")
     parser.add_argument("--create-admin", metavar="NAME", help="Create an administrator, or reset the password of that account, from --password-file.")
     parser.add_argument("--password-file", metavar="FILE", help="With --create-admin: a text file whose first line is the password. Delete it afterwards.")
-    # Windows headless edition (packaging/windows/Headless.wxs): not user-facing flags.
+    # Windows service (packaging/windows/Dicommunication.wxs): not user-facing flags.
     parser.add_argument("--configure-service", action="store_true", help=argparse.SUPPRESS)
     parser.add_argument("--service-data", action="store_true", help=argparse.SUPPRESS)
     parser.add_argument("--listen", choices=("local", "network"), default="local", help=argparse.SUPPRESS)

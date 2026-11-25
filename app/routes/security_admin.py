@@ -126,7 +126,7 @@ async def users_delete(request: Request, user_id: str):
 def _security_page(request: Request, *, flash: str = "", ok: bool = False, settings: SecuritySettings | None = None, error_roots: str = "", status_code: int = 200) -> HTMLResponse:
     auth = _auth(request)
     current = settings or request.app.state.security_settings.load()
-    reason = "other computers can reach this app" if auth.exposed else "this is the headless edition, which always asks for sign-in" if auth.always else "an account exists" if auth.users.has_users() else ""
+    reason = "other computers can reach this app" if auth.exposed else "this is the Windows service, which always asks for sign-in" if auth.always else "an account exists" if auth.users.has_users() else ""
     return templates.TemplateResponse(
         request,
         "config_security.html",

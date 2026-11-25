@@ -565,7 +565,7 @@ def test_packaging_icons_have_every_size() -> None:
 
 def test_windows_spec_and_wix_use_app_icon() -> None:
     spec = (ROOT / "packaging" / "windows" / "dicommunication.spec").read_text(encoding="utf-8")
-    wxs = (ROOT / "packaging" / "windows" / "Headless.wxs").read_text(encoding="utf-8")
+    wxs = (ROOT / "packaging" / "windows" / "Dicommunication.wxs").read_text(encoding="utf-8")
     assert "app.ico" in spec
     assert 'icon=ICON' in spec
     assert 'SourceFile="packaging\\icons\\app.ico"' in wxs
@@ -579,7 +579,7 @@ def test_windows_wxs_comments_have_no_double_hyphen() -> None:
     comment body, and a comment can't end in "-" either — real failure seen
     in CI: a comment mentioning a CLI flag like "--profile" broke the build.
     """
-    wxs = (ROOT / "packaging" / "windows" / "Headless.wxs").read_text(encoding="utf-8")
+    wxs = (ROOT / "packaging" / "windows" / "Dicommunication.wxs").read_text(encoding="utf-8")
     for match in re.finditer(r"<!--(.*?)-->", wxs, re.S):
         body = match.group(1)
         assert "--" not in body, body
@@ -587,7 +587,7 @@ def test_windows_wxs_comments_have_no_double_hyphen() -> None:
 
 
 def test_windows_wxs_upgrades_replace_a_same_version_install() -> None:
-    wxs = (ROOT / "packaging" / "windows" / "Headless.wxs").read_text(encoding="utf-8")
+    wxs = (ROOT / "packaging" / "windows" / "Dicommunication.wxs").read_text(encoding="utf-8")
     assert 'AllowSameVersionUpgrades="yes"' in wxs
 
 
@@ -841,7 +841,7 @@ def test_uninstall_cleanup_flag_skips_the_server(monkeypatch) -> None:
 
 
 def test_windows_wxs_prompts_before_deleting_data_on_uninstall() -> None:
-    wxs = (ROOT / "packaging" / "windows" / "Headless.wxs").read_text(encoding="utf-8")
+    wxs = (ROOT / "packaging" / "windows" / "Dicommunication.wxs").read_text(encoding="utf-8")
     assert '--uninstall-cleanup' in wxs
     assert 'Execute="deferred"' in wxs
     assert 'Return="ignore"' in wxs

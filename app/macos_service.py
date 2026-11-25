@@ -1,4 +1,4 @@
-"""macOS: the background service (LaunchDaemon), like the Windows headless edition.
+"""macOS: the background service (LaunchDaemon), like the Windows service.
 
 The installer package (packaging/macos) puts the program in
 ``/usr/local/lib/dicommunication`` and its post-install script creates the

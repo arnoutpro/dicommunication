@@ -444,7 +444,7 @@ def network_exposed(environ: dict | None = None) -> bool:
 
 
 def login_always_required(environ: dict | None = None) -> bool:
-    """True for the Windows headless edition, whose service sets ``DICOMM_REQUIRE_LOGIN=1``."""
+    """True for the Windows service, which sets ``DICOMM_REQUIRE_LOGIN=1``."""
     environ = os.environ if environ is None else environ
     return (environ.get("DICOMM_REQUIRE_LOGIN") or "").strip() == "1"
 
@@ -457,8 +457,8 @@ class AuthState:
     sessions: SessionStore = field(default_factory=SessionStore)
     limiter: LoginLimiter = field(default_factory=LoginLimiter)
     exposed: bool = False
-    always: bool = False  # the headless edition: a service on a server, whether or not the network option is ticked
+    always: bool = False  # the Windows service: a service on a server, whether or not the network option is ticked
 
     def required(self) -> bool:
-        """Login is required when other computers can reach the app, in the headless edition, or as soon as an account exists."""
+        """Login is required when other computers can reach the app, in the Windows service, or as soon as an account exists."""
         return self.exposed or self.always or self.users.has_users()
