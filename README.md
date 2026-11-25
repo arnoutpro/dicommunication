@@ -83,6 +83,7 @@ The screenshots follow your GitHub theme (light or dark). They come from a demo 
 
 The full list is in [CHANGELOG.md](CHANGELOG.md).
 
+- **Dicom Router: watch a folder for PDFs (0.14.1).** A route rule has a *Kind*: query a PACS, or watch a folder and send each new PDF as a DICOM document, moving it to `Sent` or `Failed`. An optional file name pattern such as `{PatientID}_{PatientName}_{Accession}` reads the patient and study from the file name.
 - **A new, flatter look.** Square corners and thin lines everywhere, 13 px type in the system font, plain blue on neutral greys, no icon tiles or striped rows. The sidebar is a tree with a solid colour on the selected row. Configuration moved from the top bar to the bottom of the left menu. The area where data is shown is one flat surface in every theme (white in the light theme).
 - **Forms with the label on the left and the box beside it**, as wide as its content, with the explanation in a `?` tooltip instead of grey paragraphs, and advanced options folded away. Every tool and configuration page uses it. Dicomtag Analytics is now one flat table (Return, Field, Match value) with a Study Date period menu, a Modalities dropdown and a shortcuts menu instead of rows of buttons.
 - **Dicom Anonymizer: see and pick the series.** Under each study, "Show series" lists its series (number, modality, description, images); only the ticked ones are anonymized. New export options: *All files in one folder* or *a subfolder per series*, and study and series folders named by their **description** (off by default, because a description can contain identifying text).
@@ -228,7 +229,7 @@ DICOMM_HTTP_BIND=0.0.0.0 DICOMM_ALLOWED_HOSTS=dicomm.example.org docker compose 
 Startup names the address the UI was published on, so `docker compose logs` answers "why can I not reach this from my laptop":
 
 ```
-Dicommunication 0.14.0 started (data dir /app/data, log level INFO)
+Dicommunication 0.14.1 started (data dir /app/data, log level INFO)
 Web UI published on 127.0.0.1:8080 — reachable from the Docker host only. This is the
 default. To reach it from another machine, restart with DICOMM_HTTP_BIND=0.0.0.0
 (that turns on sign-in and HTTPS).
