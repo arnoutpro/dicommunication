@@ -84,7 +84,7 @@ The screenshots follow your GitHub theme (light or dark). They come from a demo 
 
 The full list is in [CHANGELOG.md](CHANGELOG.md).
 
-- **Dicom Send (0.15.6, for beta testing).** A new product: find studies on one registered archive and send them to another, with their original UIDs, in four steps.
+- **Dicom Send (0.15.6, for beta testing).** A new product: find studies on one registered archive and send them to another, with their original UIDs, in four steps. From 0.15.7 its Find studies step is the Dicomtag Analytics query form at Study level, and the Anonymizer and Cleaner have more Find studies filters.
 - **Dicom Router: watch a folder for DICOM files (0.15.5).** A new rule *Kind* sends the DICOM files, study folders and `.zip` / `.7z` files that land in a folder to a PACS, and moves each item to `Sent` when every image was stored.
 - **Present as can be a typed AE Title (0.15.2).** Every **Present as** dropdown has **Type an AE Title…**, so a calling AE Title no longer has to be saved as a virtual AE first.
 - **Dicom Import reads `.zip` and `.7z` files (0.15.1).** Type the path of a folder or an archive, or use **Archive…**. A ZIP is read in place; a 7z is unpacked to a temporary folder that is deleted afterwards.
@@ -242,7 +242,7 @@ DICOMM_HTTP_BIND=0.0.0.0 DICOMM_ALLOWED_HOSTS=dicomm.example.org docker compose 
 Startup names the address the UI was published on, so `docker compose logs` answers "why can I not reach this from my laptop":
 
 ```
-Dicommunication 0.15.6 started (data dir /app/data, log level INFO)
+Dicommunication 0.15.7 started (data dir /app/data, log level INFO)
 Web UI published on 127.0.0.1:8080 — reachable from the Docker host only. This is the
 default. To reach it from another machine, restart with DICOMM_HTTP_BIND=0.0.0.0
 (that turns on sign-in and HTTPS).
