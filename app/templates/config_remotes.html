@@ -23,7 +23,7 @@
     <input type="hidden" name="remote_id" value="{{ editing.id }}">
     {% endif %}
     {% call field("Display name", "name", required=True) %}
-    <input id="name" name="name" class="w-md" required placeholder="PACS production" value="{{ editing.name if editing else '' }}">
+    <input id="name" name="name" class="w-md" required placeholder="Main PACS" value="{{ editing.name if editing else '' }}">
     {% endcall %}
     {% call field("AE Title", "ae_title", required=True) %}
     <input id="ae_title" name="ae_title" class="w-sm" maxlength="16" required placeholder="ORTHANC" value="{{ editing.ae_title if editing else '' }}">

@@ -282,7 +282,7 @@ def test_lookup_requires_accession_and_date() -> None:
     result = TagEditorTool().run(
         LocalAE(ae_title="DICOMM", timeout_seconds=2),
         remote,
-        {"action": "lookup", "accession_number": "7205719954"},
+        {"action": "lookup", "accession_number": "ACC1234567"},
     )
     assert result.ok is False
     assert "Accession Number and Study Date are both required" in result.summary
@@ -294,7 +294,7 @@ def test_lookup_resolves_a_single_matching_study() -> None:
         port,
         [
             {
-                "AccessionNumber": "7205719954",
+                "AccessionNumber": "ACC1234567",
                 "StudyDate": "20260902",
                 "StudyInstanceUID": "1.2.3.99887766",
                 "PatientName": "MADURO-MARTHA^E",
@@ -311,7 +311,7 @@ def test_lookup_resolves_a_single_matching_study() -> None:
             remote,
             {
                 "action": "lookup",
-                "accession_number": "7205719954",
+                "accession_number": "ACC1234567",
                 "study_date": "2026-09-02",
             },
         )
