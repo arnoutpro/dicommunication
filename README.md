@@ -79,6 +79,13 @@ The screenshots follow your GitHub theme (light or dark). They come from a demo 
   <img alt="Worklist: query a DMWL or serve a local worklist" src="docs/screenshots/0.14/light/worklist.png">
 </picture>
 
+## What's new in 0.15
+
+The full list is in [CHANGELOG.md](CHANGELOG.md).
+
+- **Stop listening / Start listening.** A button on the Dashboard and on the Local DICOM AE page frees this workstation's DICOM port at once, so another program (a viewer such as MicroDicom) can use it, and takes it back when you start listening again. It only pauses the listener: your MWL SCP and C-STORE settings stay, and a pause survives a restart.
+- **macOS: the service no longer ends up stopped after a port change or an upgrade** (it waits for launchd to let go of the old job before starting the new one).
+
 ## What's new in 0.14
 
 The full list is in [CHANGELOG.md](CHANGELOG.md).
@@ -229,7 +236,7 @@ DICOMM_HTTP_BIND=0.0.0.0 DICOMM_ALLOWED_HOSTS=dicomm.example.org docker compose 
 Startup names the address the UI was published on, so `docker compose logs` answers "why can I not reach this from my laptop":
 
 ```
-Dicommunication 0.14.1 started (data dir /app/data, log level INFO)
+Dicommunication 0.15.0 started (data dir /app/data, log level INFO)
 Web UI published on 127.0.0.1:8080 — reachable from the Docker host only. This is the
 default. To reach it from another machine, restart with DICOMM_HTTP_BIND=0.0.0.0
 (that turns on sign-in and HTTPS).
@@ -377,6 +384,7 @@ This is the real Application Entity of this software: listen address, listen por
 | Implementation version | `DICOMM_1` | DICOM implementation version name (≤16 characters). |
 | Station AE Title | empty | Default Scheduled Station AE Title for worklist queries when no virtual identity is selected. |
 | Serve the web worklist over DICOM | off | Start an MWL SCP on the listen port, backed by the local web worklist. |
+| Stop listening / Start listening | listening | A button (Dashboard and this page, shown only when MWL SCP or C-STORE is on) that pauses the listener so the port is free for another program, and starts it again. The settings above stay; a pause survives a restart. |
 
 The listen port is **one** workstation AE. Virtual titles do not add extra SCP ports.
 

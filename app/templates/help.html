@@ -278,6 +278,11 @@
           <td>Start an MWL SCP on the listen port, backed by the local web worklist. If a modality must C-FIND this workstation, allow inbound TCP for this process on that port.</td>
         </tr>
         <tr>
+          <td>Stop listening / Start listening</td>
+          <td>listening</td>
+          <td>A button on the Dashboard and at the top of this page (only shown when Worklist over DICOM or Accept C-STORE is on). Stop listening frees the port at once so another program, such as a viewer, can use it; Start listening takes it back. The settings stay as they are, and a pause survives a restart.</td>
+        </tr>
+        <tr>
           <td>Accept C-STORE (same listen port)</td>
           <td>off</td>
           <td>Accept storage SOP Classes on the same port, so a PACS can send here what this workstation asks it to C-MOVE: Structured Reports for Dicomtag Analytics, and the images that the Dicom Anonymizer, Dicom Cleaner, Dicom Router (retrieve and forward) and Tag Editor (Fetch and Push) retrieve. The PACS must list this AE Title as a C-MOVE destination at this host and port. What arrives is held in memory for that run, not kept as an archive. Nothing can be retrieved while this is off; those tools say so.</td>
