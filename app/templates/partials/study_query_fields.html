@@ -2,9 +2,13 @@
    Expects `query` (what was last submitted, so a query or run doesn't clear
    the form) and `has_studies` (the query button steps back to a ghost button
    once there are studies to act on: one filled button per column). #}
+{# `query_part` can be "connect" (the remote node and Present as only) or "filters" (the rest), for a page that
+   shows them in two steps. Without it both are shown, as before. `remote_label` renames the remote node box. #}
 {% from "partials/fields.html" import field, tip %}
 {% set remote_tip = query_remote_hint if query_remote_hint is defined else "" %}
-{% call field("Remote node", "query-remote", remote_tip, required=True) %}
+{% set part = query_part if query_part is defined else "all" %}
+{% if part != "filters" %}
+{% call field(remote_label if remote_label is defined else "Remote node", "query-remote", remote_tip, required=True) %}
 <select id="query-remote" class="w-lg" name="remote_id" required>
   {% for remote in config.remotes %}
   <option value="{{ remote.id }}" {% if remote.id == remote_id %}selected{% endif %}>
@@ -14,6 +18,8 @@
 </select>
 {% endcall %}
 {% include "partials/identity_field.html" %}
+{% endif %}
+{% if part != "connect" %}
 {% call field("Study Date", "query-date", required=True) %}
 <input id="query-date" class="w-sm" type="date" name="study_date" value="{{ query.study_date or '' }}" required>
 {% endcall %}
@@ -47,3 +53,4 @@
     {{ tip("Study-level C-FIND, same as Dicomtag Analytics.") }}
   </div>
 </div>
+{% endif %}

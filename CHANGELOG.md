@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### New
+
+- **Dicom Send: send individual studies from one archive to another.** A new product (its own tab, between Dicom Router and Dicom Cleaner) that is the one-off form of a Router rule that forwards. Four steps: **1. Choose the archives** (Send from, Present as, Send to: registered nodes only, and the destination must differ from the source), **2. Find studies** (Study-level C-FIND), **3. Choose studies** (at Study, Series or Image level) and **4. Send**. Each checked selection is C-MOVEd to this workstation and C-STOREd to the destination with its original UIDs, so the destination gets an identical copy. A browser prompt names both archives. Nothing is edited on the way, saved or kept. Like the Cleaner, it needs Accept C-STORE on and handles up to 200 selections per run, and it reports every selection that came back empty. Operators can use it, like the other tools.
+
 ## 0.15.5
 
 ### New

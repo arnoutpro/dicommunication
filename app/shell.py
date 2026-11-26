@@ -62,6 +62,7 @@ TAB_DICOMM = "dicommunication"
 TAB_ANALYTICS = "analytics"
 TAB_ANONYMIZER = "anonymizer"
 TAB_ROUTER = "router"
+TAB_SEND = "send"
 TAB_CLEANER = "cleaner"
 TAB_IMPORT = "import"
 TAB_CONFIG = "config"
@@ -69,13 +70,14 @@ TAB_CONFIG = "config"
 # The tab row lists the products. Configuration is shared by all of them, so
 # it isn't a tab: it opens from a button in the top bar (DESIGN.md: Help and
 # Config on the right), and its pages still get TAB_CONFIG for their sidebar.
-TAB_ORDER = (TAB_DICOMM, TAB_ANALYTICS, TAB_ANONYMIZER, TAB_ROUTER, TAB_CLEANER, TAB_IMPORT)
+TAB_ORDER = (TAB_DICOMM, TAB_ANALYTICS, TAB_ANONYMIZER, TAB_ROUTER, TAB_SEND, TAB_CLEANER, TAB_IMPORT)
 
 TAB_LABELS = {
     TAB_DICOMM: PRODUCT_DICOMM,
     TAB_ANALYTICS: PRODUCT_ANALYTICS,
     TAB_ANONYMIZER: "Dicom Anonymizer",
     TAB_ROUTER: "Dicom Router",
+    TAB_SEND: "Dicom Send",
     TAB_CLEANER: "Dicom Cleaner",
     TAB_IMPORT: "Dicom Import",
     TAB_CONFIG: "Configuration",
@@ -87,6 +89,7 @@ TAB_HREFS = {
     TAB_ANALYTICS: "/tools/c-find-advanced",
     TAB_ANONYMIZER: "/tools/anonymize",
     TAB_ROUTER: "/router",
+    TAB_SEND: "/tools/dicom-send",
     TAB_CLEANER: "/tools/dicom-cleaner",
     TAB_IMPORT: "/tools/dicom-import",
     TAB_CONFIG: "/config",
@@ -96,7 +99,7 @@ TAB_HREFS = {
 # now, so the Dicommunication tab's own Test tools list (and its "registered
 # tools" summary on the dashboard) no longer lists them — each has its own
 # tab-level home instead. Dicom Import has its own tab as well.
-PROMOTED_TAB_TOOL_IDS = frozenset({"c-find-advanced", "anonymize", "dicom-cleaner", "dicom-import"})
+PROMOTED_TAB_TOOL_IDS = frozenset({"c-find-advanced", "anonymize", "dicom-cleaner", "dicom-import", "dicom-send"})
 
 _CONFIG_NAV_VALUES = frozenset(
     {
@@ -117,6 +120,7 @@ _TOOL_ID_TABS = {
     "anonymize": TAB_ANONYMIZER,
     "dicom-cleaner": TAB_CLEANER,
     "dicom-import": TAB_IMPORT,
+    "dicom-send": TAB_SEND,
 }
 
 

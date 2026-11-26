@@ -11,7 +11,7 @@ Roles, lowest to highest:
 
 * ``viewer``    the status dashboard and help only.
 * ``operator``  everything that works with PACS nodes already configured: Analytics,
-                Import, Anonymizer, Cleaner, Send Image, PDF, Tag Editor, Testbench,
+                Import, Anonymizer, Cleaner, Dicom Send, Send Image, PDF, Tag Editor, Testbench,
                 Worklist, HL7, and starting or stopping Router rules.
 * ``admin``     everything, including configuration, users, logs, settings import
                 and export, and any folder or host.
@@ -402,7 +402,7 @@ POLICY: tuple[Rule, ...] = (
     _rule(r"^/(testbench|echo-board|worklist)(/.*)?$", OPERATOR, "Use a test tool", "GET POST"),
     _rule(r"^/tools/(dicom-import)(/.*)?$", OPERATOR, "Dicom Import", "GET POST"),
     _rule(r"^/tools/c-find-advanced/run$", OPERATOR, "Run an Analytics query", POST),
-    _rule(r"^/tools/(anonymize|dicom-cleaner|send-image|pdf-store|tag-editor|hl7-send)(/.*)?$", OPERATOR, "Use a PACS tool", "GET POST"),
+    _rule(r"^/tools/(anonymize|dicom-cleaner|dicom-send|send-image|pdf-store|tag-editor|hl7-send)(/.*)?$", OPERATOR, "Use a PACS tool", "GET POST"),
     _rule(r"^/tools(/.*)?$", OPERATOR, "Use a tool", "GET POST"),
     _rule(r"^/api/(tools|echo-board|worklist|hl7)(/.*)?$", OPERATOR, "Use a tool (API)", "GET POST PUT DELETE"),
 )

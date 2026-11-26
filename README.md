@@ -16,6 +16,7 @@ It is **one application with six products**, picked with the tool switcher at th
 | **Dicomtag Analytics** | Study Root C-FIND at Study, Series or Image level with any DICOM tag (including Vue ELSCINT1 keys), saved queries, and listing and retrieving DICOM Structured Reports |
 | **Dicom Anonymizer** | Query a PACS, pick studies and series, retrieve them, anonymize them (four modes) and export them to a folder or a ZIP |
 | **Dicom Router** | Scheduled C-FIND rules with optional retrieve-and-forward, rules that watch a folder and send new PDFs to a PACS, and a status dashboard with a chart per rule |
+| **Dicom Send** | Find studies on one registered archive and send them to another (C-FIND, then C-MOVE here and C-STORE onward), unchanged |
 | **Dicom Cleaner** | Query, retrieve, black out a rectangle of burned-in pixel data and send the result back over C-STORE |
 | **Dicom Import** | Scan a folder, ZIP or 7z file (DICOMDIR and/or loose DICOM files, also inside .zip and .7z files), change patient and exam details, and send the images to a PACS |
 
@@ -185,6 +186,7 @@ AI makes it possible for one person with domain knowledge to build a tool like t
 | MWL C-FIND / Worklist | C-FIND | Modality Worklist `1.2.840.10008.5.1.4.31` | Search *scheduled procedures*, not the archive. |
 | Send Image to PACS | C-FIND (Study or Patient Root, or none for manual entry), C-STORE | Study Root Query/Retrieve FIND, Patient Root Query/Retrieve FIND, then Secondary Capture Image Storage | Reached at `/tools/send-image` in the sidebar. Find a study — by Study Root C-FIND (open or already closed), by Patient Root C-FIND (for an order with no image yet stored at all, but a registered patient), or typed in by hand — pick it, choose a modality and a few descriptive tags, and C-STORE a small solid-black placeholder image carrying that study's Patient/Study/Accession identifiers. |
 | Dicom Router | C-FIND, optional C-MOVE + C-STORE | Study Root Query/Retrieve FIND (MOVE/STORE for retrieve-and-forward) | Reached at `/router` in the sidebar. Same FIND as Dicomtag Analytics, but scheduled/automatic instead of manual, with an optional automatic retrieve-and-forward to one or more destination nodes. |
+| Dicom Send | C-FIND, C-MOVE, C-STORE | Study Root Query/Retrieve FIND/MOVE, then Storage to another node | Reached at `/tools/dicom-send`. The one-off form of a Router rule that forwards: find studies on one archive, check some, send them to another registered archive with their own UIDs. |
 | Dicom Cleaner | C-FIND, C-MOVE, C-STORE | Study Root Query/Retrieve FIND/MOVE, then Storage back out | Reached at `/tools/dicom-cleaner` in the sidebar. Study-level C-FIND, C-MOVE retrieve, blacks out one operator-configured rectangle of pixel data on every retrieved instance (PyDicom + numpy), then C-STOREs the cleaned instances back to a PACS. |
 | Dicom Anonymizer | C-FIND, C-MOVE | Study Root Query/Retrieve FIND and MOVE | Reached at `/tools/anonymize` in the sidebar. A Study-level C-FIND, an optional Series-level C-FIND to list a study's series, then a C-MOVE of the chosen studies or series to this workstation's local Storage SCP. The instances are anonymized in memory and written to a folder or ZIP; nothing is sent back. |
 | Dicom Import | C-STORE | Storage (each file's own SOP Class) | Reached at `/tools/dicom-import` in the sidebar. Scans a folder and C-STOREs its files to a PACS, with optional edits; there is no query. |
@@ -443,7 +445,7 @@ Every virtual calling AE must be allowed on the remote, the same way the worksta
 
 ## Test tools
 
-The **Dicommunication** product's left sidebar lists these directly: Dashboard, Testbench, C-ECHO board, Worklist, then **Connectivity** (PING), **DIMSE** (C-ECHO, C-STORE, PDF to DICOM, C-FIND, MWL C-FIND, Send Image to PACS, Tag Editor), and **HL7** (HL7 send), each category foldable. Dicomtag Analytics, Dicom Anonymizer, Dicom Router, Dicom Cleaner and Dicom Import are products of their own, picked with the tool switcher at the top of the sidebar. The category that contains the current page stays open. New plugin tools appear under their `category`, unless promoted to their own product.
+The **Dicommunication** product's left sidebar lists these directly: Dashboard, Testbench, C-ECHO board, Worklist, then **Connectivity** (PING), **DIMSE** (C-ECHO, C-STORE, PDF to DICOM, C-FIND, MWL C-FIND, Send Image to PACS, Tag Editor), and **HL7** (HL7 send), each category foldable. Dicomtag Analytics, Dicom Anonymizer, Dicom Router, Dicom Send, Dicom Cleaner and Dicom Import are products of their own, picked with the tool switcher at the top of the sidebar. The category that contains the current page stays open. New plugin tools appear under their `category`, unless promoted to their own product.
 
 ### Testbench (`/testbench`)
 
@@ -516,6 +518,10 @@ Each rule can be **Started**, **Paused**, or **Stopped** independently of its ow
 - **Run now** executes a rule immediately without touching its status or schedule at all — useful for testing a paused or stopped rule.
 
 Manual runs (**Run now**, and the run **Start** triggers) execute in a background thread rather than blocking the browser request, which is what makes Pause/Stop clickable while a batch is still going and lets the sidebar show a live "Running" dot. Each rule's own page shows a run history with every match and its status (found / retrieved / forwarded / failed, with the error if any) and whether the run itself completed or was interrupted.
+
+### Dicom Send (`/tools/dicom-send`)
+
+The one-off form of a Dicom Router rule that forwards: pick studies on one archive and send them to another, both from the registered nodes (Configuration > Remote nodes). Four steps. **1. Choose the archives**: **Send from** (the source), **Present as** (the calling AE Title, or a typed one) and **Send to** (the destination, which must differ from the source). **2. Find studies**: a Study-level C-FIND on Study Date (required), Patient ID, Accession Number and Modality, with the same wildcards as Dicomtag Analytics. **3. Choose studies**: tick studies, and choose to send at **Study**, **Series** or **Image** level (a study's *Show series* picks single series). **4. Send**: each checked study is C-MOVEd to this workstation (Accept C-STORE must be on, and this AE must be a C-MOVE destination at the source) and C-STOREd to the destination **with its original UIDs**, so the destination holds an identical copy and the source keeps its own. A browser prompt names both archives first. The images only pass through memory; nothing is saved. The result lists every selection with how many images came back, and a run with anything missing or refused is a Fail that says what. Nothing is edited on the way: use Dicom Import to change details, or the Anonymizer to anonymize. Up to 200 selections per run; use the Router for recurring or very large forwards.
 
 ### Dicom Cleaner (`/tools/dicom-cleaner`)
 
