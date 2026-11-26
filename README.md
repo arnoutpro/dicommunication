@@ -83,6 +83,7 @@ The screenshots follow your GitHub theme (light or dark). They come from a demo 
 
 The full list is in [CHANGELOG.md](CHANGELOG.md).
 
+- **Dicom Import reads `.zip` and `.7z` files (0.15.1).** Type the path of a folder or an archive, or use **Archive…**. A ZIP is read in place; a 7z is unpacked to a temporary folder that is deleted afterwards.
 - **Stop listening / Start listening.** A button on the Dashboard and on the Local DICOM AE page frees this workstation's DICOM port at once, so another program (a viewer such as MicroDicom) can use it, and takes it back when you start listening again. It only pauses the listener: your MWL SCP and C-STORE settings stay, and a pause survives a restart.
 - **macOS: the service no longer ends up stopped after a port change or an upgrade** (it waits for launchd to let go of the old job before starting the new one).
 
@@ -236,7 +237,7 @@ DICOMM_HTTP_BIND=0.0.0.0 DICOMM_ALLOWED_HOSTS=dicomm.example.org docker compose 
 Startup names the address the UI was published on, so `docker compose logs` answers "why can I not reach this from my laptop":
 
 ```
-Dicommunication 0.15.0 started (data dir /app/data, log level INFO)
+Dicommunication 0.15.1 started (data dir /app/data, log level INFO)
 Web UI published on 127.0.0.1:8080 — reachable from the Docker host only. This is the
 default. To reach it from another machine, restart with DICOMM_HTTP_BIND=0.0.0.0
 (that turns on sign-in and HTTPS).
