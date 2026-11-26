@@ -31,9 +31,9 @@ def tile_for_rule(rule: RouteRule, run: RouteRun | None, now: datetime | None = 
     else:
         state = "ok" if run.ok else "error"
     unit = "exams"
-    if rule.kind == "pdf_folder":
+    if rule.is_folder_watch:
         # A folder watch: what was sent and what failed on the last run, and files still waiting.
-        unit = "PDFs"
+        unit = rule.watch_unit
         by_status = dict(run.status_counts)
         modalities = {}
     elif rule.status_key:
@@ -70,7 +70,7 @@ def history_for_rule(rule: RouteRule, daily: dict[str, dict[str, int]], days: in
             if label not in labels:
                 labels.append(label)
     labels.sort()
-    keyed = bool(rule.status_key) or rule.kind == "pdf_folder"
+    keyed = bool(rule.status_key) or rule.is_folder_watch
     if keyed:
         series = {label: [daily[day].get(label, 0) if day in daily else None for day in dates] for label in labels}
     else:
@@ -78,5 +78,5 @@ def history_for_rule(rule: RouteRule, daily: dict[str, dict[str, int]], days: in
     totals = [sum(daily[day].values()) if day in daily else None for day in dates]
     return {
         "rule_id": rule.id, "rule_name": rule.name, "keyed": keyed, "series": series, "totals": totals,
-        "unit": "PDFs" if rule.kind == "pdf_folder" else "exams",
+        "unit": rule.watch_unit if rule.is_folder_watch else "exams",
     }

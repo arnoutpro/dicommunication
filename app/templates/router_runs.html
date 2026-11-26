@@ -17,7 +17,7 @@
       <span class="badge">Stopped</span>
       {% endif %}
     </h1>
-    <p class="lede">{{ rule.schedule_label }} · {% if rule.kind == 'pdf_folder' %}watches a folder for PDFs &rarr; {{ config.get_remote(rule.pdf_destination_id).ae_title if config.get_remote(rule.pdf_destination_id) else 'PACS missing' }}{% else %}{{ config.get_remote(rule.source_remote_id).ae_title if config.get_remote(rule.source_remote_id) else 'source node missing' }}{% endif %}{% if rule.destination_remote_ids %} → {{ rule.destination_remote_ids | length }} destination{% if rule.destination_remote_ids | length != 1 %}s{% endif %}{% endif %}</p>
+    <p class="lede">{{ rule.schedule_label }} · {% if rule.is_folder_watch %}watches a folder for {{ 'PDFs' if rule.kind == 'pdf_folder' else 'DICOM files' }} &rarr; {{ config.get_remote(rule.pdf_destination_id).ae_title if config.get_remote(rule.pdf_destination_id) else 'PACS missing' }}{% else %}{{ config.get_remote(rule.source_remote_id).ae_title if config.get_remote(rule.source_remote_id) else 'source node missing' }}{% endif %}{% if rule.destination_remote_ids %} → {{ rule.destination_remote_ids | length }} destination{% if rule.destination_remote_ids | length != 1 %}s{% endif %}{% endif %}</p>
     </div>
   </div>
   <a href="{{ href('/router') }}">&larr; All route rules</a>
@@ -51,7 +51,14 @@
   </div>
 </section>
 
-{% if rule.kind == 'pdf_folder' %}
+{% if rule.kind == 'dicom_folder' %}
+<section class="panel">
+  <header class="panel-head">
+    <h2>What this rule does</h2>
+  </header>
+  <p>Each run sends the items directly in <code>{{ rule.pdf_folder }}</code> to the PACS: a loose DICOM file, a sub-folder (a study), or a .zip or .7z file. An item whose images were all stored moves, as a whole, into a <code>Sent</code> sub-folder. An item the PACS does not fully take stays and is tried again next run. An item with no DICOM in it is left alone, and one that is still being copied in (changed in the last 30 seconds) waits.</p>
+</section>
+{% elif rule.kind == 'pdf_folder' %}
 <section class="panel">
   <header class="panel-head">
     <h2>What this rule does</h2>
@@ -91,12 +98,12 @@
         {% elif run.status == 'interrupted' %}<span class="badge">Interrupted</span>
         {% else %}<span class="badge ok">Completed</span>{% endif %}
         {{ run.started_at.strftime('%Y-%m-%d %H:%M:%S') }} UTC ·
-        {% if rule.kind == 'pdf_folder' %}{{ run.matched_count }} PDF{% if run.matched_count != 1 %}s{% endif %}{% else %}{{ run.matched_count }} matched · {{ run.new_count }} new{% endif %}
+        {% if rule.is_folder_watch %}{{ run.matched_count }} {{ 'PDF' if rule.kind == 'pdf_folder' else 'item' }}{% if run.matched_count != 1 %}s{% endif %}{% else %}{{ run.matched_count }} matched · {{ run.new_count }} new{% endif %}
       </h3>
       <span class="muted small">{{ "%.0f"|format(run.duration_ms) }} ms</span>
     </header>
     {% if run.error %}<p class="muted">{{ run.error }}</p>{% endif %}
-    {% if (run.ok or rule.kind == 'pdf_folder') and run.status_counts %}
+    {% if (run.ok or rule.is_folder_watch) and run.status_counts %}
     <p class="small">{% for value, count in run.status_counts.items() %}<span class="badge{% if value == '(none)' %} fail{% endif %}">{{ value }}: {{ count }}</span> {% endfor %}</p>
     {% if rule.status_key and run.status_counts.get('(none)') %}<p class="muted small">{{ run.status_counts['(none)'] }} matched stud{{ 'y' if run.status_counts['(none)'] == 1 else 'ies' }} came back without the status value. The PACS may ignore this key on C-FIND.</p>{% endif %}
     {% endif %}
@@ -105,7 +112,7 @@
     <p class="small">{% for value, count in run.outcome_counts.items() %}<span class="badge {% if value in ('forwarded', 'retrieved') %}ok{% elif value == 'failed' %}fail{% endif %}">{{ value | capitalize }}: {{ count }}</span> {% endfor %}</p>
     {% endif %}
     {% for message, count in run.error_counts.items() %}<p class="muted small">{{ count }}× {{ message }}</p>{% endfor %}
-    <p class="muted small">Only counts are kept. {% if rule.kind == 'pdf_folder' %}File names are not stored.{% else %}The studies themselves are not stored.{% endif %}</p>
+    <p class="muted small">Only counts are kept. {% if rule.is_folder_watch %}File and folder names are not stored.{% else %}The studies themselves are not stored.{% endif %}</p>
   </div>
   {% endfor %}
   {% else %}

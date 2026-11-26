@@ -234,7 +234,7 @@ async def add_or_update_route_rule(request: Request):
 
     try:
         rule = RouteRule(**fields)
-        if rule.kind == "pdf_folder":
+        if rule.is_folder_watch:
             _check_pdf_rule(request, rule)
     except (ValidationError, ValueError) as exc:
         message, error_field = _rule_error(exc, fields)

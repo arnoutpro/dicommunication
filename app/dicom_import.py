@@ -240,6 +240,11 @@ class ScanResult:
                 return f"{label}{ARCHIVE_SEP}{path[len(prefix):].replace(os.sep, '/')}"
         return os.path.relpath(path, self.root)
 
+    def entry_of(self, path: str) -> str:
+        """The name directly inside the scanned folder that a file belongs to (a loose file, a sub-folder or an archive)."""
+        shown = self.display(path).replace(os.sep, "/")
+        return shown.split(ARCHIVE_SEP)[0].split("/")[0]
+
     def studies(self) -> list[ImportedStudy]:
         return [study for patient in self.patients.values() for study in patient.studies.values()]
 
@@ -331,6 +336,7 @@ def scan_folder(
     include_headerless: bool = False,
     max_files: int = MAX_FILES,
     workdir: str | os.PathLike[str] | None = None,
+    skip_top: set[str] | None = None,
 ) -> ScanResult:
     """Index every DICOM file under ``root``, with a DICOMDIR cross-check if there is one.
 
@@ -537,6 +543,9 @@ def scan_folder(
                     continue
                 index_dataset(ds, member_path, info.file_size, member_shown, True)
     for folder, dirs, files in walker:
+        if skip_top and os.path.normcase(folder) == os.path.normcase(str(base)):
+            dirs[:] = [name for name in dirs if name not in skip_top]  # names directly in the scanned folder to leave out
+            files = [name for name in files if name not in skip_top]
         dirs.sort()
         for name in sorted(files):
             if cancel is not None and cancel.is_set():
@@ -898,6 +907,7 @@ class SendProgress:
     decompressed: int = 0
     bytes_sent: int = 0
     current: str = ""
+    sent_paths: list[str] = field(default_factory=list)  # only when SendOptions.record_paths
     failures: list[SendFailure] = field(default_factory=list)
     message: str = ""  # a problem with the connection itself
     cancelled: bool = False
@@ -917,6 +927,7 @@ class SendProgress:
 class SendOptions:
     study_uids: set[str] | None = None  # None: every study
     decompress: bool = True  # decompress an image the PACS will not take as it is
+    record_paths: bool = False  # keep which files were stored (the Router folder watch needs it; the Import page does not)
 
 
 def _selected(scan: ScanResult, options: SendOptions) -> list[tuple[ImportedStudy, ImportedInstance]]:
@@ -1042,10 +1053,14 @@ def send_import(
             elif code == 0x0000:
                 progress.stored += 1
                 progress.bytes_sent += instance.size
+                if options.record_paths:
+                    progress.sent_paths.append(instance.path)
             elif 0xB000 <= code <= 0xBFFF:
                 progress.stored += 1
                 progress.warnings += 1
                 progress.bytes_sent += instance.size
+                if options.record_paths:
+                    progress.sent_paths.append(instance.path)
             else:
                 _fail(progress, instance, f"C-STORE status 0x{code:04X}")
             if was_decompressed and code is not None and (code == 0 or 0xB000 <= code <= 0xBFFF):

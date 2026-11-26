@@ -945,13 +945,13 @@ function initRouteRuleForm() {
     form.querySelectorAll("[data-required-when-daily]").forEach((el) => { el.required = daily; });
     form.querySelectorAll("[data-reveal-when]").forEach((el) => {
       const [name, value] = el.getAttribute("data-reveal-when").split("=");
-      el.hidden = form.querySelector(`[name="${name}"]`)?.value !== value;
+      el.hidden = !value.split("|").includes(form.querySelector(`[name="${name}"]`)?.value);
     });
     // A box that is only needed for one kind of rule is required only then: a required box that is
     // hidden can never be filled in, and the browser would refuse the form without a word.
     form.querySelectorAll("[data-required-when]").forEach((el) => {
       const [name, value] = el.getAttribute("data-required-when").split("=");
-      el.required = form.querySelector(`[name="${name}"]`)?.value === value;
+      el.required = value.split("|").includes(form.querySelector(`[name="${name}"]`)?.value);
     });
   }
   form.addEventListener("change", sync);
