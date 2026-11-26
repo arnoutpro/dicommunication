@@ -34,7 +34,7 @@ from app.mwl_scp import STORAGE_INBOX
 from app.tools.anonymize import _retrieve_selections
 from app.tools.base import BaseTool, elapsed_ms
 from app.tools.find_advanced import retrieve_storage_gate_message
-from app.tools.find_keys import build_identifier, normalize_da, record_from_dataset
+from app.tools.find_keys import build_identifier, normalize_da, record_from_dataset, study_filter_values
 from app.tools.redact_engine import RedactionError, parse_region, redact_pixels
 from app.tools.registry import register
 
@@ -71,8 +71,9 @@ LEVELS = ("STUDY", "SERIES", "IMAGE")
 UID_MODES = ("new", "same")
 
 
-def _study_query(local: LocalAE, remote: RemoteNode, values: dict[str, str]):
-    identifier = build_identifier("STUDY", values, QUERY_COLUMNS)
+def _study_query(local: LocalAE, remote: RemoteNode, values: dict[str, str], columns: list[str] | None = None):
+    columns = columns or QUERY_COLUMNS
+    identifier = build_identifier("STUDY", values, columns)
     contexts: list[dict[str, Any]] = []
     assoc = None
     try:
@@ -95,7 +96,7 @@ def _study_query(local: LocalAE, remote: RemoteNode, values: dict[str, str]):
             code = int(status.Status)
             if code in PENDING and identifier_ds is not None:
                 if len(records) < MAX_QUERY_RESULTS:
-                    records.append(record_from_dataset(identifier_ds, QUERY_COLUMNS))
+                    records.append(record_from_dataset(identifier_ds, columns))
             elif code == 0x0000:
                 continue
             else:
@@ -341,6 +342,10 @@ class CleanerTool(BaseTool):
             values["AccessionNumber"] = accession_number
         if modality:
             values["ModalitiesInStudy"] = modality
+        try:
+            values.update(study_filter_values(options))
+        except ValueError as exc:
+            return ToolResult(tool_id=self.id, tool_name=self.name, ok=False, summary=str(exc), remote_id=remote.id, remote_name=remote.name)
 
         started = time.perf_counter()
         with capture_pynetdicom_log() as log_stream:

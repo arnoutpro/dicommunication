@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+### New
+
+- **Dicom Send: Find studies is the Dicomtag Analytics query form, at Study level.** The same Return / Field / Match value table, Study Date period menu, shortcuts, *More filters* (Study Description, Referring Physician and the other study keys, the Vue private ones such as Study Body Part, Patient Class and Study Reason) and *Add other DICOM tags*, without the Series and Image levels. The list shows the columns you tick as *Return*. A text value is now checked before it is sent: a backslash, line breaks, a value longer than the field allows, or a character outside Latin-1 is refused with the field's name, `%` works as `*`, and a value outside plain ASCII declares the Latin-1 character set in the query.
+- **Dicom Anonymizer and Dicom Cleaner: more Find studies filters.** Study Description is a normal field, and *More filters* holds Referring Physician, Study Body Part, Patient Class and Study Reason (the last three are Vue private tags, so another PACS ignores them). None of them is a column of the list. They are checked the same way.
+
 ## 0.15.6
 
 ### New

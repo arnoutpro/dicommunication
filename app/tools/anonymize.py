@@ -42,7 +42,7 @@ from app.mwl_scp import STORAGE_INBOX
 from app.tools.anon_engine import MODE_LABELS, MODES, AnonBatch
 from app.tools.base import BaseTool, elapsed_ms
 from app.tools.find_advanced import retrieve_storage_gate_message
-from app.tools.find_keys import build_identifier, normalize_da, record_from_dataset
+from app.tools.find_keys import build_identifier, normalize_da, record_from_dataset, study_filter_values
 from app.tools.registry import register
 
 PENDING = {0xFF00, 0xFF01}
@@ -540,6 +540,10 @@ class AnonymizeTool(BaseTool):
             values["AccessionNumber"] = accession_number
         if modality:
             values["ModalitiesInStudy"] = modality
+        try:
+            values.update(study_filter_values(options))
+        except ValueError as exc:
+            return ToolResult(tool_id=self.id, tool_name=self.name, ok=False, summary=str(exc), remote_id=remote.id, remote_name=remote.name)
 
         started = time.perf_counter()
         with capture_pynetdicom_log() as log_stream:

@@ -16,7 +16,7 @@
             <input type="checkbox" data-study-pick-all aria-label="Select all studies">
           </th>
           {% for key in result.records[0].keys() %}
-          <th>{{ key.replace("_", " ") }}</th>
+          <th>{{ column_labels.get(key) if column_labels is defined and column_labels and column_labels.get(key) else key.replace("_", " ") }}</th>
           {% endfor %}
         </tr>
       </thead>

@@ -1325,6 +1325,71 @@ def normalize_value(keyword: str, value: str) -> str:
     return text
 
 
+# Extra Study-level filters of Dicom Anonymizer, Dicom Cleaner and Dicom Send: form field -> (keyword, label).
+# None of them is a column of the result table. The body part, patient class and reason are Vue private tags.
+STUDY_FILTERS: dict[str, tuple[str, str]] = {
+    "study_description": ("StudyDescription", "Study Description"),
+    "referring_physician": ("ReferringPhysicianName", "Referring Physician"),
+    "body_part": ("TamarStudyBodyPart", "Study Body Part"),
+    "patient_class": ("TamarPatientClass", "Patient Class"),
+    "study_reason": ("TamarStudyReason", "Study Reason"),
+}
+_MAX_MATCH_LENGTH = {"SH": 16, "CS": 16, "LO": 64, "PN": 320, "ST": 1024}
+
+
+def validate_match_text(keyword: str, value: str) -> str:
+    """A text match value as it will be sent, or ValueError saying what is wrong with it.
+
+    The value goes into a C-FIND identifier as a single DICOM value, so a backslash (which splits a value
+    into several), a control character, a value longer than the field's VR allows, or a character that
+    cannot be written in the Latin-1 character set the query declares would make the query invalid.
+    """
+    key = lookup_key(keyword)
+    label = key.label if key else keyword
+    text = normalize_value(keyword, value)
+    if not text:
+        return ""
+    if any(ord(char) < 32 or ord(char) == 127 for char in text):
+        raise ValueError(f"{label}: remove the line breaks and other control characters.")
+    if "\\" in text:
+        raise ValueError(f"{label}: remove the backslash. In DICOM it separates several values.")
+    limit = _MAX_MATCH_LENGTH.get(key.vr if key else "", 64)
+    if len(text) > limit:
+        raise ValueError(f"{label}: at most {limit} characters, this has {len(text)}.")
+    try:
+        text.encode("latin-1")
+    except UnicodeEncodeError:
+        raise ValueError(f"{label}: only Latin-1 letters can be searched for (no characters outside Western European text).") from None
+    return text
+
+
+def validate_study_values(values: Mapping[str, str]) -> dict[str, str]:
+    """Every match value of a Study-level query, normalised, or ValueError for the first one that is not valid.
+
+    Text values are checked as validate_match_text does; dates, times and numbers are only normalised, as before.
+    """
+    checked: dict[str, str] = {}
+    for keyword, raw in values.items():
+        key = lookup_key(keyword)
+        if key is not None and key.vr in WILDCARD_TEXT_VRS:
+            text = validate_match_text(keyword, str(raw))
+        else:
+            text = normalize_value(keyword, str(raw))
+        if text:
+            checked[keyword] = text
+    return checked
+
+
+def study_filter_values(options: Mapping[str, Any]) -> dict[str, str]:
+    """The extra Study-level filters in ``options``, as {keyword: validated value}. ValueError if one is invalid."""
+    values: dict[str, str] = {}
+    for field, (keyword, _label) in STUDY_FILTERS.items():
+        text = validate_match_text(keyword, str(options.get(field) or ""))
+        if text:
+            values[keyword] = text
+    return values
+
+
 def _form_list(form: Mapping[str, Any], name: str) -> list[str]:
     getter = getattr(form, "getlist", None)
     if callable(getter):
@@ -1547,6 +1612,8 @@ def build_identifier(level: str, values: Mapping[str, str], return_keys: Iterabl
     identifier.QueryRetrieveLevel = level
     for keyword in selected_keywords(level, values, return_keys):
         apply_key(identifier, keyword, str(values.get(keyword) or ""))
+    if any(not str(value).isascii() for value in values.values()):
+        identifier.SpecificCharacterSet = "ISO_IR 100"  # the match values hold characters outside plain ASCII
     return identifier
 
 

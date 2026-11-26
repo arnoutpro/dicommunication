@@ -29,6 +29,9 @@
 {% call field("Accession Number", "query-accession") %}
 <input id="query-accession" class="w-md" type="text" name="accession_number" value="{{ query.accession_number or '' }}" placeholder="ACC1">
 {% endcall %}
+{% call field("Study Description", "query-description", "Exact, or use * as a wildcard: *CHEST* finds every description that contains CHEST (% works too, as in Vue). Up to 64 characters.") %}
+<input id="query-description" class="w-lg" type="text" name="study_description" maxlength="64" value="{{ query.study_description or '' }}" placeholder="CT CHEST" spellcheck="false">
+{% endcall %}
 <div class="fld">
   <span class="fld-label"><label id="query-modality-label">Modalities</label>{{ tip("None selected matches any modality.") }}</span>
   <div class="fld-control">
@@ -46,6 +49,24 @@
     </details>
   </div>
 </div>
+{% set more_open = query.referring_physician or query.body_part or query.patient_class or query.study_reason %}
+<details class="advanced"{% if more_open %} open{% endif %}>
+  <summary>More filters</summary>
+  <div class="fields">
+    {% call field("Referring Physician", "query-referring", "Name as DICOM writes it, LAST^FIRST. Use * as a wildcard: SMITH* finds every physician whose name starts with SMITH. Up to 64 characters per name part.") %}
+    <input id="query-referring" class="w-md" type="text" name="referring_physician" maxlength="320" value="{{ query.referring_physician or '' }}" placeholder="SMITH*" spellcheck="false">
+    {% endcall %}
+    {% call field("Study Body Part", "query-bodypart", "Vue only: the Tamar Study Body Part private tag (07a1,1040), a code of up to 16 capital letters, digits, spaces or underscores. Another PACS ignores a key it does not know, so every study comes back.") %}
+    <input id="query-bodypart" class="w-md" type="text" name="body_part" maxlength="16" value="{{ query.body_part or '' }}" placeholder="PELVIS" spellcheck="false">
+    {% endcall %}
+    {% call field("Patient Class", "query-class", "Vue only: the Tamar Patient Class private tag (07a3,1013), up to 16 characters, for example I (inpatient) or O (outpatient).") %}
+    <input id="query-class" class="w-sm" type="text" name="patient_class" maxlength="16" value="{{ query.patient_class or '' }}" placeholder="I" spellcheck="false">
+    {% endcall %}
+    {% call field("Study Reason", "query-reason", "Vue only: the Tamar Study Reason private tag (07a3,1018), free text of up to 1024 characters. Use * as a wildcard: *fall* finds every reason that contains fall. A backslash, line breaks and characters outside Latin-1 are refused.") %}
+    <input id="query-reason" class="w-lg" type="text" name="study_reason" maxlength="1024" value="{{ query.study_reason or '' }}" placeholder="*chest pain*" spellcheck="false">
+    {% endcall %}
+  </div>
+</details>
 <div class="fld">
   <span class="fld-label"></span>
   <div class="fld-control">
