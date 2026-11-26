@@ -57,7 +57,7 @@ source .venv/bin/activate
 ./packaging/macos/build.sh
 ```
 
-CI does the same and uploads `dicommunication-*-macos-arm64.dmg`. A `v*` tag attaches that DMG to the GitHub Release next to the Windows MSI.
+CI does the same and uploads `dicommunication-*-macos-arm64.dmg`. It runs only when you start it (**Actions → macOS DMG → Run workflow**); pushing a tag does not. Run it on a `v*` tag and the DMG is attached to that GitHub Release next to the Windows MSI.
 
 To attach a DMG to an already-cut tag without making a new version, run **macOS DMG** with `release_tag` set to the tag (for example `v0.2.0`).
 

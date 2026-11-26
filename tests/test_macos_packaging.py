@@ -139,6 +139,8 @@ def test_the_workflow_builds_uploads_then_smoke_tests_the_real_install() -> None
     assert "runs-on: macos-latest" in workflow and "requirements-desktop.txt" not in workflow
     assert workflow.index("Upload DMG") < workflow.index("smoke_test.sh")  # a failing test must not lose the artifact
     assert "dist/*.dmg" in workflow and "release_tag" in workflow
+    triggers = workflow.split("permissions:")[0]
+    assert "workflow_dispatch:" in triggers and "push:" not in triggers and "tags:" not in triggers  # started by hand only
     smoke = (MAC / "smoke_test.sh").read_text(encoding="utf-8")
     for word in ("installer -pkg", "*/setup", "create-admin smoke", "service uninstall --delete-data", "0700", "id _dicommunication"):
         assert word in smoke, word
