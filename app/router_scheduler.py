@@ -20,6 +20,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import shutil
 import threading
 import time
 from datetime import date, datetime, time as dt_time, timedelta, timezone
@@ -37,6 +38,7 @@ from app.applog import log
 from app.dicom_client import associate
 from app.models import LocalAE, RemoteNode, ROUTE_RUN_MAX_MATCHES, RouteMatch, RouteRule, RouteRun, utc_now
 from app.mwl_scp import STORAGE_INBOX, WorklistSCP
+from app.dicom_watch import run_watch as run_dicom_watch
 from app.pdf_watch import WatchError, run_watch
 from app.store import ConfigStore
 from app.tools.find_keys import _read_key, apply_key
@@ -401,6 +403,7 @@ class RouterScheduler:
         if self._thread is not None:
             return
         self._stop_event.clear()
+        shutil.rmtree(self.store.data_dir / "router_tmp", ignore_errors=True)  # anything a crashed run left unpacked
         self._thread = threading.Thread(target=self._loop, name="router-scheduler", daemon=True)
         self._thread.start()
 
@@ -536,8 +539,8 @@ class RouterScheduler:
         """
         now = now or utc_now()
         started = time.perf_counter()
-        if rule.kind == "pdf_folder":
-            return self._run_pdf_watch(rule, now, started, interrupt)
+        if rule.is_folder_watch:
+            return self._run_folder_watch(rule, now, started, interrupt)
         config = self.store.load()
         local = config.local
         remote = config.get_remote(rule.source_remote_id)
@@ -659,10 +662,10 @@ class RouterScheduler:
         self.store.add_route_run(run)
         return run
 
-    def _run_pdf_watch(
+    def _run_folder_watch(
         self, rule: RouteRule, now: datetime, started: float, interrupt: threading.Event | None
     ) -> RouteRun:
-        """A "watch a folder for PDFs" rule: send what is in the folder, move what was stored."""
+        """A "watch a folder" rule (PDFs or DICOM): send what is in the folder, move what was stored."""
         config = self.store.load()
         run = RouteRun(rule_id=rule.id, rule_name=rule.name, started_at=now)
         remote = config.get_remote(rule.pdf_destination_id)
@@ -678,7 +681,12 @@ class RouterScheduler:
             run.status = "interrupted"
         else:
             try:
-                outcome, sent_keys = run_watch(rule, local, remote, now, interrupt)
+                if rule.kind == "dicom_folder":
+                    outcome, sent_keys = run_dicom_watch(
+                        rule, local, remote, now, interrupt, workdir=self.store.data_dir / "router_tmp" / rule.id
+                    )
+                else:
+                    outcome, sent_keys = run_watch(rule, local, remote, now, interrupt)
             except WatchError as exc:
                 run.ok, run.error = False, str(exc)
             else:
@@ -699,15 +707,20 @@ class RouterScheduler:
                 rule.mark_pdf_sent(sent_keys)
                 if outcome.failed:
                     run.ok = False
-                    run.error = f"{outcome.failed} PDF{'s' if outcome.failed != 1 else ''} could not be sent; they are tried again next run unless they were not valid PDFs."
+                    unit = "PDF" if rule.kind == "pdf_folder" else "item"
+                    run.error = (
+                        f"{outcome.failed} {unit}{'s' if outcome.failed != 1 else ''} could not be sent; they are tried again next run"
+                        + (" unless they were not valid PDFs." if rule.kind == "pdf_folder" else ".")
+                    )
                 if outcome.stuck:
                     run.ok = False
                     run.error = (run.error + " " if run.error else "") + (
-                        f"{outcome.stuck} file{'s' if outcome.stuck != 1 else ''} could not be moved into the Sent folder; "
+                        f"{outcome.stuck} {'file' if rule.kind == 'pdf_folder' else 'item'}{'s' if outcome.stuck != 1 else ''} could not be moved into the Sent folder; "
                         "check that the app's account may write to the watch folder."
                     )
                 log.info(
-                    "PDF watch %s: %d sent, %d failed, %d waiting%s",
+                    "%s watch %s: %d sent, %d failed, %d waiting%s",
+                    "PDF" if rule.kind == "pdf_folder" else "DICOM",
                     rule.name, outcome.sent, outcome.failed, outcome.waiting,
                     f", {outcome.more} more next run" if outcome.more else "",
                 )

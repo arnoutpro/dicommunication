@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### New
+
+- **Dicom Router: watch a folder for DICOM files.** A new rule **Kind**, *Watch a folder for DICOM files*, next to *Watch a folder for PDFs*. Each item directly in the folder is one unit: a loose DICOM file, a sub-folder (a study, with sub-folders in it), or a `.zip` / `.7z` file. Items still being copied in (changed in the last 30 seconds) wait. The settled items are sent in one association with the Dicom Import engine, and an item whose images were all stored moves, as a whole, into a `Sent` sub-folder. An item the PACS does not fully take stays and is sent again next run; an item with no DICOM in it is left alone. It uses the same schedule, Start / Pause / Stop, Run now and status dashboard as other rules, counted in items. A 7z is unpacked to `router_tmp` in the data folder for the run only. No file or folder names are stored. Nothing is edited on the way; use Dicom Import for that.
+
 ## 0.15.3
 
 ### Changes

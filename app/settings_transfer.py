@@ -340,7 +340,7 @@ def plan_import(store: ConfigStore, parsed: ParsedSettings, sections: list[str] 
             action = ADD if current is None else SAME if _same_payload(incoming, current, ignore) else UPDATE
             detail = "new rules start stopped" if action == ADD else "keeps its running state" if action == UPDATE else ""
             plan.items.append(PlanItem(SECTION_RULES, rule.name, action, detail))
-            if rule.kind == "pdf_folder" and action != SAME:
+            if rule.is_folder_watch and action != SAME:
                 plan.warnings.append(f"{who} watches {rule.pdf_folder}. Check that folder exists on this computer, and that the app's account may read and write it.")
             if rule.export_dir and action != SAME:
                 plan.warnings.append(f"{who} writes files to {rule.export_dir}. Check that folder exists on this computer.")

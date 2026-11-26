@@ -9,7 +9,7 @@
     {% include "partials/page_icon.html" %}
     <div>
     <h1>Route rules</h1>
-    <p class="lede">Each rule runs on a timer or daily schedule. A query rule runs a C-FIND against a PACS; add destination nodes to also C-MOVE new matches here and C-STORE them onward, or leave them empty to just track new studies. A PDF rule watches a folder and sends each new PDF to a PACS.</p>
+    <p class="lede">Each rule runs on a timer or daily schedule. A query rule runs a C-FIND against a PACS; add destination nodes to also C-MOVE new matches here and C-STORE them onward, or leave them empty to just track new studies. A PDF rule watches a folder and sends each new PDF to a PACS. A DICOM rule watches a folder and sends the DICOM files, study folders and .zip / .7z files in it.</p>
     </div>
   </div>
   <div class="actions">
@@ -74,15 +74,16 @@
     {% if editing %}
     <input type="hidden" name="kind" value="{{ kind }}">
     {% else %}
-    {% call field("Kind", "rule-kind", "A query rule asks a PACS for new studies on a schedule and can forward them. A PDF watch rule sends the PDFs in a folder to a PACS on a schedule.") %}
+    {% call field("Kind", "rule-kind", "A query rule asks a PACS for new studies on a schedule and can forward them. A PDF watch rule sends the PDFs in a folder to a PACS on a schedule. A DICOM watch rule sends the DICOM files, study folders and .zip / .7z archives in a folder to a PACS on a schedule.") %}
     <select id="rule-kind" class="w-lg" name="kind">
       <option value="query" {% if kind == 'query' %}selected{% endif %}>Query a PACS for new studies</option>
       <option value="pdf_folder" {% if kind == 'pdf_folder' %}selected{% endif %}>Watch a folder for PDFs</option>
+      <option value="dicom_folder" {% if kind == 'dicom_folder' %}selected{% endif %}>Watch a folder for DICOM files</option>
     </select>
     {% endcall %}
     {% endif %}
     {% call field("Name", "rule-name", required=True) %}
-    <input id="rule-name" class="w-lg" name="name"{{ invalid("name") }} required placeholder="{% if kind == 'pdf_folder' %}Reports from the RIS{% else %}Nightly CT from PACS{% endif %}" value="{{ values.name if values else '' }}">
+    <input id="rule-name" class="w-lg" name="name"{{ invalid("name") }} required placeholder="{% if kind == 'pdf_folder' %}Reports from the RIS{% elif kind == 'dicom_folder' %}Exports from the workstation{% else %}Nightly CT from PACS{% endif %}" value="{{ values.name if values else '' }}">
     {{ field_error("name") }}
     {% endcall %}
     <div data-reveal-when="kind=query"{% if kind != 'query' %} hidden{% endif %}>
@@ -133,13 +134,13 @@
 
     </div>
 
-    <div data-reveal-when="kind=pdf_folder"{% if kind != 'pdf_folder' %} hidden{% endif %}>
-    {% call field("Watch folder", "rule-pdf-folder", "A folder on the computer the app runs on. Each run sends the PDFs directly in it (not in sub-folders) and moves the sent ones into a Sent sub-folder. The app's own account must be allowed to read and write there. A file that is still being written is left for the next run; one the PACS does not take stays and is tried again; one that is not a PDF goes to a Failed sub-folder.", required=True) %}
-    <input id="rule-pdf-folder" class="w-lg" name="pdf_folder"{{ invalid("pdf_folder") }} data-required-when="kind=pdf_folder"{% if kind == 'pdf_folder' %} required{% endif %} placeholder="D:\Reports\ToPACS" spellcheck="false" value="{{ values.pdf_folder if values else '' }}">
+    <div data-reveal-when="kind=pdf_folder|dicom_folder"{% if kind not in ('pdf_folder', 'dicom_folder') %} hidden{% endif %}>
+    {% call field("Watch folder", "rule-pdf-folder", ("A folder on the computer the app runs on. Each run sends the PDFs directly in it (not in sub-folders) and moves the sent ones into a Sent sub-folder. The app's own account must be allowed to read and write there. A file that is still being written is left for the next run; one the PACS does not take stays and is tried again; one that is not a PDF goes to a Failed sub-folder." if kind == 'pdf_folder' else "A folder on the computer the app runs on. Each item directly in it is sent as a unit: a loose DICOM file, a sub-folder (a study, with any sub-folders in it), or a .zip or .7z file. When every image of an item has been stored, the whole item moves into a Sent sub-folder. An item the PACS does not fully take stays and is tried again. An item with no DICOM in it is left alone. An item still being copied in (changed in the last 30 seconds) waits for the next run. The app's own account must be allowed to read and write there. A 7z is unpacked to a temporary folder for the run."), required=True) %}
+    <input id="rule-pdf-folder" class="w-lg" name="pdf_folder"{{ invalid("pdf_folder") }} data-required-when="kind=pdf_folder|dicom_folder"{% if kind in ('pdf_folder', 'dicom_folder') %} required{% endif %} placeholder="{% if kind == 'dicom_folder' %}D:\Exports\ToPACS{% else %}D:\Reports\ToPACS{% endif %}" spellcheck="false" value="{{ values.pdf_folder if values else '' }}">
     {{ field_error("pdf_folder") }}
     {% endcall %}
-    {% call field("Send to", "rule-pdf-dest", "The PACS that stores the PDFs as Encapsulated PDF Storage.", required=True) %}
-    <select id="rule-pdf-dest" class="w-lg" name="pdf_destination_id"{{ invalid("pdf_destination_id") }} data-required-when="kind=pdf_folder"{% if kind == 'pdf_folder' %} required{% endif %}>
+    {% call field("Send to", "rule-pdf-dest", ("The PACS that stores the PDFs as Encapsulated PDF Storage." if kind == 'pdf_folder' else "The PACS that stores the DICOM images (a C-STORE of each file's own SOP Class)."), required=True) %}
+    <select id="rule-pdf-dest" class="w-lg" name="pdf_destination_id"{{ invalid("pdf_destination_id") }} data-required-when="kind=pdf_folder|dicom_folder"{% if kind in ('pdf_folder', 'dicom_folder') %} required{% endif %}>
       <option value="">Select a remote node…</option>
       {% for node in config.remotes %}
       <option value="{{ node.id }}" {% if values and values.pdf_destination_id == node.id %}selected{% endif %}>{{ node.name }} ({{ node.ae_title }})</option>
@@ -160,6 +161,8 @@
     </span>
     {{ field_error("pdf_identity_id") }}
     {% endcall %}
+    </div>
+    <div data-reveal-when="kind=pdf_folder"{% if kind != 'pdf_folder' %} hidden{% endif %}>
     {% call field("Stored as (Modality)", "rule-pdf-mod", "The Modality tag of the stored document: DOC (the default), SR or OT, or another code of up to 16 capital letters, digits, spaces or underscores. It is still an Encapsulated PDF.") %}
     <input id="rule-pdf-mod" class="w-sm" name="pdf_modality"{{ invalid("pdf_modality") }} placeholder="DOC" value="{{ values.pdf_modality if values and values.pdf_modality else 'DOC' }}">
     {{ field_error("pdf_modality") }}
@@ -311,9 +314,9 @@
           <td>
             <a class="route-rule-name" href="{{ href('/router/' ~ r.id ~ '/runs') }}">{{ r.name }}</a>
             <div class="muted small">
-              {% if r.kind == 'pdf_folder' %}
+              {% if r.is_folder_watch %}
               {% set dest = config.get_remote(r.pdf_destination_id) %}
-              Watches <code>{{ r.pdf_folder }}</code> &rarr; {{ dest.name if dest else 'missing node' }} · PDF
+              Watches <code>{{ r.pdf_folder }}</code> &rarr; {{ dest.name if dest else 'missing node' }} · {{ 'PDF' if r.kind == 'pdf_folder' else 'DICOM' }}
               {% else %}
               {{ source.name if source else 'Source node missing' }}
               {% if r.destination_remote_ids %}

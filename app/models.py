@@ -201,6 +201,7 @@ class RemoteNode(BaseModel):
 
 HHMM_PATTERN = re.compile(r"^([01]\d|2[0-3]):([0-5]\d)$")
 MAX_SEEN_STUDY_UIDS = 5000
+WATCH_KINDS = ("pdf_folder", "dicom_folder")  # rule kinds that watch a folder
 MAX_PDF_SENT_KEYS = 5000
 ROUTE_RUN_MAX_MATCHES = 500
 
@@ -231,7 +232,9 @@ class RouteRule(BaseModel):
     # "query" is the rule described above. "pdf_folder" watches a folder: each run sends the PDFs
     # in it to a PACS as Encapsulated PDF Storage (the PDF to DICOM tool's engine) and moves the
     # sent ones into a "Sent" subfolder. It uses the schedule below and none of the query fields.
-    kind: Literal["query", "pdf_folder"] = "query"
+    # "dicom_folder" does the same for DICOM files (loose files, study folders, .zip and .7z): it shares the
+    # pdf_folder, pdf_destination_id, pdf_identity_id and pdf_sent_keys fields below, and uses none of the PDF-only ones.
+    kind: Literal["query", "pdf_folder", "dicom_folder"] = "query"
 
     source_remote_id: str = ""
     level: Literal["STUDY", "SERIES"] = "STUDY"
@@ -386,16 +389,26 @@ class RouteRule(BaseModel):
                 raise ValueError("Watch folder is required")
             if not self.pdf_destination_id:
                 raise ValueError("Send to is required")
-            if self.pdf_name_pattern:
-                from app.pdf_names import compile_pattern
+            if self.kind == "pdf_folder":
+                if self.pdf_name_pattern:
+                    from app.pdf_names import compile_pattern
 
-                compile_pattern(self.pdf_name_pattern)
-            if self.pdf_patient_mode == "typed":
-                if not self.pdf_patient_name:
-                    raise ValueError("Patient Name is required, or choose another way to name the patient")
-                if not self.pdf_patient_id:
-                    raise ValueError("Patient ID is required, or choose another way to name the patient")
+                    compile_pattern(self.pdf_name_pattern)
+                if self.pdf_patient_mode == "typed":
+                    if not self.pdf_patient_name:
+                        raise ValueError("Patient Name is required, or choose another way to name the patient")
+                    if not self.pdf_patient_id:
+                        raise ValueError("Patient ID is required, or choose another way to name the patient")
         return self
+
+    @property
+    def is_folder_watch(self) -> bool:
+        return self.kind in WATCH_KINDS
+
+    @property
+    def watch_unit(self) -> str:
+        """What a folder-watch rule counts: PDFs, or items (a file, a study folder or an archive)."""
+        return "PDFs" if self.kind == "pdf_folder" else "items"
 
     def mark_pdf_sent(self, keys: Iterable[str]) -> None:
         """Remember sent files (most recent first, bounded like seen_study_uids)."""
