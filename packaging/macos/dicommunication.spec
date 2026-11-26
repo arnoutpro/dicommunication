@@ -33,6 +33,7 @@ hiddenimports = (
     + collect_submodules("pynetdicom", filter=_not_test_module)
     + collect_submodules("pydicom", filter=_not_test_module)
     + collect_submodules("uvicorn")
+    + collect_submodules("py7zr")  # Dicom Import reads .7z files
     + [
         "anyio",
         "h11",

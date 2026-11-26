@@ -106,7 +106,7 @@ def create_app(store: ConfigStore | None = None) -> FastAPI:
     app.state.store = store
     app.state.mwl_scp = scp
     app.state.router_scheduler = router_scheduler
-    app.state.import_sessions = ImportSessions()
+    app.state.import_sessions = ImportSessions(workdir=store.data_dir / "import_tmp")
     static_dir = BASE_DIR / "static"
     if static_dir.exists():
         app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")

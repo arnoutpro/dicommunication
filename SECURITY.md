@@ -68,6 +68,8 @@ administrator listed** under Configuration > Security: the PDF directory, the
 Anonymizer's output folder, and Dicom Import / PDF scans. The folder Browse dialog
 is for administrators.
 
+**Dicom Import and archives.** A `.zip` is read in place, nothing is unpacked. A `.7z` has to be unpacked, so its files (real patient images) are written to `import_tmp` in the data folder while a scan is open. That folder is deleted when you start over, when a scan is discarded or idle for 30 minutes, and when the app starts, but it is not encrypted and a crash or power cut can leave files there until the next start. Links inside a 7z are never followed, a 7z that would unpack to more than 8 GB is refused, and an operator can only use folders an administrator listed.
+
 **HTTPS.** When the app listens on a network address it serves **HTTPS
 automatically**, with a certificate it makes for itself (EC P-256, valid for this
 computer's names and addresses, renewed before it expires, private key readable only

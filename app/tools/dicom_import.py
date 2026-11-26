@@ -19,7 +19,7 @@ class DicomImportTool(BaseTool):
     id = "dicom-import"
     name = "Dicom Import"
     description = (
-        "Scan a folder for a DICOMDIR and/or DICOM files, see what is in it, change "
+        "Scan a folder or a .zip or .7z file for a DICOMDIR and/or DICOM files, see what is in it, change "
         "patient and exam details if needed, and send the images to a PACS. "
         "Nothing is stored: the files stay where they are and changes are applied while sending."
     )

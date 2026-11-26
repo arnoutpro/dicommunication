@@ -184,7 +184,7 @@ def _render(
         expired=expired,
         dialogs_available=dialogs_available(),
         base=BASE,
-        relative=lambda path: os.path.relpath(path, scan.root) if scan is not None else path,
+        relative=lambda path: scan.display(path) if scan is not None else path,
         READY=READY,
         DONE=DONE,
         FAILED=FAILED,

@@ -9,10 +9,13 @@ page can show progress instead of waiting on one long request.
 
 from __future__ import annotations
 
+import shutil
+import tempfile
 import threading
 import time
 import uuid
 from dataclasses import dataclass, field
+from pathlib import Path
 
 from app.applog import log
 from app.dicom_import import (
@@ -22,6 +25,7 @@ from app.dicom_import import (
     ScanResult,
     SendOptions,
     SendProgress,
+    discard_unpacked,
     scan_folder,
     send_import,
 )
@@ -57,7 +61,12 @@ class ImportSession:
 
 
 class ImportSessions:
-    def __init__(self, idle_seconds: float = IDLE_SECONDS, max_sessions: int = MAX_SESSIONS) -> None:
+    def __init__(
+        self, idle_seconds: float = IDLE_SECONDS, max_sessions: int = MAX_SESSIONS, workdir: str | Path | None = None
+    ) -> None:
+        # Where a 7z is unpacked (and deleted again). Anything left from an earlier run is removed now.
+        self.workdir = Path(workdir) if workdir else Path(tempfile.gettempdir()) / "dicommunication-import"
+        shutil.rmtree(self.workdir, ignore_errors=True)
         self._sessions: dict[str, ImportSession] = {}
         self._lock = threading.Lock()
         self.idle_seconds = idle_seconds
@@ -66,6 +75,7 @@ class ImportSessions:
     def _expire(self) -> None:
         now = time.monotonic()
         for sid in [s.id for s in self._sessions.values() if not s.busy and now - s.touched > self.idle_seconds]:
+            discard_unpacked(self._sessions[sid].scan)
             del self._sessions[sid]
 
     def get(self, sid: str) -> ImportSession | None:
@@ -81,6 +91,9 @@ class ImportSessions:
             session = self._sessions.pop(sid, None)
         if session is not None:
             session.cancel.set()  # a scan or send still running stops at the next file
+            if session.scan is not None:
+                discard_unpacked(session.scan)
+            shutil.rmtree(self.workdir / session.id, ignore_errors=True)
 
     def start_scan(self, folder: str, include_headerless: bool = False) -> ImportSession:
         """Make a session and scan in the background. ImportProblem if there is no room."""
@@ -90,6 +103,7 @@ class ImportSessions:
                 idle = sorted((s for s in self._sessions.values() if not s.busy), key=lambda s: s.touched)
                 if not idle:
                     raise ImportProblem("Too many imports are running at once. Wait for one to finish.")
+                discard_unpacked(self._sessions[idle[0].id].scan)
                 del self._sessions[idle[0].id]
             session = ImportSession(id=uuid.uuid4().hex[:16], folder=folder.strip(), include_headerless=include_headerless)
             self._sessions[session.id] = session
@@ -103,6 +117,7 @@ class ImportSessions:
                 progress=lambda p: setattr(session, "scan_progress", p),
                 cancel=session.cancel,
                 include_headerless=session.include_headerless,
+                workdir=self.workdir / session.id,
             )
             session.state = READY
         except ImportProblem as exc:
@@ -113,6 +128,10 @@ class ImportSessions:
         finally:
             session.cancel.clear()
             session.touch()
+            with self._lock:
+                gone = session.id not in self._sessions
+            if gone:  # discarded while it was scanning: nothing may be left on disk
+                shutil.rmtree(self.workdir / session.id, ignore_errors=True)
 
     def start_send(
         self,

@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### New
+
+- **Dicom Import can scan and send `.zip` and `.7z` files.** Type the path of a folder or of a `.zip` or `.7z` file, or use the new **Archive…** button next to **Folder…**. The folder path box is longer. A folder may contain ZIPs, which are scanned together with its loose DICOM files, and the same patient, study and edit steps apply. A ZIP is read in place: nothing is unpacked to disk, so no copy of the images is left behind. A file name that would point outside the ZIP, a password-protected file, a ZIP inside a ZIP and a single file over 1 GB inside a ZIP are left out, and the scan lists how many. A DICOMDIR inside a ZIP is not cross-checked (its files are read directly). A `.7z` cannot be read file by file, so it is unpacked to a temporary folder (`import_tmp` in the data folder) that is deleted when you start over, after 30 minutes idle, and when the app starts; one that would unpack to more than 8 GB, or has no room on the disk, is left out, and links inside a 7z are never followed. RAR and tar are not read. This adds the `py7zr` package.
+
 ## 0.15.0
 
 ### New

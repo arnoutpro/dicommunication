@@ -11,7 +11,7 @@ from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from pydantic import ValidationError
 
 from app.applog import log
-from app.fs_dialog import dialogs_available, pick_directory
+from app.fs_dialog import dialogs_available, pick_directory, pick_zip_file
 from app.hl7 import DEFAULT_PORT, display_hl7, sample_adt_a01
 from app.models import Hl7Message, RemoteNode, SavedQuery, ToolResult
 from app.pdf_dicom import (
@@ -664,6 +664,19 @@ def api_pick_directory(purpose: str = "pdf"):
     path = pick_directory(purpose)
     if not path:
         raise HTTPException(status_code=400, detail="No folder selected.")
+    return {"path": path}
+
+
+@router.post("/api/fs/pick-zip")
+def api_pick_zip():
+    if not dialogs_available():
+        raise HTTPException(
+            status_code=503,
+            detail="No desktop file dialog in this session. Type the path instead.",
+        )
+    path = pick_zip_file()
+    if not path:
+        raise HTTPException(status_code=400, detail="No file selected.")
     return {"path": path}
 
 
