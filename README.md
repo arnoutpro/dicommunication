@@ -6,17 +6,17 @@ A low-code DICOM communication validator and PACS admin toolkit.
 
 **Published as-is. All rights reserved.** The source is public so you can read it and download builds. This is not an invitation to use it as a library, fork it, or send patches. Issues and pull requests are not accepted. See [CONTRIBUTING.md](CONTRIBUTING.md).
 
-Dicommunication is a web application for PACS administrators, imaging IT and biomedical engineering. Configure this computer as a DICOM Application Entity, register remote nodes (PACS, Orthanc, RIS/MWL, modalities), impersonate extra calling AE Titles, and run the checks a connectivity ticket actually needs: network PING, C-ECHO, simulated C-STORE, PDF to Encapsulated PDF Storage, Study Root C-FIND (Study, Series and Image level), Modality Worklist C-FIND, and HL7 v2 send over MLLP. On top of that it works on studies: query, retrieve and **anonymize** them, **redact** burned-in pixel data, **route** new studies on a schedule, and **import** a folder of DICOM files into a PACS.
+Dicommunication is a web application for PACS administrators, imaging IT and biomedical engineering. Configure this computer as a DICOM Application Entity, register remote nodes (PACS, Orthanc, RIS/MWL, modalities), impersonate extra calling AE Titles, and run the checks a connectivity ticket actually needs: network PING, C-ECHO, simulated C-STORE, PDF to Encapsulated PDF Storage, Study Root C-FIND (Study, Series and Image level), Modality Worklist C-FIND, and HL7 v2 send over MLLP. On top of that it works on studies: query, retrieve and **anonymize** them, **redact** burned-in pixel data, **route** new studies on a schedule, **send** individual studies from one archive to another, **watch folders** for PDFs and DICOM files and forward what lands there, and **import** a folder, ZIP or 7z of DICOM files into a PACS.
 
-It is **one application with six products**, picked with the tool switcher at the top of the left sidebar. Each product has its own pages in the sidebar below it:
+It is **one application with seven products**, picked with the tool switcher at the top of the left sidebar. Each product has its own pages in the sidebar below it:
 
 | Product | What it is for |
 | --- | --- |
 | **Dicommunication** | The network, DIMSE and HL7 workstation tools: Dashboard, Testbench, C-ECHO board, Worklist, Network PING, C-ECHO, C-STORE, PDF to DICOM, C-FIND, MWL C-FIND, Send Image to PACS, Tag Editor and HL7 send |
 | **Dicomtag Analytics** | Study Root C-FIND at Study, Series or Image level with any DICOM tag (including Vue ELSCINT1 keys), saved queries, and listing and retrieving DICOM Structured Reports |
 | **Dicom Anonymizer** | Query a PACS, pick studies and series, retrieve them, anonymize them (four modes) and export them to a folder or a ZIP |
-| **Dicom Router** | Scheduled C-FIND rules with optional retrieve-and-forward, rules that watch a folder and send new PDFs to a PACS, and a status dashboard with a chart per rule |
-| **Dicom Send** | Find studies on one registered archive and send them to another (C-FIND, then C-MOVE here and C-STORE onward), unchanged |
+| **Dicom Router** | Scheduled C-FIND rules with optional retrieve-and-forward, rules that watch a folder and send new PDFs or DICOM files (loose files, study folders, `.zip` and `.7z`) to a PACS, and a status dashboard with a chart per rule |
+| **Dicom Send** | Find studies on one registered archive with the Dicomtag Analytics query form (Study level), pick them and send them to another registered archive (C-FIND, then C-MOVE here and C-STORE onward), with their original UIDs |
 | **Dicom Cleaner** | Query, retrieve, black out a rectangle of burned-in pixel data and send the result back over C-STORE |
 | **Dicom Import** | Scan a folder, ZIP or 7z file (DICOMDIR and/or loose DICOM files, also inside .zip and .7z files), change patient and exam details, and send the images to a PACS |
 
@@ -36,7 +36,7 @@ Open [http://127.0.0.1:8080](http://127.0.0.1:8080).
 
 ## Screenshots
 
-The screenshots follow your GitHub theme (light or dark). They come from a demo setup with made-up nodes and patient names, not clinical data. All pages, in both themes, are in [docs/screenshots/0.14](docs/screenshots/0.14).
+The screenshots follow your GitHub theme (light or dark). They come from a demo setup with made-up nodes and patient names, not clinical data. All pages from 0.14, in both themes, are in [docs/screenshots/0.14](docs/screenshots/0.14); the pages added since are in [docs/screenshots/0.15](docs/screenshots/0.15).
 
 **Dashboard: this workstation, its remote nodes and their last C-ECHO**
 
@@ -66,6 +66,20 @@ The screenshots follow your GitHub theme (light or dark). They come from a demo 
   <img alt="Dicom Router: route rules" src="docs/screenshots/0.14/light/router.png">
 </picture>
 
+**Dicom Send: find studies on one archive, pick them and send them to another**
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/0.15/dark/dicom-send.png">
+  <img alt="Dicom Send: find studies on one archive, pick them and send them to another" src="docs/screenshots/0.15/light/dicom-send.png">
+</picture>
+
+**Dicom Router: a rule that watches a folder for DICOM files**
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/0.15/dark/router-dicom-watch.png">
+  <img alt="Dicom Router: a rule that watches a folder for DICOM files" src="docs/screenshots/0.15/light/router-dicom-watch.png">
+</picture>
+
 **Send Image to PACS**
 
 <picture>
@@ -82,14 +96,31 @@ The screenshots follow your GitHub theme (light or dark). They come from a demo 
 
 ## What's new in 0.15
 
-The full list is in [CHANGELOG.md](CHANGELOG.md).
+The full list is in [CHANGELOG.md](CHANGELOG.md). 0.15.6 and 0.15.7 are **beta** releases for testing before 0.16; 0.15.4 was never released.
 
-- **Dicom Send (0.15.6, for beta testing).** A new product: find studies on one registered archive and send them to another, with their original UIDs, in four steps. From 0.15.7 its Find studies step is the Dicomtag Analytics query form at Study level, and the Anonymizer and Cleaner have more Find studies filters.
-- **Dicom Router: watch a folder for DICOM files (0.15.5).** A new rule *Kind* sends the DICOM files, study folders and `.zip` / `.7z` files that land in a folder to a PACS, and moves each item to `Sent` when every image was stored.
-- **Present as can be a typed AE Title (0.15.2).** Every **Present as** dropdown has **Type an AE Title…**, so a calling AE Title no longer has to be saved as a virtual AE first.
+**Dicom Send (0.15.6, 0.15.7: beta)**
+
+- **A new product: send studies from one archive to another.** Four steps: **1. Choose the archives** (Send from, Present as, Send to: registered nodes only, and the destination must differ from the source), **2. Find studies**, **3. Choose studies** (at Study, Series or Image level) and **4. Send**. Each checked selection is C-MOVEd to this workstation and C-STOREd to the destination with its original UIDs, so the destination gets an identical copy and the source is untouched. A prompt names both archives first. The images only pass through memory.
+- **Find studies is the Dicomtag Analytics query form, at Study level (0.15.7).** The same Return / Field / Match value table, Study Date period menu, shortcuts, *More filters* (Study Description, Referring Physician and the other study keys, the Vue private ones such as Study Body Part, Patient Class and Study Reason) and *Add other DICOM tags*, without the Series and Image levels. The list shows the columns you tick as *Return*.
+- **Text values are checked before they are sent (0.15.7).** A backslash, line breaks, a value longer than its field allows, or a character outside Latin-1 is refused with the field's name; `%` works as `*`; a value with an accent declares the Latin-1 character set in the query.
+- **Dicom Anonymizer and Dicom Cleaner have more Find studies filters (0.15.7):** Study Description, and under *More filters* Referring Physician, Study Body Part, Patient Class and Study Reason.
+
+**Dicom Router**
+
+- **Watch a folder for DICOM files (0.15.5).** A new rule *Kind* sends the DICOM files, study folders and `.zip` / `.7z` files that land in a folder to a PACS, and moves each item to `Sent` when every image was stored. Items still being copied in wait. Nothing is edited on the way, and no file or folder names are stored.
+- **Watch a folder for PDFs (0.14.1)** has an optional file name pattern such as `{PatientID}_{PatientName}_{Accession}`; the two folder kinds share the schedule, Start / Pause / Stop, Run now and the status dashboard.
+
+**Dicom Import and the services**
+
 - **Dicom Import reads `.zip` and `.7z` files (0.15.1).** Type the path of a folder or an archive, or use **Archive…**. A ZIP is read in place; a 7z is unpacked to a temporary folder that is deleted afterwards.
-- **Stop listening / Start listening.** A button on the Dashboard and on the Local DICOM AE page frees this workstation's DICOM port at once, so another program (a viewer such as MicroDicom) can use it, and takes it back when you start listening again. It only pauses the listener: your MWL SCP and C-STORE settings stay, and a pause survives a restart.
-- **macOS: the service no longer ends up stopped after a port change or an upgrade** (it waits for launchd to let go of the old job before starting the new one).
+- **Present as can be a typed AE Title (0.15.2).** Every **Present as** dropdown has **Type an AE Title…**, so a calling AE Title no longer has to be saved as a virtual AE first.
+- **Stop listening / Start listening (0.15.0).** A button on the Dashboard and on the Local DICOM AE page frees this workstation's DICOM port at once, so another program (a viewer such as MicroDicom) can use it, and takes it back when you start listening again. It only pauses the listener: your MWL SCP and C-STORE settings stay, and a pause survives a restart.
+- **macOS (0.15.0): the service no longer ends up stopped after a port change or an upgrade** (it waits for launchd to let go of the old job before starting the new one).
+
+**Installers and examples**
+
+- The Windows installer is `dicommunication-<version>-win64.msi` (the word "headless" is gone from its name and from the docs). **The Windows MSI and the macOS DMG are no longer built when a tag is pushed**: start them yourself under Actions, on the version tag (0.15.1 and 0.15.3).
+- The grey example values in the Tag Editor no longer look like real data (0.15.3).
 
 ## What's new in 0.14
 
@@ -115,6 +146,7 @@ Earlier highlights, each with its details in the changelog:
 ## Contents
 
 - [Screenshots](#screenshots)
+- [What's new in 0.15](#whats-new-in-015)
 - [What's new in 0.14](#whats-new-in-014)
 - [What this is (and is not)](#what-this-is-and-is-not)
 - [How it's made](#how-its-made)
@@ -147,8 +179,9 @@ It **does**:
 - Send Verification (C-ECHO), a tiny Secondary Capture (C-STORE), Encapsulated PDF Storage (PDF to DICOM), Study Root Query/Retrieve C-FIND at Study, Series, or Image level, and Modality Worklist C-FIND
 - Optionally serve a local web worklist as an MWL SCP on the listen port
 - Optionally accept C-STORE on that same port, so it can receive what a PACS moves to it: Structured Reports for Dicomtag Analytics (the Content Sequence is parsed, no language model), and the images that the Anonymizer, Cleaner and Router retrieve
-- Retrieve studies, series and images with C-MOVE to this workstation, then anonymize them and write files to a folder or ZIP (Dicom Anonymizer), black out a rectangle and send them back (Dicom Cleaner), or forward them to other nodes on a schedule (Dicom Router)
-- Scan a folder of DICOM files and send them to a PACS, with optional edits applied on the way (Dicom Import)
+- Retrieve studies, series and images with C-MOVE to this workstation, then anonymize them and write files to a folder or ZIP (Dicom Anonymizer), black out a rectangle and send them back (Dicom Cleaner), forward them to other nodes on a schedule (Dicom Router), or copy chosen studies from one registered archive to another once (Dicom Send)
+- Watch a folder for PDFs or DICOM files and send what lands there to a PACS, on a schedule (Dicom Router)
+- Scan a folder, ZIP or 7z file of DICOM files and send them to a PACS, with optional edits applied on the way (Dicom Import)
 - Send an HL7 v2 message over TCP (MLLP by default) to a host:port
 - Ask for a sign-in, with roles, over HTTPS, and keep an audit log, when it can be reached from other computers ([Security](#security))
 
@@ -170,7 +203,7 @@ In practice the split looks like this:
 
 - **I decide what gets built and why.** The problems come from real connectivity tickets and reading-room workflows: a node that answers C-ECHO but rejects Storage, a report stuck in Vue, a study that needs anonymizing before it leaves the hospital. I set the requirements, the order of the steps on each page, and what counts as safe.
 - **The AI writes most of the code, tests and documentation** under that direction: the FastAPI and HTMX pages, the pynetdicom and pydicom work, the design, this README and the in-app Help.
-- **I review and test it**, and so does the test suite: about 800 automated tests, including ones that talk to small DICOM and HL7 servers running on the same machine. Where it matters, behaviour is checked against the standards themselves, such as the HL7 v2 code tables and the DICOM data dictionary, and against vendor documentation.
+- **I review and test it**, and so does the test suite: about 880 automated tests, including ones that talk to small DICOM and HL7 servers running on the same machine. Where it matters, behaviour is checked against the standards themselves, such as the HL7 v2 code tables and the DICOM data dictionary, and against vendor documentation.
 - **Anything not yet proven on a real system says so.** For example, the HL7 send options for Philips IS Link are still on a [To verify](#to-verify) list until they have been tested on a live server.
 
 AI makes it possible for one person with domain knowledge to build a tool like this. It doesn't replace that knowledge, or the testing against real equipment before anything touches clinical data.
@@ -186,11 +219,11 @@ AI makes it possible for one person with domain knowledge to build a tool like t
 | Dicomtag Analytics | C-FIND, optional C-MOVE | Study Root Query/Retrieve FIND (and MOVE for SR) | Reached at `/tools/c-find-advanced` in the sidebar. Same SOP Class at Study, Series, or Image plus optional Vue ELSCINT1 keys. Hierarchical: Series needs Study Instance UID; Image needs Study and Series Instance UID. **List SR reports** is Series C-FIND with modality `SR` for every study in the table. **Retrieve report text** C-MOVEs each listed SR on its own association and parses the Content Sequence. Results copy / CSV / JSON. |
 | MWL C-FIND / Worklist | C-FIND | Modality Worklist `1.2.840.10008.5.1.4.31` | Search *scheduled procedures*, not the archive. |
 | Send Image to PACS | C-FIND (Study or Patient Root, or none for manual entry), C-STORE | Study Root Query/Retrieve FIND, Patient Root Query/Retrieve FIND, then Secondary Capture Image Storage | Reached at `/tools/send-image` in the sidebar. Find a study — by Study Root C-FIND (open or already closed), by Patient Root C-FIND (for an order with no image yet stored at all, but a registered patient), or typed in by hand — pick it, choose a modality and a few descriptive tags, and C-STORE a small solid-black placeholder image carrying that study's Patient/Study/Accession identifiers. |
-| Dicom Router | C-FIND, optional C-MOVE + C-STORE | Study Root Query/Retrieve FIND (MOVE/STORE for retrieve-and-forward) | Reached at `/router` in the sidebar. Same FIND as Dicomtag Analytics, but scheduled/automatic instead of manual, with an optional automatic retrieve-and-forward to one or more destination nodes. |
-| Dicom Send | C-FIND, C-MOVE, C-STORE | Study Root Query/Retrieve FIND/MOVE, then Storage to another node | Reached at `/tools/dicom-send`. The one-off form of a Router rule that forwards: find studies on one archive, check some, send them to another registered archive with their own UIDs. |
+| Dicom Router | C-FIND, optional C-MOVE + C-STORE; C-STORE for folder rules | Study Root Query/Retrieve FIND (MOVE/STORE for retrieve-and-forward); Encapsulated PDF Storage or each file's own SOP Class for the folder rules | Reached at `/router` in the sidebar. Same FIND as Dicomtag Analytics, but scheduled/automatic instead of manual, with an optional automatic retrieve-and-forward to one or more destination nodes. A rule can instead watch a folder and C-STORE the PDFs or DICOM files that land in it. |
+| Dicom Send | C-FIND, C-MOVE, C-STORE | Study Root Query/Retrieve FIND/MOVE, then Storage to another node | Reached at `/tools/dicom-send`. The one-off form of a Router rule that forwards: find studies on one archive with the Analytics query form, check some, send them to another registered archive with their own UIDs. |
 | Dicom Cleaner | C-FIND, C-MOVE, C-STORE | Study Root Query/Retrieve FIND/MOVE, then Storage back out | Reached at `/tools/dicom-cleaner` in the sidebar. Study-level C-FIND, C-MOVE retrieve, blacks out one operator-configured rectangle of pixel data on every retrieved instance (PyDicom + numpy), then C-STOREs the cleaned instances back to a PACS. |
 | Dicom Anonymizer | C-FIND, C-MOVE | Study Root Query/Retrieve FIND and MOVE | Reached at `/tools/anonymize` in the sidebar. A Study-level C-FIND, an optional Series-level C-FIND to list a study's series, then a C-MOVE of the chosen studies or series to this workstation's local Storage SCP. The instances are anonymized in memory and written to a folder or ZIP; nothing is sent back. |
-| Dicom Import | C-STORE | Storage (each file's own SOP Class) | Reached at `/tools/dicom-import` in the sidebar. Scans a folder and C-STOREs its files to a PACS, with optional edits; there is no query. |
+| Dicom Import | C-STORE | Storage (each file's own SOP Class) | Reached at `/tools/dicom-import` in the sidebar. Scans a folder, ZIP or 7z file and C-STOREs its files to a PACS, with optional edits; there is no query. |
 | Tag Editor | C-FIND, C-MOVE, C-STORE | Study Root Query/Retrieve FIND and MOVE, then storage back | Reached at `/tools/tag-editor` in the sidebar. Corrects two private Vue report tags on a study and stores it back. |
 
 **MWL C-FIND and the Worklist page are the same SOP Class.** Study Root C-FIND is not. Orthanc without the worklist plugin typically accepts Verification, Storage, and Q/R, then rejects MWL. The Testbench and Worklist results show accepted vs rejected presentation contexts so that is visible.
@@ -302,7 +335,7 @@ Python **is** required to *serve* that page and to speak DICOM (FastAPI, pynetdi
 
 There is **one Windows installer**, which installs the Windows service: CI builds `dicommunication-<version>-win64.msi` on `windows-latest` (workflow **Windows MSI**). It installs the program as a Windows service named Dicommunication that starts with Windows, has no window, and is opened in the browser at `http://localhost:<port>/` (`https://` when you tick the network option). Sign-in is always on. The desktop-window installer was dropped after 0.11.2; installing the current MSI over it replaces it, but its settings are not carried over, so export them first (Configuration > Import / export). See [`packaging/windows/README.md`](packaging/windows/README.md) for the wizard, the first administrator, the data folder (`C:\ProgramData\Dicommunication`) and unattended installs.
 
-A `v*` tag attaches the MSI to the GitHub Release and also publishes **`dicommunication.msi`** on [GitHub Packages](https://github.com/arnoutpro/dicommunication/pkgs/nuget/dicommunication.msi) (NuGet). GitHub has no MSI registry; the nupkg carries `tools/dicommunication-<version>-win64.msi`. GitHub Packages always needs a token, even for a public package, so anonymous hospital downloads should keep using the [GitHub Release](https://github.com/arnoutpro/dicommunication/releases).
+The MSI is not built when a tag is pushed: start **Actions → Windows MSI → Run workflow** yourself, choose the `v*` tag under "Use workflow from" and leave `nuget_from_release` empty. The run attaches the MSI to the GitHub Release and also publishes **`dicommunication.msi`** on [GitHub Packages](https://github.com/arnoutpro/dicommunication/pkgs/nuget/dicommunication.msi) (NuGet). GitHub has no MSI registry; the nupkg carries `tools/dicommunication-<version>-win64.msi`. GitHub Packages always needs a token, even for a public package, so anonymous hospital downloads should keep using the [GitHub Release](https://github.com/arnoutpro/dicommunication/releases).
 
 ```text
 dotnet nuget add source --name github-arnoutpro --username YOUR_GITHUB_USERNAME --password YOUR_PAT --store-password-in-clear-text https://nuget.pkg.github.com/arnoutpro/index.json
@@ -347,6 +380,7 @@ Apple Silicon only for now. Intel Macs keep using Docker Compose. If a modality 
 | `route_rules.json` | Dicom Router rule definitions (source PACS, filters, schedule, destinations, status) |
 | `route_runs.json` | Dicom Router run history (capped at 500, deleted after 30 days by default): counts only, no patient data |
 | `route_daily.json` | Exams per study date and status for each rule, for the status dashboard charts (deleted after 30 days by default, like the run history): counts only |
+| `import_tmp/`, `router_tmp/` | Temporary folders where a `.7z` is unpacked (Dicom Import; a Router DICOM folder rule). They hold real images while a scan is open or a run is going and are deleted afterwards, and at start-up. Not part of a normal data folder |
 | `dicommunication.log` | Rotating application log (level and size set on **Logs**) |
 
 Default directory:
@@ -439,6 +473,7 @@ On **Worklist**, **Testbench**, and each tool page, use **Present as**:
 
 - `(workstation)` — the Local DICOM AE Title
 - a virtual identity — calling AE + station/modality defaults from that identity
+- **Type an AE Title…** — any calling AE Title typed in a box beside the dropdown, without saving it here first (up to 16 printable characters, no backslash). Only the calling AE Title changes: no station or modality defaults. Anyone who may run the tools can do this (see [SECURITY.md](SECURITY.md))
 
 The result header shows `as CT1` (or whatever calling AE was used).
 
@@ -677,7 +712,7 @@ Same operations as the UI. `GET /health` returns `{"status":"ok","version":"..."
 | GET | `/lite/api/history?days=7` | Exams per day per rule for the charts; `days` is 7, 14 or 30 |
 | GET/POST/DELETE | `/api/hl7/messages`, `/api/hl7/messages/{id}` | Saved HL7 v2 drafts |
 
-Tool ids: `ping`, `c-echo`, `c-store`, `pdf-store`, `c-find`, `c-find-advanced`, `mwl-find`, `hl7-send`, `tag-editor`. The Anonymizer, Cleaner, Import and Send Image (`anonymize`, `dicom-cleaner`, `dicom-import`, `send-image`) are registered tools too, but they are built around their pages; use the UI for those. `hl7-send` does not need `remote_id`; pass `options.host`, `options.port`, and `options.message`. `pdf-store` takes `options.patient_name`, `options.patient_id`, plus `options.pdfs` (`filename` + `content_b64`), `options.zip_b64`, or `options.directory`, and `options.send` (default true). `c-find-advanced` takes `options.level` (`STUDY`, `SERIES`, `IMAGE`), `options.values` (DICOM keywords to match), and optional `options.return_keys`. At `STUDY`, `StudyDate` is required.
+Tool ids: `ping`, `c-echo`, `c-store`, `pdf-store`, `c-find`, `c-find-advanced`, `mwl-find`, `hl7-send`, `tag-editor`. The Anonymizer, Cleaner, Dicom Send, Import and Send Image (`anonymize`, `dicom-cleaner`, `dicom-send`, `dicom-import`, `send-image`) are registered tools too, but they are built around their pages; use the UI for those. `hl7-send` does not need `remote_id`; pass `options.host`, `options.port`, and `options.message`. `pdf-store` takes `options.patient_name`, `options.patient_id`, plus `options.pdfs` (`filename` + `content_b64`), `options.zip_b64`, or `options.directory`, and `options.send` (default true). `c-find-advanced` takes `options.level` (`STUDY`, `SERIES`, `IMAGE`), `options.values` (DICOM keywords to match), and optional `options.return_keys`. At `STUDY`, `StudyDate` is required.
 
 Run a tool as a virtual AE:
 
@@ -756,7 +791,7 @@ pip install -r requirements-dev.txt
 make test
 ```
 
-C-ECHO, C-STORE, PDF to DICOM, Study Root C-FIND (including Dicomtag Analytics at Series/Image), C-MOVE (Anonymizer, Cleaner, Router, including a PACS that drops the association) and MWL tests start in-process SCPs. PING uses loopback ICMP and a local TCP listener. HL7 send uses a loopback MLLP listener. Identity tests check that a virtual AE is the calling AE Title and the worklist station filter.
+C-ECHO, C-STORE, PDF to DICOM, Study Root C-FIND (including Dicomtag Analytics at Series/Image), C-MOVE (Anonymizer, Cleaner, Dicom Send, Router, including a PACS that drops the association), the Router's folder rules (PDF and DICOM, including archives) against a simulated PACS and MWL tests start in-process SCPs. PING uses loopback ICMP and a local TCP listener. HL7 send uses a loopback MLLP listener. Identity tests check that a virtual AE is the calling AE Title and the worklist station filter.
 
 ## Security
 
@@ -769,7 +804,7 @@ This is a trusted-network admin tool, not something to publish on the internet. 
 - **Audit log.** Who signed in, changed or ran what, never patient data, in a chain that shows when a line was edited or removed.
 - **Patient data kept on disk is limited.** The Router history holds counts only; rows a tool fetched are emptied after 30 minutes and old history is deleted after 30 days (both adjustable under Configuration > Security). Nothing is encrypted at rest: put the data folder on an encrypted volume. The data directory can still hold patient identifiers (for example in `results.json` and in what the Anonymizer exports), see [SECURITY.md](SECURITY.md#patient-data-on-disk).
 - **Other websites cannot use it.** A page open in another tab of your browser can neither drive the app (cross-site request forgery) nor read it (DNS rebinding), every page carries a strict Content-Security-Policy, and the app only answers to `localhost` and IP addresses unless you add a host name to `DICOMM_ALLOWED_HOSTS`. What the 0.5.1 security review found and fixed: [`SECURITY.md`](SECURITY.md#security-review-051-september-2026).
-- **Be careful what you point it at.** Do not point it at production archives unless you intend to send the test C-STORE instance (`ARNPRO^TESTBENCH`) or the documents you import. The Router, Cleaner and Tag Editor move or change real studies on a real PACS. HL7 send transmits whatever you paste. PDF to DICOM reads uploaded files, ZIP contents and, for an administrator, any path on the computer.
+- **Be careful what you point it at.** Do not point it at production archives unless you intend to send the test C-STORE instance (`ARNPRO^TESTBENCH`) or the documents you import. The Router (including its folder rules, which move files inside the watch folder), Dicom Send, the Cleaner and the Tag Editor move, copy or change real studies on a real PACS. HL7 send transmits whatever you paste. PDF to DICOM reads uploaded files, ZIP contents and, for an administrator, any path on the computer.
 
 ## Troubleshooting
 
@@ -785,6 +820,13 @@ This is a trusted-network admin tool, not something to publish on the internet. 
 | Retrieve report text: Move Destination unknown | Vue does not list this Local AE Title as a C-MOVE destination. Enable Accept C-STORE on Local DICOM AE and register that AE at this host:port. |
 | Anonymizer or Cleaner: some series are missing, and the run says Fail | The PACS closed the association or refused those series. The C-MOVE step lists every series with how many images came back and the reason (for example `C-MOVE status 0xC000`, or no response). A dropped association is retried once on its own; if a series still comes back empty, check the PACS log, and that this Local AE is registered as a C-MOVE destination. |
 | Anonymizer, Import or PDF to DICOM: the **…** / Browse button is greyed out | The app runs as a background service (Windows or macOS) with no desktop, so it cannot open a folder dialog. Type the path of a folder on the computer the app runs on. The service account must be allowed to read it (and, for the Anonymizer, write to the output folder). |
+| Dicom Send: "Two remote nodes are needed", or "Choose the archive to send to" | It copies between two registered nodes (Configuration > Remote nodes), and the destination must differ from the source. |
+| Dicom Send: the run fails before anything moves, saying Accept C-STORE is off | Like the Cleaner, it retrieves with C-MOVE to this workstation. Enable Accept C-STORE on Local DICOM AE and make sure the source lists this AE Title as a C-MOVE destination at this host and port. |
+| Dicom Send or the Anonymizer: Study Body Part, Patient Class or Study Reason returns every study | Those are Vue private tags. A PACS that does not know a key ignores it. Use Study Description or Referring Physician on another PACS. |
+| A search value is refused, naming its field | A text value must be one value of plain Latin-1 text: no backslash (it separates values in DICOM), no line breaks, and no longer than the field allows (Study Reason up to 1024 characters, Patient Class up to 16). |
+| Router DICOM folder rule: items stay in the folder, or the run says it could not move them into Sent | The app's account (the service account in the Windows and macOS services) must be allowed to write to the watch folder. An item the PACS only partly took stays and is sent again next run; an item still being copied in (changed in the last 30 seconds) waits. |
+| A `.7z` is skipped, or Import or the Router says it could not unpack it | A password-protected 7z, a 7z that would unpack to more than 8 GB or does not fit on the disk, or a 7z inside an archive is left out. The scan or the run says how many. |
+| Association rejected after using Type an AE Title | The PACS does not know that calling AE Title. A typed title is only a label; the PACS still has to allow it, like any other AE. |
 | Searching Patient ID with `%123%` or `*123*` finds nothing | The query is sent to the PACS as `*123*`. Whether the PACS treats that as "contains" is up to the PACS; try `123*` and `*123`, and check the PACS's own query rules. |
 | C-ECHO / C-STORE / Q/R work, MWL fails | Peer does not offer Modality Worklist FIND. Enable the worklist plugin (Orthanc) or query a RIS. |
 | Worklist and MWL C-FIND look the same | They are the same SOP Class. Use Testbench Study Root C-FIND to search stored studies. |
