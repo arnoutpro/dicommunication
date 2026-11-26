@@ -161,7 +161,7 @@ def execute_tool(
     try:
         local = config.calling_ae(identity_id or None)
     except KeyError as exc:
-        raise HTTPException(status_code=400, detail="Virtual local AE not found") from exc
+        raise HTTPException(status_code=400, detail="Present as: the AE Title is not valid, or that virtual AE no longer exists") from exc
     if tool_id in ("c-find-advanced", "tag-editor", "anonymize", "dicom-cleaner"):
         options = dict(options or {})
         scp = getattr(app.state, "mwl_scp", None)

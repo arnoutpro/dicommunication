@@ -194,6 +194,7 @@
   <ul>
     <li><code>(workstation)</code> — the Local DICOM AE Title from Configured nodes</li>
     <li>a virtual identity — calling AE plus that identity’s station / modality defaults</li>
+    <li><strong>Type an AE Title…</strong> — any calling AE Title (up to 16 printable characters, no backslash) typed in the box beside the dropdown, without saving it under Configuration first. Only the calling AE Title changes: no station or modality defaults. It is not remembered on the server; a saved query or Router rule keeps it with the query or rule.</li>
   </ul>
   <p>The result header shows <code>as CT1</code> (or whatever calling AE was used). Every virtual calling AE must be allowed on the remote, the same way the workstation AE is.</p>
 </section>

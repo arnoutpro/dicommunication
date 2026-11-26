@@ -184,8 +184,11 @@ def _check_pdf_rule(request: Request, rule: RouteRule) -> None:
     config = request.app.state.store.load()
     if config.get_remote(rule.pdf_destination_id) is None:
         raise ValueError("Send to is required")
-    if rule.pdf_identity_id and config.get_identity(rule.pdf_identity_id) is None:
-        raise ValueError("The virtual AE to present as does not exist")
+    if rule.pdf_identity_id:
+        try:
+            config.calling_ae(rule.pdf_identity_id)
+        except KeyError:
+            raise ValueError("The virtual AE to present as does not exist, or the AE Title typed is not valid") from None
     try:
         resolve_folder(rule.pdf_folder)
     except WatchError as exc:

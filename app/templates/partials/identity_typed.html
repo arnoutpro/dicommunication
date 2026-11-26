@@ -1,0 +1,9 @@
+{#- The "type an AE Title" choice and its box, shared by every "Present as" dropdown. Include it inside the
+    <select> (the option) with kind="option", and right after the <select> (the box) with kind="box".
+    ident_value is the saved choice: an identity id, "" or "ae:TITLE". -#}
+{% set typed = (ident_value or '').startswith('ae:') %}
+{% if kind == 'option' %}
+<option value="{{ ident_value if typed else 'ae:' }}" data-typed="1" {% if typed %}selected{% endif %}>Type an AE Title…</option>
+{% else %}
+<input class="w-md" data-identity-ae maxlength="16" spellcheck="false" autocomplete="off" placeholder="MYAE" aria-label="AE Title to present as" value="{{ ident_value[3:] if typed else '' }}"{% if not typed %} hidden{% else %} required{% endif %}>
+{% endif %}

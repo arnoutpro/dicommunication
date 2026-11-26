@@ -1,7 +1,8 @@
 {#- "Present as" for pages that use the field system (partials/fields.html). The older
     partials/identity_select.html does the same for the pages not converted yet. -#}
 {% from "partials/fields.html" import field %}
-{% call field("Present as", "identity_id", "Calling AE Title on the association. Worklist station AE follows the identity unless you override it." ~ ("" if config.identities else " Add virtual titles under Configuration to impersonate modalities.")) %}
+{% call field("Present as", "identity_id", "Calling AE Title on the association. Pick a saved virtual AE, or choose Type an AE Title to use any title without saving it first (the PACS must still allow it). Worklist station AE follows a saved identity unless you override it." ~ ("" if config.identities else " Add virtual titles under Configuration to impersonate modalities.")) %}
+<span class="identity-pick" data-identity-pick>
 <select id="identity_id" name="identity_id" class="w-lg">
   <option
     value=""
@@ -21,5 +22,8 @@
     {{ identity.name }} — {{ identity.ae_title }}
   </option>
   {% endfor %}
+  {% with ident_value=identity_id|default(''), kind='option' %}{% include "partials/identity_typed.html" %}{% endwith %}
 </select>
+{% with ident_value=identity_id|default(''), kind='box' %}{% include "partials/identity_typed.html" %}{% endwith %}
+</span>
 {% endcall %}

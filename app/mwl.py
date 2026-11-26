@@ -352,7 +352,7 @@ def query_worklist(
     try:
         local = config.calling_ae(identity_id)
     except KeyError:
-        return WorklistQueryResult(ok=False, summary="Virtual local AE not found.", source=source)
+        return WorklistQueryResult(ok=False, summary="Present as: the AE Title is not valid, or that virtual AE no longer exists.", source=source)
     identity = config.get_identity(identity_id)
     updates: dict[str, str] = {}
     if not query.station_ae_title and local.station_ae_title:

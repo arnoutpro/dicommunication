@@ -312,7 +312,7 @@ def plan_import(store: ConfigStore, parsed: ParsedSettings, sections: list[str] 
                     "identity_id": identity_ids.get(query.identity_id, query.identity_id),
                 }
             )
-            if incoming.identity_id and incoming.identity_id not in known_identities:
+            if incoming.identity_id and not incoming.identity_id.startswith("ae:") and incoming.identity_id not in known_identities:
                 plan.warnings.append(f"{who} uses a virtual AE that does not exist on this computer; it will fall back to this workstation's AE.")
                 incoming = incoming.model_copy(update={"identity_id": ""})
             action = ADD if current is None else SAME if _same_payload(incoming, current, {"id", "created_at", "updated_at"}) else UPDATE
@@ -333,7 +333,7 @@ def plan_import(store: ConfigStore, parsed: ParsedSettings, sections: list[str] 
                     "pdf_identity_id": identity_ids.get(rule.pdf_identity_id, rule.pdf_identity_id),
                 }
             )
-            if incoming.pdf_identity_id and incoming.pdf_identity_id not in known_identities:
+            if incoming.pdf_identity_id and not incoming.pdf_identity_id.startswith("ae:") and incoming.pdf_identity_id not in known_identities:
                 plan.warnings.append(f"{who} presents as a virtual AE that does not exist on this computer; it will fall back to this workstation's AE.")
                 incoming = incoming.model_copy(update={"pdf_identity_id": ""})
             ignore = {"created_at", "updated_at", "status", "seen_study_uids", "pdf_sent_keys", "last_run_at", "next_run_at", "last_run_ok", "last_error"}

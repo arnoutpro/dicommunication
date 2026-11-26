@@ -22,6 +22,9 @@ def utc_now() -> datetime:
     return datetime.now(timezone.utc)
 
 
+TYPED_AE_PREFIX = "ae:"  # "Present as" can be a saved virtual AE's id, or "ae:" and an AE Title typed on the page
+
+
 def normalize_ae_title(value: str) -> str:
     """Normalize a DICOM Application Entity Title (16-char printable ASCII)."""
     value = value.strip()
@@ -517,7 +520,7 @@ class AppConfig(BaseModel):
         return None
 
     def get_identity(self, identity_id: str | None) -> VirtualAE | None:
-        if not identity_id:
+        if not identity_id or identity_id.startswith(TYPED_AE_PREFIX):
             return None
         for identity in self.identities:
             if identity.id == identity_id:
@@ -528,6 +531,12 @@ class AppConfig(BaseModel):
         """Workstation listen settings with an optional virtual calling AE Title."""
         if not identity_id:
             return self.local
+        if identity_id.startswith(TYPED_AE_PREFIX):
+            try:
+                title = normalize_ae_title(identity_id[len(TYPED_AE_PREFIX):])
+            except ValueError as exc:
+                raise KeyError(str(exc)) from None
+            return self.local.model_copy(update={"ae_title": title})
         identity = self.get_identity(identity_id)
         if identity is None:
             raise KeyError(identity_id)

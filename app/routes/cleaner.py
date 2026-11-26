@@ -51,7 +51,7 @@ def _resolve_local_remote(request: Request, remote_id: str, identity_id: str) ->
     try:
         local = config.calling_ae(identity_id or None)
     except KeyError:
-        return "Virtual local AE not found."
+        return "Present as: the AE Title is not valid, or that virtual AE no longer exists."
     return local, remote
 
 
