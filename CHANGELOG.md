@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Changes
+
+- **The macOS DMG is no longer built automatically when a version tag is pushed.** Start **Actions → macOS DMG → Run workflow** yourself, like the Windows MSI: run it on the `v*` tag to attach the DMG to that release, or on a branch for a test build.
+
 ## 0.15.2
 
 ### New

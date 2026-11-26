@@ -4,9 +4,9 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
+# Started by hand only (Actions > macOS DMG > Run workflow), like Windows MSI: pushing a v* tag does not build a DMG.
+# Run it on the tag to attach the DMG to that release, or on a branch for a test build (kept as an artifact).
 on:
-  push:
-    tags: ["v*"]
   workflow_dispatch:
     inputs:
       release_tag:
