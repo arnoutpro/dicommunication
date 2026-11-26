@@ -53,6 +53,7 @@ def test_tools_grouped_by_category() -> None:
         "mwl-find",
         "send-image",
         "dicom-import",
+        "dicom-send",
         "tag-editor",
         "anonymize",
         "dicom-cleaner",

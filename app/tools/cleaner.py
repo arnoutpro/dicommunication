@@ -357,10 +357,13 @@ class CleanerTool(BaseTool):
             duration_ms=elapsed_ms(started), steps=steps, log=log, contexts=contexts, records=records,
         )
 
-    def _run(self, local: LocalAE, remote: RemoteNode, options: dict[str, Any]) -> ToolResult:
-        level = str(options.get("level") or "STUDY").strip().upper()
-        if level not in LEVELS:
-            level = "STUDY"
+    def _resolve_entities(
+        self, local: LocalAE, remote: RemoteNode, options: dict[str, Any], level: str
+    ) -> ToolResult | tuple[list[dict[str, Any]], ToolStep | None]:
+        """The studies, series or images to retrieve for the checked studies, or a failed ToolResult.
+
+        Shared with Dicom Send, which retrieves the same way and only differs in what it does next.
+        """
         entities = [{"study_uid": uid} for uid in (options.get("study_uids") or []) if uid]
         if not entities:
             return ToolResult(
@@ -389,7 +392,16 @@ class CleanerTool(BaseTool):
                 + (f" (last error: {browse_error})" if browse_error else "") + " across the selected studies.",
                 duration_ms=elapsed_ms(browse_started),
             )
-        entities = entities[:MAX_ENTITIES_PER_RUN]
+        return entities[:MAX_ENTITIES_PER_RUN], browse_step
+
+    def _run(self, local: LocalAE, remote: RemoteNode, options: dict[str, Any]) -> ToolResult:
+        level = str(options.get("level") or "STUDY").strip().upper()
+        if level not in LEVELS:
+            level = "STUDY"
+        resolved = self._resolve_entities(local, remote, options, level)
+        if isinstance(resolved, ToolResult):
+            return resolved
+        entities, browse_step = resolved
 
         region = parse_region(
             options.get("region_x"), options.get("region_y"), options.get("region_width"), options.get("region_height")

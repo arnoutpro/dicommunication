@@ -162,7 +162,7 @@ def execute_tool(
         local = config.calling_ae(identity_id or None)
     except KeyError as exc:
         raise HTTPException(status_code=400, detail="Present as: the AE Title is not valid, or that virtual AE no longer exists") from exc
-    if tool_id in ("c-find-advanced", "tag-editor", "anonymize", "dicom-cleaner"):
+    if tool_id in ("c-find-advanced", "tag-editor", "anonymize", "dicom-cleaner", "dicom-send"):
         options = dict(options or {})
         scp = getattr(app.state, "mwl_scp", None)
         options.setdefault("_listen_ae", config.local.ae_title)
@@ -172,7 +172,7 @@ def execute_tool(
             bool(scp and scp.running and config.local.storage_scp_enabled),
         )
         options.setdefault("_storage_error", getattr(scp, "last_error", None) if scp else None)
-    if tool_id in ("dicom-cleaner", "send-image"):
+    if tool_id in ("dicom-cleaner", "dicom-send", "send-image"):
         options = dict(options or {})
         options.setdefault("_remotes", {node.id: node for node in config.remotes})
     result = tool.run(local, remote, options)

@@ -21,7 +21,7 @@ from app.retention import RetentionSweeper
 from app.security_settings import SecuritySettingsStore
 from app.paths import package_dir
 from app.router_scheduler import RouterScheduler
-from app.routes import anonymize, api, auth_pages, cleaner, config, dicom_import, echo_board, lite, logs, misc, route_rules, security_admin, send_image, settings_transfer, testbench, tools, worklist
+from app.routes import anonymize, api, auth_pages, cleaner, config, dicom_import, dicom_send, echo_board, lite, logs, misc, route_rules, security_admin, send_image, settings_transfer, testbench, tools, worklist
 from app.security import SecurityMiddleware
 from app.store import ConfigStore
 
@@ -165,6 +165,7 @@ def create_app(store: ConfigStore | None = None) -> FastAPI:
     # swallows every request without any of the options these tools need.
     app.include_router(anonymize.router)
     app.include_router(cleaner.router)
+    app.include_router(dicom_send.router)
     app.include_router(send_image.router)
     app.include_router(dicom_import.router)
     app.include_router(tools.router)

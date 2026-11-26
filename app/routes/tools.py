@@ -27,6 +27,7 @@ from app.pdf_dicom import (
 from app.routes._shared import _as_bool, _first_error, _href, _hx, execute_tool, page, templates
 from app.routes.anonymize import _anonymize_page
 from app.routes.cleaner import _cleaner_page
+from app.routes.dicom_send import dicom_send_page
 from app.routes.send_image import _send_image_page
 from app.shell import display_tool_name
 from app.tools import get_tool
@@ -729,6 +730,8 @@ def tool_page(
         return _anonymize_page(request)
     if tool_id == "dicom-cleaner":
         return _cleaner_page(request)
+    if tool_id == "dicom-send":
+        return dicom_send_page(request)
     if tool_id == "send-image":
         return _send_image_page(request)
     return templates.TemplateResponse(

@@ -43,6 +43,7 @@
     <li><a href="#tag-editor">Tag Editor</a></li>
     <li><a href="#anonymize">Dicom Anonymizer</a></li>
     <li><a href="#dicom-router">Dicom Router</a></li>
+    <li><a href="#dicom-send">Dicom Send</a></li>
     <li><a href="#dicom-cleaner">Dicom Cleaner</a></li>
     <li><a href="#dicom-import">Dicom Import</a></li>
     <li><a href="#status-dashboard">Status dashboard</a></li>
@@ -81,7 +82,7 @@
   <header class="panel-head">
     <h2>The user interface</h2>
   </header>
-  <p>The <strong>left sidebar</strong> is a tree, like a file explorer. At the top is the <strong>tool switcher</strong> that picks the product: <strong>Dicommunication</strong>, <strong>Dicomtag Analytics</strong>, <strong>Dicom Anonymizer</strong>, <strong>Dicom Router</strong>, <strong>Dicom Cleaner</strong> and <strong>Dicom Import</strong>. Below it is that product's own menu; the Dicommunication product has Dashboard, Testbench, C-ECHO board, Worklist and the Connectivity / DIMSE / HL7 tool groups. Groups fold: open the triangle to expand; the group containing the current page stays open, and your open/closed state is remembered in this browser. The selected row is a solid colour across the sidebar.</p>
+  <p>The <strong>left sidebar</strong> is a tree, like a file explorer. At the top is the <strong>tool switcher</strong> that picks the product: <strong>Dicommunication</strong>, <strong>Dicomtag Analytics</strong>, <strong>Dicom Anonymizer</strong>, <strong>Dicom Router</strong>, <strong>Dicom Send</strong>, <strong>Dicom Cleaner</strong> and <strong>Dicom Import</strong>. Below it is that product's own menu; the Dicommunication product has Dashboard, Testbench, C-ECHO board, Worklist and the Connectivity / DIMSE / HL7 tool groups. Groups fold: open the triangle to expand; the group containing the current page stays open, and your open/closed state is remembered in this browser. The selected row is a solid colour across the sidebar.</p>
   <p><strong>Configuration</strong> is at the bottom of the left sidebar (administrators only). It is not a product: it is shared by all of them, and while you are in it the menu lists Configured nodes, Local DICOM AE, Virtual AEs, Remote nodes, Import / export, Users, Security, Audit log and Logs. Under it the AE chip shows this workstation's calling AE Title, the listen port and how many virtual identities you have saved.</p>
   <p>The <strong>top bar</strong> holds the arnout.pro A mark and product name on the left and, on the right, <strong>About</strong> (this installation's version, AE and data folder), <strong>Help</strong> (this page), your account and <strong>Sign out</strong> when sign-in is on, and the theme control (Light, Dark, Follows device setting, or Professional dark; new installs open in Light). The look is deliberately flat and dense: square corners, thin lines, small type. Forms put the label on the left and the box beside it, as wide as what goes in it; an explanation is a <code>?</code> you can hover instead of a paragraph, and advanced options are folded away. The area where data is shown is one flat surface.</p>
   <p>Most tool pages use HTMX: the form posts without a full page reload, and the result panel updates in place. Long DIMSE operations can take tens of seconds; wait for the result rather than clicking again.</p>
@@ -624,6 +625,20 @@
     <li><strong>Run now</strong> executes a rule immediately without touching its status or schedule — useful for testing a paused or stopped rule.</li>
   </ul>
   <p>Manual runs (Run now, and the run Start triggers) execute in a background thread instead of blocking the browser request, which is what makes Pause/Stop clickable while a batch is still going and lets the sidebar show a live "Running" dot. Each rule's own page shows a run history with every match and its status (found / retrieved / forwarded / failed, with the error if any) and whether the run itself completed or was interrupted.</p>
+</section>
+
+<section class="panel help-section" id="dicom-send">
+  <header class="panel-head">
+    <h2>Dicom Send</h2>
+  </header>
+  <p><strong>Dicom Send</strong> is its own product in the tool switcher (<code>/tools/dicom-send</code>): the one-off form of a Dicom Router rule that forwards studies. Find studies on one registered archive and send them to another.</p>
+  <ul>
+    <li><strong>1. Choose the archives</strong>: <strong>Send from</strong> is the source, <strong>Present as</strong> the calling AE Title (a saved virtual AE, or a typed one), <strong>Send to</strong> the destination. Both come from Configuration &gt; Remote nodes, and the destination must be a different node. Two remote nodes are needed.</li>
+    <li><strong>2. Find studies</strong> is a Study-level C-FIND on Study Date (required), Patient ID, Accession Number and Modality, with the same wildcards as Dicomtag Analytics.</li>
+    <li><strong>3. Choose studies</strong>: tick the studies and choose the level to send at: Study, Series or Image. <em>Show series</em> under a study lets you tick single series.</li>
+    <li><strong>4. Send</strong> asks for confirmation (it names both archives), then C-MOVEs each selection to this workstation and C-STOREs it to the destination <strong>with its original UIDs</strong>. The destination holds an identical copy; the source keeps its own. Accept C-STORE must be on, and this AE must be a C-MOVE destination at the source. The images only pass through memory.</li>
+  </ul>
+  <p>The result lists how many images came back for every selection. A run with anything missing, or an image the destination refused, is a Fail that says what. Nothing is edited on the way: use Dicom Import to change patient or study details, or the Dicom Anonymizer to anonymize. One run handles up to 200 selections; for recurring or very large forwards use the Dicom Router. Nothing about the patients is stored.</p>
 </section>
 
 <section class="panel help-section" id="dicom-cleaner">

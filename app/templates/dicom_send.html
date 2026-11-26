@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+{% from "partials/fields.html" import field %}
+{% block title %}{{ tool.name }} · {{ product_name }}{% endblock %}
+{% block content %}
+<header class="page-head">
+  <div class="page-head-hero">
+    {% include "partials/page_icon.html" %}
+    <div>
+    <h1>{{ tool.name }}</h1>
+    <p class="lede">{{ tool.description }}</p>
+    </div>
+  </div>
+</header>
+
+{% if config.remotes | length >= 2 %}
+{% set has_studies = action == "query" and result and result.ok and result.records %}
+{% set source = config.get_remote(remote_id) if remote_id else None %}
+{% set destination = config.get_remote(destination_id) if destination_id else None %}
+<form autocomplete="off" class="step-flow" method="post" action="{{ href('/tools/dicom-send/run') }}">
+  <section class="panel step">
+    <header class="panel-head">
+      <h2 class="step-title"><span class="step-num" aria-hidden="true">1</span>Choose the archives</h2>
+      <span class="muted">Calling AE {{ config.local.ae_title }}</span>
+    </header>
+    <div class="fields">
+      {% set remote_label = "Send from" %}
+      {% set query_remote_hint = "The archive the studies are found on and retrieved from." %}
+      {% set query_part = "connect" %}
+      {% include "partials/study_query_fields.html" %}
+      {% call field("Send to", "send-destination", "The archive that receives the studies, one of the registered nodes (Configuration > Remote nodes). It must accept C-STORE from the calling AE Title above and must not be the archive you send from.") %}
+      <select id="send-destination" class="w-lg" name="destination_remote_id">
+        <option value="">Select the archive to send to…</option>
+        {% for node in config.remotes %}
+        <option value="{{ node.id }}" {% if node.id == destination_id %}selected{% endif %}>{{ node.name }} — {{ node.ae_title }} @ {{ node.connect_host }}:{{ node.port }}</option>
+        {% endfor %}
+      </select>
+      {% endcall %}
+    </div>
+  </section>
+
+  <section class="panel step">
+    <header class="panel-head">
+      <h2 class="step-title"><span class="step-num" aria-hidden="true">2</span>Find studies</h2>
+    </header>
+    <div class="fields">
+      {% set query_part = "filters" %}
+      {% include "partials/study_query_fields.html" %}
+    </div>
+  </section>
+
+  {% if has_studies %}
+  <section class="panel step">
+    <header class="panel-head">
+      <h2 class="step-title"><span class="step-num" aria-hidden="true">3</span>Choose studies</h2>
+    </header>
+    {% set level_legend = "Send at" %}
+    {% include "partials/study_pick.html" %}
+  </section>
+
+  <section class="panel step">
+    <header class="panel-head">
+      <h2 class="step-title"><span class="step-num" aria-hidden="true">4</span>Send</h2>
+    </header>
+    {% include "partials/storage_scp_caution.html" %}
+    <div class="fields">
+      <p class="hint fld-note">Each checked study is retrieved from {{ source.name if source else 'the source archive' }} to this workstation and sent to {{ destination.name if destination else 'the archive you chose in step 1' }} with its original UIDs, so the destination holds an identical copy and the source keeps its own. The images only pass through memory; nothing is saved here.</p>
+    </div>
+    <div class="form-actions">
+      <button class="button primary" type="submit" name="action" value="run" formnovalidate
+              data-study-pick-run data-run-verb="Send"
+              data-busy-text="Retrieving &amp; sending…"
+              data-confirm="Retrieve the checked studies from {{ source.name if source else 'the source archive' }} and C-STORE them to {{ destination.name if destination else 'the destination archive' }}? This puts real patient studies on the destination.">
+        Send selected
+      </button>
+    </div>
+  </section>
+  {% else %}
+  {% set pending_steps = ["Choose studies", "Send"] %}
+  {% set pending_first_step = 2 %}
+  {% include "partials/pending_steps.html" %}
+  {% endif %}
+</form>
+{% else %}
+<section class="panel">
+  <div class="empty">
+    <strong>Two remote nodes are needed</strong>
+    <p>{{ tool.name }} sends from one registered archive to another. Add {{ "a second" if config.remotes else "two" }} remote node{{ "" if config.remotes else "s" }} first.</p>
+    <a class="button primary" href="{{ href('/config/remotes') }}">Add a remote node</a>
+  </div>
+</section>
+{% endif %}
+
+<div id="result">
+  {% if result and not (action == "query" and result.ok and result.records) %}
+    {% include "partials/result.html" %}
+  {% endif %}
+</div>
+{% endblock %}
