@@ -20,12 +20,12 @@
   <form autocomplete="off" class="step-flow" method="post" action="{{ href(base ~ '/scan') }}">
     <section class="panel step">
       <header class="panel-head">
-        <h2 class="step-title"><span class="step-num" aria-hidden="true">1</span>Choose the folder</h2>
+        <h2 class="step-title"><span class="step-num" aria-hidden="true">1</span>Choose the folder or ZIP file</h2>
       </header>
       <div class="fields">
-        {% call fld("Folder", "import-folder-input", "A folder on the computer this app runs on. It can hold a DICOMDIR (a CD or DVD export), loose DICOM files, or both, with any number of sub-folders. The files are only read, never changed.", required=True) %}
+        {% call fld("Folder", "import-folder-input", "A folder, or a .zip file, on the computer this app runs on. A folder can hold a DICOMDIR (a CD or DVD export), loose DICOM files, .zip files, or all of these, with any number of sub-folders. Files are only read, never changed; the contents of a ZIP are read in place and never unpacked to disk.", required=True) %}
         <div class="input-with-action">
-          <input id="import-folder-input" name="folder" value="{{ folder }}" placeholder="D:\ or C:\exports\study or /data/dicom" spellcheck="false" required data-import-folder>
+          <input id="import-folder-input" name="folder" value="{{ folder }}" placeholder="D:\ or C:\exports\study or C:\exports\study.zip or /data/dicom" spellcheck="false" required data-import-folder>
           <button type="button" class="button" data-import-browse title="Browse for a folder on this computer"{% if not dialogs_available %} disabled{% endif %}>…</button>
         </div>
         {% endcall %}
@@ -33,7 +33,7 @@
         {{ check("Also try headerless files", "import-headerless", "include_headerless", checked=include_headerless, tip_text="Also try files that lack the standard DICOM marker (old or stripped files).") }}
       </div>
       <div class="form-actions">
-        <button class="button primary" type="submit">Scan folder</button>
+        <button class="button primary" type="submit">Scan</button>
       </div>
     </section>
     <ol class="pending-steps" aria-label="Next steps">

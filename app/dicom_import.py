@@ -18,10 +18,12 @@ No web code here, so it can be tested with plain files and a mock PACS.
 
 from __future__ import annotations
 
+import io
 import os
 import re
 import threading
 import time
+import zipfile
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Callable, Iterable
@@ -45,12 +47,67 @@ MAX_FAILURES_LISTED = 200
 MAX_SOP_CLASSES = 120  # one presentation context each; the protocol allows 128
 READ_DEFER_SIZE = "64 KB"  # large elements (waveforms, PDFs) are not loaded just to be indexed
 RECONNECTS = 2
+ARCHIVE_SUFFIXES = (".zip",)
+ARCHIVE_SEP = " \u25b8 "  # "export.zip ▸ study/IM0001": a file inside an archive, read in place, never unpacked to disk
+MAX_MEMBER_BYTES = 1024 * 1024 * 1024  # one file inside an archive is read into memory to send it
 
 ProgressFn = Callable[["ScanProgress"], None]
 
 
 class ImportProblem(Exception):
     """A problem the user can fix (bad folder, bad edit value)."""
+
+
+# --- files inside a ZIP, read in place -----------------------------------------
+
+_open_zip = threading.local()
+
+
+def split_source(path: str) -> tuple[str, str]:
+    """``(file, member)``: member is empty for a plain file, else the name inside the ZIP."""
+    archive, sep, member = path.partition(ARCHIVE_SEP)
+    return (archive, member) if sep else (path, "")
+
+
+def close_sources() -> None:
+    """Close the ZIP this thread has open (it is kept open between files, then released here)."""
+    cached = getattr(_open_zip, "cached", None)
+    _open_zip.cached = None
+    if cached is not None:
+        try:
+            cached[1].close()
+        except Exception:  # noqa: BLE001
+            pass
+
+
+def _zip_for(archive: str) -> zipfile.ZipFile:
+    cached = getattr(_open_zip, "cached", None)
+    if cached is not None and cached[0] == archive:
+        return cached[1]
+    close_sources()
+    opened = zipfile.ZipFile(archive)
+    _open_zip.cached = (archive, opened)
+    return opened
+
+
+def read_dataset(path: str, **kwargs) -> Dataset:
+    """Read a DICOM file, from disk or from inside a ZIP, without writing anything."""
+    archive, member = split_source(path)
+    if not member:
+        return dcmread(path, **kwargs)
+    archive_file = _zip_for(archive)
+    info = archive_file.getinfo(member)
+    if info.file_size > MAX_MEMBER_BYTES:
+        raise ImportProblem(f"The file is larger than {MAX_MEMBER_BYTES // (1024 * 1024)} MB inside the ZIP.")
+    return dcmread(io.BytesIO(archive_file.read(info)), **kwargs)
+
+
+def _safe_member(name: str) -> bool:
+    """A member name that stays inside the archive: no absolute path, no drive, no '..'."""
+    clean = name.replace("\\", "/")
+    if not clean or clean.endswith("/") or clean.startswith("/") or re.match(r"^[A-Za-z]:", clean):
+        return False
+    return ".." not in clean.split("/")
 
 
 # --- the index -----------------------------------------------------------------
@@ -256,8 +313,14 @@ def scan_folder(
     send them.
     """
     base = Path(str(root)).expanduser()
-    if not base.is_dir():
-        raise ImportProblem(f"{base} is not a folder this app can read.")
+    single_archive = base.is_file() and base.suffix.lower() in ARCHIVE_SUFFIXES
+    if single_archive:
+        walker = [(str(base.parent), [], [base.name])]
+        base = base.parent
+    elif base.is_dir():
+        walker = os.walk(base, followlinks=False)
+    else:
+        raise ImportProblem(f"{base} is not a folder or ZIP file this app can read.")
     started = time.perf_counter()
     result = ScanResult(root=str(base))
     state = ScanProgress()
@@ -268,13 +331,102 @@ def scan_folder(
     indexed: set[str] = set()
     found: set[str] = set()
     stopped_at_limit = False
+    archives = 0
+    encrypted = 0
+    nested = 0
+    too_big = 0
+    broken: list[str] = []
 
     def tick(current: str = "") -> None:
         state.current = current
         if progress is not None:
             progress(state)
 
-    for folder, dirs, files in os.walk(base, followlinks=False):
+    def index_dataset(ds: Dataset, path: str, size: int, shown: str, in_archive: bool) -> None:
+        nonlocal duplicates, no_uids, unreadable_dicomdirs
+        meta = getattr(ds, "file_meta", None)
+        media_class = str(getattr(meta, "MediaStorageSOPClassUID", "") or "") if meta is not None else ""
+        sop_class = _text(ds, "SOPClassUID") or media_class
+        if media_class == DICOMDIR_SOP_CLASS or sop_class == DICOMDIR_SOP_CLASS:
+            result.dicomdirs.append(shown)
+            if in_archive:
+                return  # the files inside a ZIP are read directly; the DICOMDIR is not cross-checked
+            refs, reason = _referenced_by_dicomdir(Path(path))
+            if reason:
+                unreadable_dicomdirs += 1
+                result.warnings.append(
+                    ScanWarning("warn", f"The DICOMDIR {shown} could not be read ({reason}). The files were scanned directly instead.")
+                )
+            indexed.update(refs)
+            return
+        sop_instance = _text(ds, "SOPInstanceUID") or (
+            str(getattr(meta, "MediaStorageSOPInstanceUID", "") or "") if meta is not None else ""
+        )
+        study_uid = _text(ds, "StudyInstanceUID")
+        series_uid = _text(ds, "SeriesInstanceUID")
+        transfer = str(getattr(meta, "TransferSyntaxUID", "") or "") if meta is not None else ""
+        if not (sop_class and sop_instance and study_uid and series_uid):
+            no_uids += 1
+            return
+        if not transfer:
+            transfer = str(ImplicitVRLittleEndian)
+        if sop_instance in seen_sop:
+            duplicates += 1
+            return
+        seen_sop.add(sop_instance)
+        state.dicom_files += 1
+        found.add(os.path.normcase(os.path.abspath(path)))
+        _add_instance(result, ds, path, size, sop_class, sop_instance, study_uid, series_uid, transfer)
+    def scan_zip(path: str, shown: str) -> None:
+        nonlocal archives, encrypted, nested, too_big, stopped_at_limit
+        try:
+            archive_file = zipfile.ZipFile(path)
+        except (zipfile.BadZipFile, OSError, NotImplementedError) as exc:
+            broken.append(f"{shown} ({type(exc).__name__})")
+            return
+        archives += 1
+        with archive_file:
+            for info in archive_file.infolist():
+                if info.is_dir() or not _safe_member(info.filename):
+                    continue
+                if cancel is not None and cancel.is_set():
+                    result.cancelled = True
+                    return
+                if state.files_seen >= max_files:
+                    stopped_at_limit = True
+                    return
+                state.files_seen += 1
+                member_path = f"{path}{ARCHIVE_SEP}{info.filename}"
+                member_shown = f"{shown}{ARCHIVE_SEP}{info.filename}"
+                if state.files_seen % 25 == 0:
+                    tick(member_shown)
+                if info.flag_bits & 0x1:
+                    encrypted += 1
+                    continue
+                if info.filename.lower().endswith(ARCHIVE_SUFFIXES):
+                    nested += 1
+                    continue
+                if info.file_size > MAX_MEMBER_BYTES:
+                    too_big += 1
+                    continue
+                try:
+                    with archive_file.open(info) as handle:
+                        head = handle.read(132)
+                        part10 = head[128:132] == b"DICM"
+                        if not part10 and not include_headerless:
+                            result.skipped_files += 1
+                            if len(result.skipped_examples) < MAX_EXAMPLES:
+                                result.skipped_examples.append(member_shown)
+                            continue
+                    with archive_file.open(info) as handle:
+                        ds = dcmread(handle, stop_before_pixels=True, force=not part10)
+                except Exception:  # noqa: BLE001 - not DICOM, damaged, or an unsupported compression
+                    result.skipped_files += 1
+                    if len(result.skipped_examples) < MAX_EXAMPLES:
+                        result.skipped_examples.append(member_shown)
+                    continue
+                index_dataset(ds, member_path, info.file_size, member_shown, True)
+    for folder, dirs, files in walker:
         dirs.sort()
         for name in sorted(files):
             if cancel is not None and cancel.is_set():
@@ -292,6 +444,11 @@ def scan_folder(
             except OSError:
                 continue
             part10 = is_part10(path)
+            if not part10 and name.lower().endswith(ARCHIVE_SUFFIXES):
+                scan_zip(path, os.path.relpath(path, base))
+                if result.cancelled or stopped_at_limit:
+                    break
+                continue
             if not part10 and not include_headerless:
                 result.skipped_files += 1
                 if len(result.skipped_examples) < MAX_EXAMPLES:
@@ -303,41 +460,21 @@ def scan_folder(
                 if len(result.skipped_examples) < MAX_EXAMPLES:
                     result.skipped_examples.append(os.path.relpath(path, base))
                 continue
-            meta = getattr(ds, "file_meta", None)
-            media_class = str(getattr(meta, "MediaStorageSOPClassUID", "") or "") if meta is not None else ""
-            sop_class = _text(ds, "SOPClassUID") or media_class
-            if media_class == DICOMDIR_SOP_CLASS or sop_class == DICOMDIR_SOP_CLASS:
-                result.dicomdirs.append(os.path.relpath(path, base))
-                refs, reason = _referenced_by_dicomdir(Path(path))
-                if reason:
-                    unreadable_dicomdirs += 1
-                    result.warnings.append(
-                        ScanWarning("warn", f"The DICOMDIR {os.path.relpath(path, base)} could not be read ({reason}). The files were scanned directly instead.")
-                    )
-                indexed |= refs
-                continue
-            sop_instance = _text(ds, "SOPInstanceUID") or (
-                str(getattr(meta, "MediaStorageSOPInstanceUID", "") or "") if meta is not None else ""
-            )
-            study_uid = _text(ds, "StudyInstanceUID")
-            series_uid = _text(ds, "SeriesInstanceUID")
-            transfer = str(getattr(meta, "TransferSyntaxUID", "") or "") if meta is not None else ""
-            if not (sop_class and sop_instance and study_uid and series_uid):
-                no_uids += 1
-                continue
-            if not transfer:
-                transfer = str(ImplicitVRLittleEndian)
-            if sop_instance in seen_sop:
-                duplicates += 1
-                continue
-            seen_sop.add(sop_instance)
-            state.dicom_files += 1
-            found.add(os.path.normcase(os.path.abspath(path)))
-            _add_instance(result, ds, path, size, sop_class, sop_instance, study_uid, series_uid, transfer)
+            index_dataset(ds, path, size, os.path.relpath(path, base), False)
         if result.cancelled or stopped_at_limit:
             break
 
     tick("")
+    if archives:
+        result.warnings.append(ScanWarning("info", f"{archives} ZIP file(s) were read in place. Nothing is unpacked to disk."))
+    if broken:
+        result.warnings.append(ScanWarning("warn", f"{len(broken)} ZIP file(s) could not be opened and were skipped (for example {broken[0]})."))
+    if encrypted:
+        result.warnings.append(ScanWarning("warn", f"{encrypted} password-protected file(s) inside ZIP files cannot be read. They are left out."))
+    if nested:
+        result.warnings.append(ScanWarning("info", f"{nested} ZIP file(s) inside a ZIP were not opened. Unpack those first."))
+    if too_big:
+        result.warnings.append(ScanWarning("warn", f"{too_big} file(s) inside ZIP files are larger than {MAX_MEMBER_BYTES // (1024 * 1024)} MB and are left out."))
     _mark_dicomdir_members(result, indexed)
     _finish_warnings(result, indexed, found, duplicates, no_uids, stopped_at_limit, max_files)
     result.files_seen = state.files_seen
@@ -438,7 +575,7 @@ def _finish_warnings(
             for study in result.studies()
             for series in study.series.values()
             for instance in series.instances
-            if not instance.in_dicomdir
+            if not instance.in_dicomdir and ARCHIVE_SEP not in instance.path
         )
         if unlisted:
             add(ScanWarning("info", f"{unlisted} DICOM file(s) are in the folder but not in the DICOMDIR. They are included."))
@@ -766,7 +903,7 @@ def send_import(
             study, instance = items[index]
             progress.current = os.path.basename(instance.path)
             try:
-                ds = dcmread(instance.path)
+                ds = read_dataset(instance.path)
             except Exception as exc:  # noqa: BLE001
                 _fail(progress, instance, f"Could not read the file: {type(exc).__name__}: {exc}")
                 index += 1
@@ -802,6 +939,7 @@ def send_import(
         progress.message = f"{type(exc).__name__}: {exc}"
         progress.not_attempted = max(progress.total - progress.stored - progress.failed, 0)
     finally:
+        close_sources()
         progress.current = ""
         progress.seconds = round(time.perf_counter() - started, 2)
         progress.done = True

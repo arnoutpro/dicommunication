@@ -10,6 +10,12 @@
 
 - **macOS: changing the port or upgrading could leave the service stopped.** `launchctl bootout` returns while the old job is still shutting down, so the immediate `bootstrap` failed with "Input/output error". The macOS service now waits (up to 20 seconds) until launchd has forgotten the job, then starts it, retrying up to five times. The macOS smoke test now changes the port right after installing.
 
+## Unreleased
+
+### New
+
+- **Dicom Import can scan and send `.zip` files.** Type the path of a folder or of a `.zip` file. A folder may contain ZIPs, which are scanned together with its loose DICOM files, and the same patient, study and edit steps apply. A ZIP is read in place: nothing is unpacked to disk, so no copy of the images is left behind. A file name that would point outside the ZIP, a password-protected file, a ZIP inside a ZIP and a single file over 1 GB inside a ZIP are left out, and the scan lists how many. A DICOMDIR inside a ZIP is not cross-checked (its files are read directly). Other archive types (7z, RAR, tar) are not read.
+
 ## 0.14.1
 
 ### New

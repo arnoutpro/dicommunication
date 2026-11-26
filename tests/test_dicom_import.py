@@ -447,3 +447,92 @@ def test_a_file_that_vanished_after_the_scan_is_one_failure(folder: Path, pacs: 
     next(folder.rglob("IM3")).unlink()
     progress = _send(scan, di.ImportEdits(), pacs.node())
     assert (progress.stored, progress.failed) == (2, 1) and "Could not read" in progress.failures[0].reason
+
+
+# --- ZIP files, read in place -----------------------------------------------------
+
+
+def _zip_of(source: Path, target: Path, *, extra: dict[str, bytes] | None = None) -> Path:
+    import zipfile
+
+    with zipfile.ZipFile(target, "w", zipfile.ZIP_DEFLATED) as archive:
+        for path in sorted(source.rglob("*")):
+            if path.is_file():
+                archive.writestr(str(path.relative_to(source)).replace("\\", "/"), path.read_bytes())
+        for name, data in (extra or {}).items():
+            archive.writestr(name, data)
+    return target
+
+
+def _holder(tmp_path: Path) -> Path:
+    """A fresh folder next to (not inside) the test's own folder."""
+    holder = tmp_path.parent / f"{tmp_path.name}-holder"
+    holder.mkdir()
+    return holder
+
+
+def _only_the_zip(folder: Path, tmp_path: Path, name: str = "export.zip", **kwargs) -> tuple[Path, Path]:
+    """The folder fixture packed into a ZIP in a fresh folder that holds nothing else."""
+    holder = _holder(tmp_path)
+    return holder, _zip_of(folder, holder / name, **kwargs)
+
+
+def test_a_zip_in_a_folder_is_scanned_without_unpacking_it(folder: Path, tmp_path: Path) -> None:
+    holder, archive = _only_the_zip(folder, tmp_path)
+    before = sorted(p.name for p in holder.iterdir())
+    scan = di.scan_folder(holder)
+    assert scan.instance_count == 3 and sorted(scan.patients) == ["P1", "P2"]
+    assert all(di.ARCHIVE_SEP in i.path for s in scan.studies() for se in s.series.values() for i in se.instances)
+    assert sorted(p.name for p in holder.iterdir()) == before  # nothing was written
+    assert any("read in place" in w.text for w in scan.warnings)
+
+
+def test_a_zip_file_can_be_the_thing_to_scan(folder: Path, tmp_path: Path) -> None:
+    _holder, archive = _only_the_zip(folder, tmp_path)
+    scan = di.scan_folder(archive)
+    assert scan.instance_count == 3 and scan.root == str(archive.parent)
+
+
+def test_files_inside_a_zip_are_sent_with_their_edits(folder: Path, tmp_path: Path, pacs: Pacs) -> None:
+    _holder, archive = _only_the_zip(folder, tmp_path)
+    scan = di.scan_folder(archive)
+    edits = di.ImportEdits(patients={"P1": {"name": "NEW^NAME"}})
+    progress = _send(scan, edits, pacs.node())
+    assert progress.ok and progress.stored == 3 and progress.bytes_sent == scan.size
+    assert {str(d.PatientName) for d in pacs.received if str(d.PatientID) == "P1"} == {"NEW^NAME"}
+    assert {str(d.SOPInstanceUID) for d in pacs.received} == {
+        i.sop_instance_uid for s in scan.studies() for se in s.series.values() for i in se.instances
+    }
+
+
+def test_a_zip_and_loose_files_together_and_a_repeat_is_counted_once(folder: Path, tmp_path: Path) -> None:
+    holder, _archive = _only_the_zip(folder, tmp_path)
+    make_file(holder / "loose", "LOOSE1", patient_id="P9", patient_name="LOOSE^ONE")
+    scan = di.scan_folder(holder)
+    assert sorted(scan.patients) == ["P1", "P2", "P9"] and scan.instance_count == 4
+    _zip_of(folder, holder / "copy.zip")  # the same files again
+    again = di.scan_folder(holder)
+    assert again.instance_count == 4 and any("repeat" in w.text for w in again.warnings)
+
+
+def test_bad_unsafe_encrypted_and_nested_zips_are_reported_not_fatal(folder: Path, tmp_path: Path) -> None:
+    import zipfile
+
+    holder = _holder(tmp_path)
+    (holder / "broken.zip").write_bytes(b"this is not a zip")
+    inner = _zip_of(folder, holder.parent / f"{holder.name}-inner.zip")
+    _zip_of(folder, holder / "ok.zip", extra={"../escape.dcm": b"x", "sub/inner.zip": inner.read_bytes(), "readme.txt": b"hi"})
+    scan = di.scan_folder(holder)
+    texts = " ".join(w.text for w in scan.warnings)
+    assert scan.instance_count == 3
+    assert "could not be opened" in texts and "inside a ZIP were not opened" in texts
+    assert "escape" not in " ".join(i.path for s in scan.studies() for se in s.series.values() for i in se.instances)
+    assert zipfile.is_zipfile(holder / "ok.zip")
+
+
+def test_a_member_that_is_gone_when_sending_is_one_failure(folder: Path, tmp_path: Path, pacs: Pacs) -> None:
+    holder, archive = _only_the_zip(folder, tmp_path)
+    scan = di.scan_folder(holder)
+    archive.write_bytes(b"gone")  # the ZIP is replaced after the scan
+    progress = _send(scan, di.ImportEdits(), pacs.node())
+    assert progress.failed == 3 and progress.stored == 0 and progress.done

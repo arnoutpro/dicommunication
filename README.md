@@ -17,7 +17,7 @@ It is **one application with six products**, picked with the tool switcher at th
 | **Dicom Anonymizer** | Query a PACS, pick studies and series, retrieve them, anonymize them (four modes) and export them to a folder or a ZIP |
 | **Dicom Router** | Scheduled C-FIND rules with optional retrieve-and-forward, rules that watch a folder and send new PDFs to a PACS, and a status dashboard with a chart per rule |
 | **Dicom Cleaner** | Query, retrieve, black out a rectangle of burned-in pixel data and send the result back over C-STORE |
-| **Dicom Import** | Scan a folder (DICOMDIR and/or loose DICOM files), change patient and exam details, and send the images to a PACS |
+| **Dicom Import** | Scan a folder or ZIP file (DICOMDIR and/or loose DICOM files, also inside .zip files), change patient and exam details, and send the images to a PACS |
 
 **Configuration** (Local AE, virtual AE titles, remote nodes, import / export of settings, users, security, audit log and logs) sits at the bottom of the left sidebar and is shared by every product. It is for administrators. **About** (the running version) and **Help** (the in-app guide) are in the top bar, next to the theme switcher (light, dark, follows the device, professional dark).
 
@@ -547,7 +547,7 @@ Corrects the two private ELSCINT1 tags Vue's CS PACS REPORT writes onto every in
 
 Brings DICOM files from a folder into a PACS, in four steps:
 
-1. **Choose the folder.** A folder on the computer the app runs on: a `DICOMDIR` (a CD or DVD export), loose DICOM files, or both, at any depth. The scan runs in the background with live progress and can be stopped. Files without the standard DICOM marker are skipped unless you tick the option to try them. In the Windows and macOS services the **…** button is greyed out (no desktop); type the path.
+1. **Choose the folder or ZIP file.** A folder, or a `.zip` file, on the computer the app runs on: a `DICOMDIR` (a CD or DVD export), loose DICOM files, `.zip` files, or any mix, at any depth. A ZIP is read in place and never unpacked to disk; a password-protected ZIP, a ZIP inside a ZIP and a single file over 1 GB inside a ZIP are left out (the scan says so), and 7z, RAR and tar are not read. The scan runs in the background with live progress and can be stopped. Files without the standard DICOM marker are skipped unless you tick the option to try them. In the Windows and macOS services the **…** button is greyed out (no desktop); type the path.
 2. **What was found.** A summary from the DICOM tags: patients, studies, series, images, size, and a table per study, with warnings for non-DICOM files, files without UIDs, repeated SOP Instance UIDs, one patient ID with different names or birth dates, and a DICOMDIR that lists missing files.
 3. **Review and change details** (optional). Each patient and each study has a folded **Change … details** section: patient name, ID, birth date and sex; study description, accession number, date, time, referring physician and study ID. Values are checked and normalised, and **Check changes** reports how many fields would change without sending anything. Untick a study to leave it out.
 4. **Send to the PACS** over C-STORE as a calling AE you choose, with progress, **Stop** and a per-file list of any failure. Optionally give the studies, series and images new UIDs (references between images follow them), and decompress an image the PACS does not take in its own format.
