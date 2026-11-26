@@ -238,7 +238,7 @@ DICOMM_HTTP_BIND=0.0.0.0 DICOMM_ALLOWED_HOSTS=dicomm.example.org docker compose 
 Startup names the address the UI was published on, so `docker compose logs` answers "why can I not reach this from my laptop":
 
 ```
-Dicommunication 0.15.2 started (data dir /app/data, log level INFO)
+Dicommunication 0.15.3 started (data dir /app/data, log level INFO)
 Web UI published on 127.0.0.1:8080 — reachable from the Docker host only. This is the
 default. To reach it from another machine, restart with DICOMM_HTTP_BIND=0.0.0.0
 (that turns on sign-in and HTTPS).
