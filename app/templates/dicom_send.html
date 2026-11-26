@@ -16,7 +16,8 @@
 {% set has_studies = action == "query" and result and result.ok and result.records %}
 {% set source = config.get_remote(remote_id) if remote_id else None %}
 {% set destination = config.get_remote(destination_id) if destination_id else None %}
-<form autocomplete="off" class="step-flow" method="post" action="{{ href('/tools/dicom-send/run') }}">
+<form autocomplete="off" class="step-flow" method="post" action="{{ href('/tools/dicom-send/run') }}" data-find-advanced{% if date_preset %} data-saved-date-preset="{{ date_preset }}"{% endif %}>
+  <input type="hidden" name="date_preset" value="{{ date_preset }}" data-find-date-preset>
   <section class="panel step">
     <header class="panel-head">
       <h2 class="step-title"><span class="step-num" aria-hidden="true">1</span>Choose the archives</h2>
@@ -42,9 +43,12 @@
     <header class="panel-head">
       <h2 class="step-title"><span class="step-num" aria-hidden="true">2</span>Find studies</h2>
     </header>
-    <div class="fields">
-      {% set query_part = "filters" %}
-      {% include "partials/study_query_fields.html" %}
+    <p class="hint">The same query form as Dicomtag Analytics, at Study level. Tick <em>Return</em> for the columns you want in the list; a value you type is matched whether or not it is returned.</p>
+    <div class="find-send-keys">
+      {% include "partials/find_keys_form.html" %}
+    </div>
+    <div class="form-actions">
+      <button class="button{% if not has_studies %} primary{% endif %}" type="submit" name="action" value="query" data-busy-text="Querying…">Find studies</button>
     </div>
   </section>
 

@@ -17,8 +17,9 @@ from app.dicom_client import capture_pynetdicom_log
 from app.models import LocalAE, RemoteNode, ToolResult, ToolStep
 from app.tools.anonymize import _retrieve_selections
 from app.tools.base import elapsed_ms
-from app.tools.cleaner import CleanerTool, _send_back
+from app.tools.cleaner import MAX_QUERY_RESULTS, CleanerTool, _send_back, _study_query
 from app.tools.find_advanced import retrieve_storage_gate_message
+from app.tools.find_keys import validate_study_values
 from app.tools.registry import register
 
 
@@ -32,6 +33,32 @@ class DicomSendTool(CleanerTool):
     )
     category = "dimse"
     template = "dicom_send.html"
+
+    def _query(self, local: LocalAE, remote: RemoteNode, options: dict[str, Any]) -> ToolResult:
+        """The Dicomtag Analytics query, at Study level: the match values and the columns come from the form."""
+        try:
+            values = validate_study_values(options.get("values") or {})
+        except ValueError as exc:
+            return ToolResult(tool_id=self.id, tool_name=self.name, ok=False, summary=str(exc), remote_id=remote.id, remote_name=remote.name)
+        columns = ["StudyInstanceUID"]
+        for keyword in options.get("return_keys") or []:
+            if keyword not in columns:
+                columns.append(keyword)
+        started = time.perf_counter()
+        with capture_pynetdicom_log() as log_stream:
+            find_started = time.perf_counter()
+            records, error, contexts = _study_query(local, remote, values, columns)
+            log = log_stream.getvalue().strip()
+        ok = not error
+        message = f"Found {len(records)} stud" + ("y" if len(records) == 1 else "ies") if ok else (error or "Query failed.")
+        if ok and len(records) >= MAX_QUERY_RESULTS:
+            message += f" (the list stops at {MAX_QUERY_RESULTS}; narrow the filters to see the rest)"
+        steps = [ToolStep(name="C-FIND", ok=ok, message=message, duration_ms=elapsed_ms(find_started))]
+        return ToolResult(
+            tool_id=self.id, tool_name=self.name, ok=ok, summary=message,
+            remote_id=remote.id, remote_name=remote.name,
+            duration_ms=elapsed_ms(started), steps=steps, log=log, contexts=contexts, records=records,
+        )
 
     def _run(self, local: LocalAE, remote: RemoteNode, options: dict[str, Any]) -> ToolResult:
         def fail(summary: str, **extra: Any) -> ToolResult:

@@ -17,7 +17,7 @@ from fastapi.responses import HTMLResponse
 
 from app.fs_dialog import dialogs_available
 from app.models import ToolResult
-from app.routes._shared import execute_tool, page, study_query_from_form, templates
+from app.routes._shared import execute_tool, page, study_filter_options, study_query_from_form, templates
 from app.routes.cleaner import _resolve_local_remote
 from app.tools import get_tool
 from app.tools.anon_engine import MODE_LABELS, MODES
@@ -135,6 +135,7 @@ async def anonymize_run(request: Request) -> HTMLResponse:
         options["accession_number"] = query["accession_number"]
         options["study_date"] = normalize_da(query["study_date"])
         options["modality"] = "\\".join(query["modalities"])
+        options.update(study_filter_options(query))
 
     try:
         result = execute_tool(request, "anonymize", remote_id or None, options, identity_id or None)

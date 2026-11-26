@@ -27,6 +27,7 @@ from app.shell import (
     display_tool_name,
 )
 from app.tools import category_label, get_tool, list_tools, list_tools_by_category
+from app.tools.find_keys import STUDY_FILTERS
 
 BASE_DIR = package_dir()
 
@@ -119,7 +120,13 @@ def study_query_from_form(form: Any) -> dict[str, Any]:
         "accession_number": str(form.get("accession_number") or "").strip(),
         "study_date": str(form.get("study_date") or "").strip(),
         "modalities": [v for v in form.getlist("modality") if v],
+        **{field: str(form.get(field) or "").strip() for field in STUDY_FILTERS},
     }
+
+
+def study_filter_options(query: dict[str, Any]) -> dict[str, str]:
+    """The extra Study-level filters of a query, for a tool's options."""
+    return {field: str(query.get(field) or "") for field in STUDY_FILTERS}
 
 
 def _check_operator_limits(request: Request, tool_id: str, options: dict[str, Any] | None, manual_remote: RemoteNode | None) -> None:
