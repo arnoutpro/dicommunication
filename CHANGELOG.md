@@ -4,6 +4,7 @@
 
 ### Changes
 
+- **The example values in the Tag Editor no longer look like real data.** The grey hint in Accession Number was a 10-digit number and the one in Last Composed By looked like a user id; they now read `ACC1` and `user@site`, and the Tag Editor screenshots are retaken. The Name hint on the Remote nodes page no longer says "PACS production". The rest of the app was checked for placeholders, default values and sample data that look like production values; the other hints are generic (`DOE^JANE`, `ACC1`, `CT`).
 - **The macOS DMG is no longer built automatically when a version tag is pushed.** Start **Actions → macOS DMG → Run workflow** yourself, like the Windows MSI: run it on the `v*` tag to attach the DMG to that release, or on a branch for a test build.
 
 ## 0.15.2

@@ -39,7 +39,7 @@
     </header>
     <div class="fields">
       {% call field("Accession Number", "te-acc") %}
-      <input id="te-acc" class="w-md" type="text" name="accession_number" value="{{ accession_number|default('') }}" placeholder="7205719954">
+      <input id="te-acc" class="w-md" type="text" name="accession_number" value="{{ accession_number|default('') }}" placeholder="ACC1">
       {% endcall %}
       {% call field("Study Date", "te-date") %}
       <input id="te-date" class="w-sm" type="date" name="study_date" value="{{ study_date|default('') }}">
@@ -81,7 +81,7 @@
       <input id="te-sign" class="w-md" type="datetime-local" name="final_sign_timestamp" step="1" value="{{ final_sign_timestamp|default('') }}">
       {% endcall %}
       {% call field("Last Composed By", "te-composed", "Tamar Report Study Last Composed By.") %}
-      <input id="te-composed" class="w-md" type="text" name="last_composed_by" maxlength="64" value="{{ last_composed_by|default('') }}" placeholder="187890@24">
+      <input id="te-composed" class="w-md" type="text" name="last_composed_by" maxlength="64" value="{{ last_composed_by|default('') }}" placeholder="user@site">
       {% endcall %}
     </div>
     <ul class="push-notes">
