@@ -536,3 +536,80 @@ def test_a_member_that_is_gone_when_sending_is_one_failure(folder: Path, tmp_pat
     archive.write_bytes(b"gone")  # the ZIP is replaced after the scan
     progress = _send(scan, di.ImportEdits(), pacs.node())
     assert progress.failed == 3 and progress.stored == 0 and progress.done
+
+
+# --- 7z files: unpacked to a temporary folder -------------------------------------
+
+
+def _sevenz_of(source: Path, target: Path) -> Path:
+    py7zr = pytest.importorskip("py7zr")
+    with py7zr.SevenZipFile(target, "w") as archive:
+        for path in sorted(source.rglob("*")):
+            if path.is_file():
+                archive.write(path, str(path.relative_to(source)))
+    return target
+
+
+def test_a_7z_is_unpacked_to_a_temporary_folder_scanned_and_sent(folder: Path, tmp_path: Path, pacs: Pacs) -> None:
+    holder = _holder(tmp_path)
+    _sevenz_of(folder, holder / "export.7z")
+    work = tmp_path.parent / f"{tmp_path.name}-work"
+    scan = di.scan_folder(holder, workdir=work)
+    assert scan.instance_count == 3 and sorted(scan.patients) == ["P1", "P2"]
+    assert any("temporary folder" in w.text for w in scan.warnings)
+    shown = {scan.display(i.path) for s in scan.studies() for se in s.series.values() for i in se.instances}
+    assert all(name.startswith("export.7z" + di.ARCHIVE_SEP) for name in shown)
+    progress = _send(scan, di.ImportEdits(), pacs.node())
+    assert progress.ok and progress.stored == 3
+    assert work.exists()
+    di.discard_unpacked(scan)
+    assert not work.exists() and scan.workdir == ""
+    assert [p.name for p in holder.iterdir()] == ["export.7z"]  # the source folder is untouched
+
+
+def test_a_7z_that_cannot_be_read_or_has_no_room_to_unpack_is_reported(folder: Path, tmp_path: Path) -> None:
+    holder = _holder(tmp_path)
+    (holder / "broken.7z").write_bytes(b"this is not a 7z")
+    scan = di.scan_folder(holder, workdir=tmp_path.parent / f"{tmp_path.name}-work")
+    assert scan.instance_count == 0 and any("could not be unpacked" in w.text for w in scan.warnings)
+    _sevenz_of(folder, holder / "ok.7z")
+    nowhere = di.scan_folder(holder)  # no temporary folder given
+    assert any("could not be unpacked" in w.text for w in nowhere.warnings)
+
+
+def test_a_symbolic_link_inside_a_7z_is_never_followed(folder: Path, tmp_path: Path) -> None:
+    py7zr = pytest.importorskip("py7zr")
+    outside, _ = make_file(tmp_path.parent / f"{tmp_path.name}-outside", "SECRET", patient_id="LEAK")
+    holder = _holder(tmp_path)
+    link = tmp_path.parent / f"{tmp_path.name}-linkdir"
+    link.mkdir()
+    (link / "x.dcm").symlink_to(outside)
+    with py7zr.SevenZipFile(holder / "link.7z", "w") as archive:
+        archive.write(link / "x.dcm", "x.dcm")
+    scan = di.scan_folder(holder, workdir=tmp_path.parent / f"{tmp_path.name}-work")
+    assert "LEAK" not in scan.patients
+    di.discard_unpacked(scan)
+
+
+def test_sessions_remove_the_unpacked_folder_when_a_session_is_discarded(folder: Path, tmp_path: Path) -> None:
+    import time as _time
+
+    from app.import_session import READY, ImportSessions
+
+    holder = _holder(tmp_path)
+    _sevenz_of(folder, holder / "export.7z")
+    work = tmp_path.parent / f"{tmp_path.name}-sessions"
+    sessions = ImportSessions(workdir=work)
+    session = sessions.start_scan(str(holder))
+    for _ in range(100):
+        if session.state != "scanning":
+            break
+        _time.sleep(0.1)
+    assert session.state == READY and session.scan.instance_count == 3
+    assert (work / session.id).exists()
+    sessions.discard(session.id)
+    assert not (work / session.id).exists()
+    left = work / "stale"
+    left.mkdir(parents=True, exist_ok=True)
+    ImportSessions(workdir=work)  # a new start removes what an earlier run left
+    assert not left.exists()

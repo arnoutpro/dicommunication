@@ -2530,7 +2530,8 @@ function initDicomImport() {
       const status = root.querySelector("[data-import-browse-status]");
       browse.disabled = true;
       try {
-        const response = await fetch("/api/fs/pick-directory?purpose=dicom", { method: "POST" });
+        const url = browse.dataset.importBrowse === "zip" ? "/api/fs/pick-zip" : "/api/fs/pick-directory?purpose=dicom";
+        const response = await fetch(url, { method: "POST" });
         const payload = await response.json().catch(() => ({}));
         if (response.ok && payload.path && input instanceof HTMLInputElement) {
           input.value = payload.path;
@@ -2541,9 +2542,9 @@ function initDicomImport() {
           status.hidden = false;
           status.textContent =
             response.status === 403
-              ? "Your account may not use the folder dialog. Type a folder from the allowed list."
+              ? "Your account may not use the dialog. Type a path from the allowed list."
               : response.status === 400
-                ? "No folder was chosen, or this computer could not show a folder dialog. Type the path instead."
+                ? "Nothing was chosen, or this computer could not show a dialog. Type the path instead."
                 : payload.detail || "The folder dialog is not available. Type the path instead.";
         }
       } catch (error) {

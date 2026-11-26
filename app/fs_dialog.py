@@ -16,6 +16,7 @@ TITLES = {
     "dicom": "Select a folder with DICOM files",
 }
 DEFAULT_PURPOSE = "pdf"
+ZIP_TITLE = "Select a ZIP or 7z file with DICOM files"
 
 
 def _windows_session_zero() -> bool:
@@ -134,3 +135,72 @@ def pick_directory(purpose: str = DEFAULT_PURPOSE) -> str | None:
     if sys.platform == "darwin":
         return _macos_folder(title) or _tk_folder(title)
     return _linux_folder(title) or _tk_folder(title)
+
+
+def _windows_zip(title: str) -> str | None:
+    script = (
+        "Add-Type -AssemblyName System.Windows.Forms; "
+        "$d = New-Object System.Windows.Forms.OpenFileDialog; "
+        f"$d.Title = '{title}'; "
+        "$d.Filter = 'ZIP and 7z files (*.zip;*.7z)|*.zip;*.7z'; "
+        "if ($d.ShowDialog() -eq 'OK') { $d.FileName }"
+    )
+    return _run(["powershell", "-NoProfile", "-STA", "-Command", script])
+
+
+def _macos_zip(title: str) -> str | None:
+    script = (
+        'try\n'
+        f'  set theFile to choose file with prompt "{title}" of type {{"zip", "7z", "public.zip-archive", "org.7-zip.7-zip-archive"}}\n'
+        '  POSIX path of theFile\n'
+        'on error\n'
+        '  return ""\n'
+        'end try'
+    )
+    return _run(["osascript", "-e", script])
+
+
+def _linux_zip(title: str) -> str | None:
+    for argv in (
+        ["zenity", "--file-selection", "--file-filter=ZIP and 7z files | *.zip *.7z", f"--title={title}"],
+        ["kdialog", "--getopenfilename", os.path.expanduser("~"), "*.zip *.7z|ZIP and 7z files"],
+    ):
+        path = _run(argv)
+        if path:
+            return path
+    return None
+
+
+def _tk_zip(title: str) -> str | None:
+    try:
+        import tkinter as tk
+        from tkinter import filedialog
+    except Exception:  # noqa: BLE001
+        return None
+    root = tk.Tk()
+    root.withdraw()
+    try:
+        root.attributes("-topmost", True)
+    except Exception:  # noqa: BLE001
+        pass
+    try:
+        path = filedialog.askopenfilename(title=title, filetypes=[("ZIP and 7z files", "*.zip *.7z")])
+    except Exception:  # noqa: BLE001
+        path = ""
+    finally:
+        try:
+            root.destroy()
+        except Exception:  # noqa: BLE001
+            pass
+    return str(path).strip() or None
+
+
+def pick_zip_file() -> str | None:
+    """Open a native file dialog for one .zip or .7z file on this workstation. None if cancelled or unavailable."""
+    if not dialogs_available():
+        return None
+    if runtime_os_name() == "nt":
+        return _windows_zip(ZIP_TITLE) or _tk_zip(ZIP_TITLE)
+    if sys.platform == "darwin":
+        return _macos_zip(ZIP_TITLE) or _tk_zip(ZIP_TITLE)
+    return _linux_zip(ZIP_TITLE) or _tk_zip(ZIP_TITLE)

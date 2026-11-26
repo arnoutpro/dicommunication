@@ -172,3 +172,24 @@ def test_folder_dialog_title_is_chosen_from_a_fixed_list(client: TestClient, mon
     assert fs_dialog.pick_directory("dicom") == r"C:\dicom"
     assert fs_dialog.pick_directory("x'; Remove-Item *; '") == r"C:\dicom"  # not trusted: falls back to a known title
     assert seen == [fs_dialog.TITLES["dicom"], fs_dialog.TITLES["pdf"]]
+
+
+def test_the_zip_file_dialog_has_its_own_button_and_endpoint(client, monkeypatch) -> None:
+    from app import fs_dialog
+    from app.routes import tools
+
+    page = client.get("/tools/dicom-import").text
+    assert 'data-import-browse="zip"' in page and "Archive…" in page and "is-path" in page
+    monkeypatch.setattr(tools, "dialogs_available", lambda: True)
+    monkeypatch.setattr(tools, "pick_zip_file", lambda: "/data/export.zip")
+    assert client.post("/api/fs/pick-zip").json() == {"path": "/data/export.zip"}
+    monkeypatch.setattr(tools, "pick_zip_file", lambda: None)
+    assert client.post("/api/fs/pick-zip").status_code == 400
+    monkeypatch.setattr(tools, "dialogs_available", lambda: False)
+    assert client.post("/api/fs/pick-zip").status_code == 503
+    # The fixed title is the only text that reaches the dialog script.
+    seen: list[str] = []
+    monkeypatch.setattr(fs_dialog, "dialogs_available", lambda: True)
+    monkeypatch.setattr(fs_dialog, "runtime_os_name", lambda: "nt")
+    monkeypatch.setattr(fs_dialog, "_windows_zip", lambda title: seen.append(title) or r"C:\x.zip")
+    assert fs_dialog.pick_zip_file() == r"C:\x.zip" and seen == [fs_dialog.ZIP_TITLE]
