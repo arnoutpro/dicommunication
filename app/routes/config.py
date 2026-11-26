@@ -120,6 +120,7 @@ def save_local(
             station_ae_title=station_ae_title,
             mwl_scp_enabled=_as_bool(mwl_scp_enabled),
             storage_scp_enabled=_as_bool(storage_scp_enabled),
+            listener_paused=request.app.state.store.load().local.listener_paused,  # not a form field: keep it as it is
         )
     except ValidationError as exc:
         return config_view(request, page_id="local", error=_first_error(exc), status_code=400)
@@ -134,6 +135,25 @@ def save_local(
     )
     request.app.state.mwl_scp.restart()
     return RedirectResponse("/config/local?saved=local", status_code=303)
+
+
+LISTENER_RETURN_PAGES = {"/", "/config/local", "/config"}
+
+
+@router.post("/config/local/listener")
+def set_local_listener(request: Request, action: str = Form(...), next: str = Form("/config/local")):
+    """Stop or start the local DICOM listener (MWL SCP / C-STORE) right now, so its port can be used by another program.
+
+    The settings stay as they are: Stop only pauses the listener, Start brings it back.
+    """
+    if action not in {"pause", "resume"}:
+        raise HTTPException(status_code=400, detail="action must be pause or resume")
+    store = request.app.state.store
+    local = store.load().local.model_copy(update={"listener_paused": action == "pause"})
+    store.save_local(local)
+    request.app.state.mwl_scp.restart()
+    log.info("Local DICOM listener %s on %s:%s", "paused" if local.listener_paused else "resumed", local.host, local.port)
+    return RedirectResponse(next if next in LISTENER_RETURN_PAGES else "/config/local", status_code=303)
 
 
 @router.post("/config/remotes")

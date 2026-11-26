@@ -75,7 +75,7 @@ def export_settings(store: ConfigStore, sections: list[str] | tuple[str, ...]) -
     if SECTION_IDENTITIES in chosen:
         body[SECTION_IDENTITIES] = [item.model_dump(mode="json") for item in config.identities]
     if SECTION_LOCAL in chosen:
-        body[SECTION_LOCAL] = config.local.model_dump(mode="json")
+        body[SECTION_LOCAL] = config.local.model_dump(mode="json", exclude={"listener_paused"})  # runtime state, not a setting
     if SECTION_QUERIES in chosen:
         body[SECTION_QUERIES] = [item.model_dump(mode="json", exclude={"created_at", "updated_at"}) for item in store.list_saved_queries()]
     if SECTION_RULES in chosen:
@@ -287,7 +287,7 @@ def plan_import(store: ConfigStore, parsed: ParsedSettings, sections: list[str] 
             if action != SAME:
                 plan._remotes.append((action, incoming))
     if SECTION_LOCAL in chosen and parsed.local is not None:
-        same = parsed.local.model_dump(mode="json") == config.local.model_dump(mode="json")
+        same = parsed.local.model_dump(mode="json", exclude={"listener_paused"}) == config.local.model_dump(mode="json", exclude={"listener_paused"})
         plan.items.append(PlanItem(SECTION_LOCAL, parsed.local.ae_title, SAME if same else UPDATE, "replaces this workstation's AE settings" if not same else ""))
         if not same:
             plan._local = parsed.local
@@ -386,7 +386,7 @@ def apply_import(store: ConfigStore, plan: ImportPlan, on_error: Callable[[Excep
             else:
                 store.update_remote(remote.id, remote)
         if plan._local is not None:
-            store.save_local(plan._local)
+            store.save_local(plan._local.model_copy(update={"listener_paused": store.load().local.listener_paused}))
         for query in plan._queries:
             store.save_query(query)
         for action, rule in plan._rules:

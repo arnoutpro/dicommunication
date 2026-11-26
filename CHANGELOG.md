@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### New
+
+- **Stop listening / Start listening.** A button on the Dashboard (next to the listen address) and on the Local DICOM AE page frees this workstation's DICOM port at once, so another program such as a viewer can use it, and takes it back when you start listening again. It only pauses the listener: the MWL SCP and C-STORE settings stay as they are, a pause survives a restart of the service and saving the form, and the pages say "Paused" instead of "Not listening". The paused state is not part of exported settings and an import does not change it. The button is only shown when something is switched on to listen.
+
 ## 0.14.1
 
 ### New

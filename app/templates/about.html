@@ -14,7 +14,7 @@
 <p class="summary-line">
   <span><strong>v{{ app_version }}</strong> Arnout.pro Dicommunication Tool</span>
   <span><strong>{{ config.local.ae_title }}</strong> {{ config.local.host }}:{{ config.local.port }}{% if config.local.hostname %} · {{ config.local.hostname }}{% endif %}</span>
-  <span>Local MWL SCP: <strong>{% if mwl_scp_running %}listening on {{ config.local.host }}:{{ config.local.port }}{% elif mwl_scp_error %}off, {{ mwl_scp_error }}{% else %}off{% endif %}</strong></span>
+  <span>Local MWL SCP: <strong>{% if mwl_scp_running %}listening on {{ config.local.host }}:{{ config.local.port }}{% elif config.local.listener_paused and config.local.mwl_scp_enabled %}paused (Stop listening){% elif mwl_scp_error %}off, {{ mwl_scp_error }}{% else %}off{% endif %}</strong></span>
 </p>
 
 <section class="panel">

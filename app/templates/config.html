@@ -45,6 +45,8 @@
           <td>
             {% if mwl_scp_running %}
             <span class="badge ok">Listening</span>
+            {% elif config.local.mwl_scp_enabled and config.local.listener_paused %}
+            <span class="badge">Paused</span>
             {% elif config.local.mwl_scp_enabled %}
             <span class="badge fail">{{ mwl_scp_error or "Off" }}</span>
             {% else %}
@@ -54,6 +56,8 @@
           <td>
             {% if storage_scp_running %}
             <span class="badge ok">Listening</span>
+            {% elif config.local.storage_scp_enabled and config.local.listener_paused %}
+            <span class="badge">Paused</span>
             {% elif config.local.storage_scp_enabled %}
             <span class="badge fail">{{ mwl_scp_error or "Off" }}</span>
             {% else %}

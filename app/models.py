@@ -49,6 +49,9 @@ class LocalAE(BaseModel):
     station_ae_title: str = ""
     mwl_scp_enabled: bool = False
     storage_scp_enabled: bool = False
+    # Set by the Stop listening / Start listening button: the SCP is switched on above but not running, so the
+    # port is free for another program (such as a viewer) until it is started again. Not part of exported settings.
+    listener_paused: bool = False
 
     @field_validator("ae_title")
     @classmethod

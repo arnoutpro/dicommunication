@@ -1,0 +1,13 @@
+{# Stop / Start listening for the local DICOM listener. Pass next_url (the page to come back to). Shown only when
+   something is switched on to listen (MWL SCP or C-STORE), otherwise nothing uses the port. #}
+{% if config.local.mwl_scp_enabled or config.local.storage_scp_enabled %}
+<form method="post" action="{{ href('/config/local/listener') }}" class="inline-form" aria-label="Local DICOM listener">
+  <input type="hidden" name="next" value="{{ next_url }}">
+  {% if config.local.listener_paused %}
+  <span class="badge">Paused: port {{ config.local.port }} is free</span>
+  <button class="button compact" type="submit" name="action" value="resume" title="Listen on port {{ config.local.port }} again">Start listening</button>
+  {% else %}
+  <button class="button compact" type="submit" name="action" value="pause" title="Free port {{ config.local.port }} for another program, such as a viewer, until you start listening again">Stop listening</button>
+  {% endif %}
+</form>
+{% endif %}

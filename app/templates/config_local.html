@@ -17,6 +17,7 @@
   <header class="panel-head">
     <h2>Workstation identity</h2>
     <span class="muted">Calling AE when you are not impersonating a modality</span>
+    {% set next_url = '/config/local' %}{% include "partials/listener_toggle.html" %}
   </header>
   <form method="post" action="{{ href('/config/local') }}" class="fields cols-2" autocomplete="off">
     {% call field("AE Title", "ae_title", "1–16 characters. Remote nodes must accept this calling AE.", required=True) %}

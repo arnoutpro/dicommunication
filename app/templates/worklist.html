@@ -22,7 +22,7 @@
 <p class="summary-line">
   <span>Calling AE <strong>{{ config.local.ae_title }}</strong>{% if config.local.station_ae_title %}, station {{ config.local.station_ae_title }}{% endif %}{% if config.identities %} · {{ config.identities | length }} virtual AE{% if config.identities | length != 1 %}s{% endif %}{% endif %}</span>
   <span><strong>{{ config.mwl_remotes() | length }}</strong> DMWL node{{ "" if config.mwl_remotes() | length == 1 else "s" }}</span>
-  <span>Local MWL SCP: <strong>{% if mwl_scp_running %}listening on {{ config.local.host }}:{{ config.local.port }}{% elif mwl_scp_error %}off, {{ mwl_scp_error }}{% else %}off (enable under Configuration){% endif %}</strong></span>
+  <span>Local MWL SCP: <strong>{% if mwl_scp_running %}listening on {{ config.local.host }}:{{ config.local.port }}{% elif config.local.listener_paused and config.local.mwl_scp_enabled %}paused (Stop listening){% elif mwl_scp_error %}off, {{ mwl_scp_error }}{% else %}off (enable under Configuration){% endif %}</strong></span>
 </p>
 
 <section class="panel">

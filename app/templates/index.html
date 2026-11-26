@@ -23,14 +23,16 @@
       <dt>This workstation</dt>
       <dd>
         <code>{{ config.local.ae_title }}</code>
-        <span class="muted">listening on {{ config.local.host }}:{{ config.local.port }} · timeout {{ config.local.timeout_seconds | int }}s{% if config.identities %} · {{ config.identities | length }} virtual AE{% if config.identities | length != 1 %}s{% endif %}{% endif %}</span>
+        <span class="muted">{% if config.local.listener_paused and (config.local.mwl_scp_enabled or config.local.storage_scp_enabled) %}listen address{% else %}listening on{% endif %} {{ config.local.host }}:{{ config.local.port }} · timeout {{ config.local.timeout_seconds | int }}s{% if config.identities %} · {{ config.identities | length }} virtual AE{% if config.identities | length != 1 %}s{% endif %}{% endif %}</span>
         <a href="{{ href('/config/local') }}">Edit</a>
+        {% set next_url = '/' %}{% include "partials/listener_toggle.html" %}
       </dd>
     </div>
     <div>
       <dt>Accept C-STORE</dt>
       <dd>
         {% if storage_scp_running %}<span class="badge ok">Listening</span>
+        {% elif config.local.storage_scp_enabled and config.local.listener_paused %}<span class="badge">Paused</span>
         {% elif config.local.storage_scp_enabled %}<span class="badge fail">Not listening</span>
         {% else %}<span class="badge">Off</span>{% endif %}
       </dd>
@@ -39,6 +41,7 @@
       <dt>Worklist SCP</dt>
       <dd>
         {% if mwl_scp_running %}<span class="badge ok">Listening</span>
+        {% elif config.local.mwl_scp_enabled and config.local.listener_paused %}<span class="badge">Paused</span>
         {% elif config.local.mwl_scp_enabled %}<span class="badge fail">Not listening</span>
         {% else %}<span class="badge">Off</span>{% endif %}
       </dd>

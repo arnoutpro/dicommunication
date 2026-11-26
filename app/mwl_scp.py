@@ -63,6 +63,10 @@ class WorklistSCP:
         storage_enabled = config.local.storage_scp_enabled
         if not mwl and not storage_enabled:
             return
+        if config.local.listener_paused:
+            self.last_error = None
+            log.info("Local DICOM SCP is paused (Stop listening): port %s is free", config.local.port)
+            return
         bind_host = "0.0.0.0" if config.local.host in {"0.0.0.0", ""} else config.local.host
         try:
             ae = AE(ae_title=config.local.ae_title)
