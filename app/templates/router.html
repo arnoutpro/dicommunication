@@ -147,13 +147,18 @@
     </select>
     {{ field_error("pdf_destination_id") }}
     {% endcall %}
-    {% call field("Present as", "rule-pdf-ae", "The calling AE Title on the association. The PACS must allow it.") %}
+    {% call field("Present as", "rule-pdf-ae", "The calling AE Title on the association: this workstation's, a saved virtual AE, or Type an AE Title to use any title without saving it first. The PACS must allow it.") %}
+    <span class="identity-pick" data-identity-pick>
     <select id="rule-pdf-ae" class="w-lg" name="pdf_identity_id">
       <option value="">{{ config.local.ae_title }} (workstation)</option>
       {% for identity in config.identities %}
       <option value="{{ identity.id }}" {% if values and values.pdf_identity_id == identity.id %}selected{% endif %}>{{ identity.name }} — {{ identity.ae_title }}</option>
       {% endfor %}
+      {% with ident_value=(values.pdf_identity_id if values else ''), kind='option' %}{% include "partials/identity_typed.html" %}{% endwith %}
     </select>
+    {% with ident_value=(values.pdf_identity_id if values else ''), kind='box' %}{% include "partials/identity_typed.html" %}{% endwith %}
+    </span>
+    {{ field_error("pdf_identity_id") }}
     {% endcall %}
     {% call field("Stored as (Modality)", "rule-pdf-mod", "The Modality tag of the stored document: DOC (the default), SR or OT, or another code of up to 16 capital letters, digits, spaces or underscores. It is still an Encapsulated PDF.") %}
     <input id="rule-pdf-mod" class="w-sm" name="pdf_modality"{{ invalid("pdf_modality") }} placeholder="DOC" value="{{ values.pdf_modality if values and values.pdf_modality else 'DOC' }}">

@@ -291,7 +291,7 @@ async def import_send(request: Request, sid: str) -> HTMLResponse:
     try:
         local = config.calling_ae(identity_id or None)
     except KeyError:
-        return _render(request, session, flash="That virtual AE no longer exists.", **common)
+        return _render(request, session, flash="Present as: the AE Title is not valid, or that virtual AE no longer exists.", **common)
     try:
         _sessions(request).start_send(session, local, remote, edits, SendOptions(study_uids=selected, decompress=decompress))
     except ImportProblem as exc:

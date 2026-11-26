@@ -1188,6 +1188,7 @@ label:has(> .input-with-action > input:focus),
   min-width: 0;
 }
 .input-with-action.is-path { width: min(100%, 60rem); }
+.identity-pick { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 0.35rem; min-width: 0; }
 .input-with-action .button {
   flex-shrink: 0;
   min-width: 2.4rem;

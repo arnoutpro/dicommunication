@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### New
+
+- **Present as can be a typed AE Title.** Every **Present as** dropdown (Worklist, Testbench, Dicomtag Analytics, Anonymizer, Cleaner, Import, Send Image, Tag Editor, the DIMSE tools and the Dicom Router PDF rule) has a last choice, **Type an AE Title…**, with a box for any calling AE Title (up to 16 printable characters, no backslash). You no longer have to save a virtual AE under Configuration first. Only the calling AE Title changes: a typed title has no station or modality defaults. The PACS must still allow the title. An operator can use it too, so anyone who may run the tools can present as any AE Title (see SECURITY.md). A typed title is kept with a saved query or Router rule, and in the settings export.
+
 ## 0.15.1
 
 ### New

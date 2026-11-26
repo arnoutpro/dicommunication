@@ -61,6 +61,8 @@ disabled, demoted or deleted, and nobody can delete their own account.
 Every route is listed in a permission table (`app/auth.py`); a route nobody listed
 needs an administrator, and a test fails if one is missing.
 
+**Calling AE Title.** A user who may run the tools (operator and up) can type any calling AE Title in **Present as**, not only the saved virtual AEs an administrator made. A DICOM AE Title is a label, not a credential, so this does not bypass anything the PACS enforces by address and port, but a PACS that trusts a title alone (for example to let a modality push studies) can be sent as that title. Limit who may run the tools, and let the PACS check the address as well as the title.
+
 **Operator limits.** Without them an operator could make the server read any folder
 it can, or send to any address. So an operator may only use **saved nodes** (no typed
 C-ECHO address, and an HL7 host and port must match a saved node) and **folders an

@@ -1126,6 +1126,33 @@ document.querySelectorAll("[data-autohide]").forEach((node) => {
   }, 3500);
 });
 
+// "Present as" can be a typed AE Title: the last option of the dropdown stands for it, and its value follows the box.
+function syncIdentityPick(pick) {
+  const select = pick.querySelector("select");
+  const input = pick.querySelector("[data-identity-ae]");
+  const typed = select ? select.querySelector("option[data-typed]") : null;
+  if (!select || !(input instanceof HTMLInputElement) || !typed) {
+    return;
+  }
+  const on = select.selectedOptions[0] === typed;
+  input.hidden = !on;
+  input.required = on; // a hidden box must never be required, or the form refuses to send with no sign
+  typed.value = "ae:" + input.value.trim();
+}
+function syncIdentityPicks() {
+  document.querySelectorAll("[data-identity-pick]").forEach(syncIdentityPick);
+}
+["change", "input"].forEach((type) =>
+  document.addEventListener(type, (event) => {
+    const pick = event.target instanceof Element ? event.target.closest("[data-identity-pick]") : null;
+    if (pick) {
+      syncIdentityPick(pick);
+    }
+  })
+);
+document.addEventListener("htmx:afterSwap", syncIdentityPicks);
+syncIdentityPicks();
+
 document.body.addEventListener("change", (event) => {
   const select = event.target;
   if (!(select instanceof HTMLSelectElement) || select.name !== "identity_id") {

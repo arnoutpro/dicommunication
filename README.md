@@ -360,7 +360,7 @@ Writes are atomic (temp file + replace). Replacing the Docker image does not res
 
 - **Configured nodes** (`/config`) — an overview of the local AE, virtual AEs and remote nodes
 - **Local DICOM AE** (`/config/local`) — the workstation's own AE
-- **Virtual AEs** (`/config/identities`) — extra calling AE titles
+- **Virtual AEs** (`/config/identities`) — extra calling AE titles. Every **Present as** dropdown also has **Type an AE Title…** to use any calling AE title without saving it here first
 - **Remote nodes** (`/config/remotes`) — the PACS, modalities and other peers
 - **Import / export** (`/config/transfer`) — move settings to another computer or into a service edition in one file. A preview shows what would change before anything is written; nothing is deleted; nothing that can hold patient data is exported
 - **Users** (`/config/users`) — accounts and roles (viewer, operator, administrator)
