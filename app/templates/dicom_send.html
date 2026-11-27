@@ -28,7 +28,7 @@
       {% set query_remote_hint = "The archive the studies are found on and retrieved from." %}
       {% set query_part = "connect" %}
       {% include "partials/study_query_fields.html" %}
-      {% call field("Send to", "send-destination", "The archive that receives the studies, one of the registered nodes (Configuration > Remote nodes). It must accept C-STORE from the calling AE Title above and must not be the archive you send from.") %}
+      {% call field("Send to", "send-destination", "The archive that receives the studies, one of the registered nodes (Configuration > Remote nodes). It must know the calling AE Title above (see the note below) and accept C-STORE from it, and must not be the archive you send from.") %}
       <select id="send-destination" class="w-lg" name="destination_remote_id">
         <option value="">Select the archive to send to…</option>
         {% for node in config.remotes %}
@@ -37,6 +37,10 @@
       </select>
       {% endcall %}
     </div>
+    <p class="caution" role="note">
+      <strong>The receiving archive must know this AE.</strong>
+      The studies are sent from this workstation as the calling AE Title chosen under <em>Present as</em> (now {{ config.local.ae_title }} unless you pick another). That AE Title must be registered as a known AE on the <em>Send to</em> archive, with this computer's address and port ({{ config.local.port }}), and be allowed to store. Otherwise the archive rejects the association and the send fails. The <em>Send from</em> archive needs it too, as a C-MOVE destination.
+    </p>
   </section>
 
   <section class="panel step">
@@ -67,7 +71,7 @@
     </header>
     {% include "partials/storage_scp_caution.html" %}
     <div class="fields">
-      <p class="hint fld-note">Each checked study is retrieved from {{ source.name if source else 'the source archive' }} to this workstation and sent to {{ destination.name if destination else 'the archive you chose in step 1' }} with its original UIDs, so the destination holds an identical copy and the source keeps its own. The images only pass through memory; nothing is saved here.</p>
+      <p class="hint fld-note">Each checked study is retrieved from {{ source.name if source else 'the source archive' }} to this workstation and sent to {{ destination.name if destination else 'the archive you chose in step 1' }} with its original UIDs, so the destination holds an identical copy and the source keeps its own. The images only pass through memory; nothing is saved here. The send only works if {{ destination.name if destination else 'the destination archive' }} knows this calling AE Title ({{ config.local.ae_title }}, or the one you chose under Present as) as an allowed AE.</p>
     </div>
     <div class="form-actions">
       <button class="button primary" type="submit" name="action" value="run" formnovalidate

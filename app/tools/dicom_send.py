@@ -137,6 +137,12 @@ class DicomSendTool(CleanerTool):
                     "status": status,
                     "error": err,
                 })
+            if send_error and not stored and not send_error.startswith("C-STORE status"):
+                # Nothing was stored and the destination never answered a C-STORE: it refused the association itself.
+                send_error += (
+                    f". {destination.name} must know the calling AE Title {local.ae_title} as an allowed AE (registered with this "
+                    f"computer's address and port), and accept C-STORE from it, or the send fails"
+                )
             steps.append(ToolStep(
                 name="C-STORE", ok=stored == len(datasets) and not send_error,
                 message=f"Sent {stored} of {len(datasets)} instance(s) to {destination.name} with their original UIDs"

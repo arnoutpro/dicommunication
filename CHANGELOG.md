@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Changes
+
+- **Dicom Send says that the receiving archive must know the calling AE.** A note in step 1 (under Send to) and one in step 4 say that the calling AE Title chosen under *Present as* must be registered as a known AE on the *Send to* archive, with this computer's address and port, and be allowed to store; otherwise the send fails. When the archive refuses the association, the result now names the archive and the AE Title to register.
+
 ## 0.15.7
 
 ### New
