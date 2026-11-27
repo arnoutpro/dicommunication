@@ -15,7 +15,7 @@ SERIES = "1.2.826.0.1.3680043.8.498.41223345"
 SOP = "1.2.826.0.1.3680043.8.498.41223346"
 
 
-def _archive(instance, port: int):
+def _archive(instance, port: int, known_aet: str | None = None):
     """A second archive that only stores what it is sent."""
     received: list = []
 
@@ -27,14 +27,16 @@ def _archive(instance, port: int):
 
     ae = AE(ae_title="ARCHIVE_B")
     ae.add_supported_context(str(instance.SOPClassUID))
+    if known_aet:
+        ae.require_calling_aet = [known_aet]  # an archive that only knows one calling AE Title
     return ae.start_server(("127.0.0.1", port), block=False, evt_handlers=[(evt.EVT_C_STORE, handle_store)]), received
 
 
-def _setup(tmp_path):
+def _setup(tmp_path, known_aet: str | None = None):
     instance = _make_instance(STUDY, SERIES, SOP, rows=4, cols=4)
     find_port, local_port, dest_port = _free_port(), _free_port(), _free_port()
     source_server, source_received = _start_find_move_store_scp(find_port, local_port, STUDY, instance)
-    dest_server, dest_received = _archive(instance, dest_port)
+    dest_server, dest_received = _archive(instance, dest_port, known_aet)
     store = ConfigStore(tmp_path / "config")
     store.save_local(LocalAE(ae_title="DICOMM", host="127.0.0.1", port=local_port, storage_scp_enabled=True))
     source = RemoteNode(name="archive a", ae_title="QR_SCP", host="127.0.0.1", port=find_port)
@@ -152,3 +154,26 @@ def test_the_anonymizer_and_the_cleaner_got_the_extra_study_filters(client, stor
     assert "Tamar Study Reason: remove the backslash" in bad.text
     kept = client.post("/tools/dicom-cleaner/run", data={"action": "query", "remote_id": remote.id, "study_date": "2026-01-01", "study_description": "*CHEST*", "study_reason": "a\\b"})
     assert 'value="*CHEST*"' in kept.text  # what was typed is put back
+
+
+def test_the_page_and_the_result_say_the_receiving_archive_must_know_the_calling_ae(tmp_path) -> None:
+    store, source, destination, servers, dest_received = _setup(tmp_path, known_aet="SOMEONE_ELSE")
+    try:
+        with TestClient(create_app(store)) as client:
+            page = client.get("/tools/dicom-send").text
+            assert "The receiving archive must know this AE." in page and "known AE on the <em>Send to</em> archive" in page
+            run = client.post(
+                "/tools/dicom-send/run",
+                data={"action": "run", "remote_id": source.id, "level": "STUDY", "study_uid": [STUDY], "destination_remote_id": destination.id},
+            )
+            assert not dest_received
+            assert "archive b must know the calling AE Title DICOMM as an allowed AE" in run.text, run.text
+            # Presenting as an AE Title the archive does know makes the same send work.
+            ok = client.post(
+                "/tools/dicom-send/run",
+                data={"action": "run", "remote_id": source.id, "identity_id": "ae:SOMEONE_ELSE", "level": "STUDY", "study_uid": [STUDY], "destination_remote_id": destination.id},
+            )
+            assert len(dest_received) == 1 and "Sent 1 instance(s)" in ok.text, ok.text
+    finally:
+        for server in servers:
+            server.shutdown()
