@@ -39,10 +39,9 @@
   <g transform="translate(618,168) scale(0.667)" stroke="#6cb2f0" stroke-width="2.2" fill="none" stroke-linecap="square" stroke-linejoin="miter"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></g>
   <text x="646" y="181" font-family="'Segoe UI', system-ui, -apple-system, 'Helvetica Neue', Arial, sans-serif" font-size="13" font-weight="400" fill="#e4e8ec">Dicom Router</text>
   <text x="826" y="181" font-family="'Segoe UI', system-ui, -apple-system, 'Helvetica Neue', Arial, sans-serif" font-size="12" fill="#959fab">Scheduled rules and folder watches</text>
-  <rect x="601" y="192" width="551" height="32" fill="#2670bd"/>
-  <g transform="translate(618,200) scale(0.667)" stroke="#ffffff" stroke-width="2.2" fill="none" stroke-linecap="square" stroke-linejoin="miter"><path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4 20-7z"/></g>
-  <text x="646" y="213" font-family="'Segoe UI', system-ui, -apple-system, 'Helvetica Neue', Arial, sans-serif" font-size="13" font-weight="600" fill="#ffffff">Dicom Send</text>
-  <text x="826" y="213" font-family="'Segoe UI', system-ui, -apple-system, 'Helvetica Neue', Arial, sans-serif" font-size="12" fill="#dbe8f6">Copy studies between archives</text>
+  <g transform="translate(618,200) scale(0.667)" stroke="#6cb2f0" stroke-width="2.2" fill="none" stroke-linecap="square" stroke-linejoin="miter"><path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4 20-7z"/></g>
+  <text x="646" y="213" font-family="'Segoe UI', system-ui, -apple-system, 'Helvetica Neue', Arial, sans-serif" font-size="13" font-weight="400" fill="#e4e8ec">Dicom Send</text>
+  <text x="826" y="213" font-family="'Segoe UI', system-ui, -apple-system, 'Helvetica Neue', Arial, sans-serif" font-size="12" fill="#959fab">Copy studies between archives</text>
   <g transform="translate(618,232) scale(0.667)" stroke="#6cb2f0" stroke-width="2.2" fill="none" stroke-linecap="square" stroke-linejoin="miter"><path d="M6 2v14a2 2 0 0 0 2 2h14"/><path d="M18 22V8a2 2 0 0 0-2-2H2"/></g>
   <text x="646" y="245" font-family="'Segoe UI', system-ui, -apple-system, 'Helvetica Neue', Arial, sans-serif" font-size="13" font-weight="400" fill="#e4e8ec">Dicom Cleaner</text>
   <text x="826" y="245" font-family="'Segoe UI', system-ui, -apple-system, 'Helvetica Neue', Arial, sans-serif" font-size="12" fill="#959fab">Redact burned-in pixel data</text>
