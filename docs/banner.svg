@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 320" role="img" aria-labelledby="bannerTitle bannerDesc">
   <title id="bannerTitle">Dicommunication</title>
-  <desc id="bannerDesc">A low-code DICOM connectivity and PACS admin toolkit, built for PACS administrators, imaging IT, and biomedical engineers, shown connecting to a PACS archive, an imaging modality, and a RIS/MWL worklist.</desc>
+  <desc id="bannerDesc">Dicommunication: a low-code DICOM connectivity and PACS admin toolkit for PACS administrators, imaging IT and biomedical engineers. Seven products in one app: the test tools, Dicomtag Analytics, Dicom Anonymizer, Dicom Router, Dicom Send, Dicom Cleaner and Dicom Import. Runs on Windows, macOS and Docker.</desc>
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0" stop-color="#010409"/>
@@ -34,10 +34,10 @@
     </text>
     <text x="150" y="86" font-family="'Segoe UI', Arial, sans-serif" font-size="11" font-weight="700" letter-spacing="2.5" fill="#94a3b8">DICOMMUNICATION TOOL</text>
 
-    <text x="46" y="168" font-family="'Plus Jakarta Sans', 'Segoe UI', Arial, sans-serif" font-size="46" font-weight="800" fill="#f8fafc">Dicommunication</text>
+    <text x="48" y="168" font-family="'Plus Jakarta Sans', 'Segoe UI', Arial, sans-serif" font-size="46" font-weight="800" fill="#f8fafc">Dicommunication</text>
 
-    <text x="48" y="204" font-family="'Segoe UI', Arial, sans-serif" font-size="17" fill="#cbd5e1">A low-code DICOM connectivity &amp; PACS admin toolkit —</text>
-    <text x="48" y="228" font-family="'Segoe UI', Arial, sans-serif" font-size="17" fill="#cbd5e1">prove a link works before a modality or report does not.</text>
+    <text x="48" y="204" font-family="'Segoe UI', Arial, sans-serif" font-size="17" fill="#cbd5e1">A low-code DICOM connectivity &amp; PACS admin toolkit:</text>
+    <text x="48" y="228" font-family="'Segoe UI', Arial, sans-serif" font-size="17" fill="#cbd5e1">test a link, then find, send, route and clean studies.</text>
 
     <!-- audience badges -->
     <g font-family="'Segoe UI', Arial, sans-serif" font-size="12.5" font-weight="700">
@@ -51,64 +51,56 @@
       <text x="378" y="271.5" fill="#bbf7d0" text-anchor="middle">Biomedical Engineering</text>
     </g>
 
-    <!-- ===== Right: purpose diagram — the admin, connected out over DICOM ===== -->
-    <g stroke="#38bdf8" stroke-width="1.6" fill="none" stroke-dasharray="5 5" opacity="0.85">
-      <path d="M830 170 L1000 77"/>
-      <path d="M830 170 L1000 170"/>
-      <path d="M830 170 L1000 263"/>
-    </g>
-    <g font-family="'Segoe UI', Arial, sans-serif" font-size="11" font-weight="700" fill="#67e8f9">
-      <text x="878" y="112">C-ECHO / C-FIND</text>
-      <text x="878" y="163">C-STORE</text>
-      <text x="878" y="228">MWL C-FIND</text>
-    </g>
+    <!-- ===== Right: the seven products, one app ===== -->
+    <text x="600" y="44" font-family="'Segoe UI', Arial, sans-serif" font-size="11" font-weight="700" letter-spacing="2.5" fill="#94a3b8">SEVEN PRODUCTS · ONE APP</text>
 
-    <!-- hub: the operator -->
-    <circle cx="765" cy="170" r="82" fill="url(#hubGlow)"/>
-    <rect x="700" y="125" width="130" height="90" rx="14" fill="#0f172a" stroke="#22d3ee" stroke-width="1.6"/>
-    <g transform="translate(716,146)" stroke="#e2e8f0" stroke-width="2.4" fill="none" stroke-linecap="round" stroke-linejoin="round">
-      <rect x="0" y="0" width="30" height="20" rx="2"/>
-      <line x1="15" y1="20" x2="15" y2="25"/>
-      <line x1="8" y1="29" x2="22" y2="29"/>
-      <circle cx="49" cy="6" r="6" fill="#22d3ee" stroke="none"/>
-      <path d="M39 29 q10 -14 20 0" />
-    </g>
-    <text x="765" y="197" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="13" font-weight="800" fill="#f0fdff">You</text>
-    <text x="765" y="211" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="10.5" fill="#94a3b8">PACS / IT admin</text>
+    <rect x="600" y="58" width="270" height="52" rx="10" fill="#0f172a" stroke="rgba(148,163,184,0.30)"/>
+    <rect x="600" y="68" width="3" height="32" rx="1.5" fill="#22d3ee"/>
+    <g transform="translate(616,72)" stroke="#22d3ee" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></g>
+    <text x="650" y="81" font-family="'Segoe UI', Arial, sans-serif" font-size="13" font-weight="800" fill="#e2e8f0">Dicommunication</text>
+    <text x="650" y="97" font-family="'Segoe UI', Arial, sans-serif" font-size="10.5" fill="#94a3b8">PING · C-ECHO · C-STORE · MWL · HL7</text>
 
-    <!-- PACS node -->
-    <rect x="1000" y="40" width="140" height="75" rx="12" fill="#0f172a" stroke="rgba(148,163,184,0.35)"/>
-    <g transform="translate(1016,58)" stroke="#2dd4bf" stroke-width="2.2" fill="none" stroke-linecap="round">
-      <rect x="0" y="0" width="26" height="8" rx="1.5"/>
-      <rect x="0" y="11" width="26" height="8" rx="1.5"/>
-      <rect x="0" y="22" width="26" height="8" rx="1.5"/>
-      <circle cx="22" cy="4" r="1.3" fill="#2dd4bf" stroke="none"/>
-      <circle cx="22" cy="15" r="1.3" fill="#2dd4bf" stroke="none"/>
-      <circle cx="22" cy="26" r="1.3" fill="#2dd4bf" stroke="none"/>
-    </g>
-    <text x="1056" y="68" font-family="'Segoe UI', Arial, sans-serif" font-size="13" font-weight="800" fill="#e2e8f0">PACS</text>
-    <text x="1056" y="84" font-family="'Segoe UI', Arial, sans-serif" font-size="10.5" fill="#94a3b8">Archive</text>
+    <rect x="882" y="58" width="270" height="52" rx="10" fill="#0f172a" stroke="rgba(148,163,184,0.30)"/>
+    <rect x="882" y="68" width="3" height="32" rx="1.5" fill="#a855f7"/>
+    <g transform="translate(898,72)" stroke="#a855f7" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/></g>
+    <text x="932" y="81" font-family="'Segoe UI', Arial, sans-serif" font-size="13" font-weight="800" fill="#e2e8f0">Dicomtag Analytics</text>
+    <text x="932" y="97" font-family="'Segoe UI', Arial, sans-serif" font-size="10.5" fill="#94a3b8">Query any DICOM tag, Study to Image</text>
 
-    <!-- Modality node -->
-    <rect x="1000" y="132" width="140" height="75" rx="12" fill="#0f172a" stroke="rgba(148,163,184,0.35)"/>
-    <g transform="translate(1016,150)" stroke="#f472b6" stroke-width="2.2" fill="none" stroke-linecap="round">
-      <circle cx="13" cy="13" r="13"/>
-      <line x1="0" y1="13" x2="26" y2="13"/>
-      <circle cx="13" cy="13" r="4" fill="#f472b6" stroke="none"/>
-    </g>
-    <text x="1056" y="160" font-family="'Segoe UI', Arial, sans-serif" font-size="13" font-weight="800" fill="#e2e8f0">Modality</text>
-    <text x="1056" y="176" font-family="'Segoe UI', Arial, sans-serif" font-size="10.5" fill="#94a3b8">CT / MR / US</text>
+    <rect x="600" y="118" width="270" height="52" rx="10" fill="#0f172a" stroke="rgba(148,163,184,0.30)"/>
+    <rect x="600" y="128" width="3" height="32" rx="1.5" fill="#4ade80"/>
+    <g transform="translate(616,132)" stroke="#4ade80" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z"/></g>
+    <text x="650" y="141" font-family="'Segoe UI', Arial, sans-serif" font-size="13" font-weight="800" fill="#e2e8f0">Dicom Anonymizer</text>
+    <text x="650" y="157" font-family="'Segoe UI', Arial, sans-serif" font-size="10.5" fill="#94a3b8">Retrieve, anonymize, export</text>
 
-    <!-- RIS / MWL node -->
-    <rect x="1000" y="225" width="140" height="75" rx="12" fill="#0f172a" stroke="rgba(148,163,184,0.35)"/>
-    <g transform="translate(1016,243)" stroke="#fbbf24" stroke-width="2.2" fill="none" stroke-linecap="round">
-      <rect x="0" y="0" width="22" height="28" rx="2.5"/>
-      <line x1="5" y1="8" x2="17" y2="8"/>
-      <line x1="5" y1="14" x2="17" y2="14"/>
-      <line x1="5" y1="20" x2="13" y2="20"/>
-    </g>
-    <text x="1056" y="253" font-family="'Segoe UI', Arial, sans-serif" font-size="13" font-weight="800" fill="#e2e8f0">RIS / MWL</text>
-    <text x="1056" y="269" font-family="'Segoe UI', Arial, sans-serif" font-size="10.5" fill="#94a3b8">Worklist</text>
+    <rect x="882" y="118" width="270" height="52" rx="10" fill="#0f172a" stroke="rgba(148,163,184,0.30)"/>
+    <rect x="882" y="128" width="3" height="32" rx="1.5" fill="#f472b6"/>
+    <g transform="translate(898,132)" stroke="#f472b6" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></g>
+    <text x="932" y="141" font-family="'Segoe UI', Arial, sans-serif" font-size="13" font-weight="800" fill="#e2e8f0">Dicom Router</text>
+    <text x="932" y="157" font-family="'Segoe UI', Arial, sans-serif" font-size="10.5" fill="#94a3b8">Schedules and folder watches</text>
+
+    <rect x="600" y="178" width="270" height="52" rx="10" fill="#0f172a" stroke="rgba(148,163,184,0.30)"/>
+    <rect x="600" y="188" width="3" height="32" rx="1.5" fill="#38bdf8"/>
+    <g transform="translate(616,192)" stroke="#38bdf8" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4 20-7z"/></g>
+    <text x="650" y="201" font-family="'Segoe UI', Arial, sans-serif" font-size="13" font-weight="800" fill="#e2e8f0">Dicom Send</text>
+    <text x="650" y="217" font-family="'Segoe UI', Arial, sans-serif" font-size="10.5" fill="#94a3b8">Copy studies between archives</text>
+
+    <rect x="882" y="178" width="270" height="52" rx="10" fill="#0f172a" stroke="rgba(148,163,184,0.30)"/>
+    <rect x="882" y="188" width="3" height="32" rx="1.5" fill="#fbbf24"/>
+    <g transform="translate(898,192)" stroke="#fbbf24" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2v14a2 2 0 0 0 2 2h14"/><path d="M18 22V8a2 2 0 0 0-2-2H2"/></g>
+    <text x="932" y="201" font-family="'Segoe UI', Arial, sans-serif" font-size="13" font-weight="800" fill="#e2e8f0">Dicom Cleaner</text>
+    <text x="932" y="217" font-family="'Segoe UI', Arial, sans-serif" font-size="10.5" fill="#94a3b8">Redact burned-in pixel data</text>
+
+    <rect x="600" y="238" width="270" height="52" rx="10" fill="#0f172a" stroke="rgba(148,163,184,0.30)"/>
+    <rect x="600" y="248" width="3" height="32" rx="1.5" fill="#2dd4bf"/>
+    <g transform="translate(616,252)" stroke="#2dd4bf" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M4 15v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></g>
+    <text x="650" y="261" font-family="'Segoe UI', Arial, sans-serif" font-size="13" font-weight="800" fill="#e2e8f0">Dicom Import</text>
+    <text x="650" y="277" font-family="'Segoe UI', Arial, sans-serif" font-size="10.5" fill="#94a3b8">Folders, ZIP and 7z into a PACS</text>
+
+    <rect x="882" y="238" width="270" height="52" rx="10" fill="#0f172a" stroke="rgba(148,163,184,0.30)"/>
+    <rect x="882" y="248" width="3" height="32" rx="1.5" fill="#94a3b8"/>
+    <g transform="translate(898,252)" stroke="#94a3b8" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></g>
+    <text x="932" y="261" font-family="'Segoe UI', Arial, sans-serif" font-size="13" font-weight="800" fill="#e2e8f0">Runs anywhere</text>
+    <text x="932" y="277" font-family="'Segoe UI', Arial, sans-serif" font-size="10.5" fill="#94a3b8">Windows · macOS · Docker</text>
 
     <rect x="0" y="316" width="1200" height="4" fill="url(#accentBar)"/>
   </g>
